@@ -1,11 +1,23 @@
 # 🏎️ Parco Auto
 
-Gestione del parco auto da corsa con Next.js + Supabase + Vercel.
+Applicazione web per la **gestione di una scuderia di auto da corsa**, con:
+- 🚗 Gestione auto
+- ⚙️ Gestione componenti (con scadenze e omologazioni)
+- 🛠️ Gestione manutenzioni
+- 🔧 Installazioni
+- 📊 Dashboard con statistiche e scadenze imminenti
+- 🌓 Tema chiaro/scuro
+- ✅ Autenticazione (da integrare con Supabase Auth)
 
-## 🚀 Avvio rapido
+---
 
-1. Crea un database su [Supabase](https://supabase.com)
-2. Copia `db/schema.sql` ed eseguilo nel SQL Editor
-3. Configura le variabili ambiente in `.env.local`:
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+## 🚀 Tecnologie usate
+- [Next.js 15](https://nextjs.org/) – Framework React moderno
+- [Tailwind CSS](https://tailwindcss.com/) – Stili moderni e responsive
+- [Supabase](https://supabase.com/) – Database e autenticazione
+- [Vercel](https://vercel.com/) – Deploy hosting serverless
+
+---
+
+## 📂 Struttura progetto
+
