@@ -6,17 +6,19 @@ import { supabase } from "@/lib/supabaseClient";
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
+  const [chassis, setChassis] = useState("");
 
   const fetchCars = async () => {
-    const { data, error } = await supabase.from("cars").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("cars").select("*");
     if (!error) setCars(data || []);
   };
 
   const addCar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
-    await supabase.from("cars").insert([{ name }]);
+    if (!name || !chassis) return;
+    await supabase.from("cars").insert([{ name, chassis_number: chassis }]);
     setName("");
+    setChassis("");
     fetchCars();
   };
 
@@ -31,25 +33,18 @@ export default function CarsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">🚗 Auto</h1>
-      <form onSubmit={addCar} className="flex gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Nome auto"
-          className="border p-2 rounded flex-1"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Aggiungi</button>
+      <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
+      <form onSubmit={addCar} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
+        <input type="text" placeholder="Nome auto" className="border p-2 rounded" value={name} onChange={(e) => setName(e.target.value)} required />
+        <input type="text" placeholder="Numero telaio" className="border p-2 rounded" value={chassis} onChange={(e) => setChassis(e.target.value)} required />
+        <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded">Aggiungi</button>
       </form>
 
       <ul className="space-y-2">
         {cars.map((car) => (
-          <li key={car.id} className="flex justify-between items-center border p-2 rounded">
-            {car.name}
-            <button onClick={() => deleteCar(car.id)} className="bg-red-500 text-white px-3 py-1 rounded">
-              Elimina
-            </button>
+          <li key={car.id} className="p-3 border rounded flex justify-between">
+            <span>{car.name} (Telaio: {car.chassis_number})</span>
+            <button onClick={() => deleteCar(car.id)} className="bg-red-500 text-white px-3 py-1 rounded">Elimina</button>
           </li>
         ))}
       </ul>
