@@ -21,7 +21,7 @@ export default function ComponentDetailPage() {
       .single();
     setComponent(compData);
 
-    // Se è installato, recupera su quale auto
+    // Se è installato, recupera su quale auto si trova
     if (compData?.status === "installato") {
       const { data: carData } = await supabase
         .from("car_components")
@@ -32,7 +32,7 @@ export default function ComponentDetailPage() {
       setCar(carData?.cars || null);
     }
 
-    // Storico manutenzioni
+    // Storico manutenzioni collegate
     const { data: maintData } = await supabase
       .from("maintenances")
       .select("*")
@@ -52,15 +52,23 @@ export default function ComponentDetailPage() {
       <h1 className="text-3xl font-bold mb-4">
         ⚙️ {component.type} – {component.identifier}
       </h1>
-      <p className="mb-4 text-gray-600 dark:text-gray-300">
-        {component.homologation && `Omologazione: ${component.homologation}`}{" "}
-        {component.expiry_date && ` | Scadenza: ${component.expiry_date}`}
+
+      {/* Info principali */}
+      <p className="mb-2">
+        <strong>Omologazione:</strong>{" "}
+        {component.homologation || "N/A"}
+      </p>
+      <p className="mb-2">
+        <strong>Scadenza:</strong>{" "}
+        {component.expiry_date || "Nessuna"}
       </p>
       <p className="mb-6">
-        Stato:{" "}
+        <strong>Stato:</strong>{" "}
         <span
           className={`font-bold ${
-            component.status === "installato" ? "text-green-600" : "text-gray-500"
+            component.status === "installato"
+              ? "text-green-600"
+              : "text-gray-500"
           }`}
         >
           {component.status}
