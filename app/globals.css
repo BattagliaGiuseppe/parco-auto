@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Stili del calendario */
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+
 body {
   @apply bg-white text-black dark:bg-gray-900 dark:text-white;
 }
