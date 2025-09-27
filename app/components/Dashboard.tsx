@@ -1,15 +1,7 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
-import {
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  Calendar as CalendarIcon,
-} from "lucide-react";
-
+import { CheckCircle, AlertTriangle, XCircle, Calendar } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -20,98 +12,88 @@ import {
   CartesianGrid,
 } from "recharts";
 
-import {
-  Calendar as BigCalendar,
-  dateFnsLocalizer,
-} from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
-import { it } from "date-fns/locale";
-
-// Localizzazione calendario
-const locales = {
-  it: it,
-};
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
-  getDay,
-  locales,
-});
+const data = [
+  { name: "Auto #12", motore: 80 },
+  { name: "Auto #8", motore: 55 },
+  { name: "Auto #5", motore: 30 },
+  { name: "Auto #3", motore: 95 },
+];
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    cars: 0,
-    components: 0,
-    maintenances: 0,
-  });
-  const [expiring, setExpiring] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-
-  const fetchDashboardData = async () => {
-    // Auto
-    const { count: carsCount } = await supabase
-      .from("cars")
-      .select("*", { count: "exact", head: true });
-
-    // Componenti
-    const { count: compsCount } = await supabase
-      .from("components")
-      .select("*", { count: "exact", head: true });
-
-    // Manutenzioni
-    const { count: maintCount } = await supabase
-      .from("maintenances")
-      .select("*", { count: "exact", head: true });
-
-    // Componenti in scadenza entro 30 giorni
-    const today = new Date();
-    const limit = new Date();
-    limit.setDate(today.getDate() + 30);
-
-    const { data: expiringData } = await supabase
-      .from("components")
-      .select("*")
-      .lte("expiry_date", limit.toISOString().split("T")[0])
-      .gte("expiry_date", today.toISOString().split("T")[0]);
-
-    // Eventi (se hai tabella "events")
-    const { data: eventsData } = await supabase.from("events").select("*");
-
-    setStats({
-      cars: carsCount || 0,
-      components: compsCount || 0,
-      maintenances: maintCount || 0,
-    });
-    setExpiring(expiringData || []);
-    setEvents(
-      eventsData
-        ? eventsData.map((e) => ({
-            id: e.id,
-            title: e.title,
-            start: new Date(e.start_date),
-            end: new Date(e.end_date),
-          }))
-        : []
-    );
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  // Dati demo per grafico (da collegare ai tuoi dati reali se vuoi)
-  const sampleData = [
-    { name: "Auto #12", motore: 80 },
-    { name: "Auto #8", motore: 55 },
-    { name: "Auto #5", motore: 30 },
-  ];
-
   return (
     <div className="p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-800">📊 Dashboard Parco Auto</h1>
-      {/* Card statistiche */}
+      <h1 className="text-2xl font-bold text-gray-800">Dashboard Parco Auto</h1>
+
+      {/* Card stato vetture */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link
-          href="/cars"
-          className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4
+        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-green-500">
+          <CheckCircle className="text-green-500" size={32} />
+          <div>
+            <p className="text-sm text-gray-500">Auto in ordine</p>
+            <p className="text-xl font-bold">5</p>
+          </div>
+        </div>
+        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
+          <AlertTriangle className="text-yellow-500" size={32} />
+          <div>
+            <p className="text-sm text-gray-500">Manutenzioni prossime</p>
+            <p className="text-xl font-bold">2</p>
+          </div>
+        </div>
+        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-red-500">
+          <XCircle className="text-red-500" size={32} />
+          <div>
+            <p className="text-sm text-gray-500">Urgenze</p>
+            <p className="text-xl font-bold">1</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Grafico */}
+      <div className="bg-white shadow-lg rounded-2xl p-6">
+        <h2 className="text-lg font-semibold mb-4">Ore motore per vettura</h2>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="motore" fill="#ef4444" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Scadenze + Calendario */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Prossime Scadenze</h2>
+          <ul className="space-y-3">
+            <li className="flex items-center justify-between">
+              <span className="text-gray-700">Cambio motore Auto #12</span>
+              <span className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full">Urgente</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="text-gray-700">Revisione sospensioni Auto #8</span>
+              <span className="text-sm bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">Tra 7 giorni</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="text-gray-700">Tagliando Auto #5</span>
+              <span className="text-sm bg-green-100 text-green-600 px-3 py-1 rounded-full">Ok</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Calendar size={20} /> Calendario Eventi
+          </h2>
+          <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
+            Calendario qui (es. react-big-calendar)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
