@@ -110,7 +110,6 @@ export default function Dashboard() {
   return (
     <div className="p-6 flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-gray-800">📊 Dashboard Parco Auto</h1>
-
       {/* Card statistiche */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
