@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
+import Link from "next/link"; // 👈 aggiunto
 
 export default function CarDetailPage() {
   const params = useParams();
@@ -13,26 +14,33 @@ export default function CarDetailPage() {
   const [maintenances, setMaintenances] = useState<any[]>([]);
 
   const fetchCarDetails = async () => {
-    // Dati auto
-    const { data: carData } = await supabase.from("cars").select("*").eq("id", carId).single();
+    // Info auto
+    const { data: carData } = await supabase
+      .from("cars")
+      .select("*")
+      .eq("id", carId)
+      .single();
     setCar(carData);
 
     // Componenti installati
     const { data: compData } = await supabase
       .from("car_components")
-      .select("*, components(id, type, identifier, homologation, expiry_date)")
+      .select("*, components(id, type, identifier, expiry_date)")
       .eq("car_id", carId)
       .is("removed_at", null);
 
     setComponents(compData || []);
 
-    // Storico manutenzioni dei componenti dell'auto
-    const { data: maintData } = await supabase
-      .from("maintenances")
-      .select("*, components(type, identifier)")
-      .in("component_id", compData?.map((c: any) => c.component_id) || []);
+    // Storico manutenzioni legato ai componenti dell’auto
+    if (compData && compData.length > 0) {
+      const compIds = compData.map((c: any) => c.component_id);
+      const { data: maintData } = await supabase
+        .from("maintenances")
+        .select("*, components(type, identifier)")
+        .in("component_id", compIds);
 
-    setMaintenances(maintData || []);
+      setMaintenances(maintData || []);
+    }
   };
 
   useEffect(() => {
@@ -44,7 +52,9 @@ export default function CarDetailPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-4">🚗 {car.name}</h1>
-      <p className="mb-6 text-gray-600 dark:text-gray-300">Telaio: {car.chassis_number}</p>
+      <p className="mb-6 text-gray-600 dark:text-gray-300">
+        Telaio: {car.chassis_number}
+      </p>
 
       {/* Componenti installati */}
       <h2 className="text-xl font-semibold mb-2">⚙️ Componenti attualmente installati</h2>
@@ -54,8 +64,16 @@ export default function CarDetailPage() {
         <ul className="space-y-2 mb-6">
           {components.map((c) => (
             <li key={c.component_id} className="p-3 border rounded">
-              {c.components?.type} – {c.components?.identifier}
-              {c.components?.expiry_date ? ` (Scadenza: ${c.components?.expiry_date})` : ""}
+              {/* 👇 Link al dettaglio del componente */}
+              <Link
+                href={`/components/${c.components?.id}`}
+                className="text-blue-600 hover:underline"
+              >
+                {c.components?.type} – {c.components?.identifier}
+              </Link>
+              {c.components?.expiry_date
+                ? ` (Scadenza: ${c.components?.expiry_date})`
+                : ""}
             </li>
           ))}
         </ul>
@@ -69,7 +87,8 @@ export default function CarDetailPage() {
         <ul className="space-y-2">
           {maintenances.map((m) => (
             <li key={m.id} className="p-3 border rounded">
-              {m.performed_at?.split("T")[0]} – {m.description} ({m.components?.type} {m.components?.identifier})
+              {m.performed_at?.split("T")[0]} – {m.description} (
+              {m.components?.type} {m.components?.identifier})
             </li>
           ))}
         </ul>
