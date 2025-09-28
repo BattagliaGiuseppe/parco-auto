@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "./components/Sidebar";
 
 export const metadata: Metadata = {
   title: "Parco Auto",
