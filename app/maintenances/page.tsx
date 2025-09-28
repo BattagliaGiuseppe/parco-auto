@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function MaintenancesPage() {
   const [maintenances, setMaintenances] = useState<any[]>([]);
@@ -61,5 +62,6 @@ export default function MaintenancesPage() {
         ))}
       </ul>
     </div>
+   </ProtectedRoute>
   );
 }
