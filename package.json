@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/ssr": "^0.5.0",
+    "@supabase/auth-helpers-react": "^0.5.0",
     "autoprefixer": "^10.4.20",
     "next": "15.5.4",
     "postcss": "^8.4.47",
@@ -21,7 +21,6 @@
     "lucide-react": "^0.454.0",
     "recharts": "^2.12.7",
     "react-big-calendar": "^1.11.3",
-    "react-use-supabase": "^0.3.3",
     "date-fns": "^3.6.0"
   },
   "devDependencies": {
