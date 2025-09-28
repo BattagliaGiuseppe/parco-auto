@@ -7,7 +7,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-gray-900 text-white flex flex-col shadow-xl">
       {/* Logo */}
       <div className="flex items-center justify-center p-6 border-b border-gray-800">
-        <Image
+        <img
           src="/logo.png"   // logo dentro /public
           alt="Battaglia Racing Car Logo"
           width={80}
