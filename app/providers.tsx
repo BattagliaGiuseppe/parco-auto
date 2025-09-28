@@ -1,8 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { useState } from "react";
-import { SessionContextProvider } from "react-use-supabase";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,10 +9,8 @@ const supabase = createBrowserClient(
 );
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [client] = useState(() => supabase);
-
   return (
-    <SessionContextProvider client={client}>
+    <SessionContextProvider supabaseClient={supabase}>
       {children}
     </SessionContextProvider>
   );
