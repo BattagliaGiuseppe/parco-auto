@@ -1,4 +1,8 @@
-// app/impostazioni/page.tsx
 export default function ImpostazioniPage() {
-  return <h1>⚙️ Impostazioni</h1>;
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">⚙️ Impostazioni</h1>
+      <p>Qui potrai gestire le impostazioni del sistema.</p>
+    </div>
+  );
 }
