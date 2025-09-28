@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link"; // 👈 aggiunto
+import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function ComponentsPage() {
   const [components, setComponents] = useState<any[]>([]);
@@ -102,5 +103,6 @@ export default function ComponentsPage() {
         ))}
       </ul>
     </div>
+   </ProtectedRoute>
   );
 }
