@@ -1,20 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 import Link from "next/link";
-import { useUser } from "@supabase/auth-helpers-react";
 
 export default function ComponentsPage() {
+  const session = useSession();
+  const supabase = useSupabaseClient();
   const [components, setComponents] = useState<any[]>([]);
   const [type, setType] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [homologation, setHomologation] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
-  const user = useUser();
 
   const fetchComponents = async () => {
-    if (!user) return;
     const { data, error } = await supabase.from("components").select("*");
     if (!error) setComponents(data || []);
   };
@@ -32,19 +31,16 @@ export default function ComponentsPage() {
   };
 
   useEffect(() => {
-    fetchComponents();
-  }, [user]);
+    if (session) fetchComponents();
+  }, [session]);
 
-  if (!user) return <p>🔒 Devi fare login per accedere a questa pagina.</p>;
+  if (!session) return <p>🔒 Devi effettuare il login per vedere questa pagina</p>;
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">⚙️ Gestione Componenti</h1>
 
-      <form
-        onSubmit={addComponent}
-        className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6"
-      >
+      <form onSubmit={addComponent} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6">
         <input
           type="text"
           placeholder="Tipo"
@@ -74,30 +70,26 @@ export default function ComponentsPage() {
           value={expiryDate}
           onChange={(e) => setExpiryDate(e.target.value)}
         />
-        <button
-          type="submit"
-          className="col-span-full bg-blue-600 text-white py-2 rounded"
-        >
+        <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded">
           Aggiungi
         </button>
       </form>
 
       <ul className="space-y-2">
         {components.map((c) => (
-          <li
-            key={c.id}
-            className="p-3 border rounded flex justify-between items-center"
-          >
+          <li key={c.id} className="p-3 border rounded flex justify-between items-center">
             <span>
               {c.type} – {c.identifier}{" "}
               {c.expiry_date ? `(Scadenza: ${c.expiry_date})` : ""}
             </span>
-            <Link
-              href={`/components/${c.id}`}
-              className="bg-green-600 text-white px-3 py-1 rounded"
-            >
-              Dettagli
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                href={`/components/${c.id}`}
+                className="bg-green-600 text-white px-3 py-1 rounded"
+              >
+                Dettagli
+              </Link>
+            </div>
           </li>
         ))}
       </ul>
