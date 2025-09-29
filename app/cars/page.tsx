@@ -5,9 +5,8 @@ import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 import Link from "next/link";
 
 export default function CarsPage() {
-  const session = useSession(); // ✅ Recupera la sessione dal Provider
-  const supabase = useSupabaseClient(); // ✅ Usa il client dal Provider
-
+  const session = useSession();
+  const supabase = useSupabaseClient();
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
@@ -37,9 +36,9 @@ export default function CarsPage() {
     }
   }, [session]);
 
-  // 🔒 Se non c’è sessione → chiede login una sola volta
+  // Se non c’è login → mostra messaggio
   if (!session) {
-    return <p className="p-4">Devi effettuare il login per accedere a questa pagina.</p>;
+    return <p className="text-red-500">Devi effettuare il login per accedere a questa pagina.</p>;
   }
 
   return (
@@ -101,3 +100,7 @@ export default function CarsPage() {
             </div>
           </li>
         ))}
+      </ul>
+    </div>
+  );
+}
