@@ -1,16 +1,18 @@
 "use client";
 
-import ProtectedRoute from "@/components/ProtectedRoute";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useUser } from "@supabase/auth-helpers-react";
 
 export default function MaintenancesPage() {
   const [maintenances, setMaintenances] = useState<any[]>([]);
   const [componentId, setComponentId] = useState("");
   const [description, setDescription] = useState("");
   const [components, setComponents] = useState<any[]>([]);
+  const user = useUser();
 
   const fetchMaintenances = async () => {
+    if (!user) return;
     const { data, error } = await supabase
       .from("maintenances")
       .select("*, components(type, identifier)")
@@ -19,6 +21,7 @@ export default function MaintenancesPage() {
   };
 
   const fetchComponents = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from("components")
       .select("id, type, identifier");
@@ -44,65 +47,64 @@ export default function MaintenancesPage() {
   useEffect(() => {
     fetchMaintenances();
     fetchComponents();
-  }, []);
+  }, [user]);
+
+  if (!user) return <p>🔒 Devi fare login per accedere a questa pagina.</p>;
 
   return (
-    <ProtectedRoute>
-      <div>
-        <h1 className="text-2xl font-bold mb-4">🛠️ Gestione Manutenzioni</h1>
-        <form
-          onSubmit={addMaintenance}
-          className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
+    <div>
+      <h1 className="text-2xl font-bold mb-4">🛠️ Gestione Manutenzioni</h1>
+      <form
+        onSubmit={addMaintenance}
+        className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
+      >
+        <select
+          className="border p-2 rounded"
+          value={componentId}
+          onChange={(e) => setComponentId(e.target.value)}
+          required
         >
-          <select
-            className="border p-2 rounded"
-            value={componentId}
-            onChange={(e) => setComponentId(e.target.value)}
-            required
-          >
-            <option value="">Seleziona componente</option>
-            {components.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.type} – {c.identifier}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Descrizione intervento"
-            className="border p-2 rounded"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-          <button
-            type="submit"
-            className="col-span-full bg-blue-600 text-white py-2 rounded"
-          >
-            Aggiungi
-          </button>
-        </form>
-
-        <ul className="space-y-2">
-          {maintenances.map((m) => (
-            <li
-              key={m.id}
-              className="p-3 border rounded flex justify-between"
-            >
-              <span>
-                {m.description} – su {m.components?.type}{" "}
-                {m.components?.identifier}
-              </span>
-              <button
-                onClick={() => deleteMaintenance(m.id)}
-                className="bg-red-500 text-white px-3 py-1 rounded"
-              >
-                Elimina
-              </button>
-            </li>
+          <option value="">Seleziona componente</option>
+          {components.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.type} – {c.identifier}
+            </option>
           ))}
-        </ul>
-      </div>
-    </ProtectedRoute>
+        </select>
+        <input
+          type="text"
+          placeholder="Descrizione intervento"
+          className="border p-2 rounded"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+        <button
+          type="submit"
+          className="col-span-full bg-blue-600 text-white py-2 rounded"
+        >
+          Aggiungi
+        </button>
+      </form>
+
+      <ul className="space-y-2">
+        {maintenances.map((m) => (
+          <li
+            key={m.id}
+            className="p-3 border rounded flex justify-between"
+          >
+            <span>
+              {m.description} – su {m.components?.type} {m.components?.identifier}
+            </span>
+            <button
+              onClick={() => deleteMaintenance(m.id)}
+              className="bg-red-500 text-white px-3 py-1 rounded"
+            >
+              Elimina
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
