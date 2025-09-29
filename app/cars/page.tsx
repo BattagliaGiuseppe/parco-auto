@@ -1,30 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSupabaseClient, useSession } from "@supabase/auth-helpers-react";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { useUser } from "@supabase/auth-helpers-react";
 
 export default function CarsPage() {
-  const supabase = useSupabaseClient();
-  const session = useSession();
-
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
-
-  useEffect(() => {
-    if (session) {
-      fetchCars();
-    }
-  }, [session]);
+  const user = useUser();
 
   const fetchCars = async () => {
+    if (!user) return; // 👉 aspetta login
     const { data, error } = await supabase.from("cars").select("*");
-    if (error) {
-      console.error(error);
-      return;
-    }
-    setCars(data || []);
+    if (!error) setCars(data || []);
   };
 
   const addCar = async (e: React.FormEvent) => {
@@ -41,15 +31,16 @@ export default function CarsPage() {
     fetchCars();
   };
 
-  if (!session) {
-    return <p className="text-red-500">⚠ Devi fare login per vedere questa pagina.</p>;
-  }
+  useEffect(() => {
+    fetchCars();
+  }, [user]);
+
+  if (!user) return <p>🔒 Devi fare login per accedere a questa pagina.</p>;
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
 
-      {/* Form per aggiungere auto */}
       <form
         onSubmit={addCar}
         className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
@@ -78,7 +69,6 @@ export default function CarsPage() {
         </button>
       </form>
 
-      {/* Lista auto */}
       <ul className="space-y-2">
         {cars.map((car) => (
           <li
