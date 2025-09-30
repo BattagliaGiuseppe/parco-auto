@@ -1,22 +1,32 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  }
-);
+import { useState, useEffect } from "react";
+import { Session, SessionContextProvider } from "@supabase/auth-helpers-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Recupera la sessione salvata
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      console.log("📢 Session iniziale:", data.session);
+    });
+
+    // Ascolta cambiamenti (login/logout)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      console.log("📢 Session aggiornata:", session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
-    <SessionContextProvider supabaseClient={supabase}>
+    <SessionContextProvider supabaseClient={supabase} initialSession={session}>
       {children}
     </SessionContextProvider>
   );

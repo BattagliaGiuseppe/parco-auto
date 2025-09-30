@@ -3,16 +3,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import { useUser } from "@supabase/auth-helpers-react";
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
-  const user = useUser();
 
   const fetchCars = async () => {
-    if (!user) return; // 👉 aspetta login
     const { data, error } = await supabase.from("cars").select("*");
     if (!error) setCars(data || []);
   };
@@ -33,18 +30,14 @@ export default function CarsPage() {
 
   useEffect(() => {
     fetchCars();
-  }, [user]);
-
-  if (!user) return <p>🔒 Devi fare login per accedere a questa pagina.</p>;
+  }, []);
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
 
-      <form
-        onSubmit={addCar}
-        className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
-      >
+      {/* Form */}
+      <form onSubmit={addCar} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
         <input
           type="text"
           placeholder="Nome auto"
@@ -61,28 +54,17 @@ export default function CarsPage() {
           onChange={(e) => setChassis(e.target.value)}
           required
         />
-        <button
-          type="submit"
-          className="col-span-full bg-blue-600 text-white py-2 rounded"
-        >
+        <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded">
           Aggiungi
         </button>
       </form>
 
       <ul className="space-y-2">
         {cars.map((car) => (
-          <li
-            key={car.id}
-            className="p-3 border rounded flex justify-between items-center"
-          >
-            <span>
-              {car.name} (Telaio: {car.chassis_number})
-            </span>
+          <li key={car.id} className="p-3 border rounded flex justify-between items-center">
+            <span>{car.name} (Telaio: {car.chassis_number})</span>
             <div className="flex gap-2">
-              <Link
-                href={`/cars/${car.id}`}
-                className="bg-green-600 text-white px-3 py-1 rounded"
-              >
+              <Link href={`/cars/${car.id}`} className="bg-green-600 text-white px-3 py-1 rounded">
                 Dettagli
               </Link>
               <button
