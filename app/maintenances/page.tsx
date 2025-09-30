@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useSupabaseClient } from "@supabase/auth-helpers-react";
 
 export default function MaintenancesPage() {
-  const session = useSession();
   const supabase = useSupabaseClient();
   const [maintenances, setMaintenances] = useState<any[]>([]);
   const [componentId, setComponentId] = useState("");
@@ -43,18 +42,17 @@ export default function MaintenancesPage() {
   };
 
   useEffect(() => {
-    if (session) {
-      fetchMaintenances();
-      fetchComponents();
-    }
-  }, [session]);
-
-  if (!session) return <p>🔒 Devi effettuare il login per vedere questa pagina</p>;
+    fetchMaintenances();
+    fetchComponents();
+  }, []);
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">🛠️ Gestione Manutenzioni</h1>
-      <form onSubmit={addMaintenance} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
+      <form
+        onSubmit={addMaintenance}
+        className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
+      >
         <select
           className="border p-2 rounded"
           value={componentId}
@@ -76,14 +74,20 @@ export default function MaintenancesPage() {
           onChange={(e) => setDescription(e.target.value)}
           required
         />
-        <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded">
+        <button
+          type="submit"
+          className="col-span-full bg-blue-600 text-white py-2 rounded"
+        >
           Aggiungi
         </button>
       </form>
 
       <ul className="space-y-2">
         {maintenances.map((m) => (
-          <li key={m.id} className="p-3 border rounded flex justify-between">
+          <li
+            key={m.id}
+            className="p-3 border rounded flex justify-between"
+          >
             <span>
               {m.description} – su {m.components?.type} {m.components?.identifier}
             </span>
