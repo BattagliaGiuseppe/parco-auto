@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { CheckCircle, AlertTriangle, XCircle, Calendar } from "lucide-react";
 import {
   BarChart,
@@ -11,14 +13,41 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const data = [
-  { name: "Auto #12", motore: 80 },
-  { name: "Auto #8", motore: 55 },
-  { name: "Auto #5", motore: 30 },
-  { name: "Auto #3", motore: 95 },
-];
-
 export default function Dashboard() {
+  const [cars, setCars] = useState<any[]>([]);
+  const [maintenances, setMaintenances] = useState<any[]>([]);
+  const [components, setComponents] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: carsData } = await supabase.from("cars").select("*");
+      const { data: maintData } = await supabase.from("maintenances").select("*");
+      const { data: compsData } = await supabase.from("components").select("*");
+
+      setCars(carsData || []);
+      setMaintenances(maintData || []);
+      setComponents(compsData || []);
+    };
+
+    fetchData();
+  }, []);
+
+  // 📊 Esempio semplice per contatori
+  const inOrdine = cars.length;
+  const prossime = maintenances.length;
+  const urgenze = components.filter((c) => {
+    if (!c.expiry_date) return false;
+    const expiry = new Date(c.expiry_date);
+    const today = new Date();
+    return expiry <= today;
+  }).length;
+
+  // 📈 Esempio dati grafico: se la tabella cars ha un campo "engine_hours"
+  const chartData = cars.map((car) => ({
+    name: car.name,
+    motore: car.engine_hours || 0,
+  }));
+
   return (
     <div className="p-6 flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-gray-800">Dashboard Parco Auto</h1>
@@ -29,21 +58,21 @@ export default function Dashboard() {
           <CheckCircle className="text-green-500" size={32} />
           <div>
             <p className="text-sm text-gray-500">Auto in ordine</p>
-            <p className="text-xl font-bold">5</p>
+            <p className="text-xl font-bold">{inOrdine}</p>
           </div>
         </div>
         <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
           <AlertTriangle className="text-yellow-500" size={32} />
           <div>
             <p className="text-sm text-gray-500">Manutenzioni prossime</p>
-            <p className="text-xl font-bold">2</p>
+            <p className="text-xl font-bold">{prossime}</p>
           </div>
         </div>
         <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-red-500">
           <XCircle className="text-red-500" size={32} />
           <div>
             <p className="text-sm text-gray-500">Urgenze</p>
-            <p className="text-xl font-bold">1</p>
+            <p className="text-xl font-bold">{urgenze}</p>
           </div>
         </div>
       </div>
@@ -53,7 +82,7 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold mb-4">Ore motore per vettura</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -64,23 +93,23 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Scadenze + Calendario */}
+      {/* Scadenze (prende i componenti con expiry_date futuro) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white shadow-lg rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4">Prossime Scadenze</h2>
           <ul className="space-y-3">
-            <li className="flex items-center justify-between">
-              <span className="text-gray-700">Cambio motore Auto #12</span>
-              <span className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full">Urgente</span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span className="text-gray-700">Revisione sospensioni Auto #8</span>
-              <span className="text-sm bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">Tra 7 giorni</span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span className="text-gray-700">Tagliando Auto #5</span>
-              <span className="text-sm bg-green-100 text-green-600 px-3 py-1 rounded-full">Ok</span>
-            </li>
+            {components
+              .filter((c) => c.expiry_date)
+              .map((c) => (
+                <li key={c.id} className="flex items-center justify-between">
+                  <span className="text-gray-700">
+                    {c.type} – {c.identifier}
+                  </span>
+                  <span className="text-sm bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">
+                    {c.expiry_date}
+                  </span>
+                </li>
+              ))}
           </ul>
         </div>
 
