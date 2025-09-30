@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import Link from "next/link";
 
 export default function CarsPage() {
-  const session = useSession();
   const supabase = useSupabaseClient();
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
@@ -31,10 +30,8 @@ export default function CarsPage() {
   };
 
   useEffect(() => {
-    if (session) fetchCars();
-  }, [session]);
-
-  if (!session) return <p>🔒 Devi effettuare il login per vedere questa pagina</p>;
+    fetchCars();
+  }, []);
 
   return (
     <div>
