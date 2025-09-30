@@ -5,29 +5,20 @@ import { supabase } from "@/lib/supabaseClient";
 
 export default function MaintenancesPage() {
   const [maintenances, setMaintenances] = useState<any[]>([]);
-  const [componentId, setComponentId] = useState("");
   const [description, setDescription] = useState("");
-  const [components, setComponents] = useState<any[]>([]);
+  const [date, setDate] = useState("");
 
   const fetchMaintenances = async () => {
-    const { data, error } = await supabase
-      .from("maintenances")
-      .select("*, components(type, identifier)")
-      .order("performed_at", { ascending: false });
+    const { data, error } = await supabase.from("maintenances").select("*");
     if (!error) setMaintenances(data || []);
-  };
-
-  const fetchComponents = async () => {
-    const { data } = await supabase.from("components").select("id, type, identifier");
-    if (data) setComponents(data);
   };
 
   const addMaintenance = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !componentId) return;
-    await supabase.from("maintenances").insert([{ description, component_id: componentId }]);
+    if (!description || !date) return;
+    await supabase.from("maintenances").insert([{ description, date }]);
     setDescription("");
-    setComponentId("");
+    setDate("");
     fetchMaintenances();
   };
 
@@ -38,34 +29,26 @@ export default function MaintenancesPage() {
 
   useEffect(() => {
     fetchMaintenances();
-    fetchComponents();
   }, []);
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">🛠️ Gestione Manutenzioni</h1>
+      <h1 className="text-2xl font-bold mb-4">🛠️ Manutenzioni</h1>
 
-      {/* Form */}
       <form onSubmit={addMaintenance} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
-        <select
-          className="border p-2 rounded"
-          value={componentId}
-          onChange={(e) => setComponentId(e.target.value)}
-          required
-        >
-          <option value="">Seleziona componente</option>
-          {components.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.type} – {c.identifier}
-            </option>
-          ))}
-        </select>
         <input
           type="text"
-          placeholder="Descrizione intervento"
+          placeholder="Descrizione"
           className="border p-2 rounded"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+        <input
+          type="date"
+          className="border p-2 rounded"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
           required
         />
         <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded">
@@ -73,13 +56,10 @@ export default function MaintenancesPage() {
         </button>
       </form>
 
-      {/* Lista manutenzioni */}
       <ul className="space-y-2">
         {maintenances.map((m) => (
-          <li key={m.id} className="p-3 border rounded flex justify-between">
-            <span>
-              {m.description} – su {m.components?.type} {m.components?.identifier}
-            </span>
+          <li key={m.id} className="p-3 border rounded flex justify-between items-center">
+            <span>{m.description} - {m.date}</span>
             <button
               onClick={() => deleteMaintenance(m.id)}
               className="bg-red-500 text-white px-3 py-1 rounded"

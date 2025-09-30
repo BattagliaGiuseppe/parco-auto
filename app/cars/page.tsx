@@ -59,7 +59,6 @@ export default function CarsPage() {
         </button>
       </form>
 
-      {/* Lista auto */}
       <ul className="space-y-2">
         {cars.map((car) => (
           <li key={car.id} className="p-3 border rounded flex justify-between items-center">
