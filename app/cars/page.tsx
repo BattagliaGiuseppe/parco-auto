@@ -16,7 +16,7 @@ export default function CarsPage() {
   const [components, setComponents] = useState<ComponentForm[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Struttura componenti base + con scadenza
+  // Componenti "template" predefiniti
   const defaultComponents: ComponentForm[] = [
     { type: "motore", identifier: "" },
     { type: "cambio", identifier: "" },
@@ -41,19 +41,18 @@ export default function CarsPage() {
     fetchCars();
   }, []);
 
-  // Quando inserisco nome + telaio → preparo i componenti
   const prepareComponents = () => {
     setComponents(
       defaultComponents.map((c) => ({
         ...c,
-        identifier: c.identifier || `${name} - ${c.type}`,
+        identifier: `${name} - ${c.type}`,
       }))
     );
   };
 
   const addCarWithComponents = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !chassis) return;
+    if (!name || !chassis || components.length === 0) return;
 
     setLoading(true);
 
@@ -70,7 +69,7 @@ export default function CarsPage() {
       return;
     }
 
-    // 2️⃣ Inserisci i componenti collegati
+    // 2️⃣ Inserisci componenti (una sola volta!)
     const compsToInsert = components.map((c) => ({
       type: c.type,
       identifier: c.identifier,
@@ -114,7 +113,6 @@ export default function CarsPage() {
           />
         </div>
 
-        {/* Bottone per generare i componenti */}
         {components.length === 0 && (
           <button
             type="button"
@@ -125,7 +123,6 @@ export default function CarsPage() {
           </button>
         )}
 
-        {/* Form componenti */}
         {components.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold">Componenti</h2>
@@ -177,7 +174,7 @@ export default function CarsPage() {
         )}
       </form>
 
-      {/* Lista auto esistenti */}
+      {/* Lista auto */}
       <div className="space-y-6">
         {cars.map((car) => (
           <div key={car.id} className="bg-white p-4 rounded-lg shadow">
@@ -187,9 +184,7 @@ export default function CarsPage() {
             <ul className="ml-4 space-y-1">
               {car.components.map((comp: any) => (
                 <li key={comp.id} className="flex justify-between text-sm">
-                  <span>
-                    {comp.type} – {comp.identifier}
-                  </span>
+                  <span>{comp.type} – {comp.identifier}</span>
                   {comp.expiry_date && (
                     <span className="text-red-500">
                       Scade: {new Date(comp.expiry_date).toLocaleDateString()}
