@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type ComponentForm = {
+  id?: number;
   type: string;
   identifier: string;
   expiry_date?: string;
@@ -15,8 +16,8 @@ export default function CarsPage() {
   const [chassis, setChassis] = useState("");
   const [components, setComponents] = useState<ComponentForm[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingComp, setEditingComp] = useState<ComponentForm | null>(null);
 
-  // Componenti "template" predefiniti
   const defaultComponents: ComponentForm[] = [
     { type: "motore", identifier: "" },
     { type: "cambio", identifier: "" },
@@ -56,7 +57,6 @@ export default function CarsPage() {
 
     setLoading(true);
 
-    // 1️⃣ Inserisci auto
     const { data: newCar, error } = await supabase
       .from("cars")
       .insert([{ name, chassis_number: chassis }])
@@ -69,7 +69,6 @@ export default function CarsPage() {
       return;
     }
 
-    // 2️⃣ Inserisci componenti (una sola volta!)
     const compsToInsert = components.map((c) => ({
       type: c.type,
       identifier: c.identifier,
@@ -79,12 +78,26 @@ export default function CarsPage() {
 
     await supabase.from("components").insert(compsToInsert);
 
-    // reset
     setName("");
     setChassis("");
     setComponents([]);
     setLoading(false);
 
+    fetchCars();
+  };
+
+  const saveComponentEdit = async () => {
+    if (!editingComp) return;
+
+    await supabase
+      .from("components")
+      .update({
+        identifier: editingComp.identifier,
+        expiry_date: editingComp.expiry_date || null,
+      })
+      .eq("id", editingComp.id);
+
+    setEditingComp(null);
     fetchCars();
   };
 
@@ -183,19 +196,68 @@ export default function CarsPage() {
             </h2>
             <ul className="ml-4 space-y-1">
               {car.components.map((comp: any) => (
-                <li key={comp.id} className="flex justify-between text-sm">
-                  <span>{comp.type} – {comp.identifier}</span>
-                  {comp.expiry_date && (
-                    <span className="text-red-500">
-                      Scade: {new Date(comp.expiry_date).toLocaleDateString()}
-                    </span>
-                  )}
+                <li key={comp.id} className="flex justify-between items-center text-sm">
+                  <span>
+                    {comp.type} – {comp.identifier}{" "}
+                    {comp.expiry_date && (
+                      <span className="text-red-500">
+                        (Scade: {new Date(comp.expiry_date).toLocaleDateString()})
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    className="text-blue-600 text-xs underline"
+                    onClick={() => setEditingComp(comp)}
+                  >
+                    ✏️ Modifica
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
+
+      {/* Modale modifica componente */}
+      {editingComp && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96 space-y-4">
+            <h2 className="text-lg font-bold">Modifica {editingComp.type}</h2>
+            <input
+              type="text"
+              className="border p-2 rounded w-full"
+              value={editingComp.identifier}
+              onChange={(e) =>
+                setEditingComp({ ...editingComp, identifier: e.target.value })
+              }
+            />
+            {editingComp.expiry_date !== undefined && (
+              <input
+                type="date"
+                className="border p-2 rounded w-full"
+                value={editingComp.expiry_date || ""}
+                onChange={(e) =>
+                  setEditingComp({ ...editingComp, expiry_date: e.target.value })
+                }
+              />
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                className="bg-gray-400 text-white px-3 py-1 rounded"
+                onClick={() => setEditingComp(null)}
+              >
+                Annulla
+              </button>
+              <button
+                className="bg-blue-600 text-white px-3 py-1 rounded"
+                onClick={saveComponentEdit}
+              >
+                Salva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
