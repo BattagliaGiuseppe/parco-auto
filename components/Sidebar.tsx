@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Car, Wrench, BarChart3, CalendarDays, Settings } from "lucide-react";
+import { Car, Wrench, BarChart3, CalendarDays, Settings, Boxes } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -13,6 +13,7 @@ export default function Sidebar() {
     { href: "/cars", label: "Auto", icon: Car },
     { href: "/components", label: "Componenti", icon: Wrench },
     { href: "/maintenances", label: "Manutenzioni", icon: BarChart3 },
+    { href: "/mounts", label: "Montaggi", icon: Boxes }, // 👈 nuova voce
     { href: "/calendar", label: "Calendario", icon: CalendarDays },
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
