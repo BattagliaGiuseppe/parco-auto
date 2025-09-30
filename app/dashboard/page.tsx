@@ -20,29 +20,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: carsData } = await supabase.from("cars").select("*");
-      const { data: maintData } = await supabase.from("maintenances").select("*");
-      const { data: compsData } = await supabase.from("components").select("*");
+      const { data: carsData } = await supabase
+        .from("cars")
+        .select("id, name, engine_hours");
+      const { data: maintData } = await supabase
+        .from("maintenances")
+        .select("id");
+      const { data: compsData } = await supabase
+        .from("components")
+        .select("id, type, identifier, expiry_date");
 
-      setCars(carsData || []);
-      setMaintenances(maintData || []);
-      setComponents(compsData || []);
+      if (carsData) setCars(carsData);
+      if (maintData) setMaintenances(maintData);
+      if (compsData) setComponents(compsData);
     };
 
     fetchData();
   }, []);
 
-  // 📊 Esempio semplice per contatori
+  // Contatori
   const inOrdine = cars.length;
   const prossime = maintenances.length;
   const urgenze = components.filter((c) => {
     if (!c.expiry_date) return false;
     const expiry = new Date(c.expiry_date);
-    const today = new Date();
-    return expiry <= today;
+    return expiry <= new Date();
   }).length;
 
-  // 📈 Esempio dati grafico: se la tabella cars ha un campo "engine_hours"
+  // Dati grafico: ore motore
   const chartData = cars.map((car) => ({
     name: car.name,
     motore: car.engine_hours || 0,
@@ -90,36 +95,6 @@ export default function Dashboard() {
               <Bar dataKey="motore" fill="#ef4444" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Scadenze (prende i componenti con expiry_date futuro) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow-lg rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Prossime Scadenze</h2>
-          <ul className="space-y-3">
-            {components
-              .filter((c) => c.expiry_date)
-              .map((c) => (
-                <li key={c.id} className="flex items-center justify-between">
-                  <span className="text-gray-700">
-                    {c.type} – {c.identifier}
-                  </span>
-                  <span className="text-sm bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">
-                    {c.expiry_date}
-                  </span>
-                </li>
-              ))}
-          </ul>
-        </div>
-
-        <div className="bg-white shadow-lg rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Calendar size={20} /> Calendario Eventi
-          </h2>
-          <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
-            Calendario qui (es. react-big-calendar)
-          </div>
         </div>
       </div>
     </div>
