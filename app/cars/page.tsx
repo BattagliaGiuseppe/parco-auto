@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSupabaseClient } from "@supabase/auth-helpers-react";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 
 export default function CarsPage() {
-  const supabase = useSupabaseClient();
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
@@ -37,6 +36,7 @@ export default function CarsPage() {
     <div>
       <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
 
+      {/* Form */}
       <form onSubmit={addCar} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
         <input
           type="text"
@@ -59,6 +59,7 @@ export default function CarsPage() {
         </button>
       </form>
 
+      {/* Lista auto */}
       <ul className="space-y-2">
         {cars.map((car) => (
           <li key={car.id} className="p-3 border rounded flex justify-between items-center">
