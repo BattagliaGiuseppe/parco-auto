@@ -37,7 +37,6 @@ export default function ComponentsPage() {
     <div>
       <h1 className="text-2xl font-bold mb-4">⚙️ Gestione Componenti</h1>
 
-      {/* Form per aggiungere componenti */}
       <form
         onSubmit={addComponent}
         className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6"
@@ -79,7 +78,6 @@ export default function ComponentsPage() {
         </button>
       </form>
 
-      {/* Lista componenti */}
       <ul className="space-y-2">
         {components.map((c) => (
           <li
