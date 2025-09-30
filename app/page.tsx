@@ -1,9 +1,6 @@
-import Dashboard from "./dashboard/Dashboard";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <main className="flex-1 bg-gray-100 min-h-screen p-6">
-      <Dashboard />
-    </main>
-  );
+  // appena si apre la root, reindirizza a /dashboard
+  redirect("/dashboard");
 }
