@@ -4,119 +4,140 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function MountsPage() {
+  const [mounts, setMounts] = useState<any[]>([]);
   const [cars, setCars] = useState<any[]>([]);
   const [components, setComponents] = useState<any[]>([]);
   const [selectedCar, setSelectedCar] = useState("");
   const [selectedComponent, setSelectedComponent] = useState("");
-  const [mountedComponents, setMountedComponents] = useState<any[]>([]);
+  const [mountedAt, setMountedAt] = useState("");
 
-  // 🔹 Carica auto e componenti
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: carsData } = await supabase.from("cars").select("*");
-      const { data: compsData } = await supabase.from("components").select("*");
-      setCars(carsData || []);
-      setComponents(compsData || []);
-    };
-    fetchData();
-  }, []);
-
-  // 🔹 Carica componenti montati su un'auto
-  const fetchMounted = async (carId: string) => {
-    const { data } = await supabase
+  // Recupera auto, componenti e montaggi
+  const fetchData = async () => {
+    const { data: carsData } = await supabase.from("cars").select("id, name");
+    const { data: compsData } = await supabase
+      .from("components")
+      .select("id, type, identifier");
+    const { data: mountsData } = await supabase
       .from("car_components")
-      .select("id, component_id, components(type, identifier)")
-      .eq("car_id", carId)
-      .is("unmounted_at", null); // solo quelli montati
-    setMountedComponents(data || []);
+      .select(
+        "id, mounted_at, unmounted_at, cars(name), components(type, identifier)"
+      )
+      .order("mounted_at", { ascending: false });
+
+    if (carsData) setCars(carsData);
+    if (compsData) setComponents(compsData);
+    if (mountsData) setMounts(mountsData);
   };
 
-  // 🔹 Monta componente
-  const mountComponent = async () => {
+  // Aggiungi montaggio
+  const addMount = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedCar || !selectedComponent) return;
-    await supabase.from("car_components").insert({
-      car_id: selectedCar,
-      component_id: selectedComponent,
-    });
+
+    await supabase.from("car_components").insert([
+      {
+        car_id: selectedCar,
+        component_id: selectedComponent,
+        mounted_at: mountedAt || new Date().toISOString(),
+      },
+    ]);
+
+    setSelectedCar("");
     setSelectedComponent("");
-    fetchMounted(selectedCar);
+    setMountedAt("");
+    fetchData();
   };
 
-  // 🔹 Smonta componente
-  const unmountComponent = async (id: string) => {
+  // Scollega (chiude il montaggio con unmounted_at)
+  const unmount = async (id: string) => {
     await supabase
       .from("car_components")
       .update({ unmounted_at: new Date().toISOString() })
       .eq("id", id);
-    fetchMounted(selectedCar);
+    fetchData();
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">🔧 Gestione Montaggi</h1>
+      <h1 className="text-2xl font-bold mb-4">🔧 Montaggi Componenti</h1>
 
-      {/* Selezione auto */}
-      <select
-        value={selectedCar}
-        onChange={(e) => {
-          setSelectedCar(e.target.value);
-          fetchMounted(e.target.value);
-        }}
-        className="border p-2 rounded mb-4 w-full"
+      {/* Form nuovo montaggio */}
+      <form
+        onSubmit={addMount}
+        className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6"
       >
-        <option value="">-- Seleziona auto --</option>
-        {cars.map((car) => (
-          <option key={car.id} value={car.id}>
-            {car.name} (Telaio: {car.chassis_number})
-          </option>
-        ))}
-      </select>
+        <select
+          value={selectedCar}
+          onChange={(e) => setSelectedCar(e.target.value)}
+          className="border p-2 rounded"
+          required
+        >
+          <option value="">Seleziona auto</option>
+          {cars.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
-      {/* Monta nuovo componente */}
-      {selectedCar && (
-        <div className="mb-6 flex gap-2">
-          <select
-            value={selectedComponent}
-            onChange={(e) => setSelectedComponent(e.target.value)}
-            className="border p-2 rounded flex-1"
-          >
-            <option value="">-- Seleziona componente --</option>
-            {components.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.type} – {c.identifier}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={mountComponent}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Monta
-          </button>
-        </div>
-      )}
+        <select
+          value={selectedComponent}
+          onChange={(e) => setSelectedComponent(e.target.value)}
+          className="border p-2 rounded"
+          required
+        >
+          <option value="">Seleziona componente</option>
+          {components.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.type} – {c.identifier}
+            </option>
+          ))}
+        </select>
 
-      {/* Lista componenti montati */}
-      {selectedCar && (
-        <ul className="space-y-2">
-          {mountedComponents.map((mc) => (
-            <li
-              key={mc.id}
-              className="p-3 border rounded flex justify-between items-center"
-            >
-              <span>
-                {mc.components?.type} – {mc.components?.identifier}
-              </span>
+        <input
+          type="date"
+          value={mountedAt}
+          onChange={(e) => setMountedAt(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <button
+          type="submit"
+          className="col-span-full bg-blue-600 text-white py-2 rounded"
+        >
+          Monta
+        </button>
+      </form>
+
+      {/* Lista montaggi */}
+      <ul className="space-y-2">
+        {mounts.map((m) => (
+          <li
+            key={m.id}
+            className="p-3 border rounded flex justify-between items-center"
+          >
+            <span>
+              {m.components?.type} ({m.components?.identifier}) su{" "}
+              {m.cars?.name} dal {new Date(m.mounted_at).toLocaleDateString()}
+              {m.unmounted_at
+                ? ` al ${new Date(m.unmounted_at).toLocaleDateString()}`
+                : " (attivo)"}
+            </span>
+            {!m.unmounted_at && (
               <button
-                onClick={() => unmountComponent(mc.id)}
+                onClick={() => unmount(m.id)}
                 className="bg-red-500 text-white px-3 py-1 rounded"
               >
-                Smonta
+                Scollega
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
