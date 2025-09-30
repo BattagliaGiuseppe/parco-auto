@@ -3,25 +3,31 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+type ComponentForm = {
+  type: string;
+  identifier: string;
+  expiry_date?: string;
+};
+
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
+  const [components, setComponents] = useState<ComponentForm[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Stato dei componenti da compilare
-  const [components, setComponents] = useState([
-    { type: "motore", identifier: "", expiry_date: null },
-    { type: "cambio", identifier: "", expiry_date: null },
-    { type: "differenziale", identifier: "", expiry_date: null },
-    { type: "cinture", identifier: "", expiry_date: "", withExpiry: true },
-    { type: "cavi", identifier: "", expiry_date: "", withExpiry: true },
-    { type: "estintore", identifier: "", expiry_date: "", withExpiry: true },
-    { type: "serbatoio", identifier: "", expiry_date: "", withExpiry: true },
-    { type: "passaporto", identifier: "", expiry_date: "", withExpiry: true },
-  ]);
+  // Struttura componenti base + con scadenza
+  const defaultComponents: ComponentForm[] = [
+    { type: "motore", identifier: "" },
+    { type: "cambio", identifier: "" },
+    { type: "differenziale", identifier: "" },
+    { type: "cinture", identifier: "", expiry_date: "" },
+    { type: "cavi", identifier: "", expiry_date: "" },
+    { type: "estintore", identifier: "", expiry_date: "" },
+    { type: "serbatoio", identifier: "", expiry_date: "" },
+    { type: "passaporto", identifier: "", expiry_date: "" },
+  ];
 
-  // Fetch auto
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
@@ -35,8 +41,17 @@ export default function CarsPage() {
     fetchCars();
   }, []);
 
-  // Add Car
-  const addCar = async (e: React.FormEvent) => {
+  // Quando inserisco nome + telaio → preparo i componenti
+  const prepareComponents = () => {
+    setComponents(
+      defaultComponents.map((c) => ({
+        ...c,
+        identifier: c.identifier || `${name} - ${c.type}`,
+      }))
+    );
+  };
+
+  const addCarWithComponents = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !chassis) return;
 
@@ -55,38 +70,32 @@ export default function CarsPage() {
       return;
     }
 
-    // 2️⃣ Inserisci i componenti con i dati inseriti
+    // 2️⃣ Inserisci i componenti collegati
     const compsToInsert = components.map((c) => ({
       type: c.type,
-      identifier: c.identifier || `${name} - ${c.type}`,
-      expiry_date: c.withExpiry ? c.expiry_date : null,
+      identifier: c.identifier,
+      expiry_date: c.expiry_date || null,
       car_id: newCar.id,
     }));
 
     await supabase.from("components").insert(compsToInsert);
 
-    // Reset
+    // reset
     setName("");
     setChassis("");
-    setComponents(
-      components.map((c) => ({
-        ...c,
-        identifier: "",
-        expiry_date: c.withExpiry ? "" : null,
-      }))
-    );
-
+    setComponents([]);
     setLoading(false);
+
     fetchCars();
   };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">🚗 Aggiungi Auto</h1>
+      <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
 
       {/* Form nuova auto */}
-      <form onSubmit={addCar} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={addCarWithComponents} className="space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <input
             type="text"
             placeholder="Nome auto"
@@ -105,50 +114,71 @@ export default function CarsPage() {
           />
         </div>
 
+        {/* Bottone per generare i componenti */}
+        {components.length === 0 && (
+          <button
+            type="button"
+            onClick={prepareComponents}
+            className="bg-gray-600 text-white px-4 py-2 rounded"
+          >
+            Prosegui con i componenti
+          </button>
+        )}
+
         {/* Form componenti */}
-        <div className="bg-white p-4 rounded-lg shadow space-y-4">
-          <h2 className="text-lg font-semibold">Componenti</h2>
-          {components.map((comp, index) => (
-            <div key={comp.type} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="font-medium capitalize">{comp.type}</label>
-              <input
-                type="text"
-                placeholder="Numero identificativo"
-                className="border p-2 rounded"
-                value={comp.identifier}
-                onChange={(e) => {
-                  const updated = [...components];
-                  updated[index].identifier = e.target.value;
-                  setComponents(updated);
-                }}
-              />
-              {comp.withExpiry && (
+        {components.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">Componenti</h2>
+            {components.map((comp, idx) => (
+              <div
+                key={idx}
+                className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center"
+              >
                 <input
-                  type="date"
-                  className="border p-2 rounded"
-                  value={comp.expiry_date || ""}
+                  type="text"
+                  className="border p-2 rounded col-span-1"
+                  value={comp.type}
+                  disabled
+                />
+                <input
+                  type="text"
+                  placeholder="Identificativo"
+                  className="border p-2 rounded col-span-1"
+                  value={comp.identifier}
                   onChange={(e) => {
-                    const updated = [...components];
-                    updated[index].expiry_date = e.target.value;
-                    setComponents(updated);
+                    const newComps = [...components];
+                    newComps[idx].identifier = e.target.value;
+                    setComponents(newComps);
                   }}
                 />
-              )}
-            </div>
-          ))}
-        </div>
+                {"expiry_date" in comp && (
+                  <input
+                    type="date"
+                    className="border p-2 rounded col-span-1"
+                    value={comp.expiry_date || ""}
+                    onChange={(e) => {
+                      const newComps = [...components];
+                      newComps[idx].expiry_date = e.target.value;
+                      setComponents(newComps);
+                    }}
+                  />
+                )}
+              </div>
+            ))}
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded"
-          disabled={loading}
-        >
-          {loading ? "Salvataggio..." : "Aggiungi Auto con Componenti"}
-        </button>
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+              disabled={loading}
+            >
+              {loading ? "Salvataggio..." : "Aggiungi Auto con Componenti"}
+            </button>
+          </div>
+        )}
       </form>
 
-      {/* Lista auto */}
-      <div className="mt-10 space-y-6">
+      {/* Lista auto esistenti */}
+      <div className="space-y-6">
         {cars.map((car) => (
           <div key={car.id} className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-2">
