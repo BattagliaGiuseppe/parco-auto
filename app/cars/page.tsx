@@ -16,7 +16,11 @@ export default function CarsPage() {
       .select("id, name, chassis_number, components(id, type, identifier, expiry_date)")
       .order("id", { ascending: true });
 
-    if (!error) setCars(data || []);
+    if (error) {
+      console.error("Errore fetch cars:", error.message);
+    } else {
+      setCars(data || []);
+    }
   };
 
   useEffect(() => {
@@ -37,29 +41,59 @@ export default function CarsPage() {
       .single();
 
     if (error) {
-      console.error("Errore inserimento auto:", error.message);
+      console.error("❌ Errore inserimento auto:", error.message);
       setLoading(false);
       return;
     }
 
-    // 2️⃣ Componenti base
+    // 2️⃣ Componenti base (senza scadenza)
     const baseComponents = [
       { type: "motore", identifier: `${name} - Motore`, car_id: newCar.id },
       { type: "cambio", identifier: `${name} - Cambio`, car_id: newCar.id },
       { type: "differenziale", identifier: `${name} - Differenziale`, car_id: newCar.id },
     ];
 
-    // 3️⃣ Componenti con scadenza + passaporto
-    const today = new Date();
+    // 3️⃣ Componenti con scadenza + passaporto (ogni volta una nuova data!)
     const expiringComponents = [
-      { type: "cinture", identifier: "Cinture di sicurezza", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 5)).toISOString() },
-      { type: "cavi", identifier: "Cavi ritenuta ruote", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 2)).toISOString() },
-      { type: "estintore", identifier: "Estintore", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 2)).toISOString() },
-      { type: "serbatoio", identifier: "Serbatoio carburante", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 5)).toISOString() },
-      { type: "passaporto", identifier: "Passaporto tecnico", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 10)).toISOString() },
+      {
+        type: "cinture",
+        identifier: "Cinture di sicurezza",
+        car_id: newCar.id,
+        expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 5)).toISOString(),
+      },
+      {
+        type: "cavi",
+        identifier: "Cavi ritenuta ruote",
+        car_id: newCar.id,
+        expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString(),
+      },
+      {
+        type: "estintore",
+        identifier: "Estintore",
+        car_id: newCar.id,
+        expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString(),
+      },
+      {
+        type: "serbatoio",
+        identifier: "Serbatoio carburante",
+        car_id: newCar.id,
+        expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 5)).toISOString(),
+      },
+      {
+        type: "passaporto",
+        identifier: "Passaporto tecnico",
+        car_id: newCar.id,
+        expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 10)).toISOString(),
+      },
     ];
 
-    await supabase.from("components").insert([...baseComponents, ...expiringComponents]);
+    const { error: compError } = await supabase
+      .from("components")
+      .insert([...baseComponents, ...expiringComponents]);
+
+    if (compError) {
+      console.error("❌ Errore inserimento componenti:", compError.message);
+    }
 
     setName("");
     setChassis("");
