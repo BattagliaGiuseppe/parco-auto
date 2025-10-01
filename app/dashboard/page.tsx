@@ -12,6 +12,10 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { Audiowide } from "next/font/google";
+
+// Font racing
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function Dashboard() {
   const [cars, setCars] = useState<any[]>([]);
@@ -32,6 +36,7 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  // Contatori
   const inOrdine = cars.length;
   const prossime = maintenances.length;
   const urgenze = components.filter((c) => {
@@ -41,69 +46,79 @@ export default function Dashboard() {
     return expiry <= today;
   }).length;
 
+  // Dati grafico
   const chartData = cars.map((car) => ({
     name: car.name,
     motore: car.engine_hours || 0,
   }));
 
   return (
-    <div className="p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-800">Dashboard Parco Auto</h1>
+    <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        🏎️ Dashboard Parco Auto
+      </h1>
 
-      {/* Card stato vetture */}
+      {/* Cards stato */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-gold">
-          <CheckCircle className="text-gold" size={32} />
+        <div className="bg-black text-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
+          <CheckCircle className="text-yellow-400" size={32} />
           <div>
-            <p className="text-sm text-gray-500">Auto in ordine</p>
-            <p className="text-xl font-bold">{inOrdine}</p>
+            <p className="text-sm opacity-80">Auto in ordine</p>
+            <p className="text-2xl font-bold">{inOrdine}</p>
           </div>
         </div>
-        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
-          <AlertTriangle className="text-yellow-500" size={32} />
+        <div className="bg-black text-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
+          <AlertTriangle className="text-yellow-400" size={32} />
           <div>
-            <p className="text-sm text-gray-500">Manutenzioni prossime</p>
-            <p className="text-xl font-bold">{prossime}</p>
+            <p className="text-sm opacity-80">Manutenzioni prossime</p>
+            <p className="text-2xl font-bold">{prossime}</p>
           </div>
         </div>
-        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-red-500">
-          <XCircle className="text-red-500" size={32} />
+        <div className="bg-black text-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-yellow-500">
+          <XCircle className="text-yellow-400" size={32} />
           <div>
-            <p className="text-sm text-gray-500">Urgenze</p>
-            <p className="text-xl font-bold">{urgenze}</p>
+            <p className="text-sm opacity-80">Urgenze</p>
+            <p className="text-2xl font-bold">{urgenze}</p>
           </div>
         </div>
       </div>
 
       {/* Grafico */}
-      <div className="bg-white shadow-lg rounded-2xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Ore motore per vettura</h2>
+      <div className="bg-black text-white shadow-lg rounded-2xl p-6">
+        <h2 className="text-lg font-semibold mb-4 text-yellow-400">
+          Ore motore per vettura
+        </h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="motore" fill="#FFD700" radius={[6, 6, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <XAxis dataKey="name" stroke="#fff" />
+              <YAxis stroke="#fff" />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#111", color: "#fff" }}
+              />
+              <Bar dataKey="motore" fill="#facc15" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Scadenze */}
+      {/* Scadenze + Calendario */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow-lg rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Prossime Scadenze</h2>
+        <div className="bg-black text-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 text-yellow-400">
+            Prossime Scadenze
+          </h2>
           <ul className="space-y-3">
             {components
               .filter((c) => c.expiry_date)
               .map((c) => (
-                <li key={c.id} className="flex items-center justify-between">
-                  <span className="text-gray-700">
-                    {c.type} – {c.identifier}
-                  </span>
-                  <span className="text-sm bg-gold text-black px-3 py-1 rounded-full">
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between border-b border-gray-700 pb-2"
+                >
+                  <span>{c.type} – {c.identifier}</span>
+                  <span className="text-yellow-400">
                     {new Date(c.expiry_date).toLocaleDateString()}
                   </span>
                 </li>
@@ -111,13 +126,12 @@ export default function Dashboard() {
           </ul>
         </div>
 
-        {/* Calendario placeholder */}
-        <div className="bg-white shadow-lg rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Calendar size={20} className="text-gold" /> Calendario Eventi
+        <div className="bg-black text-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-yellow-400">
+            <Calendar size={20} /> Calendario Eventi
           </h2>
-          <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
-            Calendario qui (es. react-big-calendar)
+          <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-700 rounded-lg">
+            📅 Calendario qui (es. react-big-calendar)
           </div>
         </div>
       </div>
