@@ -38,10 +38,10 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 p-3 rounded-xl transition font-medium ${
+              className={`flex items-center gap-3 p-3 rounded-xl transition ${
                 active
-                  ? "bg-yellow-600 text-white shadow-md"
-                  : "hover:bg-gray-800 text-gray-300 hover:text-white"
+                  ? "bg-gold text-black font-semibold"
+                  : "hover:bg-gold-light hover:text-gray-900"
               }`}
             >
               <Icon size={20} />
@@ -50,11 +50,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Footer piccolo */}
-      <div className="p-4 text-xs text-gray-400 border-t border-gray-800">
-        © {new Date().getFullYear()} Battaglia Racing Car
-      </div>
     </aside>
   );
 }
