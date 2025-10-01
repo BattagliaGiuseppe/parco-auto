@@ -2,9 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Stili del calendario */
-@import "react-big-calendar/lib/css/react-big-calendar.css";
+:root {
+  --color-gold: #FFD700;
+  --color-gold-dark: #B8860B;
+  --color-gold-light: #FFECB3;
+}
 
 body {
-  @apply bg-white text-black dark:bg-gray-900 dark:text-white;
+  @apply bg-gray-100 text-gray-900;
+  font-family: 'Inter', sans-serif;
 }
