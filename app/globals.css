@@ -2,13 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-gold: #FFD700;
-  --color-gold-dark: #B8860B;
-  --color-gold-light: #FFECB3;
+@layer base {
+  body {
+    @apply bg-gray-100 text-gray-900 font-sans;
+  }
 }
 
-body {
-  @apply bg-gray-100 text-gray-900;
-  font-family: 'Inter', sans-serif;
+:root {
+  --color-primary: #d4af37; /* Oro */
+  --color-primary-dark: #b58e2f;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold px-4 py-2 rounded-lg transition;
 }
