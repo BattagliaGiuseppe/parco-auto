@@ -16,3 +16,39 @@
 .btn-primary {
   @apply bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold px-4 py-2 rounded-lg transition;
 }
+:root {
+  --racing-gold: #FFD700;
+  --racing-gold-dark: #E6C200;
+  --racing-gray: #1F1F1F;
+}
+
+body {
+  background-color: #f9f9f9;
+  color: #1F1F1F;
+}
+
+/* Bottoni principali */
+.btn-primary {
+  background-color: var(--racing-gold);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.btn-primary:hover {
+  background-color: var(--racing-gold-dark);
+}
+
+/* Card */
+.card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
