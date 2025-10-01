@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
@@ -12,7 +13,7 @@ export default function CarsPage() {
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
-      .select("id, name, chassis_number, components(id, type, identifier, expiry_date)")
+      .select("id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)")
       .order("id", { ascending: true });
 
     if (!error) setCars(data || []);
@@ -25,6 +26,7 @@ export default function CarsPage() {
   const addCar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !chassis) return;
+
     setLoading(true);
 
     const { data: newCar, error } = await supabase
@@ -33,19 +35,23 @@ export default function CarsPage() {
       .select()
       .single();
 
-    if (!error && newCar) {
-      setCars([...cars, newCar]);
-      setName("");
-      setChassis("");
+    if (error) {
+      console.error("Errore inserimento auto:", error.message);
+      setLoading(false);
+      return;
     }
+
+    setName("");
+    setChassis("");
     setLoading(false);
+    fetchCars();
   };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <img src="/auto.png" alt="Auto" className="w-8 h-8" />
-        Gestione Auto
+      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        <img src="/iconagriiio.svg" alt="Logo Auto" className="w-8 h-8" />
+        🚗 Gestione Auto
       </h1>
 
       {/* Form nuova auto */}
@@ -53,7 +59,7 @@ export default function CarsPage() {
         <input
           type="text"
           placeholder="Nome auto"
-          className="border-2 border-gray-300 focus:border-gold focus:ring focus:ring-gold-light rounded p-2 w-full transition"
+          className="border p-2 rounded"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -61,14 +67,14 @@ export default function CarsPage() {
         <input
           type="text"
           placeholder="Numero telaio"
-          className="border-2 border-gray-300 focus:border-gold focus:ring focus:ring-gold-light rounded p-2 w-full transition"
+          className="border p-2 rounded"
           value={chassis}
           onChange={(e) => setChassis(e.target.value)}
           required
         />
         <button
           type="submit"
-          className="col-span-full bg-gold hover:bg-gold-dark text-black font-semibold py-2 rounded transition shadow-md"
+          className="col-span-full bg-[#FFD700] text-black font-semibold py-2 rounded hover:bg-[#e6c200] transition"
           disabled={loading}
         >
           {loading ? "Salvataggio..." : "Aggiungi Auto"}
@@ -76,24 +82,25 @@ export default function CarsPage() {
       </form>
 
       {/* Lista auto */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {cars.map((car) => (
-          <div key={car.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-gold">
-            <h2 className="text-lg font-semibold mb-2">
-              {car.name} ({car.chassis_number})
-            </h2>
-            <ul className="ml-4 space-y-1">
-              {car.components?.map((comp: any) => (
-                <li key={comp.id} className="flex justify-between text-sm">
-                  <span>{comp.type} – {comp.identifier}</span>
-                  {comp.expiry_date && (
-                    <span className="text-red-500">
-                      Scade: {new Date(comp.expiry_date).toLocaleDateString()}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <div key={car.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-semibold">{car.name} ({car.chassis_number})</h2>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href={`/cars/${car.id}`}
+                className="bg-[#FFD700] text-black font-semibold px-3 py-1 rounded hover:bg-[#e6c200] transition"
+              >
+                Dettagli
+              </Link>
+              <button
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+              >
+                Elimina
+              </button>
+            </div>
           </div>
         ))}
       </div>
