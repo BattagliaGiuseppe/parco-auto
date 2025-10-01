@@ -50,7 +50,7 @@ export default function CarsPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <img src="/iconagriiio.svg" alt="Logo Auto" className="w-8 h-8" />
+        <img src="/mia-auto.jpg" alt="Logo Auto" className="w-8 h-8" />
         🚗 Gestione Auto
       </h1>
 
