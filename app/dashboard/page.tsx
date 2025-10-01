@@ -20,34 +20,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: carsData } = await supabase
-        .from("cars")
-        .select("id, name, engine_hours");
-      const { data: maintData } = await supabase
-        .from("maintenances")
-        .select("id");
-      const { data: compsData } = await supabase
-        .from("components")
-        .select("id, type, identifier, expiry_date");
+      const { data: carsData } = await supabase.from("cars").select("*");
+      const { data: maintData } = await supabase.from("maintenances").select("*");
+      const { data: compsData } = await supabase.from("components").select("*");
 
-      if (carsData) setCars(carsData);
-      if (maintData) setMaintenances(maintData);
-      if (compsData) setComponents(compsData);
+      setCars(carsData || []);
+      setMaintenances(maintData || []);
+      setComponents(compsData || []);
     };
 
     fetchData();
   }, []);
 
-  // Contatori
   const inOrdine = cars.length;
   const prossime = maintenances.length;
   const urgenze = components.filter((c) => {
     if (!c.expiry_date) return false;
     const expiry = new Date(c.expiry_date);
-    return expiry <= new Date();
+    const today = new Date();
+    return expiry <= today;
   }).length;
 
-  // Dati grafico: ore motore
   const chartData = cars.map((car) => ({
     name: car.name,
     motore: car.engine_hours || 0,
@@ -59,8 +52,8 @@ export default function Dashboard() {
 
       {/* Card stato vetture */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-green-500">
-          <CheckCircle className="text-green-500" size={32} />
+        <div className="bg-white shadow-lg rounded-2xl p-6 flex items-center gap-4 border-l-4 border-gold">
+          <CheckCircle className="text-gold" size={32} />
           <div>
             <p className="text-sm text-gray-500">Auto in ordine</p>
             <p className="text-xl font-bold">{inOrdine}</p>
@@ -92,9 +85,40 @@ export default function Dashboard() {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="motore" fill="#ef4444" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="motore" fill="#FFD700" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Scadenze */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Prossime Scadenze</h2>
+          <ul className="space-y-3">
+            {components
+              .filter((c) => c.expiry_date)
+              .map((c) => (
+                <li key={c.id} className="flex items-center justify-between">
+                  <span className="text-gray-700">
+                    {c.type} – {c.identifier}
+                  </span>
+                  <span className="text-sm bg-gold text-black px-3 py-1 rounded-full">
+                    {new Date(c.expiry_date).toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+
+        {/* Calendario placeholder */}
+        <div className="bg-white shadow-lg rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Calendar size={20} className="text-gold" /> Calendario Eventi
+          </h2>
+          <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
+            Calendario qui (es. react-big-calendar)
+          </div>
         </div>
       </div>
     </div>
