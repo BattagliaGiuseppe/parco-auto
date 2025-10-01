@@ -149,8 +149,8 @@ export default function CarsPage() {
         <Image
           src="/iconagriiip.svg"
           alt="La mia auto"
-          width={100}
-          height={100}
+          width={200}
+          height={200}
           className="rounded-lg shadow"
         />
         <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
