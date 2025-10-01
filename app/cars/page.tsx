@@ -9,11 +9,26 @@ export default function CarsPage() {
   const [chassis, setChassis] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [selectedCar, setSelectedCar] = useState<any | null>(null);
+  const [tempComponents, setTempComponents] = useState<any[]>([]);
+
+  // 📌 componenti base per il form
+  const defaultComponents = [
+    { type: "motore", identifier: "", expiry_date: "" },
+    { type: "cambio", identifier: "", expiry_date: "" },
+    { type: "differenziale", identifier: "", expiry_date: "" },
+    { type: "cinture", identifier: "", expiry_date: "" },
+    { type: "cavi", identifier: "", expiry_date: "" },
+    { type: "estintore", identifier: "", expiry_date: "" },
+    { type: "serbatoio", identifier: "", expiry_date: "" },
+    { type: "passaporto", identifier: "", expiry_date: "" },
+  ];
+
   // 📌 Fetch auto + componenti
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
-      .select("id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)")
+      .select("id, name, chassis_number, components(id, type, identifier, expiry_date)")
       .order("id", { ascending: true });
 
     if (!error) setCars(data || []);
@@ -23,13 +38,13 @@ export default function CarsPage() {
     fetchCars();
   }, []);
 
+  // 📌 Aggiungi auto
   const addCar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !chassis) return;
 
     setLoading(true);
 
-    // 1️⃣ Inserisci auto
     const { data: newCar, error } = await supabase
       .from("cars")
       .insert([{ name, chassis_number: chassis }])
@@ -37,30 +52,13 @@ export default function CarsPage() {
       .single();
 
     if (error) {
-      console.error("Errore inserimento auto:", error.message);
+      console.error("❌ Errore inserimento auto:", error.message);
       setLoading(false);
       return;
     }
 
-    // 2️⃣ Componenti base
-    const baseComponents = [
-      { type: "motore", identifier: `${name} - Motore`, car_id: newCar.id },
-      { type: "cambio", identifier: `${name} - Cambio`, car_id: newCar.id },
-      { type: "differenziale", identifier: `${name} - Differenziale`, car_id: newCar.id },
-    ];
-
-    // 3️⃣ Componenti con scadenza + passaporto
-    const today = new Date();
-    const expiringComponents = [
-      { type: "cinture", identifier: "Cinture di sicurezza", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 5)).toISOString() },
-      { type: "cavi", identifier: "Cavi ritenuta ruote", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 2)).toISOString() },
-      { type: "estintore", identifier: "Estintore", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 2)).toISOString() },
-      { type: "serbatoio", identifier: "Serbatoio carburante", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 5)).toISOString() },
-      { type: "passaporto", identifier: "Passaporto tecnico", car_id: newCar.id, expiry_date: new Date(today.setFullYear(today.getFullYear() + 10)).toISOString() },
-    ];
-
-    await supabase.from("components").insert([...baseComponents, ...expiringComponents]);
-
+    setSelectedCar(newCar);
+    setTempComponents(defaultComponents); // prepara il form componenti
     setName("");
     setChassis("");
     setLoading(false);
@@ -68,9 +66,33 @@ export default function CarsPage() {
     fetchCars();
   };
 
-  // 🔴 Disattiva componente (senza eliminarlo)
-  const deactivateComponent = async (id: string) => {
-    await supabase.from("components").update({ is_active: false }).eq("id", id);
+  // 📌 aggiorna valori dei campi componenti
+  const updateTempComponent = (index: number, field: string, value: string) => {
+    const updated = [...tempComponents];
+    updated[index][field] = value;
+    setTempComponents(updated);
+  };
+
+  // 📌 salva componenti nel DB
+  const saveComponents = async () => {
+    if (!selectedCar) return;
+
+    const compsToInsert = tempComponents.map((c) => ({
+      type: c.type,
+      identifier: c.identifier,
+      expiry_date: c.expiry_date ? new Date(c.expiry_date).toISOString() : null,
+      car_id: selectedCar.id,
+    }));
+
+    const { error } = await supabase.from("components").insert(compsToInsert);
+
+    if (error) {
+      console.error("❌ Errore inserimento componenti:", error.message);
+      return;
+    }
+
+    setSelectedCar(null); // chiude form
+    setTempComponents([]);
     fetchCars();
   };
 
@@ -101,34 +123,59 @@ export default function CarsPage() {
         </button>
       </form>
 
-      {/* Lista auto + componenti */}
+      {/* Form componenti auto appena creata */}
+      {selectedCar && (
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <h2 className="text-lg font-semibold mb-2">
+            Aggiungi componenti per {selectedCar.name}
+          </h2>
+          {tempComponents.map((comp, index) => (
+            <div key={index} className="flex gap-2 mb-2 items-center">
+              <span className="w-32 capitalize">{comp.type}</span>
+              <input
+                type="text"
+                placeholder="Identificativo"
+                value={comp.identifier}
+                onChange={(e) => updateTempComponent(index, "identifier", e.target.value)}
+                className="border p-1 rounded flex-1"
+              />
+              <input
+                type="date"
+                value={comp.expiry_date || ""}
+                onChange={(e) => updateTempComponent(index, "expiry_date", e.target.value)}
+                className="border p-1 rounded"
+              />
+            </div>
+          ))}
+          <button
+            onClick={saveComponents}
+            className="bg-green-600 text-white px-4 py-2 rounded mt-2"
+          >
+            Salva componenti
+          </button>
+        </div>
+      )}
+
+      {/* Lista auto già inserite */}
       <div className="space-y-6">
         {cars.map((car) => (
           <div key={car.id} className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-2">
               {car.name} ({car.chassis_number})
             </h2>
-            <ul className="ml-4 space-y-2">
-              {car.components
-                .filter((comp: any) => comp.is_active) // 🔍 mostra solo attivi
-                .map((comp: any) => (
-                  <li key={comp.id} className="flex justify-between items-center text-sm border-b py-1">
-                    <div>
-                      <span>{comp.type} – {comp.identifier}</span>
-                      {comp.expiry_date && (
-                        <span className="ml-2 text-red-500">
-                          Scade: {new Date(comp.expiry_date).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => deactivateComponent(comp.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
-                    >
-                      Disattiva
-                    </button>
-                  </li>
-                ))}
+            <ul className="ml-4 space-y-1">
+              {car.components.map((comp: any) => (
+                <li key={comp.id} className="flex justify-between text-sm">
+                  <span>
+                    {comp.type} – {comp.identifier}
+                  </span>
+                  {comp.expiry_date && (
+                    <span className="text-red-500">
+                      Scade: {new Date(comp.expiry_date).toLocaleDateString()}
+                    </span>
+                  )}
+                </li>
+              ))}
             </ul>
           </div>
         ))}
