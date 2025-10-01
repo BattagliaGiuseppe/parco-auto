@@ -24,3 +24,14 @@ export default function RootLayout({
     </html>
   );
 }
+import { Orbitron } from "next/font/google";
+
+const orbitron = Orbitron({ subsets: ["latin"], weight: ["400", "700"] });
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="it">
+      <body className={`${orbitron.className} bg-gray-100`}>{children}</body>
+    </html>
+  );
+}
