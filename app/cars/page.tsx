@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, Info, List, Grid } from "lucide-react";
-import { Orbitron } from "next/font/google";
-
-// Font racing
-const orbitron = Orbitron({ subsets: ["latin"], weight: ["400", "600", "700"] });
+import { List, Grid } from "lucide-react"; // icone toggle
+import Link from "next/link";
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
-  const [view, setView] = useState<"sintetica" | "dettagliata">("sintetica");
+  const [name, setName] = useState("");
+  const [chassis, setChassis] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [detailedView, setDetailedView] = useState(false); // toggle vista
 
   const fetchCars = async () => {
     const { data, error } = await supabase
@@ -25,86 +25,120 @@ export default function CarsPage() {
     fetchCars();
   }, []);
 
+  const addCar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !chassis) return;
+
+    setLoading(true);
+
+    const { data: newCar, error } = await supabase
+      .from("cars")
+      .insert([{ name, chassis_number: chassis }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Errore inserimento auto:", error.message);
+      setLoading(false);
+      return;
+    }
+
+    setName("");
+    setChassis("");
+    setLoading(false);
+    fetchCars();
+  };
+
   return (
-    <div className={`p-6 flex flex-col gap-8 ${orbitron.className}`}>
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">🏎️ Gestione Auto</h1>
+    <div className="p-6 font-[Orbitron]">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          🚗 Gestione Auto
+        </h1>
         <button
-          onClick={() =>
-            setView(view === "sintetica" ? "dettagliata" : "sintetica")
-          }
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          onClick={() => setDetailedView(!detailedView)}
+          className="bg-gray-200 hover:bg-gray-300 p-2 rounded-lg"
+          title={detailedView ? "Vista sintetica" : "Vista dettagliata"}
         >
-          {view === "sintetica" ? (
-            <>
-              <Grid size={18} /> Vista dettagliata
-            </>
-          ) : (
-            <>
-              <List size={18} /> Vista sintetica
-            </>
-          )}
+          {detailedView ? <Grid size={20} /> : <List size={20} />}
         </button>
       </div>
 
-      {/* Lista Auto */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Form nuova auto */}
+      <form
+        onSubmit={addCar}
+        className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6"
+      >
+        <input
+          type="text"
+          placeholder="Nome auto"
+          className="border p-2 rounded"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <input
+          type="text"
+          placeholder="Numero telaio"
+          className="border p-2 rounded"
+          value={chassis}
+          onChange={(e) => setChassis(e.target.value)}
+          required
+        />
+        <button
+          type="submit"
+          className="col-span-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded"
+          disabled={loading}
+        >
+          {loading ? "Salvataggio..." : "Aggiungi Auto"}
+        </button>
+      </form>
+
+      {/* Lista auto */}
+      <div className="space-y-4">
         {cars.map((car) => (
           <div
             key={car.id}
-            className="bg-white shadow-lg rounded-2xl p-6 flex flex-col gap-4 border border-gray-200 hover:shadow-xl transition"
+            className="bg-white shadow-lg rounded-xl p-4 flex flex-col gap-2 border border-gray-200"
           >
-            {/* Vista SINTETICA */}
-            {view === "sintetica" && (
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">{car.name}</h2>
-                  <span className="text-sm text-gray-500">{car.chassis_number}</span>
-                </div>
-                <div className="flex gap-2">
-                  <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <Edit size={16} /> Modifica
-                  </button>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <Info size={16} /> Dettagli
-                  </button>
-                </div>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold">{car.name}</h2>
+                <p className="text-sm text-gray-500">{car.chassis_number}</p>
               </div>
-            )}
+              <div className="flex gap-2">
+                <Link
+                  href={`/cars/${car.id}`}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                >
+                  Dettagli
+                </Link>
+                <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">
+                  Modifica
+                </button>
+              </div>
+            </div>
 
-            {/* Vista DETTAGLIATA */}
-            {view === "dettagliata" && (
-              <>
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-800">{car.name}</h2>
-                  <span className="text-sm text-gray-500">{car.chassis_number}</span>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  {car.components.map((comp: any) => (
-                    <div
-                      key={comp.id}
-                      className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg"
-                    >
-                      <span>
-                        {comp.type} – {comp.identifier}
+            {/* Vista dettagliata */}
+            {detailedView && (
+              <ul className="mt-3 space-y-1 text-sm">
+                {car.components?.map((comp: any) => (
+                  <li
+                    key={comp.id}
+                    className="flex justify-between items-center border-b py-1"
+                  >
+                    <span>
+                      {comp.type} – {comp.identifier}
+                    </span>
+                    {comp.expiry_date && (
+                      <span className="text-red-500 text-xs">
+                        Scade:{" "}
+                        {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
                       </span>
-                      {comp.expiry_date && (
-                        <span className="text-red-500 font-medium">
-                          {new Date(comp.expiry_date).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-end">
-                  <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <Edit size={16} /> Modifica
-                  </button>
-                </div>
-              </>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         ))}
