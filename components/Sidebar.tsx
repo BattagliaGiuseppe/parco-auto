@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Car, Wrench, BarChart3, CalendarDays, Settings, Boxes } from "lucide-react";
+import { Car, Wrench, BarChart3, CalendarDays, Settings } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -13,7 +13,6 @@ export default function Sidebar() {
     { href: "/cars", label: "Auto", icon: Car },
     { href: "/components", label: "Componenti", icon: Wrench },
     { href: "/maintenances", label: "Manutenzioni", icon: BarChart3 },
-    { href: "/mounts", label: "Montaggi", icon: Boxes }, // 👈 nuova voce
     { href: "/calendar", label: "Calendario", icon: CalendarDays },
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
@@ -39,8 +38,10 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 p-3 rounded-xl transition ${
-                active ? "bg-blue-600 text-white" : "hover:bg-gray-800"
+              className={`flex items-center gap-3 p-3 rounded-xl transition font-medium ${
+                active
+                  ? "bg-yellow-600 text-white shadow-md"
+                  : "hover:bg-gray-800 text-gray-300 hover:text-white"
               }`}
             >
               <Icon size={20} />
@@ -49,6 +50,11 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Footer piccolo */}
+      <div className="p-4 text-xs text-gray-400 border-t border-gray-800">
+        © {new Date().getFullYear()} Battaglia Racing Car
+      </div>
     </aside>
   );
 }
