@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Audiowide } from "next/font/google";
+import Sidebar from "@/components/Sidebar"; // importa la sidebar
 
 const audiowide = Audiowide({
   subsets: ["latin"],
@@ -18,8 +19,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body className={audiowide.className}>
-        {children}
+      <body className={`${audiowide.className} flex h-screen`}>
+        {/* Sidebar fissa a sinistra */}
+        <Sidebar />
+
+        {/* Contenuto principale */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+          {children}
+        </main>
       </body>
     </html>
   );
