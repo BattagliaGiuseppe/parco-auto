@@ -147,10 +147,10 @@ export default function CarsPage() {
       {/* Header con immagine auto */}
       <div className="flex items-center gap-4">
         <Image
-          src="/mia-auto.png"
+          src="/mia-auto.jpg"
           alt="La mia auto"
-          width={60}
-          height={60}
+          width={100}
+          height={100}
           className="rounded-lg shadow"
         />
         <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
