@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
@@ -11,8 +12,8 @@ export default function CarsPage() {
 
   const [selectedCar, setSelectedCar] = useState<any | null>(null);
   const [tempComponents, setTempComponents] = useState<any[]>([]);
+  const [expandedCars, setExpandedCars] = useState<Set<number>>(new Set());
 
-  // 📌 componenti base per il form
   const defaultComponents = [
     { type: "motore", identifier: "", expiry_date: "" },
     { type: "cambio", identifier: "", expiry_date: "" },
@@ -24,7 +25,6 @@ export default function CarsPage() {
     { type: "passaporto", identifier: "", expiry_date: "" },
   ];
 
-  // 📌 Fetch auto + componenti
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
@@ -38,7 +38,6 @@ export default function CarsPage() {
     fetchCars();
   }, []);
 
-  // 📌 Aggiungi auto
   const addCar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !chassis) return;
@@ -58,7 +57,7 @@ export default function CarsPage() {
     }
 
     setSelectedCar(newCar);
-    setTempComponents(defaultComponents); // prepara il form componenti
+    setTempComponents(defaultComponents);
     setName("");
     setChassis("");
     setLoading(false);
@@ -66,14 +65,12 @@ export default function CarsPage() {
     fetchCars();
   };
 
-  // 📌 aggiorna valori dei campi componenti
   const updateTempComponent = (index: number, field: string, value: string) => {
     const updated = [...tempComponents];
     updated[index][field] = value;
     setTempComponents(updated);
   };
 
-  // 📌 salva componenti nel DB
   const saveComponents = async () => {
     if (!selectedCar) return;
 
@@ -91,21 +88,34 @@ export default function CarsPage() {
       return;
     }
 
-    setSelectedCar(null); // chiude form
+    setSelectedCar(null);
     setTempComponents([]);
     fetchCars();
   };
 
+  const toggleDetails = (carId: number) => {
+    const newExpanded = new Set(expandedCars);
+    if (newExpanded.has(carId)) {
+      newExpanded.delete(carId);
+    } else {
+      newExpanded.add(carId);
+    }
+    setExpandedCars(newExpanded);
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">🚗 Gestione Auto</h1>
+    <div className="p-6 space-y-6">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">🚗 Gestione Auto</h1>
 
       {/* Form nuova auto */}
-      <form onSubmit={addCar} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
+      <form
+        onSubmit={addCar}
+        className="bg-white p-6 rounded-xl shadow-md grid grid-cols-1 md:grid-cols-3 gap-4"
+      >
         <input
           type="text"
           placeholder="Nome auto"
-          className="border p-2 rounded"
+          className="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -113,70 +123,104 @@ export default function CarsPage() {
         <input
           type="text"
           placeholder="Numero telaio"
-          className="border p-2 rounded"
+          className="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           value={chassis}
           onChange={(e) => setChassis(e.target.value)}
           required
         />
-        <button type="submit" className="col-span-full bg-blue-600 text-white py-2 rounded" disabled={loading}>
-          {loading ? "Salvataggio..." : "Aggiungi Auto"}
+        <button
+          type="submit"
+          className="col-span-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 rounded-lg font-semibold"
+          disabled={loading}
+        >
+          {loading ? "Salvataggio..." : "➕ Aggiungi Auto"}
         </button>
       </form>
 
       {/* Form componenti auto appena creata */}
       {selectedCar && (
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <h2 className="text-lg font-semibold mb-2">
-            Aggiungi componenti per {selectedCar.name}
+        <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
+          <h2 className="text-xl font-semibold">
+            Aggiungi componenti per <span className="text-blue-600">{selectedCar.name}</span>
           </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-semibold text-gray-600">
+            <span>Tipo</span>
+            <span>Identificativo</span>
+            <span>Data Scadenza</span>
+          </div>
           {tempComponents.map((comp, index) => (
-            <div key={index} className="flex gap-2 mb-2 items-center">
-              <span className="w-32 capitalize">{comp.type}</span>
+            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <span className="capitalize flex items-center font-medium">{comp.type}</span>
               <input
                 type="text"
                 placeholder="Identificativo"
                 value={comp.identifier}
                 onChange={(e) => updateTempComponent(index, "identifier", e.target.value)}
-                className="border p-1 rounded flex-1"
+                className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
               <input
                 type="date"
                 value={comp.expiry_date || ""}
                 onChange={(e) => updateTempComponent(index, "expiry_date", e.target.value)}
-                className="border p-1 rounded"
+                className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           ))}
           <button
             onClick={saveComponents}
-            className="bg-green-600 text-white px-4 py-2 rounded mt-2"
+            className="bg-green-600 hover:bg-green-700 transition text-white px-4 py-2 rounded-lg font-semibold"
           >
-            Salva componenti
+            💾 Salva componenti
           </button>
         </div>
       )}
 
-      {/* Lista auto già inserite */}
-      <div className="space-y-6">
+      {/* Lista auto compatta */}
+      <div className="space-y-4">
         {cars.map((car) => (
-          <div key={car.id} className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-2">
-              {car.name} ({car.chassis_number})
-            </h2>
-            <ul className="ml-4 space-y-1">
-              {car.components.map((comp: any) => (
-                <li key={comp.id} className="flex justify-between text-sm">
-                  <span>
-                    {comp.type} – {comp.identifier}
-                  </span>
-                  {comp.expiry_date && (
-                    <span className="text-red-500">
-                      Scade: {new Date(comp.expiry_date).toLocaleDateString()}
+          <div
+            key={car.id}
+            className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {car.name} ({car.chassis_number})
+              </h2>
+              <button
+                onClick={() => toggleDetails(car.id)}
+                className="flex items-center gap-1 text-blue-600 hover:underline"
+              >
+                {expandedCars.has(car.id) ? (
+                  <>
+                    Nascondi <ChevronUp size={18} />
+                  </>
+                ) : (
+                  <>
+                    Dettagli <ChevronDown size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+
+            {expandedCars.has(car.id) && (
+              <ul className="mt-3 ml-4 space-y-2 text-sm">
+                {car.components.map((comp: any) => (
+                  <li
+                    key={comp.id}
+                    className="flex justify-between border-b pb-1 text-gray-700"
+                  >
+                    <span>
+                      {comp.type} – {comp.identifier}
                     </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    {comp.expiry_date && (
+                      <span className="text-red-500">
+                        Scade: {new Date(comp.expiry_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ))}
       </div>
