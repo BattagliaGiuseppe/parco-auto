@@ -147,7 +147,7 @@ export default function CarsPage() {
       {/* Header con immagine auto */}
       <div className="flex items-center gap-4">
         <Image
-          src="/mia-auto.jpg"
+          src="/iconagriiip.svg"
           alt="La mia auto"
           width={100}
           height={100}
