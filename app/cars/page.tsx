@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Save } from "lucide-react";
+import Image from "next/image";
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
@@ -13,6 +14,12 @@ export default function CarsPage() {
   const [selectedCar, setSelectedCar] = useState<any | null>(null);
   const [tempComponents, setTempComponents] = useState<any[]>([]);
   const [expandedCars, setExpandedCars] = useState<Set<number>>(new Set());
+
+  const [editingComp, setEditingComp] = useState<number | null>(null);
+
+  // ricerca
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchBy, setSearchBy] = useState("auto"); // auto | componente
 
   const defaultComponents = [
     { type: "motore", identifier: "", expiry_date: "" },
@@ -103,9 +110,70 @@ export default function CarsPage() {
     setExpandedCars(newExpanded);
   };
 
+  const startEditing = (compId: number) => setEditingComp(compId);
+  const saveEdit = async (comp: any) => {
+    const { error } = await supabase
+      .from("components")
+      .update({
+        identifier: comp.identifier,
+        expiry_date: comp.expiry_date
+          ? new Date(comp.expiry_date).toISOString()
+          : null,
+      })
+      .eq("id", comp.id);
+
+    if (!error) {
+      setEditingComp(null);
+      fetchCars();
+    }
+  };
+
+  // filtro ricerca
+  const filteredCars = cars.filter((car) => {
+    if (!searchTerm) return true;
+    if (searchBy === "auto") {
+      return car.name.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+    if (searchBy === "componente") {
+      return car.components.some((c: any) =>
+        c.identifier?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return true;
+  });
+
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">🚗 Gestione Auto</h1>
+      {/* Header con immagine auto */}
+      <div className="flex items-center gap-4">
+        <Image
+          src="/mia-auto.png"
+          alt="La mia auto"
+          width={60}
+          height={60}
+          className="rounded-lg shadow"
+        />
+        <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
+      </div>
+
+      {/* Ricerca */}
+      <div className="flex gap-3 items-center bg-white p-4 rounded-lg shadow">
+        <input
+          type="text"
+          placeholder="Cerca..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 border p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
+        />
+        <select
+          value={searchBy}
+          onChange={(e) => setSearchBy(e.target.value)}
+          className="border p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
+        >
+          <option value="auto">Per Auto</option>
+          <option value="componente">Per Componente</option>
+        </select>
+      </div>
 
       {/* Form nuova auto */}
       <form
@@ -115,7 +183,7 @@ export default function CarsPage() {
         <input
           type="text"
           placeholder="Nome auto"
-          className="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          className="border p-3 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -123,14 +191,14 @@ export default function CarsPage() {
         <input
           type="text"
           placeholder="Numero telaio"
-          className="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          className="border p-3 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
           value={chassis}
           onChange={(e) => setChassis(e.target.value)}
           required
         />
         <button
           type="submit"
-          className="col-span-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 rounded-lg font-semibold"
+          className="col-span-full bg-yellow-600 hover:bg-yellow-700 transition text-white py-3 rounded-lg font-semibold"
           disabled={loading}
         >
           {loading ? "Salvataggio..." : "➕ Aggiungi Auto"}
@@ -141,7 +209,7 @@ export default function CarsPage() {
       {selectedCar && (
         <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
           <h2 className="text-xl font-semibold">
-            Aggiungi componenti per <span className="text-blue-600">{selectedCar.name}</span>
+            Aggiungi componenti per <span className="text-yellow-600">{selectedCar.name}</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-semibold text-gray-600">
             <span>Tipo</span>
@@ -156,13 +224,13 @@ export default function CarsPage() {
                 placeholder="Identificativo"
                 value={comp.identifier}
                 onChange={(e) => updateTempComponent(index, "identifier", e.target.value)}
-                className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="border p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
               />
               <input
                 type="date"
                 value={comp.expiry_date || ""}
                 onChange={(e) => updateTempComponent(index, "expiry_date", e.target.value)}
-                className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="border p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none"
               />
             </div>
           ))}
@@ -177,7 +245,7 @@ export default function CarsPage() {
 
       {/* Lista auto compatta */}
       <div className="space-y-4">
-        {cars.map((car) => (
+        {filteredCars.map((car) => (
           <div
             key={car.id}
             className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition"
@@ -188,7 +256,7 @@ export default function CarsPage() {
               </h2>
               <button
                 onClick={() => toggleDetails(car.id)}
-                className="flex items-center gap-1 text-blue-600 hover:underline"
+                className="flex items-center gap-1 text-yellow-600 hover:underline"
               >
                 {expandedCars.has(car.id) ? (
                   <>
@@ -207,15 +275,48 @@ export default function CarsPage() {
                 {car.components.map((comp: any) => (
                   <li
                     key={comp.id}
-                    className="flex justify-between border-b pb-1 text-gray-700"
+                    className="flex justify-between items-center border-b pb-1 text-gray-700"
                   >
-                    <span>
-                      {comp.type} – {comp.identifier}
-                    </span>
-                    {comp.expiry_date && (
-                      <span className="text-red-500">
-                        Scade: {new Date(comp.expiry_date).toLocaleDateString()}
-                      </span>
+                    {editingComp === comp.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={comp.identifier}
+                          onChange={(e) => (comp.identifier = e.target.value)}
+                          className="border p-1 rounded mr-2"
+                        />
+                        <input
+                          type="date"
+                          value={comp.expiry_date?.split("T")[0] || ""}
+                          onChange={(e) => (comp.expiry_date = e.target.value)}
+                          className="border p-1 rounded mr-2"
+                        />
+                        <button
+                          onClick={() => saveEdit(comp)}
+                          className="text-green-600 flex items-center gap-1"
+                        >
+                          <Save size={16} /> Salva
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {comp.type} – {comp.identifier}
+                        </span>
+                        <div className="flex gap-2 items-center">
+                          {comp.expiry_date && (
+                            <span className="text-red-500">
+                              Scade: {new Date(comp.expiry_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => startEditing(comp.id)}
+                            className="text-gray-500 hover:text-yellow-600"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        </div>
+                      </>
                     )}
                   </li>
                 ))}
