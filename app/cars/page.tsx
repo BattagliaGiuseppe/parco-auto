@@ -3,10 +3,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Edit, Info, List, Grid } from "lucide-react";
-import { Orbitron } from "next/font/google";
-
-// Font racing
-const orbitron = Orbitron({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
 export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
@@ -26,10 +22,10 @@ export default function CarsPage() {
   }, []);
 
   return (
-    <div className={`p-6 flex flex-col gap-8 ${orbitron.className}`}>
+    <div className="p-6 flex flex-col gap-8">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">🏎️ Gestione Auto</h1>
+        <h1 className="text-3xl font-bold text-gray-800">🚗 Gestione Auto</h1>
         <button
           onClick={() =>
             setView(view === "sintetica" ? "dettagliata" : "sintetica")
@@ -60,7 +56,9 @@ export default function CarsPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">{car.name}</h2>
-                  <span className="text-sm text-gray-500">{car.chassis_number}</span>
+                  <span className="text-sm text-gray-500">
+                    Telaio: {car.chassis_number}
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg flex items-center gap-2">
@@ -77,8 +75,12 @@ export default function CarsPage() {
             {view === "dettagliata" && (
               <>
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-800">{car.name}</h2>
-                  <span className="text-sm text-gray-500">{car.chassis_number}</span>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    {car.name}
+                  </h2>
+                  <span className="text-sm text-gray-500">
+                    Telaio: {car.chassis_number}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -100,8 +102,8 @@ export default function CarsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <Edit size={16} /> Modifica
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2">
+                    <Info size={16} /> Dettagli
                   </button>
                 </div>
               </>
