@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { Edit, Info, List, Grid, Search, FileText, Printer } from "lucide-react";
@@ -9,8 +8,8 @@ import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-type ComponentBase = { type: string; identifier: string };
-type ComponentExp = { type: string; identifier: string; expiry: string }; // YYYY-MM-DD
+type ComponentBase = { id?: string; type: string; identifier: string };
+type ComponentExp = { id?: string; type: string; identifier: string; expiry: string }; 
 type ComponentType =
   | "motore" | "cambio" | "differenziale"
   | "cinture" | "cavi" | "estintore" | "serbatoio" | "passaporto";
@@ -45,27 +44,31 @@ export default function CarsPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [view, setView] = useState<"sintetica" | "dettagliata">("sintetica");
 
-  // ricerca
   const [search, setSearch] = useState("");
   const [searchBy, setSearchBy] = useState<"auto" | ComponentType>("auto");
 
-  // modal add
   const [openAdd, setOpenAdd] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
 
-  // campi vuoti, SOLO placeholder in input
+  // stato per modifica
+  const [editCar, setEditCar] = useState<any | null>(null);
+  const [editBaseComponents, setEditBaseComponents] = useState<ComponentBase[]>([]);
+  const [editExpComponents, setEditExpComponents] = useState<ComponentExp[]>([]);
+
   const [baseComponents, setBaseComponents] = useState<ComponentBase[]>([
-    { type: "motore",        identifier: "" },
-    { type: "cambio",        identifier: "" },
+    { type: "motore", identifier: "" },
+    { type: "cambio", identifier: "" },
     { type: "differenziale", identifier: "" },
   ]);
   const [expiringComponents, setExpiringComponents] = useState<ComponentExp[]>([
-    { type: "cinture",    identifier: "", expiry: "" },
-    { type: "cavi",       identifier: "", expiry: "" },
-    { type: "estintore",  identifier: "", expiry: "" },
-    { type: "serbatoio",  identifier: "", expiry: "" },
+    { type: "cinture", identifier: "", expiry: "" },
+    { type: "cavi", identifier: "", expiry: "" },
+    { type: "estintore", identifier: "", expiry: "" },
+    { type: "serbatoio", identifier: "", expiry: "" },
     { type: "passaporto", identifier: "", expiry: "" },
   ]);
 
@@ -74,12 +77,10 @@ export default function CarsPage() {
       .from("cars")
       .select("id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)")
       .order("id", { ascending: true });
-
     if (!error) setCars(data || []);
   };
   useEffect(() => { fetchCars(); }, []);
 
-  // colori scadenza
   const getExpiryColor = (date: string) => {
     const expiry = new Date(date);
     const now = new Date();
@@ -91,7 +92,6 @@ export default function CarsPage() {
     return "text-red-500";
   };
 
-  // filtro ricerca
   const filteredCars = cars.filter((car) => {
     if (searchBy === "auto") {
       if (!search.trim()) return true;
@@ -100,7 +100,6 @@ export default function CarsPage() {
         (car.chassis_number || "").toLowerCase().includes(search.toLowerCase())
       );
     }
-    // filtro per tipo componente
     const comps = (car.components || []).filter((c: any) => c.type === searchBy);
     if (!search.trim()) return comps.length > 0;
     return comps.some((c: any) =>
@@ -108,7 +107,7 @@ export default function CarsPage() {
     );
   });
 
-  // salva nuova auto + componenti
+  // salva nuova auto
   const onSaveCar = async () => {
     if (!name.trim() || !chassis.trim()) return;
     setSaving(true);
@@ -120,7 +119,6 @@ export default function CarsPage() {
         .single();
       if (carErr) throw carErr;
 
-      // costruisco inserimenti: se vuoto → default da placeholder
       const baseToInsert = baseComponents.map((b) => ({
         type: b.type,
         identifier: b.identifier || `${name} - ${defaultLabel[b.type as ComponentType]}`,
@@ -145,26 +143,49 @@ export default function CarsPage() {
       ]);
       if (compErr) throw compErr;
 
-      // reset & refresh
       setOpenAdd(false);
       setName("");
       setChassis("");
-      setBaseComponents([
-        { type: "motore",        identifier: "" },
-        { type: "cambio",        identifier: "" },
-        { type: "differenziale", identifier: "" },
-      ]);
-      setExpiringComponents([
-        { type: "cinture",    identifier: "", expiry: "" },
-        { type: "cavi",       identifier: "", expiry: "" },
-        { type: "estintore",  identifier: "", expiry: "" },
-        { type: "serbatoio",  identifier: "", expiry: "" },
-        { type: "passaporto", identifier: "", expiry: "" },
-      ]);
       fetchCars();
     } catch (e) {
       console.error("Errore salvataggio auto:", e);
-      alert("Errore nel salvataggio. Controlla la console.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // salva modifiche auto
+  const onUpdateCar = async () => {
+    if (!editCar) return;
+    setSaving(true);
+    try {
+      await supabase.from("cars").update({
+        name: editCar.name,
+        chassis_number: editCar.chassis_number
+      }).eq("id", editCar.id);
+
+      for (const b of editBaseComponents) {
+        if (b.id) {
+          await supabase.from("components").update({
+            identifier: b.identifier
+          }).eq("id", b.id);
+        }
+      }
+
+      for (const e of editExpComponents) {
+        if (e.id) {
+          await supabase.from("components").update({
+            identifier: e.identifier,
+            expiry_date: e.expiry
+          }).eq("id", e.id);
+        }
+      }
+
+      setOpenEdit(false);
+      setEditCar(null);
+      fetchCars();
+    } catch (e) {
+      console.error("Errore aggiornamento auto:", e);
     } finally {
       setSaving(false);
     }
@@ -172,280 +193,94 @@ export default function CarsPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
-      {/* Header + immagine + controlli */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
-          <div className="mt-3">
-            <Image
-              src="/mia-foto.png"
-              alt="La mia auto"
-              width={960}
-              height={480}
-              priority
-              className="rounded-xl w-full max-w-3xl h-auto"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-          {/* Ricerca */}
-          <div className="flex items-center border rounded-lg px-3 py-2 bg-white shadow-sm">
-            <Search className="text-gray-500 mr-2" size={18} />
-            <input
-              type="text"
-              placeholder={
-                searchBy === "auto"
-                  ? "Cerca per nome o telaio…"
-                  : `Cerca per ${searchBy} (identificativo)…`
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="outline-none text-sm w-48 md:w-72"
-            />
-            <select
-              value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value as any)}
-              className="ml-2 text-sm border rounded px-2 py-1"
-            >
-              <option value="auto">Auto</option>
-              {COMPONENT_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {capitalize(t)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Switch vista */}
-          <button
-            onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
-          >
-            {view === "sintetica" ? (
-              <>
-                <Grid size={18} /> Vista dettagliata
-              </>
-            ) : (
-              <>
-                <List size={18} /> Vista sintetica
-              </>
-            )}
-          </button>
-
-          {/* Aggiungi Auto */}
-          <button
-            onClick={() => setOpenAdd(true)}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
-          >
-            + Aggiungi Auto
-          </button>
-        </div>
-      </div>
-
       {/* Lista Auto */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCars.map((car) => (
-          <div
-            key={car.id}
-            className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
-          >
-            {/* Header card: nero/oro come sidebar */}
+          <div key={car.id} className="bg-white shadow-lg rounded-2xl overflow-hidden border">
             <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-bold">{car.name}</h2>
                 <span className="text-sm opacity-80">{car.chassis_number}</span>
               </div>
-
-              {view === "sintetica" && (
-                <div className="flex gap-2">
-                  <Link
-                    href={`/cars/${car.id}`}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
-                  >
-                    <Edit size={16} /> Modifica
-                  </Link>
-                  <Link
-                    href={`/cars/${car.id}`}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
-                  >
-                    <Info size={16} /> Dettagli
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Corpo card */}
-            <div className="p-4">
-              {view === "dettagliata" ? (
-                <>
-                  <div className="flex flex-col gap-2">
-                    {(car.components || []).map((comp: any) => (
-                      <div
-                        key={comp.id}
-                        className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg"
-                      >
-                        <span>
-                          {comp.type} – {comp.identifier}
-                        </span>
-                        {comp.expiry_date && (
-                          <span className={`font-medium ${getExpiryColor(comp.expiry_date)}`}>
-                            {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-end mt-4 gap-2">
-                    <Link
-                      href={`/cars/${car.id}`}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
-                    >
-                      <Edit size={16} /> Modifica
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">—</p>
-              )}
-            </div>
-
-            {/* Footer card: Documenti / Stampa */}
-            <div className="px-4 pb-4 flex justify-end gap-2">
-              <Link
-                href={`/cars/${car.id}/documents`}
-                className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
-              >
-                <FileText size={16} /> Documenti
-              </Link>
-              <Link
-                href={`/cars/${car.id}/print`}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
-              >
-                <Printer size={16} /> Stampa
-              </Link>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setEditCar({ ...car });
+                    setEditBaseComponents(car.components.filter((c: any) =>
+                      ["motore","cambio","differenziale"].includes(c.type)));
+                    setEditExpComponents(car.components.filter((c: any) =>
+                      ["cinture","cavi","estintore","serbatoio","passaporto"].includes(c.type))
+                      .map((c: any) => ({ ...c, expiry: c.expiry_date || "" })));
+                    setOpenEdit(true);
+                  }}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <Edit size={16}/> Modifica
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* MODAL: Aggiungi Auto */}
-      {openAdd && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => !saving && setOpenAdd(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b">
-                <h3 className="text-xl font-bold text-gray-800">Aggiungi Auto</h3>
-                <button
-                  onClick={() => !saving && setOpenAdd(false)}
-                  className="p-2 rounded hover:bg-gray-100"
-                >
-                  ✕
-                </button>
+      {/* MODAL: Modifica Auto */}
+      {openEdit && editCar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-3xl p-6">
+            <h3 className="text-xl font-bold mb-4">Modifica Auto</h3>
+
+            <label className="block text-sm mb-1">Nome auto</label>
+            <input className="border rounded-lg p-2 w-full mb-3"
+              value={editCar.name}
+              onChange={(e) => setEditCar({ ...editCar, name: e.target.value })}/>
+
+            <label className="block text-sm mb-1">Numero telaio</label>
+            <input className="border rounded-lg p-2 w-full mb-3"
+              value={editCar.chassis_number}
+              onChange={(e) => setEditCar({ ...editCar, chassis_number: e.target.value })}/>
+
+            <h4 className="font-semibold mt-4">Componenti base</h4>
+            {editBaseComponents.map((b, idx) => (
+              <input key={b.id} className="border rounded-lg p-2 w-full mb-2"
+                value={b.identifier}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEditBaseComponents(prev =>
+                    prev.map((x, i) => i === idx ? { ...x, identifier: v } : x)
+                  );
+                }}/>
+            ))}
+
+            <h4 className="font-semibold mt-4">Componenti con scadenza</h4>
+            {editExpComponents.map((e, idx) => (
+              <div key={e.id} className="flex gap-2 mb-2">
+                <input className="border rounded-lg p-2 w-1/2"
+                  value={e.identifier}
+                  onChange={(ev) => {
+                    const v = ev.target.value;
+                    setEditExpComponents(prev =>
+                      prev.map((x, i) => i === idx ? { ...x, identifier: v } : x));
+                  }}/>
+                <input type="date" className="border rounded-lg p-2 w-1/2"
+                  value={e.expiry}
+                  onChange={(ev) => {
+                    const v = ev.target.value;
+                    setEditExpComponents(prev =>
+                      prev.map((x, i) => i === idx ? { ...x, expiry: v } : x));
+                  }}/>
               </div>
+            ))}
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Dati auto */}
-                <div className="space-y-3">
-                  <label className="block text-sm text-gray-700">Nome auto</label>
-                  <input
-                    className="border rounded-lg p-2 w-full"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Es. GT3 #12"
-                  />
-                  <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
-                  <input
-                    className="border rounded-lg p-2 w-full"
-                    value={chassis}
-                    onChange={(e) => setChassis(e.target.value)}
-                    placeholder="Es. ZN6-000123"
-                  />
-                </div>
-
-                {/* Componenti base */}
-                <div className="space-y-3">
-                  <p className="font-semibold text-gray-800">Componenti base</p>
-                  {baseComponents.map((b, idx) => (
-                    <div key={b.type} className="flex items-center gap-2">
-                      <span className="w-32 text-sm text-gray-600 capitalize">{b.type}</span>
-                      <input
-                        className="border rounded-lg p-2 w-full"
-                        value={b.identifier}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setBaseComponents((prev) =>
-                            prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x))
-                          );
-                        }}
-                        placeholder={`${name || "Auto"} - ${defaultLabel[b.type as ComponentType]}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Componenti con scadenza */}
-                <div className="md:col-span-2">
-                  <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {expiringComponents.map((e, idx) => (
-                      <div key={e.type} className="grid grid-cols-5 gap-2 items-center">
-                        <span className="col-span-1 text-sm text-gray-600 capitalize">{e.type}</span>
-                        <input
-                          className="col-span-2 border rounded-lg p-2"
-                          value={e.identifier}
-                          onChange={(ev) => {
-                            const v = ev.target.value;
-                            setExpiringComponents((prev) =>
-                              prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x))
-                            );
-                          }}
-                          placeholder={defaultLabel[e.type as ComponentType]}
-                        />
-                        <input
-                          type="date"
-                          className="col-span-2 border rounded-lg p-2"
-                          value={e.expiry}
-                          onChange={(ev) => {
-                            const v = ev.target.value; // YYYY-MM-DD
-                            setExpiringComponents((prev) =>
-                              prev.map((x, i) => (i === idx ? { ...x, expiry: v } : x))
-                            );
-                          }}
-                          placeholder={
-                            e.expiry ||
-                            (EXP_RULES[e.type as keyof typeof EXP_RULES]
-                              ? `+${EXP_RULES[e.type as any]} anni`
-                              : "")
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 px-6 py-4 border-t">
-                <button
-                  onClick={() => setOpenAdd(false)}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={onSaveCar}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
-                >
-                  {saving ? "Salvataggio..." : "Salva auto"}
-                </button>
-              </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setOpenEdit(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg">Annulla</button>
+              <button onClick={onUpdateCar}
+                className="px-4 py-2 bg-yellow-500 rounded-lg font-bold text-black">
+                Salva modifiche
+              </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
