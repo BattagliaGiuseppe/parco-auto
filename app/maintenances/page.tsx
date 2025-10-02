@@ -49,15 +49,15 @@ export default function MaintenancesPage() {
     fetchCarsAndComponents();
   }, []);
 
-  // reset campi o preload se stiamo modificando
+  // preload dati quando si modifica
   useEffect(() => {
     if (editing) {
       setDate(editing.date || "");
       setType(editing.type || "");
       setDescription(editing.description || "");
       setNotes(editing.notes || "");
-      setCarId(editing.car_id || "");
-      setComponentId(editing.component_id || "");
+      setCarId(editing.car_id?.id || "");          // prende id corretto
+      setComponentId(editing.component_id?.id || "");
     } else {
       setDate("");
       setType("");
@@ -72,32 +72,25 @@ export default function MaintenancesPage() {
     if (!date || !description) return;
     setSaving(true);
     try {
+      const payload = {
+        date,
+        type,
+        description,
+        notes,
+        car_id: carId || null,
+        component_id: componentId || null,
+      };
+
       if (editing) {
         // UPDATE
         const { error } = await supabase
           .from("maintenances")
-          .update({
-            date,
-            type,
-            description,
-            notes,
-            car_id: carId,
-            component_id: componentId,
-          })
+          .update(payload)
           .eq("id", editing.id);
         if (error) throw error;
       } else {
         // INSERT
-        const { error } = await supabase.from("maintenances").insert([
-          {
-            date,
-            type,
-            description,
-            notes,
-            car_id: carId,
-            component_id: componentId,
-          },
-        ]);
+        const { error } = await supabase.from("maintenances").insert([payload]);
         if (error) throw error;
       }
 
@@ -119,7 +112,7 @@ export default function MaintenancesPage() {
         <h1 className="text-3xl font-bold text-gray-800">🛠️ Manutenzioni</h1>
         <button
           onClick={() => {
-            setEditing(null); // reset form
+            setEditing(null);
             setOpenModal(true);
           }}
           className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
@@ -139,20 +132,24 @@ export default function MaintenancesPage() {
               className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
             >
               <div className="bg-gray-900 text-yellow-500 px-4 py-3 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold">{m.type || "Manutenzione"}</h2>
-                  <span className="text-sm opacity-80">
-                    {new Date(m.date).toLocaleDateString("it-IT")}
-                  </span>
-                </div>
+                <h2 className="text-lg font-bold">{m.car_id?.name || "—"}</h2>
+                <span className="text-sm opacity-80">{m.component_id?.identifier || "—"}</span>
               </div>
 
               <div className="p-4 flex flex-col gap-3">
-                <p className="text-sm text-gray-700">{m.description}</p>
-                {m.notes && <p className="text-xs text-gray-500">{m.notes}</p>}
-
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Tipo:</span> {m.type || "—"}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Descrizione:</span> {m.description}
+                </p>
+                {m.notes && (
+                  <p className="text-xs text-gray-500">
+                    <span className="font-semibold">Note:</span> {m.notes}
+                  </p>
+                )}
                 <p className="text-xs text-gray-600">
-                  🚗 {m.car_id?.name || "—"} | ⚙️ {m.component_id?.identifier || "—"}
+                  📅 {new Date(m.date).toLocaleDateString("it-IT")}
                 </p>
 
                 <div className="flex justify-end">
@@ -191,6 +188,36 @@ export default function MaintenancesPage() {
               </div>
 
               <div className="p-6 flex flex-col gap-4">
+                {/* Auto */}
+                <label className="text-sm font-semibold">Auto</label>
+                <select
+                  className="border rounded-lg p-2"
+                  value={carId}
+                  onChange={(e) => setCarId(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {cars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Componente */}
+                <label className="text-sm font-semibold">Componente</label>
+                <select
+                  className="border rounded-lg p-2"
+                  value={componentId}
+                  onChange={(e) => setComponentId(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {components.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.identifier}
+                    </option>
+                  ))}
+                </select>
+
                 <label className="text-sm font-semibold">Data</label>
                 <input
                   type="date"
@@ -220,34 +247,6 @@ export default function MaintenancesPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
-
-                <label className="text-sm font-semibold">Auto</label>
-                <select
-                  className="border rounded-lg p-2"
-                  value={carId}
-                  onChange={(e) => setCarId(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {cars.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-
-                <label className="text-sm font-semibold">Componente</label>
-                <select
-                  className="border rounded-lg p-2"
-                  value={componentId}
-                  onChange={(e) => setComponentId(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {components.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.identifier}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="flex justify-end gap-3 px-6 py-4 border-t">
