@@ -155,7 +155,7 @@ export default function CarsPage() {
               width={960}
               height={480}
               priority
-              className="rounded-xl shadow-lg w-full max-w-3xl h-auto border-4 border-yellow-500"
+              className="rounded-xl shadow-lg w-full max-w-3xl h-auto"
             />
           </div>
         </div>
