@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { Audiowide } from "next/font/google";
+import { Printer } from "lucide-react";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -55,7 +56,7 @@ export default function PrintPage() {
 
   return (
     <div className={`p-8 space-y-10 ${audiowide.className}`}>
-      {/* Logo e intestazione */}
+      {/* Intestazione con logo + titolo + tasto stampa */}
       <div className="flex items-center justify-between border-b pb-4">
         <Image
           src="/logo.png"
@@ -65,6 +66,12 @@ export default function PrintPage() {
           className="object-contain"
         />
         <h1 className="text-3xl font-bold text-gray-800">Scheda Auto</h1>
+        <button
+          onClick={() => window.print()}
+          className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 print:hidden"
+        >
+          <Printer size={18} /> Stampa
+        </button>
       </div>
 
       {/* Sezione dati auto */}
