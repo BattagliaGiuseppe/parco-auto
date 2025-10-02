@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Car, Wrench, BarChart3, CalendarDays, Settings } from "lucide-react";
+import { Car, Wrench, BarChart3, CalendarDays, Settings, Menu } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
@@ -17,47 +19,64 @@ export default function Sidebar() {
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
 
-  return (
-    <aside className="w-64 bg-black text-yellow-500 flex flex-col shadow-2xl">
-      {/* Logo */}
-      <div className="flex flex-col items-center justify-center p-6 border-b border-yellow-500">
-        <Image
-          src="/logo.png"
-          alt="Battaglia Racing Car Logo"
-          width={120} // più grande (doppio di prima)
-          height={120}
-          className="object-contain drop-shadow-lg"
-        />
-        <h2 className="mt-4 text-lg font-bold tracking-wide">
-          Battaglia Racing
-        </h2>
-      </div>
+  const itemClass = (href: string) =>
+    `flex items-center gap-3 p-3 rounded-xl transition ${
+      pathname.startsWith(href)
+        ? "bg-yellow-500 text-gray-900"
+        : "hover:bg-gray-800 text-white"
+    }`;
 
-      {/* Menu */}
-      <nav className="flex-1 mt-6 space-y-2 px-4">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
-          return (
+  return (
+    <>
+      {/* Pulsante hamburger (mobile) */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="md:hidden fixed top-4 left-4 z-50 bg-gray-900 text-white p-2 rounded-lg shadow"
+        aria-label="Apri menu"
+      >
+        <Menu />
+      </button>
+
+      {/* Overlay mobile */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`z-50 md:static fixed top-0 left-0 h-full w-64 bg-gray-900 text-white flex flex-col shadow-xl transform transition-transform
+        ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-center p-6 border-b border-gray-800">
+          <Image
+            src="/logo.png"
+            alt="Battaglia Racing Car Logo"
+            width={100}
+            height={100}
+            className="object-contain"
+            priority
+          />
+        </div>
+
+        {/* Menu */}
+        <nav className="flex-1 mt-6 space-y-2 px-4">
+          {links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 p-3 rounded-xl transition ${
-                active
-                  ? "bg-yellow-500 text-black font-bold"
-                  : "hover:bg-gray-900 hover:text-yellow-400"
-              }`}
+              className={itemClass(href)}
+              onClick={() => setOpen(false)}
             >
               <Icon size={20} />
               <span>{label}</span>
             </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer racing */}
-      <div className="p-4 border-t border-yellow-500 text-xs text-center text-yellow-400">
-        © 2025 Battaglia Racing Car
-      </div>
-    </aside>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
