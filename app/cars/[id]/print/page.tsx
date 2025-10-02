@@ -59,7 +59,7 @@ export default function PrintPage() {
       {/* Intestazione con logo + titolo + tasto stampa */}
       <div className="flex items-center justify-between border-b pb-4">
         <Image
-          src="/logo.png"
+          src="/logo-stampa.png"
           alt="Logo Battaglia Racing Car"
           width={120}
           height={120}
