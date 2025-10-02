@@ -1,98 +1,49 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
-import Link from "next/link"; // 👈 aggiunto
+import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function CarDetailPage() {
-  const params = useParams();
-  const carId = params?.id as string;
-
+  const { id } = useParams<{ id: string }>();
   const [car, setCar] = useState<any>(null);
-  const [components, setComponents] = useState<any[]>([]);
-  const [maintenances, setMaintenances] = useState<any[]>([]);
-
-  const fetchCarDetails = async () => {
-    // Info auto
-    const { data: carData } = await supabase
-      .from("cars")
-      .select("*")
-      .eq("id", carId)
-      .single();
-    setCar(carData);
-
-    // Componenti installati
-    const { data: compData } = await supabase
-      .from("car_components")
-      .select("*, components(id, type, identifier, expiry_date)")
-      .eq("car_id", carId)
-      .is("removed_at", null);
-
-    setComponents(compData || []);
-
-    // Storico manutenzioni legato ai componenti dell’auto
-    if (compData && compData.length > 0) {
-      const compIds = compData.map((c: any) => c.component_id);
-      const { data: maintData } = await supabase
-        .from("maintenances")
-        .select("*, components(type, identifier)")
-        .in("component_id", compIds);
-
-      setMaintenances(maintData || []);
-    }
-  };
 
   useEffect(() => {
-    if (carId) fetchCarDetails();
-  }, [carId]);
+    const load = async () => {
+      const { data } = await supabase
+        .from("cars")
+        .select("id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)")
+        .eq("id", id)
+        .single();
+      setCar(data);
+    };
+    load();
+  }, [id]);
 
-  if (!car) return <p>Caricamento...</p>;
+  if (!car) return <div className="p-6">Caricamento…</div>;
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-4">🚗 {car.name}</h1>
-      <p className="mb-6 text-gray-600 dark:text-gray-300">
-        Telaio: {car.chassis_number}
-      </p>
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-bold">{car.name}</h1>
+      <p className="text-gray-600">{car.chassis_number}</p>
 
-      {/* Componenti installati */}
-      <h2 className="text-xl font-semibold mb-2">⚙️ Componenti attualmente installati</h2>
-      {components.length === 0 ? (
-        <p className="mb-6">Nessun componente installato</p>
-      ) : (
-        <ul className="space-y-2 mb-6">
-          {components.map((c) => (
-            <li key={c.component_id} className="p-3 border rounded">
-              {/* 👇 Link al dettaglio del componente */}
-              <Link
-                href={`/components/${c.components?.id}`}
-                className="text-blue-600 hover:underline"
-              >
-                {c.components?.type} – {c.components?.identifier}
-              </Link>
-              {c.components?.expiry_date
-                ? ` (Scadenza: ${c.components?.expiry_date})`
-                : ""}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="space-y-2">
+        {(car.components || []).map((c: any) => (
+          <div key={c.id} className="p-3 rounded border bg-white">
+            {c.type} — {c.identifier} {c.expiry_date ? `(${new Date(c.expiry_date).toLocaleDateString("it-IT")})` : ""}
+          </div>
+        ))}
+      </div>
 
-      {/* Storico manutenzioni */}
-      <h2 className="text-xl font-semibold mb-2">🛠️ Storico manutenzioni</h2>
-      {maintenances.length === 0 ? (
-        <p>Nessuna manutenzione registrata</p>
-      ) : (
-        <ul className="space-y-2">
-          {maintenances.map((m) => (
-            <li key={m.id} className="p-3 border rounded">
-              {m.performed_at?.split("T")[0]} – {m.description} (
-              {m.components?.type} {m.components?.identifier})
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="flex gap-2">
+        <Link href={`/cars/${id}/documents`} className="px-3 py-2 rounded bg-gray-900 text-yellow-500">
+          Documenti
+        </Link>
+        <Link href={`/cars/${id}/print`} className="px-3 py-2 rounded bg-gray-100 text-gray-800">
+          Stampa
+        </Link>
+      </div>
     </div>
   );
 }
