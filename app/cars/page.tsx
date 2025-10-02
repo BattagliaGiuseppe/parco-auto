@@ -10,7 +10,7 @@ import { Audiowide } from "next/font/google";
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type ComponentBase = { type: string; identifier: string };
-type ComponentExp = { type: string; identifier: string; expiry: string };
+type ComponentExp = { type: string; identifier: string; expiry: string }; // YYYY-MM-DD
 
 export default function CarsPage() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export default function CarsPage() {
     setBaseComponents((prev) =>
       prev.map((b) => ({
         ...b,
-        identifier: b.identifier || `${name || "Auto"} - ${capitalize(b.type)}`,
+        identifier: b.identifier || `${name || "Auto"} - ${capitalize(b.type)}`
       }))
     );
   }, [name]);
@@ -58,9 +58,7 @@ export default function CarsPage() {
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
-      .select(
-        "id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)"
-      )
+      .select("id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)")
       .order("id", { ascending: true });
 
     if (!error) setCars(data || []);
@@ -78,9 +76,9 @@ export default function CarsPage() {
     const months =
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
-    if (months > 12) return "text-green-600";
-    if (months > 6) return "text-yellow-600";
-    return "text-red-600";
+    if (months > 12) return "text-green-500";
+    if (months > 6) return "text-yellow-500";
+    return "text-red-500";
   };
 
   const filteredCars = cars.filter((car) => {
@@ -92,9 +90,7 @@ export default function CarsPage() {
       );
     } else {
       return (car.components || []).some((comp: any) =>
-        `${comp.type} ${comp.identifier}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
+        `${comp.type} ${comp.identifier}`.toLowerCase().includes(search.toLowerCase())
       );
     }
   });
@@ -126,9 +122,7 @@ export default function CarsPage() {
         })),
       ];
 
-      const { error: compErr } = await supabase
-        .from("components")
-        .insert(toInsert);
+      const { error: compErr } = await supabase.from("components").insert(toInsert);
       if (compErr) throw compErr;
 
       setOpenAdd(false);
@@ -137,14 +131,15 @@ export default function CarsPage() {
       fetchCars();
     } catch (e) {
       console.error("Errore salvataggio auto:", e);
+      alert("Errore nel salvataggio. Controlla la console.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className={`p-6 flex flex-col gap-8 bg-gray-100 min-h-screen ${audiowide.className}`}>
-      {/* Header + immagine + controlli */}
+    <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
@@ -155,26 +150,26 @@ export default function CarsPage() {
               width={960}
               height={480}
               priority
-              className="rounded-xl shadow-lg w-full max-w-3xl h-auto"
+              className="rounded-xl w-full max-w-3xl h-auto"
             />
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           {/* Ricerca */}
-          <div className="flex items-center border border-yellow-500 rounded-lg px-3 py-2 bg-white shadow-md">
-            <Search className="text-yellow-500 mr-2" size={18} />
+          <div className="flex items-center border rounded-lg px-3 py-2 bg-white shadow-sm">
+            <Search className="text-gray-500 mr-2" size={18} />
             <input
               type="text"
               placeholder={`Cerca per ${searchBy === "auto" ? "auto" : "componente"}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="outline-none text-sm w-48 md:w-72 bg-transparent text-gray-800"
+              className="outline-none text-sm w-48 md:w-72"
             />
             <select
               value={searchBy}
               onChange={(e) => setSearchBy(e.target.value as any)}
-              className="ml-2 text-sm border border-yellow-500 rounded px-2 py-1 bg-white text-gray-800"
+              className="ml-2 text-sm border rounded px-2 py-1"
             >
               <option value="auto">Auto</option>
               <option value="component">Componenti</option>
@@ -183,9 +178,7 @@ export default function CarsPage() {
 
           {/* Switch vista */}
           <button
-            onClick={() =>
-              setView(view === "sintetica" ? "dettagliata" : "sintetica")
-            }
+            onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
             className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg flex items-center gap-2 font-bold"
           >
             {view === "sintetica" ? (
@@ -202,7 +195,7 @@ export default function CarsPage() {
           {/* Aggiungi Auto */}
           <button
             onClick={() => setOpenAdd(true)}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg flex items-center gap-2 font-bold"
+            className="bg-black hover:bg-gray-900 text-yellow-500 px-4 py-2 rounded-lg font-bold"
           >
             + Aggiungi Auto
           </button>
@@ -214,10 +207,9 @@ export default function CarsPage() {
         {filteredCars.map((car) => (
           <div
             key={car.id}
-            className="bg-white border border-yellow-500 shadow-lg rounded-2xl overflow-hidden hover:shadow-yellow-500/40 transition"
+            className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
           >
-            {/* Header card */}
-            <div className="bg-yellow-500 text-black px-4 py-3 flex justify-between items-center">
+            <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-bold">{car.name}</h2>
                 <span className="text-sm opacity-80">{car.chassis_number}</span>
@@ -227,13 +219,13 @@ export default function CarsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => router.push(`/cars/${car.id}`)}
-                    className="bg-gray-900 hover:bg-gray-800 border border-yellow-500 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
                   >
                     <Edit size={16} /> Modifica
                   </button>
                   <button
                     onClick={() => router.push(`/cars/${car.id}`)}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
+                    className="bg-gray-200 hover:bg-gray-300 text-black px-3 py-2 rounded-lg flex items-center gap-2"
                   >
                     <Info size={16} /> Dettagli
                   </button>
@@ -241,9 +233,8 @@ export default function CarsPage() {
               )}
             </div>
 
-            {/* Corpo card */}
             <div className="p-4">
-              {view === "dettagliata" ? (
+              {view === "dettagliata" && (
                 <>
                   <div className="flex flex-col gap-2">
                     {(car.components || []).map((comp: any) => (
@@ -251,18 +242,12 @@ export default function CarsPage() {
                         key={comp.id}
                         className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg"
                       >
-                        <span className="text-gray-800">
+                        <span>
                           {comp.type} – {comp.identifier}
                         </span>
                         {comp.expiry_date && (
-                          <span
-                            className={`font-bold ${getExpiryColor(
-                              comp.expiry_date
-                            )}`}
-                          >
-                            {new Date(
-                              comp.expiry_date
-                            ).toLocaleDateString("it-IT")}
+                          <span className={`font-bold ${getExpiryColor(comp.expiry_date)}`}>
+                            {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
                           </span>
                         )}
                       </div>
@@ -272,31 +257,26 @@ export default function CarsPage() {
                   <div className="flex justify-end mt-4">
                     <button
                       onClick={() => router.push(`/cars/${car.id}`)}
-                      className="bg-gray-900 hover:bg-gray-800 border border-yellow-500 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
                     >
                       <Edit size={16} /> Modifica
                     </button>
                   </div>
                 </>
-              ) : (
-                <p className="text-sm text-gray-400">—</p>
               )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* MODAL: Aggiungi Auto */}
+      {/* MODAL Aggiungi Auto */}
       {openAdd && (
         <>
-          <div
-            className="fixed inset-0 z-40 bg-black/70"
-            onClick={() => !saving && setOpenAdd(false)}
-          />
+          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => !saving && setOpenAdd(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white text-gray-800 rounded-2xl w-full max-w-4xl shadow-xl border-2 border-yellow-500 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-yellow-500">
-                <h3 className="text-xl font-bold">Aggiungi Auto</h3>
+            <div className={`bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden ${audiowide.className}`}>
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h3 className="text-xl font-bold text-gray-800">Aggiungi Auto</h3>
                 <button
                   onClick={() => !saving && setOpenAdd(false)}
                   className="p-2 rounded hover:bg-gray-100"
@@ -308,16 +288,16 @@ export default function CarsPage() {
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Dati auto */}
                 <div className="space-y-3">
-                  <label className="block text-sm">Nome auto</label>
+                  <label className="block text-sm text-gray-700">Nome auto</label>
                   <input
-                    className="border border-yellow-500 rounded-lg p-2 w-full"
+                    className="border rounded-lg p-2 w-full"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Es. GT3 #12"
                   />
-                  <label className="block text-sm mt-3">Numero telaio</label>
+                  <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
                   <input
-                    className="border border-yellow-500 rounded-lg p-2 w-full"
+                    className="border rounded-lg p-2 w-full"
                     value={chassis}
                     onChange={(e) => setChassis(e.target.value)}
                     placeholder="Es. ZN6-000123"
@@ -326,24 +306,20 @@ export default function CarsPage() {
 
                 {/* Componenti base */}
                 <div className="space-y-3">
-                  <p className="font-semibold">Componenti base</p>
+                  <p className="font-semibold text-gray-800">Componenti base</p>
                   {baseComponents.map((b, idx) => (
                     <div key={b.type} className="flex items-center gap-2">
-                      <span className="w-32 text-sm capitalize">{b.type}</span>
+                      <span className="w-32 text-sm text-gray-600 capitalize">{b.type}</span>
                       <input
-                        className="border border-yellow-500 rounded-lg p-2 w-full"
+                        className="border rounded-lg p-2 w-full"
                         value={b.identifier}
                         onChange={(e) => {
                           const v = e.target.value;
                           setBaseComponents((prev) =>
-                            prev.map((x, i) =>
-                              i === idx ? { ...x, identifier: v } : x
-                            )
+                            prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x))
                           );
                         }}
-                        placeholder={`${name || "Auto"} - ${capitalize(
-                          b.type
-                        )}`}
+                        placeholder={`${name || "Auto"} - ${capitalize(b.type)}`}
                       />
                     </div>
                   ))}
@@ -351,38 +327,29 @@ export default function CarsPage() {
 
                 {/* Componenti con scadenza */}
                 <div className="md:col-span-2">
-                  <p className="font-semibold mb-2">Componenti con scadenza</p>
+                  <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {expiringComponents.map((e, idx) => (
-                      <div
-                        key={e.type}
-                        className="grid grid-cols-5 gap-2 items-center"
-                      >
-                        <span className="col-span-1 text-sm capitalize">
-                          {e.type}
-                        </span>
+                      <div key={e.type} className="grid grid-cols-5 gap-2 items-center">
+                        <span className="col-span-1 text-sm text-gray-600 capitalize">{e.type}</span>
                         <input
-                          className="col-span-2 border border-yellow-500 rounded-lg p-2"
+                          className="col-span-2 border rounded-lg p-2"
                           value={e.identifier}
                           onChange={(ev) => {
                             const v = ev.target.value;
                             setExpiringComponents((prev) =>
-                              prev.map((x, i) =>
-                                i === idx ? { ...x, identifier: v } : x
-                              )
+                              prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x))
                             );
                           }}
                         />
                         <input
                           type="date"
-                          className="col-span-2 border border-yellow-500 rounded-lg p-2"
+                          className="col-span-2 border rounded-lg p-2"
                           value={e.expiry}
                           onChange={(ev) => {
                             const v = ev.target.value;
                             setExpiringComponents((prev) =>
-                              prev.map((x, i) =>
-                                i === idx ? { ...x, expiry: v } : x
-                              )
+                              prev.map((x, i) => (i === idx ? { ...x, expiry: v } : x))
                             );
                           }}
                         />
@@ -392,18 +359,18 @@ export default function CarsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-yellow-500">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t">
                 <button
                   onClick={() => setOpenAdd(false)}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+                  className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-black"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={onSaveCar}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-yellow-500 text-black font-bold hover:bg-yellow-600"
+                  className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
                 >
                   {saving ? "Salvataggio..." : "Salva auto"}
                 </button>
