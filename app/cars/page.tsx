@@ -78,9 +78,9 @@ export default function CarsPage() {
     const months =
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
-    if (months > 12) return "text-green-400";
-    if (months > 6) return "text-yellow-400";
-    return "text-red-500";
+    if (months > 12) return "text-green-600";
+    if (months > 6) return "text-yellow-600";
+    return "text-red-600";
   };
 
   const filteredCars = cars.filter((car) => {
@@ -143,11 +143,11 @@ export default function CarsPage() {
   };
 
   return (
-    <div className={`p-6 flex flex-col gap-8 bg-black min-h-screen ${audiowide.className}`}>
+    <div className={`p-6 flex flex-col gap-8 bg-gray-100 min-h-screen ${audiowide.className}`}>
       {/* Header + immagine + controlli */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-yellow-500">Gestione Auto</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
           <div className="mt-3">
             <Image
               src="/mia-foto.png"
@@ -162,19 +162,19 @@ export default function CarsPage() {
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           {/* Ricerca */}
-          <div className="flex items-center border border-yellow-500 rounded-lg px-3 py-2 bg-gray-900 shadow-md">
+          <div className="flex items-center border border-yellow-500 rounded-lg px-3 py-2 bg-white shadow-md">
             <Search className="text-yellow-500 mr-2" size={18} />
             <input
               type="text"
               placeholder={`Cerca per ${searchBy === "auto" ? "auto" : "componente"}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="outline-none text-sm w-48 md:w-72 bg-transparent text-yellow-500 placeholder-yellow-400"
+              className="outline-none text-sm w-48 md:w-72 bg-transparent text-gray-800"
             />
             <select
               value={searchBy}
               onChange={(e) => setSearchBy(e.target.value as any)}
-              className="ml-2 text-sm border border-yellow-500 rounded px-2 py-1 bg-black text-yellow-500"
+              className="ml-2 text-sm border border-yellow-500 rounded px-2 py-1 bg-white text-gray-800"
             >
               <option value="auto">Auto</option>
               <option value="component">Componenti</option>
@@ -202,7 +202,7 @@ export default function CarsPage() {
           {/* Aggiungi Auto */}
           <button
             onClick={() => setOpenAdd(true)}
-            className="bg-gray-900 hover:bg-gray-800 border border-yellow-500 text-yellow-500 px-4 py-2 rounded-lg font-bold"
+            className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg flex items-center gap-2 font-bold"
           >
             + Aggiungi Auto
           </button>
@@ -214,7 +214,7 @@ export default function CarsPage() {
         {filteredCars.map((car) => (
           <div
             key={car.id}
-            className="bg-gray-900 border border-yellow-500 shadow-lg rounded-2xl overflow-hidden hover:shadow-yellow-500/40 transition"
+            className="bg-white border border-yellow-500 shadow-lg rounded-2xl overflow-hidden hover:shadow-yellow-500/40 transition"
           >
             {/* Header card */}
             <div className="bg-yellow-500 text-black px-4 py-3 flex justify-between items-center">
@@ -233,7 +233,7 @@ export default function CarsPage() {
                   </button>
                   <button
                     onClick={() => router.push(`/cars/${car.id}`)}
-                    className="bg-black hover:bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2 font-bold"
                   >
                     <Info size={16} /> Dettagli
                   </button>
@@ -249,9 +249,9 @@ export default function CarsPage() {
                     {(car.components || []).map((comp: any) => (
                       <div
                         key={comp.id}
-                        className="flex justify-between text-sm bg-gray-800 px-3 py-2 rounded-lg"
+                        className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg"
                       >
-                        <span className="text-yellow-500">
+                        <span className="text-gray-800">
                           {comp.type} – {comp.identifier}
                         </span>
                         {comp.expiry_date && (
@@ -294,29 +294,30 @@ export default function CarsPage() {
             onClick={() => !saving && setOpenAdd(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 text-yellow-500 rounded-2xl w-full max-w-4xl shadow-xl border-2 border-yellow-500 overflow-hidden">
+            <div className="bg-white text-gray-800 rounded-2xl w-full max-w-4xl shadow-xl border-2 border-yellow-500 overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-yellow-500">
                 <h3 className="text-xl font-bold">Aggiungi Auto</h3>
                 <button
                   onClick={() => !saving && setOpenAdd(false)}
-                  className="p-2 rounded hover:bg-gray-800"
+                  className="p-2 rounded hover:bg-gray-100"
                 >
                   <X />
                 </button>
               </div>
 
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Dati auto */}
                 <div className="space-y-3">
                   <label className="block text-sm">Nome auto</label>
                   <input
-                    className="border border-yellow-500 rounded-lg p-2 w-full bg-black text-yellow-500"
+                    className="border border-yellow-500 rounded-lg p-2 w-full"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Es. GT3 #12"
                   />
                   <label className="block text-sm mt-3">Numero telaio</label>
                   <input
-                    className="border border-yellow-500 rounded-lg p-2 w-full bg-black text-yellow-500"
+                    className="border border-yellow-500 rounded-lg p-2 w-full"
                     value={chassis}
                     onChange={(e) => setChassis(e.target.value)}
                     placeholder="Es. ZN6-000123"
@@ -330,7 +331,7 @@ export default function CarsPage() {
                     <div key={b.type} className="flex items-center gap-2">
                       <span className="w-32 text-sm capitalize">{b.type}</span>
                       <input
-                        className="border border-yellow-500 rounded-lg p-2 w-full bg-black text-yellow-500"
+                        className="border border-yellow-500 rounded-lg p-2 w-full"
                         value={b.identifier}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -361,7 +362,7 @@ export default function CarsPage() {
                           {e.type}
                         </span>
                         <input
-                          className="col-span-2 border border-yellow-500 rounded-lg p-2 bg-black text-yellow-500"
+                          className="col-span-2 border border-yellow-500 rounded-lg p-2"
                           value={e.identifier}
                           onChange={(ev) => {
                             const v = ev.target.value;
@@ -374,7 +375,7 @@ export default function CarsPage() {
                         />
                         <input
                           type="date"
-                          className="col-span-2 border border-yellow-500 rounded-lg p-2 bg-black text-yellow-500"
+                          className="col-span-2 border border-yellow-500 rounded-lg p-2"
                           value={e.expiry}
                           onChange={(ev) => {
                             const v = ev.target.value;
@@ -395,7 +396,7 @@ export default function CarsPage() {
                 <button
                   onClick={() => setOpenAdd(false)}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-gray-800 text-yellow-500 hover:bg-gray-700"
+                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
                 >
                   Annulla
                 </button>
