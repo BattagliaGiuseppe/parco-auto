@@ -12,6 +12,9 @@ import {
   Settings,
   Menu,
 } from "lucide-react";
+import { Audiowide } from "next/font/google";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -36,7 +39,7 @@ export default function Sidebar() {
   };
 
   return (
-    <>
+    <div className={audiowide.className}>
       {/* Pulsante hamburger (solo mobile) */}
       <button
         onClick={() => setOpen((o) => !o)}
@@ -64,7 +67,7 @@ export default function Sidebar() {
           <Image
             src="/logo.png"
             alt="Battaglia Racing Car Logo"
-            width={120} // doppio
+            width={120}
             height={120}
             className="object-contain drop-shadow-lg"
             priority
@@ -94,6 +97,6 @@ export default function Sidebar() {
           © 2025 Battaglia Racing Car
         </div>
       </aside>
-    </>
+    </div>
   );
 }
