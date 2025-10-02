@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, Trash2, FileText } from "lucide-react";
+import { PlusCircle, FileText } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -16,11 +16,11 @@ type Document = {
 };
 
 const PRESET_TYPES = [
-  "Passaporto",
-  "Scheda tecnica",
   "Foto",
-  "Certificato",
-  "Altro"
+  "Passaporto",
+  "Certificato serbatoio",
+  "Scheda Tecnica",
+  "Altro",
 ];
 
 export default function DocumentsPage() {
@@ -29,6 +29,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState(PRESET_TYPES[0]);
+  const [customType, setCustomType] = useState("");
 
   const fetchDocs = async () => {
     setLoading(true);
@@ -47,10 +48,12 @@ export default function DocumentsPage() {
   }, [id]);
 
   const uploadDoc = async () => {
-    if (!file || !docType) {
-      alert("Seleziona file e tipo documento");
+    if (!file) {
+      alert("Seleziona un file");
       return;
     }
+    const finalType =
+      docType === "Altro" ? customType.trim() || "Altro" : docType;
 
     const fileName = `${id}-${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage
@@ -69,25 +72,16 @@ export default function DocumentsPage() {
 
     const { error: insertError } = await supabase
       .from("documents")
-      .insert([{ car_id: id, type: docType, file_url: publicUrl.publicUrl }]);
+      .insert([{ car_id: id, type: finalType, file_url: publicUrl.publicUrl }]);
 
     if (!insertError) {
       setFile(null);
       setDocType(PRESET_TYPES[0]);
+      setCustomType("");
       fetchDocs();
     } else {
       console.error("Errore inserimento metadata:", insertError);
       alert("Errore nel salvataggio del documento");
-    }
-  };
-
-  const deleteDoc = async (docId: string) => {
-    const { error } = await supabase.from("documents").delete().eq("id", docId);
-    if (error) {
-      console.error("Errore eliminazione documento:", error);
-      alert("Errore nell'eliminazione");
-    } else {
-      fetchDocs();
     }
   };
 
@@ -102,17 +96,28 @@ export default function DocumentsPage() {
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="border p-2 rounded w-full md:w-auto"
         />
-        <select
-          value={docType}
-          onChange={(e) => setDocType(e.target.value)}
-          className="border p-2 rounded w-full md:w-auto"
-        >
-          {PRESET_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          <select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            className="border p-2 rounded w-full md:w-auto"
+          >
+            {PRESET_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          {docType === "Altro" && (
+            <input
+              type="text"
+              value={customType}
+              onChange={(e) => setCustomType(e.target.value)}
+              placeholder="Specifica tipo documento"
+              className="border p-2 rounded w-full md:w-auto"
+            />
+          )}
+        </div>
         <button
           onClick={uploadDoc}
           className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
@@ -147,12 +152,7 @@ export default function DocumentsPage() {
                 >
                   Apri
                 </a>
-                <button
-                  onClick={() => deleteDoc(doc.id)}
-                  className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 flex items-center gap-1"
-                >
-                  <Trash2 size={16} /> Elimina
-                </button>
+                {/* TODO: Abilitare elimina solo per utenti admin */}
               </div>
             </div>
           ))}
