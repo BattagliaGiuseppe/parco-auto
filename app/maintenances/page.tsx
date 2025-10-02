@@ -2,122 +2,89 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, Info, Wrench, List, Grid } from "lucide-react";
+import { Edit, PlusCircle, Wrench } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function MaintenancesPage() {
   const [maintenances, setMaintenances] = useState<any[]>([]);
-  const [view, setView] = useState<"sintetica" | "dettagliata">("sintetica");
+  const [loading, setLoading] = useState(false);
 
   const fetchMaintenances = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from("maintenances")
-      .select("id, description, status, date, car_id, cars(name)")
+      .select("id, description, date, km, component_id (type, identifier, car_id(name))")
       .order("date", { ascending: false });
 
     if (!error) setMaintenances(data || []);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchMaintenances();
   }, []);
 
-  const statusColors: Record<string, string> = {
-    completata: "bg-green-100 text-green-800",
-    urgente: "bg-red-100 text-red-800",
-    pianificata: "bg-yellow-100 text-yellow-800",
-  };
-
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">🛠️ Manutenzioni</h1>
-        <button
-          onClick={() =>
-            setView(view === "sintetica" ? "dettagliata" : "sintetica")
-          }
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          {view === "sintetica" ? (
-            <>
-              <Grid size={18} /> Vista dettagliata
-            </>
-          ) : (
-            <>
-              <List size={18} /> Vista sintetica
-            </>
-          )}
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Wrench /> Manutenzioni
+        </h1>
+        <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+          <PlusCircle size={18} /> Aggiungi manutenzione
         </button>
       </div>
 
-      {/* Lista Manutenzioni */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {maintenances.map((m) => (
-          <div
-            key={m.id}
-            className="bg-white shadow-lg rounded-2xl p-6 flex flex-col gap-4 border border-gray-200 hover:shadow-xl transition"
-          >
-            {view === "sintetica" && (
-              <div className="flex justify-between items-center">
+      {/* Lista manutenzioni */}
+      {loading ? (
+        <p>Caricamento...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {maintenances.map((m) => (
+            <div
+              key={m.id}
+              className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+            >
+              {/* Header card */}
+              <div className="bg-gray-900 text-yellow-500 px-4 py-3 flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    {m.description}
+                  <h2 className="text-lg font-bold">
+                    {m.component_id?.type || "—"} – {m.component_id?.identifier}
                   </h2>
-                  <span className="text-sm text-gray-500">
-                    {new Date(m.date).toLocaleDateString()}
+                  <span className="text-sm opacity-80">
+                    {m.component_id?.car_id?.name || "Senza auto"}
                   </span>
-                  {m.cars && (
-                    <p className="text-xs text-gray-400">
-                      Auto: {m.cars.name}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <span
-                    className={`px-2 py-1 rounded-lg text-xs font-semibold ${
-                      statusColors[m.status] || "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {m.status}
-                  </span>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <Info size={16} /> Dettagli
-                  </button>
                 </div>
               </div>
-            )}
 
-            {view === "dettagliata" && (
-              <>
-                <h2 className="text-xl font-bold text-gray-800">
-                  {m.description}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Data: {new Date(m.date).toLocaleDateString()}
+              {/* Corpo card */}
+              <div className="p-4 flex flex-col gap-3">
+                <p className="text-gray-700 text-sm">
+                  <span className="font-semibold">Descrizione:</span> {m.description}
                 </p>
-                <p className="text-sm text-gray-500">
-                  Auto: {m.cars?.name || "N/A"}
+                <p className="text-gray-700 text-sm">
+                  <span className="font-semibold">Data:</span>{" "}
+                  {new Date(m.date).toLocaleDateString("it-IT")}
                 </p>
-                <span
-                  className={`px-2 py-1 rounded-lg text-xs font-semibold w-fit ${
-                    statusColors[m.status] || "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {m.status}
-                </span>
+                {m.km && (
+                  <p className="text-gray-700 text-sm">
+                    <span className="font-semibold">KM:</span> {m.km}
+                  </p>
+                )}
+
                 <div className="flex justify-end">
-                  <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg flex items-center gap-2">
+                  <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg flex items-center gap-2">
                     <Edit size={16} /> Modifica
                   </button>
                 </div>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
