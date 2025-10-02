@@ -30,7 +30,15 @@ export default function MaintenancesPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("maintenances")
-      .select("id, date, type, description, notes, car_id(name), component_id(identifier)")
+      .select(`
+        id,
+        date,
+        type,
+        description,
+        notes,
+        car_id (id, name),
+        component_id (id, identifier)
+      `)
       .order("date", { ascending: false });
 
     if (!error) setMaintenances(data || []);
@@ -56,7 +64,7 @@ export default function MaintenancesPage() {
       setType(editing.type || "");
       setDescription(editing.description || "");
       setNotes(editing.notes || "");
-      setCarId(editing.car_id?.id || "");          // prende id corretto
+      setCarId(editing.car_id?.id || "");
       setComponentId(editing.component_id?.id || "");
     } else {
       setDate("");
@@ -82,16 +90,9 @@ export default function MaintenancesPage() {
       };
 
       if (editing) {
-        // UPDATE
-        const { error } = await supabase
-          .from("maintenances")
-          .update(payload)
-          .eq("id", editing.id);
-        if (error) throw error;
+        await supabase.from("maintenances").update(payload).eq("id", editing.id);
       } else {
-        // INSERT
-        const { error } = await supabase.from("maintenances").insert([payload]);
-        if (error) throw error;
+        await supabase.from("maintenances").insert([payload]);
       }
 
       setOpenModal(false);
@@ -131,11 +132,13 @@ export default function MaintenancesPage() {
               key={m.id}
               className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
             >
-              <div className="bg-gray-900 text-yellow-500 px-4 py-3 flex justify-between items-center">
+              {/* Header card */}
+              <div className="bg-gray-900 text-white px-4 py-3 flex justify-between items-center">
                 <h2 className="text-lg font-bold">{m.car_id?.name || "—"}</h2>
                 <span className="text-sm opacity-80">{m.component_id?.identifier || "—"}</span>
               </div>
 
+              {/* Corpo card */}
               <div className="p-4 flex flex-col gap-3">
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Tipo:</span> {m.type || "—"}
