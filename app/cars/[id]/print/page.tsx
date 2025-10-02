@@ -44,4 +44,108 @@ export default function PrintPage() {
     const now = new Date();
     const months =
       (expiry.getFullYear() - now.getFullYear()) * 12 +
-      (expiry.getMonth
+      (expiry.getMonth() - now.getMonth());
+
+    if (months > 12) return "text-green-500";
+    if (months > 6) return "text-yellow-500";
+    return "text-red-500";
+  };
+
+  if (!car) return <p className="p-6">Caricamento scheda auto...</p>;
+
+  return (
+    <div className={`p-8 space-y-10 ${audiowide.className}`}>
+      {/* Logo e intestazione */}
+      <div className="flex items-center justify-between border-b pb-4">
+        <Image
+          src="/logo.png"
+          alt="Logo Battaglia Racing Car"
+          width={120}
+          height={120}
+          className="object-contain"
+        />
+        <h1 className="text-3xl font-bold text-gray-800">Scheda Auto</h1>
+      </div>
+
+      {/* Sezione dati auto */}
+      <section>
+        <h2 className="text-2xl font-bold text-yellow-600 mb-4">Dati Auto</h2>
+        <div className="bg-white shadow rounded-lg p-4 space-y-2">
+          <p><span className="font-semibold">Nome:</span> {car.name}</p>
+          <p><span className="font-semibold">Numero Telaio:</span> {car.chassis_number}</p>
+        </div>
+      </section>
+
+      {/* Sezione componenti */}
+      <section>
+        <h2 className="text-2xl font-bold text-yellow-600 mb-4">Componenti</h2>
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-black text-yellow-500">
+              <tr>
+                <th className="px-4 py-2 text-left">Tipo</th>
+                <th className="px-4 py-2 text-left">Identificativo</th>
+                <th className="px-4 py-2 text-left">Scadenza</th>
+              </tr>
+            </thead>
+            <tbody>
+              {car.components?.map((comp: any) => (
+                <tr key={comp.id} className="border-t">
+                  <td className="px-4 py-2 capitalize">{comp.type}</td>
+                  <td className="px-4 py-2">{comp.identifier}</td>
+                  <td className={`px-4 py-2 ${comp.expiry_date ? getExpiryColor(comp.expiry_date) : ""}`}>
+                    {comp.expiry_date
+                      ? new Date(comp.expiry_date).toLocaleDateString("it-IT")
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Sezione documenti */}
+      <section>
+        <h2 className="text-2xl font-bold text-yellow-600 mb-4">Documenti</h2>
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-black text-yellow-500">
+              <tr>
+                <th className="px-4 py-2 text-left">Tipo</th>
+                <th className="px-4 py-2 text-left">Caricato il</th>
+                <th className="px-4 py-2 text-left">File</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((doc) => (
+                <tr key={doc.id} className="border-t">
+                  <td className="px-4 py-2">{doc.type}</td>
+                  <td className="px-4 py-2">
+                    {new Date(doc.uploaded_at).toLocaleDateString("it-IT")}
+                  </td>
+                  <td className="px-4 py-2">
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      className="text-blue-600 underline"
+                    >
+                      Visualizza
+                    </a>
+                  </td>
+                </tr>
+              ))}
+              {documents.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-4 text-center text-gray-500">
+                    Nessun documento caricato
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
