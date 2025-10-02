@@ -10,6 +10,7 @@ const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 export default function ComponentsPage() {
   const [components, setComponents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<"all" | "expiring" | "expired">("all");
 
   const fetchComponents = async () => {
     setLoading(true);
@@ -38,14 +39,44 @@ export default function ComponentsPage() {
     return "text-red-500";
   };
 
+  // filtro in base allo stato
+  const filteredComponents = components.filter((c) => {
+    if (!c.expiry_date) return true;
+    const expiry = new Date(c.expiry_date);
+    const now = new Date();
+    const months =
+      (expiry.getFullYear() - now.getFullYear()) * 12 +
+      (expiry.getMonth() - now.getMonth());
+
+    if (filter === "all") return true;
+    if (filter === "expiring") return months <= 6 && months >= 0;
+    if (filter === "expired") return expiry < now;
+    return true;
+  });
+
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800">🔧 Componenti</h1>
-        <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-          <PlusCircle size={18} /> Aggiungi componente
-        </button>
+
+        <div className="flex gap-3 items-center">
+          {/* Filtro scadenze */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
+          >
+            <option value="all">Tutti</option>
+            <option value="expiring">In scadenza (≤ 6 mesi)</option>
+            <option value="expired">Scaduti</option>
+          </select>
+
+          {/* Aggiungi componente */}
+          <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <PlusCircle size={18} /> Aggiungi
+          </button>
+        </div>
       </div>
 
       {/* Lista componenti */}
@@ -53,7 +84,7 @@ export default function ComponentsPage() {
         <p>Caricamento...</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {components.map((comp) => (
+          {filteredComponents.map((comp) => (
             <div
               key={comp.id}
               className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
