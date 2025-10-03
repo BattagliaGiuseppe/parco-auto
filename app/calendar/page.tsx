@@ -18,7 +18,11 @@ export default function CalendarPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // form state
+  // sottosezione per aggiungere autodromo
+  const [circuitModalOpen, setCircuitModalOpen] = useState(false);
+  const [newCircuitName, setNewCircuitName] = useState("");
+
+  // form state evento
   const [formDate, setFormDate] = useState("");
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
@@ -107,6 +111,28 @@ export default function CalendarPage() {
     setModalOpen(false);
   };
 
+  const handleAddCircuit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCircuitName.trim()) {
+      alert("Inserisci il nome dell'autodromo");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("circuits")
+      .insert([{ name: newCircuitName.trim() }]);
+
+    if (error) {
+      console.error("Errore aggiunta autodromo:", error);
+      alert("Errore salvataggio autodromo");
+      return;
+    }
+
+    setNewCircuitName("");
+    setCircuitModalOpen(false);
+    await fetchCircuits();
+  };
+
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -163,7 +189,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Modale eventi */}
+      {/* Modale evento */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
@@ -172,33 +198,26 @@ export default function CalendarPage() {
             </h2>
 
             <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Data</span>
-                <input
-                  type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                />
-              </label>
+              <input
+                type="date"
+                value={formDate}
+                onChange={(e) => setFormDate(e.target.value)}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              />
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Nome evento</span>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Es. Weekend Gara Monza"
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                />
-              </label>
+              <input
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Nome evento"
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              />
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Autodromo</span>
+              <div className="flex items-center gap-2">
                 <select
                   value={formCircuitId}
                   onChange={(e) => setFormCircuitId(e.target.value)}
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+                  className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
                 >
                   <option value="">— Seleziona autodromo —</option>
                   {circuits.map((c) => (
@@ -207,33 +226,34 @@ export default function CalendarPage() {
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Auto (provvisorio: singola)</span>
-                <select
-                  value={formCarId}
-                  onChange={(e) => setFormCarId(e.target.value)}
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+                <button
+                  type="button"
+                  onClick={() => setCircuitModalOpen(true)}
+                  className="px-3 py-2 bg-yellow-300 hover:bg-yellow-400 rounded-lg text-sm"
                 >
-                  <option value="">— Nessuna —</option>
-                  {cars.map((c) => (
-                    <option key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  ➕
+                </button>
+              </div>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Note</span>
-                <textarea
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Note (opzionale)"
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                />
-              </label>
+              <select
+                value={formCarId}
+                onChange={(e) => setFormCarId(e.target.value)}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">— Nessuna auto —</option>
+                {cars.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
+              <textarea
+                value={formNotes}
+                onChange={(e) => setFormNotes(e.target.value)}
+                placeholder="Note (opzionale)"
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              />
 
               <div className="flex justify-end gap-3">
                 <button
@@ -251,10 +271,39 @@ export default function CalendarPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
 
-            <div className="mt-3 text-xs text-gray-500">
-              * Per ora è possibile selezionare una sola auto; quando introdurremo <code>event_cars</code> diventerà multi-selezione.
-            </div>
+      {/* Mini-modale aggiunta autodromo */}
+      {circuitModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold mb-4">Aggiungi Autodromo</h2>
+            <form onSubmit={handleAddCircuit} className="flex flex-col gap-3">
+              <input
+                type="text"
+                value={newCircuitName}
+                onChange={(e) => setNewCircuitName(e.target.value)}
+                placeholder="Nome autodromo"
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCircuitModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+                >
+                  Salva
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
