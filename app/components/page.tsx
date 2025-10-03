@@ -16,11 +16,9 @@ export default function ComponentsPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [search, setSearch] = useState<string>("");
 
-  // Modale
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // Popup conferma cambio auto
   const [confirmPopup, setConfirmPopup] = useState<{
     show: boolean;
     oldCar: string | null;
@@ -32,7 +30,7 @@ export default function ComponentsPage() {
     const { data, error } = await supabase
       .from("components")
       .select(
-        "id, type, identifier, expiry_date, is_active, last_maintenance_date, car_id (name)"
+        "id, type, identifier, expiry_date, is_active, last_maintenance_date, car_id (name), work_hours"
       )
       .order("id", { ascending: true });
 
@@ -57,7 +55,6 @@ export default function ComponentsPage() {
     return "text-orange-500";
   };
 
-  // Applica i filtri
   const filteredComponents = components.filter((c) => {
     if (filterCar === "unassigned") {
       if (c.car_id?.name) return false;
@@ -211,6 +208,11 @@ export default function ComponentsPage() {
                     <p className="text-gray-700 text-sm">
                       <span className="font-semibold">Identificativo:</span> {comp.identifier}
                     </p>
+                    {comp.work_hours && (
+                      <p className="text-gray-700 text-sm">
+                        <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                      </p>
+                    )}
                     {comp.expiry_date && (
                       <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
                         <span className="font-semibold">Scadenza:</span>{" "}
@@ -259,6 +261,11 @@ export default function ComponentsPage() {
                         <span className="font-semibold">Identificativo:</span>{" "}
                         {comp.identifier}
                       </p>
+                      {comp.work_hours && (
+                        <p className="text-gray-700 text-sm">
+                          <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                        </p>
+                      )}
                       {comp.expiry_date && (
                         <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
                           <span className="font-semibold">Scadenza:</span>{" "}
@@ -308,17 +315,30 @@ export default function ComponentsPage() {
               )}
 
               {/* Identificativo */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Identificativo
-                </label>
-                <input
-                  type="text"
-                  defaultValue={editing?.identifier || ""}
-                  placeholder={editing ? "" : "Identificativo"}
-                  className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400 w-full"
-                />
-              </div>
+              <input
+                type="text"
+                defaultValue={editing?.identifier || ""}
+                placeholder="Identificativo"
+                className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400 w-full"
+              />
+
+              {/* Ore lavoro */}
+              {(editing?.type === "Motore" ||
+                editing?.type === "Cambio" ||
+                editing?.type === "Differenziale" ||
+                (!editing && true)) && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Ore lavoro
+                  </label>
+                  <input
+                    type="number"
+                    defaultValue={editing?.work_hours || 0}
+                    placeholder="Ore lavoro totali"
+                    className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 w-full"
+                  />
+                </div>
+              )}
 
               {/* Scadenza */}
               <div>
