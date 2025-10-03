@@ -154,17 +154,24 @@ export default function CalendarPage() {
       return;
     }
 
-    console.log("Salvataggio turno:", { eventCarId, date: form.date, minutes });
+    console.log("Salvataggio turno (dati inviati):", {
+      eventCarId,
+      date: form.date,
+      minutes,
+    });
 
-    const { error } = await supabase.from("event_car_turns").insert([
-      { event_car_id: eventCarId, date: form.date, minutes },
-    ]);
+    const { data, error } = await supabase
+      .from("event_car_turns")
+      .insert([{ event_car_id: eventCarId, date: form.date, minutes }])
+      .select();
 
     if (error) {
       console.error("Errore inserimento turno:", error);
-      alert("Errore salvataggio turno");
+      alert("Errore salvataggio turno: " + error.message);
       return;
     }
+
+    console.log("Turno inserito con successo:", data);
 
     setTurnForm((prev) => ({ ...prev, [eventCarId]: { date: "", minutes: "" } }));
     await fetchTurnsForCar(eventCarId);
@@ -177,7 +184,7 @@ export default function CalendarPage() {
 
     if (error) {
       console.error("Errore eliminazione turno:", error);
-      alert("Errore eliminazione turno");
+      alert("Errore eliminazione turno: " + error.message);
       return;
     }
 
