@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, PlusCircle, Search, Engine } from "lucide-react"; // 👈 aggiunto Engine
+import { Edit, PlusCircle, Search, Engine } from "lucide-react"; // 👈 icona motore
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -205,9 +205,7 @@ export default function ComponentsPage() {
                   <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
                     <div>
                       <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
-                      <span className="text-sm opacity-80">
-                        {comp.car_id?.name}
-                      </span>
+                      <span className="text-sm opacity-80">{comp.car_id?.name}</span>
                     </div>
                   </div>
 
@@ -250,7 +248,9 @@ export default function ComponentsPage() {
           {/* Sezione componenti smontati */}
           {unassignedComponents.length > 0 && (
             <div className="mt-10">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">⚠️ Componenti smontati</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                ⚠️ Componenti smontati ({unassignedComponents.length})
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {unassignedComponents.map((comp) => (
                   <div
@@ -292,7 +292,137 @@ export default function ComponentsPage() {
         </div>
       )}
 
-      {/* Modale Aggiungi/Modifica + Popup cambio auto → invariati */}
+      {/* Modale Aggiungi/Modifica */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+            <h2 className="text-xl font-bold mb-4">
+              {editing ? "Modifica componente" : "Aggiungi componente"}
+            </h2>
+            <form onSubmit={handleSave} className="flex flex-col gap-4">
+              {/* Tipo componente */}
+              {editing ? (
+                <p className="font-bold text-gray-800">Tipo: {editing.type}</p>
+              ) : (
+                <select className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400">
+                  <option value="">Seleziona tipo</option>
+                  {[...new Set(
+                    components.map((c) => c.type).filter(Boolean)
+                  )].map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  <option value="altro">Altro…</option>
+                </select>
+              )}
+
+              {/* Identificativo */}
+              <input
+                type="text"
+                defaultValue={editing?.identifier || ""}
+                placeholder="Identificativo"
+                className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
+              />
+
+              {/* Data scadenza */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Scadenza
+                </label>
+                <input
+                  type="date"
+                  defaultValue={editing?.expiry_date?.split("T")[0] || ""}
+                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 w-full"
+                />
+              </div>
+
+              {/* Seleziona auto */}
+              <select
+                defaultValue={editing?.car_id?.name || ""}
+                onChange={(e) => {
+                  const newCar = e.target.value;
+                  if (editing && editing.car_id?.name !== newCar) {
+                    setConfirmPopup({
+                      show: true,
+                      oldCar: editing.car_id?.name || "",
+                      newCar: newCar,
+                    });
+                  }
+                }}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">Smontato</option>
+                {[...new Set(
+                  components.map((c) => c.car_id?.name).filter(Boolean)
+                )].map((car) => (
+                  <option key={car} value={car}>
+                    {car}
+                  </option>
+                ))}
+              </select>
+
+              {/* Azioni */}
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+                >
+                  Salva
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Popup conferma cambio auto */}
+      {confirmPopup.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Conferma cambio auto</h3>
+            <p className="text-gray-700 mb-6">
+              Vuoi smontare questo componente da{" "}
+              <span className="font-semibold">{confirmPopup.oldCar || "nessuna"}</span>{" "}
+              e montarlo su{" "}
+              <span className="font-semibold">{confirmPopup.newCar || "Smontato"}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() =>
+                  setConfirmPopup({ show: false, oldCar: null, newCar: null })
+                }
+                className="px-4 py-2 rounded-lg border"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (editing) {
+                    setEditing({
+                      ...editing,
+                      car_id: confirmPopup.newCar
+                        ? { name: confirmPopup.newCar }
+                        : null,
+                    });
+                  }
+                  setConfirmPopup({ show: false, oldCar: null, newCar: null });
+                }}
+                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+              >
+                Conferma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
