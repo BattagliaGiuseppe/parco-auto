@@ -59,15 +59,24 @@ export default function ComponentsPage() {
 
   // filtro in base a stato + auto + tipo + ricerca
   const filteredComponents = components.filter((c) => {
-    if (filterCar && c.car_id?.name !== filterCar) return false;
+    // filtro per auto
+    if (filterCar === "unassigned") {
+      if (c.car_id?.name) return false; // mostro solo quelli smontati
+    } else if (filterCar && c.car_id?.name !== filterCar) {
+      return false;
+    }
+
+    // filtro per tipo
     if (filterType && c.type !== filterType) return false;
 
+    // ricerca
     const matchSearch =
       c.type.toLowerCase().includes(search.toLowerCase()) ||
       c.identifier.toLowerCase().includes(search.toLowerCase()) ||
       (c.car_id?.name || "").toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
 
+    // filtro scadenza
     if (!c.expiry_date) return true;
     const expiry = new Date(c.expiry_date);
     const now = new Date();
@@ -140,6 +149,7 @@ export default function ComponentsPage() {
                 {car}
               </option>
             ))}
+            <option value="unassigned">Smontati</option>
           </select>
 
           {/* Filtro tipo componente */}
@@ -187,13 +197,13 @@ export default function ComponentsPage() {
           {filteredComponents.map((comp) => (
             <div
               key={comp.id}
-              className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+              className="bg-gray-50 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
             >
               {/* Header card */}
               <div className="bg-gray-900 text-yellow-400 px-4 py-3 flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
-                  <span className="text-sm opacity-80">{comp.car_id?.name || "—"}</span>
+                  <span className="text-sm opacity-80">{comp.car_id?.name || "Smontato"}</span>
                 </div>
               </div>
 
@@ -250,11 +260,17 @@ export default function ComponentsPage() {
                   Tipo: {editing.type}
                 </p>
               ) : (
-                <input
-                  type="text"
-                  placeholder="Inserisci tipo componente"
-                  className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
-                />
+                <select className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400">
+                  <option value="">Seleziona tipo</option>
+                  {[...new Set(
+                    components.map((c) => c.type).filter(Boolean)
+                  )].map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  <option value="altro">Altro…</option>
+                </select>
               )}
 
               {/* Identificativo */}
@@ -266,11 +282,16 @@ export default function ComponentsPage() {
               />
 
               {/* Data scadenza */}
-              <input
-                type="date"
-                defaultValue={editing?.expiry_date?.split("T")[0] || ""}
-                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Scadenza
+                </label>
+                <input
+                  type="date"
+                  defaultValue={editing?.expiry_date?.split("T")[0] || ""}
+                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 w-full"
+                />
+              </div>
 
               {/* Seleziona auto */}
               <select
@@ -287,7 +308,7 @@ export default function ComponentsPage() {
                 }}
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               >
-                <option value="">Seleziona auto</option>
+                <option value="">Smontato</option>
                 {[...new Set(
                   components.map((c) => c.car_id?.name).filter(Boolean)
                 )].map((car) => (
@@ -325,9 +346,9 @@ export default function ComponentsPage() {
             <h3 className="text-lg font-bold text-gray-800 mb-4">Conferma cambio auto</h3>
             <p className="text-gray-700 mb-6">
               Vuoi smontare questo componente da{" "}
-              <span className="font-semibold">{confirmPopup.oldCar}</span>{" "}
+              <span className="font-semibold">{confirmPopup.oldCar || "nessuna"}</span>{" "}
               e montarlo su{" "}
-              <span className="font-semibold">{confirmPopup.newCar}</span>?
+              <span className="font-semibold">{confirmPopup.newCar || "Smontato"}</span>?
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -340,10 +361,12 @@ export default function ComponentsPage() {
               </button>
               <button
                 onClick={() => {
-                  if (editing && confirmPopup.newCar) {
+                  if (editing) {
                     setEditing({
                       ...editing,
-                      car_id: { name: confirmPopup.newCar },
+                      car_id: confirmPopup.newCar
+                        ? { name: confirmPopup.newCar }
+                        : null,
                     });
                   }
                   setConfirmPopup({ show: false, oldCar: null, newCar: null });
