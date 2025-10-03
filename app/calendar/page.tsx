@@ -15,27 +15,27 @@ export default function CalendarPage() {
   const [cars, setCars] = useState<Car[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [eventCars, setEventCars] = useState<any[]>([]);
-  const [eventTurns, setEventTurns] = useState<Record<string, any[]>>({}); // turni per auto
+  const [eventTurns, setEventTurns] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // sottosezione autodromi
+  // gestione autodromi
   const [circuitModalOpen, setCircuitModalOpen] = useState(false);
   const [newCircuitName, setNewCircuitName] = useState("");
 
-  // form state evento
+  // form evento
   const [formDate, setFormDate] = useState("");
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formCircuitId, setFormCircuitId] = useState<string>("");
 
-  // form per aggiungere auto
+  // aggiunta auto
   const [selectedCarId, setSelectedCarId] = useState("");
 
-  // form per aggiungere turni (gestito per ogni auto)
-  const [turnForm, setTurnForm] = useState<Record<string, { start: string; end: string; notes: string }>>({});
+  // aggiunta turni
+  const [turnForm, setTurnForm] = useState<Record<string, { date: string; minutes: string }>>({});
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -49,30 +49,23 @@ export default function CalendarPage() {
   };
 
   const fetchCars = async () => {
-    const { data, error } = await supabase
-      .from("cars")
-      .select("id, name")
-      .order("name", { ascending: true });
+    const { data, error } = await supabase.from("cars").select("id, name").order("name");
     if (!error) setCars((data as Car[]) || []);
   };
 
   const fetchCircuits = async () => {
-    const { data, error } = await supabase
-      .from("circuits")
-      .select("id, name")
-      .order("name", { ascending: true });
+    const { data, error } = await supabase.from("circuits").select("id, name").order("name");
     if (!error) setCircuits((data as Circuit[]) || []);
   };
 
   const fetchEventCars = async (eventId: string) => {
     const { data, error } = await supabase
       .from("event_cars")
-      .select("id, car_id (id, name), driver, status")
+      .select("id, car_id (id, name), status")
       .eq("event_id", eventId);
 
     if (!error) {
       setEventCars(data || []);
-      // carico anche i turni
       for (const ec of data || []) {
         await fetchTurnsForCar(ec.id);
       }
@@ -82,9 +75,9 @@ export default function CalendarPage() {
   const fetchTurnsForCar = async (eventCarId: string) => {
     const { data, error } = await supabase
       .from("event_car_turns")
-      .select("id, start_time, end_time, minutes, notes")
+      .select("id, date, minutes")
       .eq("event_car_id", eventCarId)
-      .order("start_time", { ascending: true });
+      .order("date", { ascending: true });
 
     if (!error) {
       setEventTurns((prev) => ({ ...prev, [eventCarId]: data || [] }));
@@ -114,11 +107,6 @@ export default function CalendarPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formDate || !formName) {
-      alert("Compila almeno Data e Nome evento");
-      return;
-    }
-
     const payload: any = {
       date: formDate,
       name: formName,
@@ -127,22 +115,9 @@ export default function CalendarPage() {
     };
 
     if (editing) {
-      const { error } = await supabase
-        .from("events")
-        .update(payload)
-        .eq("id", editing.id);
-      if (error) {
-        console.error("Errore update:", error);
-        alert("Errore nel salvataggio evento");
-        return;
-      }
+      await supabase.from("events").update(payload).eq("id", editing.id);
     } else {
-      const { error } = await supabase.from("events").insert([payload]);
-      if (error) {
-        console.error("Errore insert:", error);
-        alert("Errore nel salvataggio evento");
-        return;
-      }
+      await supabase.from("events").insert([payload]);
     }
 
     await fetchEvents();
@@ -151,21 +126,8 @@ export default function CalendarPage() {
 
   const handleAddCircuit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCircuitName.trim()) {
-      alert("Inserisci il nome dell'autodromo");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("circuits")
-      .insert([{ name: newCircuitName.trim() }]);
-
-    if (error) {
-      console.error("Errore aggiunta autodromo:", error);
-      alert("Errore salvataggio autodromo");
-      return;
-    }
-
+    if (!newCircuitName.trim()) return;
+    await supabase.from("circuits").insert([{ name: newCircuitName.trim() }]);
     setNewCircuitName("");
     setCircuitModalOpen(false);
     await fetchCircuits();
@@ -173,63 +135,28 @@ export default function CalendarPage() {
 
   const handleAddCarToEvent = async () => {
     if (!editing?.id || !selectedCarId) return;
-
-    const { error } = await supabase.from("event_cars").insert([
-      {
-        event_id: editing.id,
-        car_id: selectedCarId,
-        driver: null,
-        status: "in_corso",
-      },
+    await supabase.from("event_cars").insert([
+      { event_id: editing.id, car_id: selectedCarId, status: "in_corso" },
     ]);
-
-    if (error) {
-      console.error("Errore aggiunta auto all'evento:", error);
-      alert("Errore");
-      return;
-    }
-
     setSelectedCarId("");
     await fetchEventCars(editing.id);
   };
 
   const handleAddTurn = async (eventCarId: string) => {
     const form = turnForm[eventCarId];
-    if (!form?.start || !form?.end) {
-      alert("Compila inizio e fine turno");
+    if (!form?.date || !form?.minutes) {
+      alert("Compila data e minuti");
       return;
     }
-
-    const start = new Date(form.start);
-    const end = new Date(form.end);
-    const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-
+    const minutes = parseInt(form.minutes, 10);
     if (minutes <= 0) {
-      alert("Orari non validi");
+      alert("Inserisci minuti validi");
       return;
     }
-
-    const { error } = await supabase.from("event_car_turns").insert([
-      {
-        event_car_id: eventCarId,
-        start_time: form.start,
-        end_time: form.end,
-        minutes,
-        notes: form.notes || null,
-      },
+    await supabase.from("event_car_turns").insert([
+      { event_car_id: eventCarId, date: form.date, minutes },
     ]);
-
-    if (error) {
-      console.error("Errore aggiunta turno:", error);
-      alert("Errore salvataggio turno");
-      return;
-    }
-
-    setTurnForm((prev) => ({
-      ...prev,
-      [eventCarId]: { start: "", end: "", notes: "" },
-    }));
-
+    setTurnForm((prev) => ({ ...prev, [eventCarId]: { date: "", minutes: "" } }));
     await fetchTurnsForCar(eventCarId);
   };
 
@@ -267,9 +194,7 @@ export default function CalendarPage() {
             <tbody>
               {events.map((ev) => (
                 <tr key={ev.id} className="border-t">
-                  <td className="p-3">
-                    {ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}
-                  </td>
+                  <td className="p-3">{ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}</td>
                   <td className="p-3">{ev.name}</td>
                   <td className="p-3">{ev.circuit_id?.name || "—"}</td>
                   <td className="p-3 text-right">
@@ -295,6 +220,7 @@ export default function CalendarPage() {
               {editing ? "Modifica evento" : "Aggiungi evento"}
             </h2>
 
+            {/* Form evento */}
             <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
               <input
                 type="date"
@@ -302,7 +228,6 @@ export default function CalendarPage() {
                 onChange={(e) => setFormDate(e.target.value)}
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-
               <input
                 type="text"
                 value={formName}
@@ -310,7 +235,6 @@ export default function CalendarPage() {
                 placeholder="Nome evento"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-
               <div className="flex items-center gap-2">
                 <select
                   value={formCircuitId}
@@ -332,32 +256,23 @@ export default function CalendarPage() {
                   ➕
                 </button>
               </div>
-
               <textarea
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 placeholder="Note (opzionale)"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-
               <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border"
-                >
+                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border">
                   Annulla
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-                >
+                <button type="submit" className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold">
                   Salva evento
                 </button>
               </div>
             </form>
 
-            {/* Se evento esiste già mostriamo sottosezione auto */}
+            {/* Auto coinvolte */}
             {editing?.id && (
               <div className="mt-6">
                 <h3 className="text-lg font-bold mb-3">Auto coinvolte</h3>
@@ -389,25 +304,21 @@ export default function CalendarPage() {
                   eventCars.map((ec) => (
                     <div key={ec.id} className="border rounded-lg p-3 mb-4">
                       <h4 className="font-semibold mb-2">{ec.car_id?.name}</h4>
-                      {/* Turni per questa auto */}
+                      {/* Lista turni */}
                       <div className="mb-2">
                         {eventTurns[ec.id]?.length ? (
                           <table className="w-full text-sm border">
                             <thead className="bg-gray-100">
                               <tr>
-                                <th className="p-2 text-left">Inizio</th>
-                                <th className="p-2 text-left">Fine</th>
+                                <th className="p-2 text-left">Data</th>
                                 <th className="p-2 text-left">Durata</th>
-                                <th className="p-2 text-left">Note</th>
                               </tr>
                             </thead>
                             <tbody>
                               {eventTurns[ec.id].map((t) => (
                                 <tr key={t.id} className="border-t">
-                                  <td className="p-2">{new Date(t.start_time).toLocaleTimeString("it-IT")}</td>
-                                  <td className="p-2">{new Date(t.end_time).toLocaleTimeString("it-IT")}</td>
+                                  <td className="p-2">{new Date(t.date).toLocaleDateString("it-IT")}</td>
                                   <td className="p-2">{t.minutes} min</td>
-                                  <td className="p-2">{t.notes || "—"}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -416,41 +327,29 @@ export default function CalendarPage() {
                           <p className="text-gray-500 text-sm">Nessun turno registrato</p>
                         )}
                       </div>
-
-                      {/* Form aggiunta turno */}
+                      {/* Form nuovo turno */}
                       <div className="flex flex-col md:flex-row gap-2 mt-2">
                         <input
-                          type="datetime-local"
-                          value={turnForm[ec.id]?.start || ""}
+                          type="date"
+                          value={turnForm[ec.id]?.date || ""}
                           onChange={(e) =>
                             setTurnForm((prev) => ({
                               ...prev,
-                              [ec.id]: { ...prev[ec.id], start: e.target.value },
+                              [ec.id]: { ...prev[ec.id], date: e.target.value },
                             }))
                           }
                           className="border rounded-lg px-2 py-1 text-sm flex-1"
                         />
                         <input
-                          type="datetime-local"
-                          value={turnForm[ec.id]?.end || ""}
+                          type="number"
+                          value={turnForm[ec.id]?.minutes || ""}
                           onChange={(e) =>
                             setTurnForm((prev) => ({
                               ...prev,
-                              [ec.id]: { ...prev[ec.id], end: e.target.value },
+                              [ec.id]: { ...prev[ec.id], minutes: e.target.value },
                             }))
                           }
-                          className="border rounded-lg px-2 py-1 text-sm flex-1"
-                        />
-                        <input
-                          type="text"
-                          value={turnForm[ec.id]?.notes || ""}
-                          onChange={(e) =>
-                            setTurnForm((prev) => ({
-                              ...prev,
-                              [ec.id]: { ...prev[ec.id], notes: e.target.value },
-                            }))
-                          }
-                          placeholder="Note"
+                          placeholder="Minuti"
                           className="border rounded-lg px-2 py-1 text-sm flex-1"
                         />
                         <button
@@ -470,7 +369,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Mini-modale aggiunta autodromo */}
+      {/* Modale nuovo autodromo */}
       {circuitModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -484,17 +383,10 @@ export default function CalendarPage() {
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
               <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCircuitModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border"
-                >
+                <button type="button" onClick={() => setCircuitModalOpen(false)} className="px-4 py-2 rounded-lg border">
                   Annulla
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-                >
+                <button type="submit" className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold">
                   Salva
                 </button>
               </div>
