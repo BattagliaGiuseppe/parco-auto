@@ -58,14 +58,17 @@ export default function CalendarPage() {
       notes: formNotes,
     };
 
-    let dbError = null;
-
     if (editing) {
       const { error } = await supabase
         .from("events")
         .update(payload)
         .eq("id", editing.id);
-      dbError = error;
+
+      if (error) {
+        console.error("Errore update:", error);
+        alert("Errore nel salvataggio evento");
+        return;
+      }
     } else {
       const { error } = await supabase.from("events").insert([
         {
@@ -73,16 +76,16 @@ export default function CalendarPage() {
           car_id: null, // per ora null, poi aggiungeremo select auto
         },
       ]);
-      dbError = error;
+
+      if (error) {
+        console.error("Errore insert:", error);
+        alert("Errore nel salvataggio evento");
+        return;
+      }
     }
 
-    if (dbError) {
-      console.error("Errore salvataggio:", dbError);
-      alert("Errore nel salvataggio evento");
-    } else {
-      await fetchEvents();
-      setModalOpen(false);
-    }
+    await fetchEvents();
+    setModalOpen(false);
   };
 
   return (
