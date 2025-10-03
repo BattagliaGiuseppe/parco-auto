@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, PlusCircle, Search, Cog, CheckCircle, XCircle } from "lucide-react";
+import {
+  Edit,
+  PlusCircle,
+  Search,
+  Cog,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -19,7 +26,6 @@ export default function ComponentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // Stato del form
   const [formData, setFormData] = useState({
     type: "",
     identifier: "",
@@ -28,12 +34,11 @@ export default function ComponentsPage() {
     car_name: "",
   });
 
-  // Toast feedback
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
-    show: false,
-    message: "",
-    type: "success",
-  });
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({ show: false, message: "", type: "success" });
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ show: true, message: msg, type });
@@ -185,7 +190,182 @@ export default function ComponentsPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
-      {/* ... header, lista componenti e smontati invariati ... */}
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Cog size={32} className="text-yellow-500" /> Componenti
+        </h1>
+
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Ricerca */}
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cerca per tipo, identificativo o auto..."
+              className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm pl-9 focus:ring-2 focus:ring-yellow-400"
+            />
+            <Search
+              size={16}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+          </div>
+
+          {/* Filtro auto */}
+          <select
+            value={filterCar}
+            onChange={(e) => setFilterCar(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="">Tutte le auto</option>
+            <option value="unassigned">Smontati</option>
+            {[...new Set(
+              components.map((c) => c.car_id?.name).filter(Boolean)
+            )].map((car) => (
+              <option key={car} value={car}>
+                {car}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro tipo */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="">Tutti i tipi</option>
+            {[...new Set(
+              components.map((c) => c.type).filter(Boolean)
+            )].map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro scadenze */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="all">Tutti</option>
+            <option value="expiring">In scadenza (≤ 6 mesi)</option>
+            <option value="expired">Scaduti</option>
+          </select>
+
+          {/* Aggiungi */}
+          <button
+            onClick={openAddModal}
+            className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+          >
+            <PlusCircle size={18} /> Aggiungi
+          </button>
+        </div>
+      </div>
+
+      {/* Lista componenti assegnati */}
+      {loading ? (
+        <p>Caricamento...</p>
+      ) : (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredComponents
+              .filter((c) => c.car_id?.name)
+              .map((comp) => (
+                <div
+                  key={comp.id}
+                  className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+                >
+                  <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
+                    <div>
+                      <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
+                      <span className="text-sm opacity-80">{comp.car_id?.name}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 flex flex-col gap-3">
+                    <p className="text-gray-700 text-sm">
+                      <span className="font-semibold">Identificativo:</span> {comp.identifier}
+                    </p>
+                    <p className="text-gray-700 text-sm">
+                      <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                    </p>
+                    {comp.expiry_date && (
+                      <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
+                        <span className="font-semibold">Scadenza:</span>{" "}
+                        {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                      </p>
+                    )}
+                    {comp.last_maintenance_date && (
+                      <p className="text-sm text-gray-600">
+                        Ultima manutenzione:{" "}
+                        <span className="font-semibold text-blue-600">
+                          {new Date(comp.last_maintenance_date).toLocaleDateString("it-IT")}
+                        </span>
+                      </p>
+                    )}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => openEditModal(comp)}
+                        className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                      >
+                        <Edit size={16} /> Modifica
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Sezione smontati */}
+          {unassignedComponents.length > 0 && (
+            <div className="mt-10">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                ⚠️ Componenti smontati ({unassignedComponents.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {unassignedComponents.map((comp) => (
+                  <div
+                    key={comp.id}
+                    className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+                  >
+                    <div className="bg-black text-yellow-500 px-4 py-3">
+                      <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
+                      <span className="text-sm opacity-80">Smontato</span>
+                    </div>
+                    <div className="p-4 flex flex-col gap-3">
+                      <p className="text-gray-700 text-sm">
+                        <span className="font-semibold">Identificativo:</span>{" "}
+                        {comp.identifier}
+                      </p>
+                      <p className="text-gray-700 text-sm">
+                        <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                      </p>
+                      {comp.expiry_date && (
+                        <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
+                          <span className="font-semibold">Scadenza:</span>{" "}
+                          {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                        </p>
+                      )}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => openEditModal(comp)}
+                          className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                        >
+                          <Edit size={16} /> Modifica
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modale */}
       {modalOpen && (
