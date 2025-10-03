@@ -208,11 +208,9 @@ export default function ComponentsPage() {
                     <p className="text-gray-700 text-sm">
                       <span className="font-semibold">Identificativo:</span> {comp.identifier}
                     </p>
-                    {comp.work_hours && (
-                      <p className="text-gray-700 text-sm">
-                        <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
-                      </p>
-                    )}
+                    <p className="text-gray-700 text-sm">
+                      <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                    </p>
                     {comp.expiry_date && (
                       <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
                         <span className="font-semibold">Scadenza:</span>{" "}
@@ -261,11 +259,9 @@ export default function ComponentsPage() {
                         <span className="font-semibold">Identificativo:</span>{" "}
                         {comp.identifier}
                       </p>
-                      {comp.work_hours && (
-                        <p className="text-gray-700 text-sm">
-                          <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
-                        </p>
-                      )}
+                      <p className="text-gray-700 text-sm">
+                        <span className="font-semibold">Ore lavoro:</span> {comp.work_hours}
+                      </p>
                       {comp.expiry_date && (
                         <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
                           <span className="font-semibold">Scadenza:</span>{" "}
