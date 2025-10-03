@@ -10,7 +10,14 @@ const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 export default function ComponentsPage() {
   const [components, setComponents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
   const [filter, setFilter] = useState<"all" | "expiring" | "expired">("all");
+  const [filterCar, setFilterCar] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+
+  // Stato modale
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
 
   const fetchComponents = async () => {
     setLoading(true);
@@ -34,13 +41,17 @@ export default function ComponentsPage() {
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
 
-    if (months > 12) return "text-green-500";
-    if (months > 6) return "text-yellow-500";
-    return "text-red-500";
+    if (months > 12) return "text-green-600 font-semibold";
+    if (months > 6) return "text-orange-500 font-semibold";
+    if (expiry < now) return "text-red-600 font-bold";
+    return "text-yellow-500";
   };
 
-  // filtro in base allo stato
+  // filtro in base a stato + auto + tipo
   const filteredComponents = components.filter((c) => {
+    if (filterCar && c.car_id?.name !== filterCar) return false;
+    if (filterType && c.type !== filterType) return false;
+
     if (!c.expiry_date) return true;
     const expiry = new Date(c.expiry_date);
     const now = new Date();
@@ -54,13 +65,64 @@ export default function ComponentsPage() {
     return true;
   });
 
+  // gestione apertura modale
+  const openAddModal = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (comp: any) => {
+    setEditing(comp);
+    setModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalOpen(false);
+    // TODO: integrazione con Supabase (insert/update)
+    if (editing) {
+      console.log("Aggiorna componente:", editing.id);
+    } else {
+      console.log("Aggiungi nuovo componente");
+    }
+    await fetchComponents();
+  };
+
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800">🔧 Componenti</h1>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Filtro auto */}
+          <select
+            value={filterCar}
+            onChange={(e) => setFilterCar(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
+          >
+            <option value="">Tutte le auto</option>
+            {[...new Set(components.map((c) => c.car_id?.name).filter(Boolean))].map((car) => (
+              <option key={car} value={car}>
+                {car}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro tipo componente */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
+          >
+            <option value="">Tutti i tipi</option>
+            {[...new Set(components.map((c) => c.type).filter(Boolean))].map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
           {/* Filtro scadenze */}
           <select
             value={filter}
@@ -73,7 +135,10 @@ export default function ComponentsPage() {
           </select>
 
           {/* Aggiungi componente */}
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+          <button
+            onClick={openAddModal}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
             <PlusCircle size={18} /> Aggiungi
           </button>
         </div>
@@ -105,10 +170,8 @@ export default function ComponentsPage() {
                 </p>
 
                 {comp.expiry_date && (
-                  <p
-                    className={`font-semibold ${getExpiryColor(comp.expiry_date)}`}
-                  >
-                    Scadenza:{" "}
+                  <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
+                    <span className="font-semibold">Scadenza:</span>{" "}
                     {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
                   </p>
                 )}
@@ -123,13 +186,72 @@ export default function ComponentsPage() {
                 )}
 
                 <div className="flex justify-end">
-                  <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg flex items-center gap-2">
+                  <button
+                    onClick={() => openEditModal(comp)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg flex items-center gap-2"
+                  >
                     <Edit size={16} /> Modifica
                   </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modale Aggiungi/Modifica */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+            <h2 className="text-xl font-bold mb-4">
+              {editing ? "Modifica componente" : "Aggiungi componente"}
+            </h2>
+            <form onSubmit={handleSave} className="flex flex-col gap-4">
+              <input
+                type="text"
+                defaultValue={editing?.type || ""}
+                placeholder="Tipo"
+                className="border rounded-lg px-3 py-2"
+              />
+              <input
+                type="text"
+                defaultValue={editing?.identifier || ""}
+                placeholder="Identificativo"
+                className="border rounded-lg px-3 py-2"
+              />
+              <input
+                type="date"
+                defaultValue={editing?.expiry_date?.split("T")[0] || ""}
+                className="border rounded-lg px-3 py-2"
+              />
+              <select
+                defaultValue={editing?.car_id?.name || ""}
+                className="border rounded-lg px-3 py-2"
+              >
+                <option value="">Seleziona auto</option>
+                {[...new Set(components.map((c) => c.car_id?.name).filter(Boolean))].map((car) => (
+                  <option key={car} value={car}>
+                    {car}
+                  </option>
+                ))}
+              </select>
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white"
+                >
+                  Salva
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
