@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit } from "lucide-react";
+import { PlusCircle, CalendarDays, Edit, Trash2 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -104,8 +104,8 @@ export default function CalendarPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
 
     const payload: any = {
       date: formDate,
@@ -153,10 +153,34 @@ export default function CalendarPage() {
       alert("Inserisci minuti validi");
       return;
     }
-    await supabase.from("event_car_turns").insert([
+
+    console.log("Salvataggio turno:", { eventCarId, date: form.date, minutes });
+
+    const { error } = await supabase.from("event_car_turns").insert([
       { event_car_id: eventCarId, date: form.date, minutes },
     ]);
+
+    if (error) {
+      console.error("Errore inserimento turno:", error);
+      alert("Errore salvataggio turno");
+      return;
+    }
+
     setTurnForm((prev) => ({ ...prev, [eventCarId]: { date: "", minutes: "" } }));
+    await fetchTurnsForCar(eventCarId);
+  };
+
+  const handleDeleteTurn = async (turnId: string, eventCarId: string) => {
+    if (!confirm("Vuoi davvero eliminare questo turno?")) return;
+
+    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
+
+    if (error) {
+      console.error("Errore eliminazione turno:", error);
+      alert("Errore eliminazione turno");
+      return;
+    }
+
     await fetchTurnsForCar(eventCarId);
   };
 
@@ -262,14 +286,6 @@ export default function CalendarPage() {
                 placeholder="Note (opzionale)"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-              <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border">
-                  Annulla
-                </button>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold">
-                  Salva evento
-                </button>
-              </div>
             </form>
 
             {/* Auto coinvolte */}
@@ -312,6 +328,7 @@ export default function CalendarPage() {
                               <tr>
                                 <th className="p-2 text-left">Data</th>
                                 <th className="p-2 text-left">Durata</th>
+                                <th className="p-2 text-right">Azioni</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -319,6 +336,14 @@ export default function CalendarPage() {
                                 <tr key={t.id} className="border-t">
                                   <td className="p-2">{new Date(t.date).toLocaleDateString("it-IT")}</td>
                                   <td className="p-2">{t.minutes} min</td>
+                                  <td className="p-2 text-right">
+                                    <button
+                                      onClick={() => handleDeleteTurn(t.id, ec.id)}
+                                      className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center gap-1"
+                                    >
+                                      <Trash2 size={14} /> Elimina
+                                    </button>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -365,6 +390,24 @@ export default function CalendarPage() {
                 )}
               </div>
             )}
+
+            {/* Bottoni finali */}
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+              >
+                Salva evento
+              </button>
+            </div>
           </div>
         </div>
       )}
