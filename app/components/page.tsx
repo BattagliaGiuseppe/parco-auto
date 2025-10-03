@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, PlusCircle, Search, Engine } from "lucide-react"; // 👈 icona motore
+import { Edit, PlusCircle, Search, Cog } from "lucide-react"; // 👈 icona ingranaggio
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -115,7 +115,7 @@ export default function ComponentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Engine size={32} className="text-yellow-500" /> Componenti
+          <Cog size={32} className="text-yellow-500" /> Componenti
         </h1>
 
         <div className="flex flex-wrap gap-3 items-center">
