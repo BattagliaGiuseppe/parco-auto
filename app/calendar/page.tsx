@@ -15,6 +15,7 @@ export default function CalendarPage() {
   const [cars, setCars] = useState<Car[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [eventCars, setEventCars] = useState<any[]>([]);
+  const [eventTurns, setEventTurns] = useState<Record<string, any[]>>({}); // turni per auto
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,8 +31,11 @@ export default function CalendarPage() {
   const [formNotes, setFormNotes] = useState("");
   const [formCircuitId, setFormCircuitId] = useState<string>("");
 
-  // form state per aggiungere auto all'evento
+  // form per aggiungere auto
   const [selectedCarId, setSelectedCarId] = useState("");
+
+  // form per aggiungere turni (gestito per ogni auto)
+  const [turnForm, setTurnForm] = useState<Record<string, { start: string; end: string; notes: string }>>({});
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -66,7 +70,25 @@ export default function CalendarPage() {
       .select("id, car_id (id, name), driver, status")
       .eq("event_id", eventId);
 
-    if (!error) setEventCars(data || []);
+    if (!error) {
+      setEventCars(data || []);
+      // carico anche i turni
+      for (const ec of data || []) {
+        await fetchTurnsForCar(ec.id);
+      }
+    }
+  };
+
+  const fetchTurnsForCar = async (eventCarId: string) => {
+    const { data, error } = await supabase
+      .from("event_car_turns")
+      .select("id, start_time, end_time, minutes, notes")
+      .eq("event_car_id", eventCarId)
+      .order("start_time", { ascending: true });
+
+    if (!error) {
+      setEventTurns((prev) => ({ ...prev, [eventCarId]: data || [] }));
+    }
   };
 
   useEffect(() => {
@@ -83,7 +105,10 @@ export default function CalendarPage() {
     setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
     setModalOpen(true);
     if (ev?.id) fetchEventCars(ev.id);
-    else setEventCars([]);
+    else {
+      setEventCars([]);
+      setEventTurns({});
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,6 +193,46 @@ export default function CalendarPage() {
     await fetchEventCars(editing.id);
   };
 
+  const handleAddTurn = async (eventCarId: string) => {
+    const form = turnForm[eventCarId];
+    if (!form?.start || !form?.end) {
+      alert("Compila inizio e fine turno");
+      return;
+    }
+
+    const start = new Date(form.start);
+    const end = new Date(form.end);
+    const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+
+    if (minutes <= 0) {
+      alert("Orari non validi");
+      return;
+    }
+
+    const { error } = await supabase.from("event_car_turns").insert([
+      {
+        event_car_id: eventCarId,
+        start_time: form.start,
+        end_time: form.end,
+        minutes,
+        notes: form.notes || null,
+      },
+    ]);
+
+    if (error) {
+      console.error("Errore aggiunta turno:", error);
+      alert("Errore salvataggio turno");
+      return;
+    }
+
+    setTurnForm((prev) => ({
+      ...prev,
+      [eventCarId]: { start: "", end: "", notes: "" },
+    }));
+
+    await fetchTurnsForCar(eventCarId);
+  };
+
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -225,7 +290,7 @@ export default function CalendarPage() {
       {/* Modale evento */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl font-bold mb-4">
               {editing ? "Modifica evento" : "Aggiungi evento"}
             </h2>
@@ -321,16 +386,83 @@ export default function CalendarPage() {
                 {eventCars.length === 0 ? (
                   <p className="text-gray-600">Nessuna auto collegata</p>
                 ) : (
-                  <ul className="list-disc pl-5">
-                    {eventCars.map((ec) => (
-                      <li key={ec.id}>
-                        {ec.car_id?.name} —{" "}
-                        <span className="text-sm text-gray-500">
-                          {ec.status}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  eventCars.map((ec) => (
+                    <div key={ec.id} className="border rounded-lg p-3 mb-4">
+                      <h4 className="font-semibold mb-2">{ec.car_id?.name}</h4>
+                      {/* Turni per questa auto */}
+                      <div className="mb-2">
+                        {eventTurns[ec.id]?.length ? (
+                          <table className="w-full text-sm border">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="p-2 text-left">Inizio</th>
+                                <th className="p-2 text-left">Fine</th>
+                                <th className="p-2 text-left">Durata</th>
+                                <th className="p-2 text-left">Note</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {eventTurns[ec.id].map((t) => (
+                                <tr key={t.id} className="border-t">
+                                  <td className="p-2">{new Date(t.start_time).toLocaleTimeString("it-IT")}</td>
+                                  <td className="p-2">{new Date(t.end_time).toLocaleTimeString("it-IT")}</td>
+                                  <td className="p-2">{t.minutes} min</td>
+                                  <td className="p-2">{t.notes || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-gray-500 text-sm">Nessun turno registrato</p>
+                        )}
+                      </div>
+
+                      {/* Form aggiunta turno */}
+                      <div className="flex flex-col md:flex-row gap-2 mt-2">
+                        <input
+                          type="datetime-local"
+                          value={turnForm[ec.id]?.start || ""}
+                          onChange={(e) =>
+                            setTurnForm((prev) => ({
+                              ...prev,
+                              [ec.id]: { ...prev[ec.id], start: e.target.value },
+                            }))
+                          }
+                          className="border rounded-lg px-2 py-1 text-sm flex-1"
+                        />
+                        <input
+                          type="datetime-local"
+                          value={turnForm[ec.id]?.end || ""}
+                          onChange={(e) =>
+                            setTurnForm((prev) => ({
+                              ...prev,
+                              [ec.id]: { ...prev[ec.id], end: e.target.value },
+                            }))
+                          }
+                          className="border rounded-lg px-2 py-1 text-sm flex-1"
+                        />
+                        <input
+                          type="text"
+                          value={turnForm[ec.id]?.notes || ""}
+                          onChange={(e) =>
+                            setTurnForm((prev) => ({
+                              ...prev,
+                              [ec.id]: { ...prev[ec.id], notes: e.target.value },
+                            }))
+                          }
+                          placeholder="Note"
+                          className="border rounded-lg px-2 py-1 text-sm flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddTurn(ec.id)}
+                          className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
+                        >
+                          ➕ Turno
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             )}
