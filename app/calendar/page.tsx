@@ -8,10 +8,12 @@ import { Audiowide } from "next/font/google";
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type Car = { id: string | number; name: string };
+type Circuit = { id: string | number; name: string };
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
+  const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -19,16 +21,15 @@ export default function CalendarPage() {
   // form state
   const [formDate, setFormDate] = useState("");
   const [formName, setFormName] = useState("");
-  const [formAutodromo, setFormAutodromo] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formCarId, setFormCarId] = useState<string>("");
+  const [formCircuitId, setFormCircuitId] = useState<string>("");
 
   const fetchEvents = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("events")
-      // Nota: manteniamo la relazione singola con car_id per compatibilità attuale
-      .select("id, date, name, autodromo, notes, car_id (id, name)")
+      .select("id, date, name, notes, car_id (id, name), circuit_id (id, name)")
       .order("date", { ascending: false });
 
     if (!error) setEvents(data || []);
@@ -43,18 +44,27 @@ export default function CalendarPage() {
     if (!error) setCars((data as Car[]) || []);
   };
 
+  const fetchCircuits = async () => {
+    const { data, error } = await supabase
+      .from("circuits")
+      .select("id, name")
+      .order("name", { ascending: true });
+    if (!error) setCircuits((data as Circuit[]) || []);
+  };
+
   useEffect(() => {
     fetchEvents();
     fetchCars();
+    fetchCircuits();
   }, []);
 
   const openModal = (ev: any | null = null) => {
     setEditing(ev);
     setFormDate(ev?.date?.split("T")[0] || "");
     setFormName(ev?.name || "");
-    setFormAutodromo(ev?.autodromo || "");
     setFormNotes(ev?.notes || "");
     setFormCarId(ev?.car_id?.id?.toString?.() || "");
+    setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
     setModalOpen(true);
   };
 
@@ -69,9 +79,9 @@ export default function CalendarPage() {
     const payload: any = {
       date: formDate,
       name: formName,
-      autodromo: formAutodromo || null,
       notes: formNotes || null,
       car_id: formCarId ? (isNaN(Number(formCarId)) ? formCarId : Number(formCarId)) : null,
+      circuit_id: formCircuitId ? (isNaN(Number(formCircuitId)) ? formCircuitId : Number(formCircuitId)) : null,
     };
 
     if (editing) {
@@ -136,7 +146,7 @@ export default function CalendarPage() {
                     {ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}
                   </td>
                   <td className="p-3">{ev.name}</td>
-                  <td className="p-3">{ev.autodromo || "—"}</td>
+                  <td className="p-3">{ev.circuit_id?.name || "—"}</td>
                   <td className="p-3">{ev.car_id?.name || "—"}</td>
                   <td className="p-3 text-right">
                     <button
@@ -185,17 +195,22 @@ export default function CalendarPage() {
 
               <label className="flex flex-col gap-1">
                 <span className="text-sm font-semibold">Autodromo</span>
-                <input
-                  type="text"
-                  value={formAutodromo}
-                  onChange={(e) => setFormAutodromo(e.target.value)}
-                  placeholder="Es. Monza, Mugello..."
+                <select
+                  value={formCircuitId}
+                  onChange={(e) => setFormCircuitId(e.target.value)}
                   className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                />
+                >
+                  <option value="">— Seleziona autodromo —</option>
+                  {circuits.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-semibold">Auto (provvisorio: relazione singola)</span>
+                <span className="text-sm font-semibold">Auto (provvisorio: singola)</span>
                 <select
                   value={formCarId}
                   onChange={(e) => setFormCarId(e.target.value)}
@@ -208,9 +223,6 @@ export default function CalendarPage() {
                     </option>
                   ))}
                 </select>
-                <span className="text-xs text-gray-500">
-                  (Quando abiliteremo <code>event_cars</code> questa diventerà una multi-selezione)
-                </span>
               </label>
 
               <label className="flex flex-col gap-1">
@@ -241,7 +253,7 @@ export default function CalendarPage() {
             </form>
 
             <div className="mt-3 text-xs text-gray-500">
-              * Le ore per auto e i turni saranno gestiti nella scheda evento → auto (fase successiva).
+              * Per ora è possibile selezionare una sola auto; quando introdurremo <code>event_cars</code> diventerà multi-selezione.
             </div>
           </div>
         </div>
