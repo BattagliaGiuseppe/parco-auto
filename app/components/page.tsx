@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { Edit, PlusCircle, Search } from "lucide-react";
 import { Audiowide } from "next/font/google";
@@ -51,32 +52,28 @@ export default function ComponentsPage() {
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
 
-    if (months > 12) return "text-green-600 font-semibold";
-    if (months > 6) return "text-orange-500 font-semibold";
-    if (expiry < now) return "text-red-600 font-bold";
-    return "text-yellow-500";
+    if (months > 12) return "text-green-400 font-semibold";
+    if (months > 6) return "text-yellow-400 font-semibold";
+    if (expiry < now) return "text-red-500 font-bold";
+    return "text-orange-400";
   };
 
   // filtro in base a stato + auto + tipo + ricerca
   const filteredComponents = components.filter((c) => {
-    // filtro per auto
     if (filterCar === "unassigned") {
-      if (c.car_id?.name) return false; // mostro solo quelli smontati
+      if (c.car_id?.name) return false;
     } else if (filterCar && c.car_id?.name !== filterCar) {
       return false;
     }
 
-    // filtro per tipo
     if (filterType && c.type !== filterType) return false;
 
-    // ricerca
     const matchSearch =
       c.type.toLowerCase().includes(search.toLowerCase()) ||
       c.identifier.toLowerCase().includes(search.toLowerCase()) ||
       (c.car_id?.name || "").toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
 
-    // filtro scadenza
     if (!c.expiry_date) return true;
     const expiry = new Date(c.expiry_date);
     const now = new Date();
@@ -90,7 +87,6 @@ export default function ComponentsPage() {
     return true;
   });
 
-  // gestione apertura modale
   const openAddModal = () => {
     setEditing(null);
     setModalOpen(true);
@@ -104,7 +100,6 @@ export default function ComponentsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalOpen(false);
-    // TODO: integrazione con Supabase (insert/update)
     if (editing) {
       console.log("Aggiorna componente:", editing.id);
     } else {
@@ -115,6 +110,17 @@ export default function ComponentsPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
+      {/* Immagine top pagina */}
+      <div className="w-full flex justify-center">
+        <Image
+          src="/RSV4.JPG"
+          alt="RSV4"
+          width={800}
+          height={400}
+          className="rounded-2xl shadow-lg object-cover"
+        />
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800">🔧 Componenti</h1>
@@ -197,10 +203,10 @@ export default function ComponentsPage() {
           {filteredComponents.map((comp) => (
             <div
               key={comp.id}
-              className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+              className="bg-black text-yellow-400 shadow-md rounded-2xl overflow-hidden border border-yellow-500 hover:shadow-xl transition"
             >
               {/* Header card */}
-              <div className="bg-gray-900 text-yellow-400 px-4 py-3 flex justify-between items-center">
+              <div className="bg-gray-900 px-4 py-3 flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
                   <span className="text-sm opacity-80">{comp.car_id?.name || "Smontato"}</span>
@@ -209,7 +215,7 @@ export default function ComponentsPage() {
 
               {/* Corpo card */}
               <div className="p-4 flex flex-col gap-3">
-                <p className="text-gray-700 text-sm">
+                <p className="text-sm">
                   <span className="font-semibold">Identificativo:</span>{" "}
                   {comp.identifier}
                 </p>
@@ -222,9 +228,9 @@ export default function ComponentsPage() {
                 )}
 
                 {comp.last_maintenance_date && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-300">
                     Ultima manutenzione:{" "}
-                    <span className="font-semibold text-blue-600">
+                    <span className="font-semibold text-blue-400">
                       {new Date(comp.last_maintenance_date).toLocaleDateString(
                         "it-IT"
                       )}
