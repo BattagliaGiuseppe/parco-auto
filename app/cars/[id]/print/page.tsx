@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Audiowide } from "next/font/google";
-import { Printer } from "lucide-react";
+import { Printer, ArrowLeft } from "lucide-react";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -21,7 +22,9 @@ export default function PrintPage() {
       // Auto + componenti
       const { data: carData, error: carErr } = await supabase
         .from("cars")
-        .select("id, name, chassis_number, components(id, type, identifier, expiry_date)")
+        .select(
+          "id, name, chassis_number, components(id, type, identifier, expiry_date)"
+        )
         .eq("id", id)
         .single();
 
@@ -56,16 +59,26 @@ export default function PrintPage() {
 
   return (
     <div className={`p-8 space-y-10 ${audiowide.className}`}>
-      {/* Intestazione con logo + titolo + tasto stampa */}
+      {/* Barra superiore con indietro + titolo + stampa */}
       <div className="flex items-center justify-between border-b pb-4">
-        <Image
-          src="/logo-stampa.png"
-          alt="Logo Battaglia Racing Car"
-          width={120}
-          height={120}
-          className="object-contain"
-        />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/cars"
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 print:hidden"
+          >
+            <ArrowLeft size={18} /> Indietro
+          </Link>
+          <Image
+            src="/logo-stampa.png"
+            alt="Logo Battaglia Racing Car"
+            width={120}
+            height={120}
+            className="object-contain"
+          />
+        </div>
+
         <h1 className="text-3xl font-bold text-gray-800">Scheda Auto</h1>
+
         <button
           onClick={() => window.print()}
           className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 print:hidden"
@@ -78,8 +91,13 @@ export default function PrintPage() {
       <section>
         <h2 className="text-2xl font-bold text-yellow-600 mb-4">Dati Auto</h2>
         <div className="bg-white shadow rounded-lg p-4 space-y-2">
-          <p><span className="font-semibold">Nome:</span> {car.name}</p>
-          <p><span className="font-semibold">Numero Telaio:</span> {car.chassis_number}</p>
+          <p>
+            <span className="font-semibold">Nome:</span> {car.name}
+          </p>
+          <p>
+            <span className="font-semibold">Numero Telaio:</span>{" "}
+            {car.chassis_number}
+          </p>
         </div>
       </section>
 
@@ -100,7 +118,11 @@ export default function PrintPage() {
                 <tr key={comp.id} className="border-t">
                   <td className="px-4 py-2 capitalize">{comp.type}</td>
                   <td className="px-4 py-2">{comp.identifier}</td>
-                  <td className={`px-4 py-2 ${comp.expiry_date ? getExpiryColor(comp.expiry_date) : ""}`}>
+                  <td
+                    className={`px-4 py-2 ${
+                      comp.expiry_date ? getExpiryColor(comp.expiry_date) : ""
+                    }`}
+                  >
                     {comp.expiry_date
                       ? new Date(comp.expiry_date).toLocaleDateString("it-IT")
                       : "—"}
@@ -144,7 +166,10 @@ export default function PrintPage() {
               ))}
               {documents.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-4 text-center text-gray-500">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-4 text-center text-gray-500"
+                  >
                     Nessun documento caricato
                   </td>
                 </tr>
