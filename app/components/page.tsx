@@ -122,3 +122,240 @@ export default function ComponentsPage() {
             />
             <Search
               size={16}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+          </div>
+
+          {/* Filtro auto */}
+          <select
+            value={filterCar}
+            onChange={(e) => setFilterCar(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="">Tutte le auto</option>
+            {[...new Set(
+              components.map((c) => c.car_id?.name).filter(Boolean)
+            )].map((car) => (
+              <option key={car} value={car}>
+                {car}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro tipo componente */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="">Tutti i tipi</option>
+            {[...new Set(
+              components.map((c) => c.type).filter(Boolean)
+            )].map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro scadenze */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="all">Tutti</option>
+            <option value="expiring">In scadenza (≤ 6 mesi)</option>
+            <option value="expired">Scaduti</option>
+          </select>
+
+          {/* Aggiungi componente */}
+          <button
+            onClick={openAddModal}
+            className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+          >
+            <PlusCircle size={18} /> Aggiungi
+          </button>
+        </div>
+      </div>
+
+      {/* Lista componenti */}
+      {loading ? (
+        <p>Caricamento...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredComponents.map((comp) => (
+            <div
+              key={comp.id}
+              className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+            >
+              {/* Header card */}
+              <div className="bg-gray-900 text-yellow-400 px-4 py-3 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
+                  <span className="text-sm opacity-80">{comp.car_id?.name || "—"}</span>
+                </div>
+              </div>
+
+              {/* Corpo card */}
+              <div className="p-4 flex flex-col gap-3">
+                <p className="text-gray-700 text-sm">
+                  <span className="font-semibold">Identificativo:</span>{" "}
+                  {comp.identifier}
+                </p>
+
+                {comp.expiry_date && (
+                  <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
+                    <span className="font-semibold">Scadenza:</span>{" "}
+                    {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                  </p>
+                )}
+
+                {comp.last_maintenance_date && (
+                  <p className="text-sm text-gray-600">
+                    Ultima manutenzione:{" "}
+                    <span className="font-semibold text-blue-600">
+                      {new Date(comp.last_maintenance_date).toLocaleDateString(
+                        "it-IT"
+                      )}
+                    </span>
+                  </p>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => openEditModal(comp)}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                  >
+                    <Edit size={16} /> Modifica
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modale Aggiungi/Modifica */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+            <h2 className="text-xl font-bold mb-4">
+              {editing ? "Modifica componente" : "Aggiungi componente"}
+            </h2>
+            <form onSubmit={handleSave} className="flex flex-col gap-4">
+              {/* Tipo componente */}
+              {editing ? (
+                <p className="font-bold text-gray-800">
+                  Tipo: {editing.type}
+                </p>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Inserisci tipo componente"
+                  className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
+                />
+              )}
+
+              {/* Identificativo */}
+              <input
+                type="text"
+                defaultValue={editing?.identifier || ""}
+                placeholder="Inserisci identificativo"
+                className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
+              />
+
+              {/* Data scadenza */}
+              <input
+                type="date"
+                defaultValue={editing?.expiry_date?.split("T")[0] || ""}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              />
+
+              {/* Seleziona auto */}
+              <select
+                defaultValue={editing?.car_id?.name || ""}
+                onChange={(e) => {
+                  const newCar = e.target.value;
+                  if (editing && editing.car_id?.name !== newCar) {
+                    setConfirmPopup({
+                      show: true,
+                      oldCar: editing.car_id?.name || "",
+                      newCar: newCar,
+                    });
+                  }
+                }}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">Seleziona auto</option>
+                {[...new Set(
+                  components.map((c) => c.car_id?.name).filter(Boolean)
+                )].map((car) => (
+                  <option key={car} value={car}>
+                    {car}
+                  </option>
+                ))}
+              </select>
+
+              {/* Azioni */}
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+                >
+                  Salva
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Popup conferma cambio auto */}
+      {confirmPopup.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Conferma cambio auto</h3>
+            <p className="text-gray-700 mb-6">
+              Vuoi smontare questo componente da{" "}
+              <span className="font-semibold">{confirmPopup.oldCar}</span>{" "}
+              e montarlo su{" "}
+              <span className="font-semibold">{confirmPopup.newCar}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() =>
+                  setConfirmPopup({ show: false, oldCar: null, newCar: null })
+                }
+                className="px-4 py-2 rounded-lg border"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (editing && confirmPopup.newCar) {
+                    setEditing({
+                      ...editing,
+                      car_id: { name: confirmPopup.newCar },
+                    });
+                  }
+                  setConfirmPopup({ show: false, oldCar: null, newCar: null });
+                }}
+                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+              >
+                Conferma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
