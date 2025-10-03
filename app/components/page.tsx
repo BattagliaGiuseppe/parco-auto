@@ -197,7 +197,7 @@ export default function ComponentsPage() {
           {filteredComponents.map((comp) => (
             <div
               key={comp.id}
-              className="bg-gray-50 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+              className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
             >
               {/* Header card */}
               <div className="bg-gray-900 text-yellow-400 px-4 py-3 flex justify-between items-center">
@@ -277,7 +277,7 @@ export default function ComponentsPage() {
               <input
                 type="text"
                 defaultValue={editing?.identifier || ""}
-                placeholder="Inserisci identificativo"
+                placeholder="Identificativo"
                 className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
               />
 
