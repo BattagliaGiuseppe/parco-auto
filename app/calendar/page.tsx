@@ -7,18 +7,20 @@ import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-type Car = { id: string | number; name: string };
-type Circuit = { id: string | number; name: string };
+type Car = { id: string; name: string };
+type Circuit = { id: string; name: string };
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
+  const [eventCars, setEventCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // sottosezione per aggiungere autodromo
+  // sottosezione autodromi
   const [circuitModalOpen, setCircuitModalOpen] = useState(false);
   const [newCircuitName, setNewCircuitName] = useState("");
 
@@ -26,14 +28,16 @@ export default function CalendarPage() {
   const [formDate, setFormDate] = useState("");
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
-  const [formCarId, setFormCarId] = useState<string>("");
   const [formCircuitId, setFormCircuitId] = useState<string>("");
+
+  // form state per aggiungere auto all'evento
+  const [selectedCarId, setSelectedCarId] = useState("");
 
   const fetchEvents = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("events")
-      .select("id, date, name, notes, car_id (id, name), circuit_id (id, name)")
+      .select("id, date, name, notes, circuit_id (id, name)")
       .order("date", { ascending: false });
 
     if (!error) setEvents(data || []);
@@ -56,6 +60,15 @@ export default function CalendarPage() {
     if (!error) setCircuits((data as Circuit[]) || []);
   };
 
+  const fetchEventCars = async (eventId: string) => {
+    const { data, error } = await supabase
+      .from("event_cars")
+      .select("id, car_id (id, name), driver, status")
+      .eq("event_id", eventId);
+
+    if (!error) setEventCars(data || []);
+  };
+
   useEffect(() => {
     fetchEvents();
     fetchCars();
@@ -67,9 +80,10 @@ export default function CalendarPage() {
     setFormDate(ev?.date?.split("T")[0] || "");
     setFormName(ev?.name || "");
     setFormNotes(ev?.notes || "");
-    setFormCarId(ev?.car_id?.id?.toString?.() || "");
     setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
     setModalOpen(true);
+    if (ev?.id) fetchEventCars(ev.id);
+    else setEventCars([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,8 +98,7 @@ export default function CalendarPage() {
       date: formDate,
       name: formName,
       notes: formNotes || null,
-      car_id: formCarId ? (isNaN(Number(formCarId)) ? formCarId : Number(formCarId)) : null,
-      circuit_id: formCircuitId ? (isNaN(Number(formCircuitId)) ? formCircuitId : Number(formCircuitId)) : null,
+      circuit_id: formCircuitId || null,
     };
 
     if (editing) {
@@ -133,6 +146,28 @@ export default function CalendarPage() {
     await fetchCircuits();
   };
 
+  const handleAddCarToEvent = async () => {
+    if (!editing?.id || !selectedCarId) return;
+
+    const { error } = await supabase.from("event_cars").insert([
+      {
+        event_id: editing.id,
+        car_id: selectedCarId,
+        driver: null,
+        status: "in_corso",
+      },
+    ]);
+
+    if (error) {
+      console.error("Errore aggiunta auto all'evento:", error);
+      alert("Errore");
+      return;
+    }
+
+    setSelectedCarId("");
+    await fetchEventCars(editing.id);
+  };
+
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -161,7 +196,6 @@ export default function CalendarPage() {
                 <th className="p-3 text-left">Data</th>
                 <th className="p-3 text-left">Evento</th>
                 <th className="p-3 text-left">Autodromo</th>
-                <th className="p-3 text-left">Auto</th>
                 <th className="p-3 text-right">Azioni</th>
               </tr>
             </thead>
@@ -173,7 +207,6 @@ export default function CalendarPage() {
                   </td>
                   <td className="p-3">{ev.name}</td>
                   <td className="p-3">{ev.circuit_id?.name || "—"}</td>
-                  <td className="p-3">{ev.car_id?.name || "—"}</td>
                   <td className="p-3 text-right">
                     <button
                       onClick={() => openModal(ev)}
@@ -192,7 +225,7 @@ export default function CalendarPage() {
       {/* Modale evento */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
             <h2 className="text-xl font-bold mb-4">
               {editing ? "Modifica evento" : "Aggiungi evento"}
             </h2>
@@ -221,7 +254,7 @@ export default function CalendarPage() {
                 >
                   <option value="">— Seleziona autodromo —</option>
                   {circuits.map((c) => (
-                    <option key={c.id} value={String(c.id)}>
+                    <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
                   ))}
@@ -234,19 +267,6 @@ export default function CalendarPage() {
                   ➕
                 </button>
               </div>
-
-              <select
-                value={formCarId}
-                onChange={(e) => setFormCarId(e.target.value)}
-                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="">— Nessuna auto —</option>
-                {cars.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
 
               <textarea
                 value={formNotes}
@@ -267,10 +287,53 @@ export default function CalendarPage() {
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
                 >
-                  Salva
+                  Salva evento
                 </button>
               </div>
             </form>
+
+            {/* Se evento esiste già mostriamo sottosezione auto */}
+            {editing?.id && (
+              <div className="mt-6">
+                <h3 className="text-lg font-bold mb-3">Auto coinvolte</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <select
+                    value={selectedCarId}
+                    onChange={(e) => setSelectedCarId(e.target.value)}
+                    className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+                  >
+                    <option value="">— Seleziona auto —</option>
+                    {cars.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAddCarToEvent}
+                    type="button"
+                    className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
+                  >
+                    Aggiungi
+                  </button>
+                </div>
+
+                {eventCars.length === 0 ? (
+                  <p className="text-gray-600">Nessuna auto collegata</p>
+                ) : (
+                  <ul className="list-disc pl-5">
+                    {eventCars.map((ec) => (
+                      <li key={ec.id}>
+                        {ec.car_id?.name} —{" "}
+                        <span className="text-sm text-gray-500">
+                          {ec.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
