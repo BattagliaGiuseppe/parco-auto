@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, PlusCircle, Search, Cog } from "lucide-react"; // 👈 icona ingranaggio
+import { Edit, PlusCircle, Search, Cog } from "lucide-react"; // icona ingranaggio
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -16,11 +16,11 @@ export default function ComponentsPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [search, setSearch] = useState<string>("");
 
-  // Stato modale componente
+  // Modale
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
 
-  // Stato popup conferma cambio auto
+  // Popup conferma cambio auto
   const [confirmPopup, setConfirmPopup] = useState<{
     show: boolean;
     oldCar: string | null;
@@ -57,7 +57,7 @@ export default function ComponentsPage() {
     return "text-orange-500";
   };
 
-  // filtro principale
+  // Applica i filtri
   const filteredComponents = components.filter((c) => {
     if (filterCar === "unassigned") {
       if (c.car_id?.name) return false;
@@ -107,7 +107,6 @@ export default function ComponentsPage() {
     await fetchComponents();
   };
 
-  // separo i componenti smontati
   const unassignedComponents = components.filter((c) => !c.car_id?.name);
 
   return (
@@ -119,7 +118,7 @@ export default function ComponentsPage() {
         </h1>
 
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Barra ricerca */}
+          {/* Ricerca */}
           <div className="relative">
             <input
               type="text"
@@ -141,6 +140,7 @@ export default function ComponentsPage() {
             className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
           >
             <option value="">Tutte le auto</option>
+            <option value="unassigned">Smontati</option>
             {[...new Set(
               components.map((c) => c.car_id?.name).filter(Boolean)
             )].map((car) => (
@@ -148,10 +148,9 @@ export default function ComponentsPage() {
                 {car}
               </option>
             ))}
-            <option value="unassigned">Smontati</option>
           </select>
 
-          {/* Filtro tipo componente */}
+          {/* Filtro tipo */}
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
@@ -178,7 +177,7 @@ export default function ComponentsPage() {
             <option value="expired">Scaduti</option>
           </select>
 
-          {/* Aggiungi componente */}
+          {/* Aggiungi */}
           <button
             onClick={openAddModal}
             className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
@@ -195,13 +194,12 @@ export default function ComponentsPage() {
         <div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredComponents
-              .filter((c) => c.car_id?.name) // solo assegnati
+              .filter((c) => c.car_id?.name)
               .map((comp) => (
                 <div
                   key={comp.id}
                   className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
                 >
-                  {/* Header card */}
                   <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
                     <div>
                       <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
@@ -209,20 +207,16 @@ export default function ComponentsPage() {
                     </div>
                   </div>
 
-                  {/* Corpo card */}
                   <div className="p-4 flex flex-col gap-3">
                     <p className="text-gray-700 text-sm">
-                      <span className="font-semibold">Identificativo:</span>{" "}
-                      {comp.identifier}
+                      <span className="font-semibold">Identificativo:</span> {comp.identifier}
                     </p>
-
                     {comp.expiry_date && (
                       <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
                         <span className="font-semibold">Scadenza:</span>{" "}
                         {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
                       </p>
                     )}
-
                     {comp.last_maintenance_date && (
                       <p className="text-sm text-gray-600">
                         Ultima manutenzione:{" "}
@@ -231,7 +225,6 @@ export default function ComponentsPage() {
                         </span>
                       </p>
                     )}
-
                     <div className="flex justify-end">
                       <button
                         onClick={() => openEditModal(comp)}
@@ -245,7 +238,7 @@ export default function ComponentsPage() {
               ))}
           </div>
 
-          {/* Sezione componenti smontati */}
+          {/* Sezione smontati */}
           {unassignedComponents.length > 0 && (
             <div className="mt-10">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">
@@ -257,13 +250,10 @@ export default function ComponentsPage() {
                     key={comp.id}
                     className="bg-gray-100 shadow-md rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
                   >
-                    {/* Header card */}
                     <div className="bg-black text-yellow-500 px-4 py-3">
                       <h2 className="text-lg font-bold capitalize">{comp.type}</h2>
                       <span className="text-sm opacity-80">Smontato</span>
                     </div>
-
-                    {/* Corpo card */}
                     <div className="p-4 flex flex-col gap-3">
                       <p className="text-gray-700 text-sm">
                         <span className="font-semibold">Identificativo:</span>{" "}
@@ -292,7 +282,7 @@ export default function ComponentsPage() {
         </div>
       )}
 
-      {/* Modale Aggiungi/Modifica */}
+      {/* Modale */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
@@ -300,32 +290,37 @@ export default function ComponentsPage() {
               {editing ? "Modifica componente" : "Aggiungi componente"}
             </h2>
             <form onSubmit={handleSave} className="flex flex-col gap-4">
-              {/* Tipo componente */}
+              {/* Tipo */}
               {editing ? (
                 <p className="font-bold text-gray-800">Tipo: {editing.type}</p>
               ) : (
                 <select className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400">
                   <option value="">Seleziona tipo</option>
-                  {[...new Set(
-                    components.map((c) => c.type).filter(Boolean)
-                  )].map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
+                  {[...new Set(components.map((c) => c.type).filter(Boolean))].map(
+                    (type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    )
+                  )}
                   <option value="altro">Altro…</option>
                 </select>
               )}
 
               {/* Identificativo */}
-              <input
-                type="text"
-                defaultValue={editing?.identifier || ""}
-                placeholder="Identificativo"
-                className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Identificativo
+                </label>
+                <input
+                  type="text"
+                  defaultValue={editing?.identifier || ""}
+                  placeholder={editing ? "" : "Identificativo"}
+                  className="border rounded-lg px-3 py-2 placeholder-gray-400 focus:ring-2 focus:ring-yellow-400 w-full"
+                />
+              </div>
 
-              {/* Data scadenza */}
+              {/* Scadenza */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Scadenza
@@ -337,7 +332,7 @@ export default function ComponentsPage() {
                 />
               </div>
 
-              {/* Seleziona auto */}
+              {/* Auto */}
               <select
                 defaultValue={editing?.car_id?.name || ""}
                 onChange={(e) => {
@@ -362,7 +357,6 @@ export default function ComponentsPage() {
                 ))}
               </select>
 
-              {/* Azioni */}
               <div className="flex justify-end gap-3 mt-4">
                 <button
                   type="button"
@@ -383,7 +377,7 @@ export default function ComponentsPage() {
         </div>
       )}
 
-      {/* Popup conferma cambio auto */}
+      {/* Popup cambio auto */}
       {confirmPopup.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
