@@ -91,11 +91,22 @@ export default function DocumentsPage() {
 
       {/* Upload form */}
       <div className="bg-white shadow rounded-lg p-4 flex flex-col md:flex-row gap-4 items-center">
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="border p-2 rounded w-full md:w-auto"
-        />
+        {/* Pulsante "Scegli file" con stesso stile di "Carica" */}
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="fileInput"
+            className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            📂 Scegli file
+          </label>
+          <input
+            id="fileInput"
+            type="file"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+          />
+        </div>
+
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
           <select
             value={docType}
@@ -118,6 +129,8 @@ export default function DocumentsPage() {
             />
           )}
         </div>
+
+        {/* Pulsante Carica */}
         <button
           onClick={uploadDoc}
           className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
