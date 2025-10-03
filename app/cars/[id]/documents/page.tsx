@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, FileText } from "lucide-react";
+import { PlusCircle, FileText, ArrowLeft } from "lucide-react";
 import { Audiowide } from "next/font/google";
+import Link from "next/link";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -87,11 +88,19 @@ export default function DocumentsPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
+      {/* Pulsante Indietro */}
+      <Link
+        href="/cars"
+        className="w-fit bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
+      >
+        <ArrowLeft size={18} /> Indietro
+      </Link>
+
       <h1 className="text-2xl font-bold text-gray-800 mb-4">📄 Documenti Auto</h1>
 
       {/* Upload form */}
       <div className="bg-white shadow rounded-lg p-4 flex flex-col md:flex-row gap-4 items-center">
-        {/* Pulsante "Scegli file" con stesso stile di "Carica" */}
+        {/* Pulsante "Scegli file" */}
         <div className="flex items-center gap-2">
           <label
             htmlFor="fileInput"
