@@ -30,7 +30,7 @@ export default function CalendarPage() {
     minutes: "",
   });
 
-  // 🔹 FETCH EVENTI + AUTO + TURNI
+  // Fetch eventi e auto
   const fetchEvents = async () => {
     setLoading(true);
 
@@ -40,11 +40,12 @@ export default function CalendarPage() {
       .order("date", { ascending: false });
 
     const { data: carData } = await supabase.from("cars").select("id, name");
+
     setCars(carData || []);
     setEvents(ev || []);
     setLoading(false);
 
-    // Turni per evento
+    // Carica turni per ogni evento
     const turnsMap: Record<string, any[]> = {};
     for (const e of ev || []) {
       const { data: t } = await supabase
@@ -61,7 +62,7 @@ export default function CalendarPage() {
     fetchEvents();
   }, []);
 
-  // 🔹 SALVATAGGIO EVENTO
+  // SALVATAGGIO EVENTO
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -72,7 +73,7 @@ export default function CalendarPage() {
       return;
     }
 
-    // Controllo univocità autodromo (case insensitive)
+    // Controlla se l'autodromo esiste già (case-insensitive)
     const existing = await supabase
       .from("events")
       .select("autodrome")
@@ -81,7 +82,7 @@ export default function CalendarPage() {
 
     const autodromeFinal = existing?.data?.autodrome || autodromeName;
 
-    let dbError = null;
+    let dbError: any = null;
 
     if (editing) {
       const { error } = await supabase
@@ -93,7 +94,8 @@ export default function CalendarPage() {
           notes: formData.notes,
         })
         .eq("id", editing.id);
-      dbError = error;
+
+      dbError = error || null;
     } else {
       const { error } = await supabase.from("events").insert([
         {
@@ -103,19 +105,20 @@ export default function CalendarPage() {
           notes: formData.notes,
         },
       ]);
-      dbError = error;
+
+      dbError = error || null;
     }
 
     if (dbError) {
       console.error("Errore salvataggio evento:", dbError);
-      alert("Errore durante il salvataggio");
+      alert("Errore durante il salvataggio dell'evento");
     } else {
       setModalOpen(false);
       fetchEvents();
     }
   };
 
-  // 🔹 SALVATAGGIO TURNO
+  // SALVATAGGIO TURNO
   const handleAddTurn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -136,7 +139,7 @@ export default function CalendarPage() {
 
     if (error) {
       console.error("Errore aggiunta turno:", error);
-      alert("Errore durante il salvataggio turno");
+      alert("Errore durante il salvataggio del turno");
     } else {
       setTurnModal(false);
       setTurnForm({ car_id: "", minutes: "" });
@@ -144,12 +147,12 @@ export default function CalendarPage() {
     }
   };
 
-  // 🔹 AUTODROMI ESISTENTI
+  // AUTODROMI ESISTENTI (per datalist)
   const autodromes = Array.from(
     new Set(events.map((e) => e.autodrome).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b));
 
-  // 🔹 RENDER
+  // RENDER UI
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -231,7 +234,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Turni */}
+      {/* Turni per evento */}
       {events.map(
         (ev) =>
           turns[ev.id]?.length > 0 && (
@@ -291,8 +294,7 @@ export default function CalendarPage() {
                 placeholder="Nome evento"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-
-              {/* Autodromo */}
+              {/* Autodromo con datalist */}
               <input
                 list="autodromes"
                 value={formData.autodrome}
@@ -307,7 +309,6 @@ export default function CalendarPage() {
                   <option key={a} value={a} />
                 ))}
               </datalist>
-
               <textarea
                 value={formData.notes}
                 onChange={(e) =>
