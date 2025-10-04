@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit, Clock } from "lucide-react";
+import {
+  PlusCircle,
+  CalendarDays,
+  Edit,
+  Clock,
+  MapPin,
+} from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -11,24 +17,30 @@ type EventRow = {
   id: string;
   date: string;
   name: string;
-  autodrome: string | null;
+  autodrome_id: string | null;
+  autodrome: { id: string; name: string } | null;
   notes: string | null;
   hours_total_event: number | null;
 };
 
 type CarRow = { id: string; name: string };
+type AutodromeRow = { id: string; name: string };
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [cars, setCars] = useState<CarRow[]>([]);
+  const [autodromes, setAutodromes] = useState<AutodromeRow[]>([]);
   const [turns, setTurns] = useState<Record<string, any[]>>({});
   const [eventCarsNames, setEventCarsNames] = useState<
     Record<string, string[]>
   >({});
   const [loading, setLoading] = useState(false);
 
+  // Modali
   const [modalOpen, setModalOpen] = useState(false);
   const [turnModal, setTurnModal] = useState(false);
+  const [autodromeModal, setAutodromeModal] = useState(false);
+
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
 
@@ -36,10 +48,9 @@ export default function CalendarPage() {
   const [formData, setFormData] = useState({
     date: "",
     name: "",
-    autodrome: "",
+    autodrome_id: "",
     notes: "",
   });
-  // multiselect auto partecipanti
   const [selectedCarIds, setSelectedCarIds] = useState<string[]>([]);
 
   // form turno
@@ -48,13 +59,29 @@ export default function CalendarPage() {
     minutes: "",
   });
 
+  // form nuovo autodromo
+  const [newAutodrome, setNewAutodrome] = useState("");
+
+  // filtro autodromo
+  const [filterAutodrome, setFilterAutodrome] = useState<string>("");
+
   // ======= FETCH =======
+  const fetchAutodromes = async () => {
+    const { data, error } = await supabase
+      .from("autodromes")
+      .select("id, name")
+      .order("name", { ascending: true });
+    if (!error) setAutodromes(data || []);
+  };
+
   const fetchEvents = async () => {
     setLoading(true);
 
     const { data: ev } = await supabase
       .from("events")
-      .select("id, date, name, autodrome, notes, hours_total_event")
+      .select(
+        "id, date, name, autodrome_id, autodrome:autodrome_id (id, name), notes, hours_total_event"
+      )
       .order("date", { ascending: false });
 
     const { data: carData } = await supabase.from("cars").select("id, name");
@@ -90,6 +117,7 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
+    fetchAutodromes();
     fetchEvents();
   }, []);
 
@@ -97,19 +125,10 @@ export default function CalendarPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const autodromeName = formData.autodrome.trim();
-    if (!formData.date || !formData.name || !autodromeName) {
+    if (!formData.date || !formData.name || !formData.autodrome_id) {
       alert("Compila data, nome ed autodromo");
       return;
     }
-
-    // Canonizzazione autodromo (case-insensitive)
-    const existing = await supabase
-      .from("events")
-      .select("autodrome")
-      .ilike("autodrome", autodromeName)
-      .maybeSingle();
-    const autodromeFinal = existing?.data?.autodrome || autodromeName;
 
     let dbError: any = null;
     let eventId: string | null = editing?.id || null;
@@ -120,7 +139,7 @@ export default function CalendarPage() {
         .update({
           date: formData.date,
           name: formData.name,
-          autodrome: autodromeFinal,
+          autodrome_id: formData.autodrome_id,
           notes: formData.notes,
         })
         .eq("id", editing.id);
@@ -132,7 +151,7 @@ export default function CalendarPage() {
           {
             date: formData.date,
             name: formData.name,
-            autodrome: autodromeFinal,
+            autodrome_id: formData.autodrome_id,
             notes: formData.notes,
           },
         ])
@@ -149,7 +168,6 @@ export default function CalendarPage() {
     }
 
     // Sincronizza event_cars (auto partecipanti)
-    // Strategia semplice: wipe & insert
     await supabase.from("event_cars").delete().eq("event_id", eventId);
     if (selectedCarIds.length > 0) {
       const rows = selectedCarIds.map((cid) => ({
@@ -194,13 +212,39 @@ export default function CalendarPage() {
     }
   };
 
-  // Autodromi esistenti per datalist
-  const autodromes = Array.from(
-    new Set(events.map((e) => e.autodrome).filter(Boolean) as string[])
-  ).sort((a, b) => a.localeCompare(b));
+  // ======= AGGIUNGI AUTODROMO =======
+  const handleAddAutodrome = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // Lista auto da proporre nella modale "Aggiungi turno":
-  // se l'evento ha auto partecipanti, mostra solo quelle; altrimenti tutte.
+    const name = newAutodrome.trim();
+    if (!name) return alert("Inserisci un nome valido");
+
+    const existing = autodromes.find(
+      (a) => a.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existing) {
+      alert("Autodromo già presente!");
+      return;
+    }
+
+    const { error } = await supabase.from("autodromes").insert([{ name }]);
+    if (error) {
+      console.error(error);
+      alert("Errore durante la creazione dell'autodromo");
+      return;
+    }
+
+    setNewAutodrome("");
+    setAutodromeModal(false);
+    fetchAutodromes();
+  };
+
+  // ======= FILTRO EVENTI =======
+  const filteredEvents = filterAutodrome
+    ? events.filter((ev) => ev.autodrome_id === filterAutodrome)
+    : events;
+
+  // Lista auto per modale turni
   const carsForSelectedEvent: CarRow[] = (() => {
     if (!selectedEvent) return cars;
     const names = eventCarsNames[selectedEvent.id] || [];
@@ -220,7 +264,7 @@ export default function CalendarPage() {
         <button
           onClick={() => {
             setEditing(null);
-            setFormData({ date: "", name: "", autodrome: "", notes: "" });
+            setFormData({ date: "", name: "", autodrome_id: "", notes: "" });
             setSelectedCarIds([]);
             setModalOpen(true);
           }}
@@ -230,10 +274,27 @@ export default function CalendarPage() {
         </button>
       </div>
 
+      {/* Filtro autodromo */}
+      <div className="flex items-center gap-3">
+        <label className="font-semibold text-gray-700">Filtra per autodromo:</label>
+        <select
+          value={filterAutodrome}
+          onChange={(e) => setFilterAutodrome(e.target.value)}
+          className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+        >
+          <option value="">Tutti</option>
+          {autodromes.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Lista eventi */}
       {loading ? (
         <p>Caricamento...</p>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <p className="text-gray-600">Nessun evento registrato</p>
       ) : (
         <div className="overflow-x-auto">
@@ -249,13 +310,13 @@ export default function CalendarPage() {
               </tr>
             </thead>
             <tbody>
-              {events.map((ev) => (
+              {filteredEvents.map((ev) => (
                 <tr key={ev.id} className="border-t align-top">
                   <td className="p-3">
                     {new Date(ev.date).toLocaleDateString("it-IT")}
                   </td>
                   <td className="p-3 font-semibold">{ev.name}</td>
-                  <td className="p-3">{ev.autodrome}</td>
+                  <td className="p-3">{ev.autodrome?.name || "—"}</td>
                   <td className="p-3">
                     {eventCarsNames[ev.id]?.length
                       ? eventCarsNames[ev.id].join(", ")
@@ -272,10 +333,9 @@ export default function CalendarPage() {
                         setFormData({
                           date: ev.date?.split("T")[0] || "",
                           name: ev.name,
-                          autodrome: ev.autodrome || "",
+                          autodrome_id: ev.autodrome_id || "",
                           notes: ev.notes || "",
                         });
-                        // carica auto partecipanti per l'evento
                         const { data: ecs } = await supabase
                           .from("event_cars")
                           .select("car_id")
@@ -304,41 +364,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Turni per evento */}
-      {events.map(
-        (ev) =>
-          turns[ev.id]?.length > 0 && (
-            <div
-              key={`turns-${ev.id}`}
-              className="bg-gray-100 border rounded-xl shadow-sm p-4"
-            >
-              <h3 className="font-bold text-lg mb-2 text-gray-800 flex items-center gap-2">
-                🏎️ Turni – {ev.name}
-              </h3>
-              <table className="w-full text-sm border">
-                <thead className="bg-gray-200 text-gray-700">
-                  <tr>
-                    <th className="p-2 text-left">Auto</th>
-                    <th className="p-2 text-left">Minuti</th>
-                    <th className="p-2 text-left">Data inserimento</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {turns[ev.id].map((t) => (
-                    <tr key={t.id} className="border-t">
-                      <td className="p-2">{t.car_id?.name || "—"}</td>
-                      <td className="p-2">{t.minutes}</td>
-                      <td className="p-2">
-                        {new Date(t.created_at).toLocaleString("it-IT")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-      )}
-
       {/* Modale evento */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -365,23 +390,32 @@ export default function CalendarPage() {
                   placeholder="Nome evento"
                   className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
                 />
-                {/* Autodromo con datalist */}
-                <div className="md:col-span-2">
-                  <input
-                    list="autodromes"
-                    value={formData.autodrome}
+                {/* Autodromo */}
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <select
+                    value={formData.autodrome_id}
                     onChange={(e) =>
-                      setFormData({ ...formData, autodrome: e.target.value })
+                      setFormData({ ...formData, autodrome_id: e.target.value })
                     }
-                    placeholder="Autodromo"
                     className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-yellow-400"
-                  />
-                  <datalist id="autodromes">
+                  >
+                    <option value="">Seleziona autodromo</option>
                     {autodromes.map((a) => (
-                      <option key={a} value={a} />
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
                     ))}
-                  </datalist>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setAutodromeModal(true)}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg p-2 shadow-sm"
+                    title="Aggiungi nuovo autodromo"
+                  >
+                    <MapPin size={20} />
+                  </button>
                 </div>
+
                 <div className="md:col-span-2">
                   <textarea
                     value={formData.notes}
@@ -394,7 +428,7 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              {/* Auto partecipanti (multiselect con checkbox) */}
+              {/* Auto partecipanti */}
               <div className="border rounded-xl p-4">
                 <p className="font-semibold mb-2">Auto partecipanti</p>
                 {cars.length === 0 ? (
@@ -429,10 +463,6 @@ export default function CalendarPage() {
                     })}
                   </div>
                 )}
-                <p className="text-xs text-gray-500 mt-2">
-                  Suggerimento: se selezioni le auto qui, nel form “+ Turno”
-                  vedrai per prime solo le auto partecipanti.
-                </p>
               </div>
 
               <div className="flex justify-end gap-3 mt-2">
@@ -455,48 +485,32 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Modale turno */}
-      {turnModal && (
+      {/* Modale aggiungi autodromo */}
+      {autodromeModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">
-              Aggiungi turno – {selectedEvent?.name}
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <MapPin className="text-yellow-500" /> Nuovo autodromo
             </h2>
-            <form className="flex flex-col gap-4" onSubmit={handleAddTurn}>
-              <select
-                value={turnForm.car_id}
-                onChange={(e) =>
-                  setTurnForm({ ...turnForm, car_id: e.target.value })
-                }
-                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="">Seleziona auto</option>
-                {carsForSelectedEvent.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+            <form className="flex flex-col gap-4" onSubmit={handleAddAutodrome}>
               <input
-                type="number"
-                placeholder="Durata turno (minuti)"
-                value={turnForm.minutes}
-                onChange={(e) =>
-                  setTurnForm({ ...turnForm, minutes: e.target.value })
-                }
+                type="text"
+                placeholder="Nome autodromo"
+                value={newAutodrome}
+                onChange={(e) => setNewAutodrome(e.target.value)}
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setTurnModal(false)}
+                  onClick={() => setAutodromeModal(false)}
                   className="px-4 py-2 rounded-lg border"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
                 >
                   Aggiungi
                 </button>
