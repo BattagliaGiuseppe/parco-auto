@@ -2,193 +2,122 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, CalendarDays, Edit, Clock } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-type Car = { id: string; name: string };
-type Circuit = { id: string; name: string };
-
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([]);
-  const [cars, setCars] = useState<Car[]>([]);
-  const [circuits, setCircuits] = useState<Circuit[]>([]);
-  const [eventCars, setEventCars] = useState<any[]>([]);
-  const [eventTurns, setEventTurns] = useState<Record<string, any[]>>({});
+  const [cars, setCars] = useState<any[]>([]);
+  const [turns, setTurns] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [turnModal, setTurnModal] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
 
-  // gestione autodromi
-  const [circuitModalOpen, setCircuitModalOpen] = useState(false);
-  const [newCircuitName, setNewCircuitName] = useState("");
+  const [formData, setFormData] = useState({
+    date: "",
+    name: "",
+    autodrome: "",
+    notes: "",
+  });
 
-  // form evento
-  const [formDate, setFormDate] = useState("");
-  const [formName, setFormName] = useState("");
-  const [formNotes, setFormNotes] = useState("");
-  const [formCircuitId, setFormCircuitId] = useState<string>("");
+  const [turnForm, setTurnForm] = useState({
+    car_id: "",
+    minutes: "",
+  });
 
-  // aggiunta auto
-  const [selectedCarId, setSelectedCarId] = useState("");
-
-  // aggiunta turni
-  const [turnForm, setTurnForm] = useState<Record<string, { date: string; minutes: string }>>({});
-
+  // Carica eventi e auto
   const fetchEvents = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+
+    const { data: ev } = await supabase
       .from("events")
-      .select("id, date, name, notes, circuit_id (id, name)")
+      .select("id, date, name, autodrome, notes, hours_total_event")
       .order("date", { ascending: false });
 
-    if (!error) setEvents(data || []);
+    const { data: carData } = await supabase.from("cars").select("id, name");
+
+    setCars(carData || []);
+    setEvents(ev || []);
     setLoading(false);
-  };
 
-  const fetchCars = async () => {
-    const { data, error } = await supabase.from("cars").select("id, name").order("name");
-    if (!error) setCars((data as Car[]) || []);
-  };
-
-  const fetchCircuits = async () => {
-    const { data, error } = await supabase.from("circuits").select("id, name").order("name");
-    if (!error) setCircuits((data as Circuit[]) || []);
-  };
-
-  const fetchEventCars = async (eventId: string) => {
-    const { data, error } = await supabase
-      .from("event_cars")
-      .select("id, car_id (id, name), status")
-      .eq("event_id", eventId);
-
-    if (!error) {
-      setEventCars(data || []);
-      for (const ec of data || []) {
-        await fetchTurnsForCar(ec.id);
-      }
+    // Carica turni per ogni evento
+    const turnsMap: Record<string, any[]> = {};
+    for (const e of ev || []) {
+      const { data: t } = await supabase
+        .from("event_car_turns")
+        .select("id, car_id (name), minutes, created_at")
+        .eq("event_id", e.id)
+        .order("created_at", { ascending: true });
+      turnsMap[e.id] = t || [];
     }
-  };
-
-  const fetchTurnsForCar = async (eventCarId: string) => {
-    const { data, error } = await supabase
-      .from("event_car_turns")
-      .select("id, date, minutes")
-      .eq("event_car_id", eventCarId)
-      .order("date", { ascending: true });
-
-    if (!error) {
-      setEventTurns((prev) => ({ ...prev, [eventCarId]: data || [] }));
-    }
+    setTurns(turnsMap);
   };
 
   useEffect(() => {
     fetchEvents();
-    fetchCars();
-    fetchCircuits();
   }, []);
 
-  const openModal = (ev: any | null = null) => {
-    setEditing(ev);
-    setFormDate(ev?.date?.split("T")[0] || "");
-    setFormName(ev?.name || "");
-    setFormNotes(ev?.notes || "");
-    setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
-    setModalOpen(true);
-    if (ev?.id) fetchEventCars(ev.id);
-    else {
-      setEventCars([]);
-      setEventTurns({});
-    }
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-
-    const payload: any = {
-      date: formDate,
-      name: formName,
-      notes: formNotes || null,
-      circuit_id: formCircuitId || null,
-    };
+  // Salva evento (nuovo o modificato)
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (editing) {
-      await supabase.from("events").update(payload).eq("id", editing.id);
+      const { error } = await supabase
+        .from("events")
+        .update({
+          date: formData.date,
+          name: formData.name,
+          autodrome: formData.autodrome,
+          notes: formData.notes,
+        })
+        .eq("id", editing.id);
+      if (error) console.error("Errore update:", error);
     } else {
-      await supabase.from("events").insert([payload]);
+      const { error } = await supabase.from("events").insert([
+        {
+          date: formData.date,
+          name: formData.name,
+          autodrome: formData.autodrome,
+          notes: formData.notes,
+        },
+      ]);
+      if (error) console.error("Errore insert:", error);
     }
 
-    await fetchEvents();
     setModalOpen(false);
+    fetchEvents();
   };
 
-  const handleAddCircuit = async (e: React.FormEvent) => {
+  // Salvataggio turno
+  const handleAddTurn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCircuitName.trim()) return;
-    await supabase.from("circuits").insert([{ name: newCircuitName.trim() }]);
-    setNewCircuitName("");
-    setCircuitModalOpen(false);
-    await fetchCircuits();
-  };
 
-  const handleAddCarToEvent = async () => {
-    if (!editing?.id || !selectedCarId) return;
-    await supabase.from("event_cars").insert([
-      { event_id: editing.id, car_id: selectedCarId, status: "in_corso" },
+    if (!selectedEvent) return alert("Nessun evento selezionato");
+
+    const minutes = parseInt(turnForm.minutes) || 0;
+    if (!minutes || !turnForm.car_id) {
+      return alert("Inserisci auto e minuti validi");
+    }
+
+    const { error } = await supabase.from("event_car_turns").insert([
+      {
+        event_id: selectedEvent.id,
+        car_id: turnForm.car_id,
+        minutes,
+      },
     ]);
-    setSelectedCarId("");
-    await fetchEventCars(editing.id);
-  };
 
-  const handleAddTurn = async (eventCarId: string) => {
-    const form = turnForm[eventCarId];
-    if (!form?.date || !form?.minutes) {
-      alert("Compila data e minuti");
-      return;
+    if (error) console.error("Errore aggiunta turno:", error);
+    else {
+      setTurnModal(false);
+      setTurnForm({ car_id: "", minutes: "" });
+      fetchEvents();
     }
-    const minutes = parseInt(form.minutes, 10);
-    if (minutes <= 0) {
-      alert("Inserisci minuti validi");
-      return;
-    }
-
-    console.log("Salvataggio turno (dati inviati):", {
-      eventCarId,
-      date: form.date,
-      minutes,
-    });
-
-    const { data, error } = await supabase
-      .from("event_car_turns")
-      .insert([{ event_car_id: eventCarId, date: form.date, minutes }])
-      .select();
-
-    if (error) {
-      console.error("Errore inserimento turno:", error);
-      alert("Errore salvataggio turno: " + error.message);
-      return;
-    }
-
-    console.log("Turno inserito con successo:", data);
-
-    setTurnForm((prev) => ({ ...prev, [eventCarId]: { date: "", minutes: "" } }));
-    await fetchTurnsForCar(eventCarId);
-  };
-
-  const handleDeleteTurn = async (turnId: string, eventCarId: string) => {
-    if (!confirm("Vuoi davvero eliminare questo turno?")) return;
-
-    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
-
-    if (error) {
-      console.error("Errore eliminazione turno:", error);
-      alert("Errore eliminazione turno: " + error.message);
-      return;
-    }
-
-    await fetchTurnsForCar(eventCarId);
   };
 
   return (
@@ -196,10 +125,20 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <CalendarDays size={32} className="text-yellow-500" /> Calendario Eventi
+          <CalendarDays size={32} className="text-yellow-500" /> Calendario
+          Eventi
         </h1>
         <button
-          onClick={() => openModal(null)}
+          onClick={() => {
+            setEditing(null);
+            setFormData({
+              date: "",
+              name: "",
+              autodrome: "",
+              notes: "",
+            });
+            setModalOpen(true);
+          }}
           className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
         >
           <PlusCircle size={18} /> Aggiungi evento
@@ -219,21 +158,46 @@ export default function CalendarPage() {
                 <th className="p-3 text-left">Data</th>
                 <th className="p-3 text-left">Evento</th>
                 <th className="p-3 text-left">Autodromo</th>
-                <th className="p-3 text-right">Azioni</th>
+                <th className="p-3 text-left">Ore Totali</th>
+                <th className="p-3 text-left">Azioni</th>
               </tr>
             </thead>
             <tbody>
               {events.map((ev) => (
                 <tr key={ev.id} className="border-t">
-                  <td className="p-3">{ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}</td>
-                  <td className="p-3">{ev.name}</td>
-                  <td className="p-3">{ev.circuit_id?.name || "—"}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3">
+                    {new Date(ev.date).toLocaleDateString("it-IT")}
+                  </td>
+                  <td className="p-3 font-semibold">{ev.name}</td>
+                  <td className="p-3">{ev.autodrome}</td>
+                  <td className="p-3 text-center">
+                    <Clock className="inline mr-1" size={14} />
+                    {ev.hours_total_event?.toFixed(1) || 0}
+                  </td>
+                  <td className="p-3 flex gap-2">
                     <button
-                      onClick={() => openModal(ev)}
+                      onClick={() => {
+                        setEditing(ev);
+                        setFormData({
+                          date: ev.date?.split("T")[0] || "",
+                          name: ev.name,
+                          autodrome: ev.autodrome || "",
+                          notes: ev.notes || "",
+                        });
+                        setModalOpen(true);
+                      }}
                       className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
                     >
                       <Edit size={14} /> Modifica
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedEvent(ev);
+                        setTurnModal(true);
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
+                    >
+                      + Turno
                     </button>
                   </td>
                 </tr>
@@ -243,201 +207,150 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Modale evento */}
+      {/* Turni per evento */}
+      {events.map(
+        (ev) =>
+          turns[ev.id]?.length > 0 && (
+            <div
+              key={`turns-${ev.id}`}
+              className="bg-gray-100 border rounded-xl shadow-sm p-4"
+            >
+              <h3 className="font-bold text-lg mb-2 text-gray-800 flex items-center gap-2">
+                🏎️ Turni – {ev.name}
+              </h3>
+              <table className="w-full text-sm border">
+                <thead className="bg-gray-200 text-gray-700">
+                  <tr>
+                    <th className="p-2 text-left">Auto</th>
+                    <th className="p-2 text-left">Minuti</th>
+                    <th className="p-2 text-left">Data inserimento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {turns[ev.id].map((t) => (
+                    <tr key={t.id} className="border-t">
+                      <td className="p-2">{t.car_id?.name || "—"}</td>
+                      <td className="p-2">{t.minutes}</td>
+                      <td className="p-2">
+                        {new Date(t.created_at).toLocaleString("it-IT")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+      )}
+
+      {/* Modale Evento */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
             <h2 className="text-xl font-bold mb-4">
               {editing ? "Modifica evento" : "Aggiungi evento"}
             </h2>
-
-            {/* Form evento */}
-            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <form className="flex flex-col gap-4" onSubmit={handleSave}>
               <input
                 type="date"
-                value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                value={formData.date}
+                onChange={(e) =>
+                  setFormData({ ...formData, date: e.target.value })
+                }
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
               <input
                 type="text"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Nome evento"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-              <div className="flex items-center gap-2">
-                <select
-                  value={formCircuitId}
-                  onChange={(e) => setFormCircuitId(e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="">— Seleziona autodromo —</option>
-                  {circuits.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setCircuitModalOpen(true)}
-                  className="px-3 py-2 bg-yellow-300 hover:bg-yellow-400 rounded-lg text-sm"
-                >
-                  ➕
-                </button>
-              </div>
-              <textarea
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                placeholder="Note (opzionale)"
+              <input
+                type="text"
+                value={formData.autodrome}
+                onChange={(e) =>
+                  setFormData({ ...formData, autodrome: e.target.value })
+                }
+                placeholder="Autodromo"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-            </form>
+              <textarea
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                placeholder="Note (opzionale)"
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              ></textarea>
 
-            {/* Auto coinvolte */}
-            {editing?.id && (
-              <div className="mt-6">
-                <h3 className="text-lg font-bold mb-3">Auto coinvolte</h3>
-                <div className="flex items-center gap-2 mb-3">
-                  <select
-                    value={selectedCarId}
-                    onChange={(e) => setSelectedCarId(e.target.value)}
-                    className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                  >
-                    <option value="">— Seleziona auto —</option>
-                    {cars.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAddCarToEvent}
-                    type="button"
-                    className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
-                  >
-                    Aggiungi
-                  </button>
-                </div>
-
-                {eventCars.length === 0 ? (
-                  <p className="text-gray-600">Nessuna auto collegata</p>
-                ) : (
-                  eventCars.map((ec) => (
-                    <div key={ec.id} className="border rounded-lg p-3 mb-4">
-                      <h4 className="font-semibold mb-2">{ec.car_id?.name}</h4>
-                      {/* Lista turni */}
-                      <div className="mb-2">
-                        {eventTurns[ec.id]?.length ? (
-                          <table className="w-full text-sm border">
-                            <thead className="bg-gray-100">
-                              <tr>
-                                <th className="p-2 text-left">Data</th>
-                                <th className="p-2 text-left">Durata</th>
-                                <th className="p-2 text-right">Azioni</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {eventTurns[ec.id].map((t) => (
-                                <tr key={t.id} className="border-t">
-                                  <td className="p-2">{new Date(t.date).toLocaleDateString("it-IT")}</td>
-                                  <td className="p-2">{t.minutes} min</td>
-                                  <td className="p-2 text-right">
-                                    <button
-                                      onClick={() => handleDeleteTurn(t.id, ec.id)}
-                                      className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center gap-1"
-                                    >
-                                      <Trash2 size={14} /> Elimina
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-gray-500 text-sm">Nessun turno registrato</p>
-                        )}
-                      </div>
-                      {/* Form nuovo turno */}
-                      <div className="flex flex-col md:flex-row gap-2 mt-2">
-                        <input
-                          type="date"
-                          value={turnForm[ec.id]?.date || ""}
-                          onChange={(e) =>
-                            setTurnForm((prev) => ({
-                              ...prev,
-                              [ec.id]: { ...prev[ec.id], date: e.target.value },
-                            }))
-                          }
-                          className="border rounded-lg px-2 py-1 text-sm flex-1"
-                        />
-                        <input
-                          type="number"
-                          value={turnForm[ec.id]?.minutes || ""}
-                          onChange={(e) =>
-                            setTurnForm((prev) => ({
-                              ...prev,
-                              [ec.id]: { ...prev[ec.id], minutes: e.target.value },
-                            }))
-                          }
-                          placeholder="Minuti"
-                          className="border rounded-lg px-2 py-1 text-sm flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleAddTurn(ec.id)}
-                          className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
-                        >
-                          ➕ Turno
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+                >
+                  Salva
+                </button>
               </div>
-            )}
-
-            {/* Bottoni finali */}
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded-lg border"
-              >
-                Annulla
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-              >
-                Salva evento
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Modale nuovo autodromo */}
-      {circuitModalOpen && (
+      {/* Modale Turno */}
+      {turnModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">Aggiungi Autodromo</h2>
-            <form onSubmit={handleAddCircuit} className="flex flex-col gap-3">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-xl font-bold mb-4">
+              Aggiungi turno – {selectedEvent?.name}
+            </h2>
+            <form className="flex flex-col gap-4" onSubmit={handleAddTurn}>
+              <select
+                value={turnForm.car_id}
+                onChange={(e) =>
+                  setTurnForm({ ...turnForm, car_id: e.target.value })
+                }
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">Seleziona auto</option>
+                {cars.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
               <input
-                type="text"
-                value={newCircuitName}
-                onChange={(e) => setNewCircuitName(e.target.value)}
-                placeholder="Nome autodromo"
+                type="number"
+                placeholder="Durata turno (minuti)"
+                value={turnForm.minutes}
+                onChange={(e) =>
+                  setTurnForm({ ...turnForm, minutes: e.target.value })
+                }
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
+
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setCircuitModalOpen(false)} className="px-4 py-2 rounded-lg border">
+                <button
+                  type="button"
+                  onClick={() => setTurnModal(false)}
+                  className="px-4 py-2 rounded-lg border"
+                >
                   Annulla
                 </button>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold">
-                  Salva
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                >
+                  Aggiungi
                 </button>
               </div>
             </form>
