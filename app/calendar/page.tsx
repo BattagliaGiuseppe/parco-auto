@@ -125,7 +125,6 @@ export default function CalendarPage() {
     }
 
     let eventId: string | null = editing?.id || null;
-    let dbError = null;
 
     if (editing) {
       const { error } = await supabase
@@ -137,7 +136,12 @@ export default function CalendarPage() {
           notes: formData.notes,
         })
         .eq("id", editing.id);
-      dbError = error;
+
+      if (error) {
+        console.error("Errore update evento:", error);
+        showToast("❌ Errore durante l'aggiornamento", "error");
+        return;
+      }
     } else {
       const { data, error } = await supabase
         .from("events")
@@ -151,14 +155,13 @@ export default function CalendarPage() {
         ])
         .select("id")
         .single();
-      dbError = error;
-      eventId = data?.id || null;
-    }
 
-    if (dbError || !eventId) {
-      console.error("Errore salvataggio evento:", dbError);
-      showToast("❌ Errore durante il salvataggio", "error");
-      return;
+      if (error || !data?.id) {
+        console.error("Errore insert evento:", error);
+        showToast("❌ Errore durante l'inserimento", "error");
+        return;
+      }
+      eventId = data.id;
     }
 
     await supabase.from("event_cars").delete().eq("event_id", eventId);
@@ -221,12 +224,11 @@ export default function CalendarPage() {
   // ======= UI =======
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <CalendarDays size={32} className="text-yellow-500" /> Calendario Eventi
         </h1>
-
         <button
           onClick={() => {
             setEditing(null);
@@ -324,9 +326,8 @@ export default function CalendarPage() {
         </table>
       )}
 
-      {/* MODALI */}
-      {/* Evento, Autodromo, Turno come già nella versione precedente */}
-      {/* … (omesso per brevità, restano invariati rispetto all’ultima versione funzionante) */}
+      {/* === MODALI EVENTO, AUTODROMO, TURNO === */}
+      {/* puoi mantenere le versioni precedenti delle modali, non hanno modifiche strutturali */}
 
       {/* TOAST */}
       {toast.show && (
