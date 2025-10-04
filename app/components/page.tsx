@@ -1,3 +1,276 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  Edit,
+  PlusCircle,
+  Search,
+  Cog,
+  CheckCircle,
+  XCircle,
+  Wrench,
+  RotateCcw,
+} from "lucide-react";
+import { Audiowide } from "next/font/google";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
+export default function ComponentsPage() {
+  const [components, setComponents] = useState<any[]>([]);
+  const [cars, setCars] = useState<any[]>([]);
+  const [history, setHistory] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(false);
+
+  const [filter, setFilter] = useState<"all" | "expiring" | "expired">("all");
+  const [filterCar, setFilterCar] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [mountModal, setMountModal] = useState(false);
+  const [remountModal, setRemountModal] = useState(false);
+
+  const [editing, setEditing] = useState<any | null>(null);
+  const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
+  const [selectedCarId, setSelectedCarId] = useState<string>("");
+
+  const [formData, setFormData] = useState({
+    type: "",
+    identifier: "",
+    work_hours: 0,
+    expiry_date: "",
+    car_name: "",
+  });
+
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({ show: false, message: "", type: "success" });
+
+  const showToast = (msg: string, type: "success" | "error") => {
+    setToast({ show: true, message: msg, type });
+    setTimeout(() => setToast({ show: false, message: "", type }), 3000);
+  };
+
+  // Carica componenti, auto e storico
+  const fetchComponents = async () => {
+    setLoading(true);
+
+    const { data: comps } = await supabase
+      .from("components")
+      .select(
+        "id, type, identifier, expiry_date, last_maintenance_date, work_hours, car_id (id, name)"
+      )
+      .order("id", { ascending: true });
+
+    const { data: carsData } = await supabase.from("cars").select("id, name");
+
+    setComponents(comps || []);
+    setCars(carsData || []);
+    setLoading(false);
+
+    // Carica storico montaggi per ogni componente
+    const historyData: Record<string, any[]> = {};
+    for (const comp of comps || []) {
+      const { data: hist } = await supabase
+        .from("car_components")
+        .select("id, car_id (name), status, mounted_at, removed_at, hours_used")
+        .eq("component_id", comp.id)
+        .order("mounted_at", { ascending: false });
+      historyData[comp.id] = hist || [];
+    }
+    setHistory(historyData);
+  };
+
+  useEffect(() => {
+    fetchComponents();
+  }, []);
+
+  const getExpiryColor = (date: string) => {
+    const expiry = new Date(date);
+    const now = new Date();
+    const months =
+      (expiry.getFullYear() - now.getFullYear()) * 12 +
+      (expiry.getMonth() - now.getMonth());
+
+    if (months > 12) return "text-green-600 font-semibold";
+    if (months > 6) return "text-yellow-500 font-semibold";
+    if (expiry < now) return "text-red-600 font-bold";
+    return "text-orange-500";
+  };
+
+  // MONTAGGIO MANUALE
+  const handleMountComponent = async () => {
+    if (!selectedCarId || !selectedComponent) {
+      alert("Seleziona un'auto per montare il componente");
+      return;
+    }
+
+    const { error } = await supabase.rpc("mount_component", {
+      p_car_id: selectedCarId,
+      p_component_id: selectedComponent.id,
+    });
+
+    if (error) {
+      console.error("Errore montaggio:", error);
+      showToast("❌ Errore montaggio: " + error.message, "error");
+    } else {
+      showToast("✅ Componente montato con successo", "success");
+      setMountModal(false);
+      fetchComponents();
+    }
+  };
+
+  // SMONTAGGIO MANUALE
+  const handleUnmountComponent = async (componentId: string) => {
+    if (!confirm("Vuoi davvero smontare questo componente?")) return;
+
+    const { error } = await supabase.rpc("unmount_component", {
+      p_car_component_id: componentId,
+    });
+
+    if (error) {
+      console.error("Errore smontaggio:", error);
+      showToast("❌ Errore smontaggio: " + error.message, "error");
+    } else {
+      showToast("✅ Componente smontato", "success");
+      fetchComponents();
+    }
+  };
+
+  // RIMONTAGGIO SU ALTRA AUTO
+  const handleRemountComponent = async () => {
+    if (!selectedCarId || !selectedComponent) {
+      alert("Seleziona un'auto per rimontare il componente");
+      return;
+    }
+
+    const lastRecord = history[selectedComponent.id]?.[0];
+    if (!lastRecord) {
+      alert("Nessun record di montaggio precedente trovato");
+      return;
+    }
+
+    const { error } = await supabase.rpc("remount_component", {
+      p_car_component_id: lastRecord.id,
+      p_new_car_id: selectedCarId,
+    });
+
+    if (error) {
+      console.error("Errore rimontaggio:", error);
+      showToast("❌ Errore rimontaggio: " + error.message, "error");
+    } else {
+      showToast("✅ Componente rimontato su nuova auto", "success");
+      setRemountModal(false);
+      fetchComponents();
+    }
+  };
+
+  // SALVATAGGIO / MODIFICA
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let car_id = null;
+    if (formData.car_name) {
+      const { data: car } = await supabase
+        .from("cars")
+        .select("id")
+        .eq("name", formData.car_name)
+        .single();
+      car_id = car?.id || null;
+    }
+
+    if (editing) {
+      const oldCarId = editing.car_id?.id || null;
+      const newCarId = car_id;
+
+      const { error } = await supabase
+        .from("components")
+        .update({
+          identifier: formData.identifier,
+          work_hours: formData.work_hours,
+          expiry_date: formData.expiry_date || null,
+          car_id: newCarId,
+        })
+        .eq("id", editing.id);
+
+      if (error) {
+        console.error("Errore update:", error);
+        showToast("❌ Errore durante l'aggiornamento", "error");
+      } else {
+        showToast("✅ Componente aggiornato con successo", "success");
+
+        // logica montaggio/smontaggio automatico
+        if (oldCarId !== newCarId) {
+          if (oldCarId) {
+            await supabase.rpc("unmount_component", {
+              p_car_component_id: editing.id,
+            });
+          }
+          if (newCarId) {
+            await supabase.rpc("mount_component", {
+              p_car_id: newCarId,
+              p_component_id: editing.id,
+            });
+          }
+        }
+      }
+    } else {
+      const { error } = await supabase.from("components").insert([
+        {
+          type: formData.type,
+          identifier: formData.identifier,
+          work_hours: formData.work_hours,
+          expiry_date: formData.expiry_date || null,
+          car_id: car_id,
+        },
+      ]);
+
+      if (error) {
+        console.error("Errore insert:", error);
+        showToast("❌ Errore durante l'inserimento", "error");
+      } else {
+        showToast("✅ Componente aggiunto con successo", "success");
+      }
+    }
+
+    setModalOpen(false);
+    await fetchComponents();
+  };
+
+  // --- FILTRI ---
+  const filteredComponents = components.filter((c) => {
+    if (filterCar === "unassigned") {
+      if (c.car_id?.name) return false;
+    } else if (filterCar && c.car_id?.name !== filterCar) {
+      return false;
+    }
+
+    if (filterType && c.type !== filterType) return false;
+
+    const matchSearch =
+      c.type.toLowerCase().includes(search.toLowerCase()) ||
+      c.identifier.toLowerCase().includes(search.toLowerCase()) ||
+      (c.car_id?.name || "").toLowerCase().includes(search.toLowerCase());
+    if (!matchSearch) return false;
+
+    if (!c.expiry_date) return true;
+    const expiry = new Date(c.expiry_date);
+    const now = new Date();
+    const months =
+      (expiry.getFullYear() - now.getFullYear()) * 12 +
+      (expiry.getMonth() - now.getMonth());
+
+    if (filter === "all") return true;
+    if (filter === "expiring") return months <= 6 && months >= 0;
+    if (filter === "expired") return expiry < now;
+    return true;
+  });
+
+  return (
+    <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
