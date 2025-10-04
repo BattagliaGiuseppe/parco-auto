@@ -112,6 +112,7 @@ export default function CalendarPage() {
     }
 
     let eventId: string | null = editing?.id || null;
+    let dbError = null;
 
     if (editing) {
       const { error } = await supabase
@@ -123,11 +124,7 @@ export default function CalendarPage() {
           notes: formData.notes,
         })
         .eq("id", editing.id);
-      if (error) {
-        console.error(error);
-        alert("Errore durante l'aggiornamento dell'evento");
-        return;
-      }
+      dbError = error;
     } else {
       const { data, error } = await supabase
         .from("events")
@@ -141,21 +138,20 @@ export default function CalendarPage() {
         ])
         .select("id")
         .single();
-
-      if (error || !data?.id) {
-        console.error(error);
-        alert("Errore durante l'inserimento dell'evento");
-        return;
-      }
-      eventId = data.id;
+      dbError = error;
+      eventId = data?.id || null;
     }
 
-    // Sincronizza auto
+    if (dbError || !eventId) {
+      console.error("Errore salvataggio evento:", dbError);
+      alert("Errore durante il salvataggio dell'evento");
+      return;
+    }
+
+    // Sincronizza auto partecipanti
     await supabase.from("event_cars").delete().eq("event_id", eventId);
     if (selectedCarIds.length > 0) {
-      const rows = selectedCarIds.map((cid) => ({
-        event_id: eventId!,
-        car_id: cid,
+      const rows = selectedCarIds.map((cid)
       }));
       await supabase.from("event_cars").insert(rows);
     }
