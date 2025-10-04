@@ -10,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   Wrench,
+  RotateCcw,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -28,6 +29,7 @@ export default function ComponentsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mountModal, setMountModal] = useState(false);
+  const [remountModal, setRemountModal] = useState(false);
 
   const [editing, setEditing] = useState<any | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
@@ -52,7 +54,7 @@ export default function ComponentsPage() {
     setTimeout(() => setToast({ show: false, message: "", type }), 3000);
   };
 
-  // Carica componenti, auto e storico
+  // --- FETCH DATA ---
   const fetchComponents = async () => {
     setLoading(true);
 
@@ -64,12 +66,11 @@ export default function ComponentsPage() {
       .order("id", { ascending: true });
 
     const { data: carsData } = await supabase.from("cars").select("id, name");
-
-    setComponents(comps || []);
     setCars(carsData || []);
+    setComponents(comps || []);
     setLoading(false);
 
-    // Carica storico montaggi per ogni componente
+    // Storico montaggi
     const historyData: Record<string, any[]> = {};
     for (const comp of comps || []) {
       const { data: hist } = await supabase
@@ -92,27 +93,23 @@ export default function ComponentsPage() {
     const months =
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
-
     if (months > 12) return "text-green-600 font-semibold";
     if (months > 6) return "text-yellow-500 font-semibold";
     if (expiry < now) return "text-red-600 font-bold";
     return "text-orange-500";
   };
 
-  // Montaggio manuale da pulsante
+  // --- MONTAGGIO ---
   const handleMountComponent = async () => {
     if (!selectedCarId || !selectedComponent) {
       alert("Seleziona un'auto per montare il componente");
       return;
     }
-
     const { error } = await supabase.rpc("mount_component", {
       p_car_id: selectedCarId,
       p_component_id: selectedComponent.id,
     });
-
     if (error) {
-      console.error("Errore montaggio:", error);
       showToast("❌ Errore montaggio: " + error.message, "error");
     } else {
       showToast("✅ Componente montato con successo", "success");
@@ -121,16 +118,13 @@ export default function ComponentsPage() {
     }
   };
 
-  // Smontaggio manuale
+  // --- SMONTAGGIO ---
   const handleUnmountComponent = async (componentId: string) => {
     if (!confirm("Vuoi davvero smontare questo componente?")) return;
-
     const { error } = await supabase.rpc("unmount_component", {
       p_car_component_id: componentId,
     });
-
     if (error) {
-      console.error("Errore smontaggio:", error);
       showToast("❌ Errore smontaggio: " + error.message, "error");
     } else {
       showToast("✅ Componente smontato", "success");
@@ -138,10 +132,33 @@ export default function ComponentsPage() {
     }
   };
 
-  // Salvataggio (aggiunta / modifica)
+  // --- RIMONTAGGIO ---
+  const handleRemountComponent = async () => {
+    if (!selectedCarId || !selectedComponent) {
+      alert("Seleziona un'auto per rimontare il componente");
+      return;
+    }
+    const lastRecord = history[selectedComponent.id]?.[0];
+    if (!lastRecord) {
+      alert("Nessun record di montaggio precedente trovato");
+      return;
+    }
+    const { error } = await supabase.rpc("remount_component", {
+      p_car_component_id: lastRecord.id,
+      p_new_car_id: selectedCarId,
+    });
+    if (error) {
+      showToast("❌ Errore rimontaggio: " + error.message, "error");
+    } else {
+      showToast("✅ Componente rimontato su nuova auto", "success");
+      setRemountModal(false);
+      fetchComponents();
+    }
+  };
+
+  // --- SALVA / MODIFICA ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-
     let car_id = null;
     if (formData.car_name) {
       const { data: car } = await supabase
@@ -151,11 +168,9 @@ export default function ComponentsPage() {
         .single();
       car_id = car?.id || null;
     }
-
     if (editing) {
       const oldCarId = editing.car_id?.id || null;
       const newCarId = car_id;
-
       const { error } = await supabase
         .from("components")
         .update({
@@ -165,26 +180,19 @@ export default function ComponentsPage() {
           car_id: newCarId,
         })
         .eq("id", editing.id);
-
-      if (error) {
-        console.error("Errore update:", error);
-        showToast("❌ Errore durante l'aggiornamento", "error");
-      } else {
-        showToast("✅ Componente aggiornato con successo", "success");
-
-        // logica montaggio/smontaggio automatico
+      if (error) showToast("❌ Errore update", "error");
+      else {
+        showToast("✅ Componente aggiornato", "success");
         if (oldCarId !== newCarId) {
-          if (oldCarId) {
+          if (oldCarId)
             await supabase.rpc("unmount_component", {
               p_car_component_id: editing.id,
             });
-          }
-          if (newCarId) {
+          if (newCarId)
             await supabase.rpc("mount_component", {
               p_car_id: newCarId,
               p_component_id: editing.id,
             });
-          }
         }
       }
     } else {
@@ -197,49 +205,37 @@ export default function ComponentsPage() {
           car_id: car_id,
         },
       ]);
-
-      if (error) {
-        console.error("Errore insert:", error);
-        showToast("❌ Errore durante l'inserimento", "error");
-      } else {
-        showToast("✅ Componente aggiunto con successo", "success");
-      }
+      if (error) showToast("❌ Errore insert", "error");
+      else showToast("✅ Componente aggiunto", "success");
     }
-
     setModalOpen(false);
     await fetchComponents();
   };
 
+  // --- FILTRI ---
   const filteredComponents = components.filter((c) => {
     if (filterCar === "unassigned") {
       if (c.car_id?.name) return false;
-    } else if (filterCar && c.car_id?.name !== filterCar) {
-      return false;
-    }
-
+    } else if (filterCar && c.car_id?.name !== filterCar) return false;
     if (filterType && c.type !== filterType) return false;
-
     const matchSearch =
       c.type.toLowerCase().includes(search.toLowerCase()) ||
       c.identifier.toLowerCase().includes(search.toLowerCase()) ||
       (c.car_id?.name || "").toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-
     if (!c.expiry_date) return true;
     const expiry = new Date(c.expiry_date);
     const now = new Date();
     const months =
       (expiry.getFullYear() - now.getFullYear()) * 12 +
       (expiry.getMonth() - now.getMonth());
-
     if (filter === "all") return true;
     if (filter === "expiring") return months <= 6 && months >= 0;
     if (filter === "expired") return expiry < now;
     return true;
   });
 
-  const unassignedComponents = components.filter((c) => !c.car_id?.name);
-
+  // --- UI ---
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -247,7 +243,6 @@ export default function ComponentsPage() {
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <Cog size={32} className="text-yellow-500" /> Componenti
         </h1>
-
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative">
             <input
@@ -262,8 +257,6 @@ export default function ComponentsPage() {
               className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
             />
           </div>
-
-          {/* Filtro auto */}
           <select
             value={filterCar}
             onChange={(e) => setFilterCar(e.target.value)}
@@ -279,8 +272,6 @@ export default function ComponentsPage() {
               </option>
             ))}
           </select>
-
-          {/* Filtro tipo */}
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
@@ -295,8 +286,6 @@ export default function ComponentsPage() {
               </option>
             ))}
           </select>
-
-          {/* Filtro scadenze */}
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
@@ -306,8 +295,6 @@ export default function ComponentsPage() {
             <option value="expiring">In scadenza (≤ 6 mesi)</option>
             <option value="expired">Scaduti</option>
           </select>
-
-          {/* Aggiungi */}
           <button
             onClick={() => {
               setEditing(null);
@@ -327,7 +314,7 @@ export default function ComponentsPage() {
         </div>
       </div>
 
-      {/* Lista componenti */}
+      {/* Cards componenti */}
       {loading ? (
         <p>Caricamento...</p>
       ) : (
@@ -365,9 +352,19 @@ export default function ComponentsPage() {
                 )}
 
                 {/* Pulsanti */}
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 flex-wrap">
                   <button
-                    onClick={() => openEditModal(comp)}
+                    onClick={() => {
+                      setEditing(comp);
+                      setFormData({
+                        type: comp.type,
+                        identifier: comp.identifier,
+                        work_hours: comp.work_hours,
+                        expiry_date: comp.expiry_date?.split("T")[0] || "",
+                        car_name: comp.car_id?.name || "",
+                      });
+                      setModalOpen(true);
+                    }}
                     className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm"
                   >
                     <Edit size={16} /> Modifica
@@ -384,16 +381,27 @@ export default function ComponentsPage() {
                       🧩 Monta
                     </button>
                   ) : (
-                    <button
-                      onClick={() => handleUnmountComponent(comp.id)}
-                      className="bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-2 rounded-lg shadow-sm"
-                    >
-                      ❌ Smonta
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleUnmountComponent(comp.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-2 rounded-lg shadow-sm"
+                      >
+                        ❌ Smonta
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedComponent(comp);
+                          setRemountModal(true);
+                        }}
+                        className="bg-blue-400 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-lg shadow-sm flex items-center gap-1"
+                      >
+                        <RotateCcw size={16} /> Rimonta
+                      </button>
+                    </>
                   )}
                 </div>
 
-                {/* Storico montaggi */}
+                {/* Storico */}
                 {history[comp.id]?.length > 0 && (
                   <div className="mt-3 border-t pt-2">
                     <h3 className="font-semibold text-sm mb-1">
@@ -420,21 +428,15 @@ export default function ComponentsPage() {
                             </td>
                             <td className="p-1">
                               {h.mounted_at
-                                ? new Date(h.mounted_at).toLocaleDateString(
-                                    "it-IT"
-                                  )
+                                ? new Date(h.mounted_at).toLocaleDateString("it-IT")
                                 : "—"}
                             </td>
                             <td className="p-1">
                               {h.removed_at
-                                ? new Date(h.removed_at).toLocaleDateString(
-                                    "it-IT"
-                                  )
+                                ? new Date(h.removed_at).toLocaleDateString("it-IT")
                                 : "—"}
                             </td>
-                            <td className="p-1">
-                              {h.hours_used?.toFixed(1) || "—"}
-                            </td>
+                            <td className="p-1">{h.hours_used?.toFixed(1) || "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -447,39 +449,44 @@ export default function ComponentsPage() {
         </div>
       )}
 
-      {/* Modale Montaggio */}
-      {mountModal && (
+      {/* Modali Monta / Rimonta */}
+      {(mountModal || remountModal) && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-xl font-bold mb-4">
-              Monta {selectedComponent?.identifier} su un'auto
+              {mountModal
+                ? `Monta ${selectedComponent?.identifier}`
+                : `Rimonta ${selectedComponent?.identifier}`}
             </h2>
-
             <select
               value={selectedCarId}
               onChange={(e) => setSelectedCarId(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full mb-6 focus:ring-2 focus:ring-yellow-400"
+              className="border rounded-lg px-3 py-2 w-full mb-4 focus:ring-2 focus:ring-yellow-400"
             >
-              <option value="">-- Seleziona auto --</option>
+              <option value="">Seleziona auto</option>
               {cars.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
-
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setMountModal(false)}
+                onClick={() => {
+                  setMountModal(false);
+                  setRemountModal(false);
+                }}
                 className="px-4 py-2 rounded-lg border"
               >
                 Annulla
               </button>
               <button
-                onClick={handleMountComponent}
-                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+                onClick={() =>
+                  mountModal ? handleMountComponent() : handleRemountComponent()
+                }
+                className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold"
               >
-                Monta
+                Conferma
               </button>
             </div>
           </div>
