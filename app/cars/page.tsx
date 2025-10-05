@@ -61,6 +61,11 @@ export default function CarsPage() {
   const [baseComponents, setBaseComponents] = useState<ComponentBase[]>([]);
   const [expiringComponents, setExpiringComponents] = useState<ComponentExp[]>([]);
 
+  // 🔎 elenco di tutti i componenti per i menu a tendina (con info auto di provenienza)
+  const [allComponents, setAllComponents] = useState<any[]>([]);
+  // scelta in edit: per ogni tipo => { selection: compId | "__new__", newIdentifier: string }
+  const [editChoice, setEditChoice] = useState<Record<string, { selection: string; newIdentifier: string }>>({});
+
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
@@ -68,7 +73,20 @@ export default function CarsPage() {
       .order("id", { ascending: true });
     if (!error) setCars(data || []);
   };
-  useEffect(() => { fetchCars(); }, []);
+
+  const fetchAllComponents = async () => {
+    const { data, error } = await supabase
+      .from("components")
+      // alias per avere il nome auto: car:car_id(name)
+      .select("id, type, identifier, car_id, car:car_id(name)")
+      .order("id", { ascending: true });
+    if (!error) setAllComponents(data || []);
+  };
+
+  useEffect(() => {
+    fetchCars();
+    fetchAllComponents();
+  }, []);
 
   const resetForm = () => {
     setName("");
@@ -85,6 +103,7 @@ export default function CarsPage() {
       { type: "serbatoio", identifier: "", expiry: "" },
       { type: "passaporto", identifier: "", expiry: "" },
     ]);
+    setEditChoice({});
   };
 
   // colori scadenza
@@ -115,7 +134,7 @@ export default function CarsPage() {
     );
   });
 
-  // salva nuova auto
+  // salva nuova auto (INVARIATO)
   const onSaveCar = async () => {
     if (!name.trim() || !chassis.trim()) return;
     setSaving(true);
@@ -158,28 +177,117 @@ export default function CarsPage() {
     }
   };
 
-  // aggiorna auto esistente
+  // 🔧 Monta un componente su un’auto (con smontaggio automatico, riutilizzabile ovunque)
+  const mountComponent = async (carId: string, compId: string) => {
+    if (!carId || !compId) return;
+
+    const { data: selectedComp, error: compErr } = await supabase
+      .from("components")
+      .select("id, type, car_id")
+      .eq("id", compId)
+      .single();
+
+    if (compErr || !selectedComp) {
+      console.error("Errore nel recupero componente:", compErr);
+      return;
+    }
+
+    // Se è già montato su un’altra auto → smontalo
+    if (selectedComp.car_id && selectedComp.car_id !== carId) {
+      await supabase
+        .from("components")
+        .update({ car_id: null })
+        .eq("id", selectedComp.id);
+    }
+
+    // Smonta eventuale componente dello stesso tipo già presente sull’auto
+    const { data: existingComp } = await supabase
+      .from("components")
+      .select("id")
+      .eq("car_id", carId)
+      .eq("type", selectedComp.type)
+      .single();
+
+    if (existingComp) {
+      await supabase
+        .from("components")
+        .update({ car_id: null })
+        .eq("id", existingComp.id);
+    }
+
+    // Monta il nuovo componente
+    const { error } = await supabase
+      .from("components")
+      .update({ car_id: carId })
+      .eq("id", selectedComp.id);
+
+    if (error) console.error("Errore durante il montaggio:", error);
+  };
+
+  // aggiorna auto esistente **(MODIFICATO PER GESTIRE SELECT IN EDIT)**
   const onUpdateCar = async () => {
     if (!selectedCar) return;
     setSaving(true);
     try {
+      // 1) aggiorna dati auto (nome/telaio)
       const { error: carErr } = await supabase
         .from("cars")
         .update({ name, chassis_number: chassis })
         .eq("id", selectedCar.id);
       if (carErr) throw carErr;
 
-      // aggiorno componenti
-      for (const b of baseComponents) {
-        await supabase.from("components").update({ identifier: b.identifier }).eq("car_id", selectedCar.id).eq("type", b.type);
-      }
-      for (const e of expiringComponents) {
-        await supabase.from("components").update({ identifier: e.identifier, expiry_date: e.expiry }).eq("car_id", selectedCar.id).eq("type", e.type);
+      // 2) per ogni tipo di componente, applica la scelta da editChoice
+      //    (sia base che con scadenza)
+      const currentByType: Record<string, any> = {};
+      (selectedCar.components || []).forEach((c: any) => {
+        currentByType[c.type] = c; // {id, type, identifier, ...}
+      });
+
+      const typesToHandle = [
+        ...new Set([
+          ...baseComponents.map((b) => b.type),
+          ...expiringComponents.map((e) => e.type),
+        ]),
+      ];
+
+      for (const t of typesToHandle) {
+        const choice = editChoice[t]?.selection || "";
+        if (!choice) continue; // nessuna azione per questo tipo
+
+        if (choice === "__new__") {
+          // crea nuovo e monta
+          const newIdentifier =
+            editChoice[t]?.newIdentifier?.trim() ||
+            defaultLabel[t as ComponentType];
+
+          const { data: created, error: insErr } = await supabase
+            .from("components")
+            .insert([{ type: t, identifier: newIdentifier, is_active: true }])
+            .select("id")
+            .single();
+
+          if (insErr) {
+            console.error("Errore creazione componente nuovo:", insErr);
+          } else if (created?.id) {
+            await mountComponent(selectedCar.id, created.id);
+          }
+        } else {
+          // scelta di un componente esistente
+          const selectedId = choice;
+          const currentId = currentByType[t]?.id;
+
+          if (!currentId || currentId !== selectedId) {
+            await mountComponent(selectedCar.id, selectedId);
+          }
+          // se è lo stesso, non facciamo nulla
+        }
       }
 
+      // 3) refresh
       setOpenModal(false);
       resetForm();
-      fetchCars();
+      await fetchCars();
+      await fetchAllComponents();
     } catch (e) {
       console.error("Errore aggiornamento auto:", e);
       alert("Errore nell'aggiornamento.");
@@ -190,18 +298,51 @@ export default function CarsPage() {
 
   // apri modal in modalità
   const openAdd = () => { resetForm(); setMode("add"); setOpenModal(true); };
-  const openEdit = (car: any) => {
+  const openEdit = async (car: any) => {
     setSelectedCar(car);
     setName(car.name);
     setChassis(car.chassis_number);
-    setBaseComponents(car.components.filter((c: any) => ["motore","cambio","differenziale"].includes(c.type)).map((c: any) => ({ type: c.type, identifier: c.identifier })));
-    setExpiringComponents(car.components.filter((c: any) => !["motore","cambio","differenziale"].includes(c.type)).map((c: any) => ({ type: c.type, identifier: c.identifier, expiry: c.expiry_date || "" })));
+
+    // popola stati come prima
+    setBaseComponents(
+      (car.components || [])
+        .filter((c: any) => ["motore","cambio","differenziale"].includes(c.type))
+        .map((c: any) => ({ type: c.type, identifier: c.identifier }))
+    );
+    setExpiringComponents(
+      (car.components || [])
+        .filter((c: any) => !["motore","cambio","differenziale"].includes(c.type))
+        .map((c: any) => ({ type: c.type, identifier: c.identifier, expiry: c.expiry_date || "" }))
+    );
+
+    // prepara scelte di default per i menu: l'attuale componente rimane selezionato
+    const nextChoice: Record<string, { selection: string; newIdentifier: string }> = {};
+    (car.components || []).forEach((c: any) => {
+      nextChoice[c.type] = { selection: c.id, newIdentifier: "" };
+    });
+    setEditChoice(nextChoice);
+
+    // assicura elenco componenti aggiornato
+    await fetchAllComponents();
+
     setMode("edit");
     setOpenModal(true);
   };
   const openView = (car: any) => {
     openEdit(car);
     setMode("view");
+  };
+
+  // helper per opzioni di select per un dato tipo
+  const optionsForType = (type: string) => {
+    const items = allComponents.filter((c) => c.type === type);
+    const unassigned = items.filter((c) => !c.car_id);
+    const assigned = items.filter((c) => c.car_id);
+
+    return {
+      unassigned,
+      assigned,
+    };
   };
 
   return (
@@ -211,7 +352,14 @@ export default function CarsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
           <div className="mt-3">
-            <Image src="/mia-foto.png" alt="La mia auto" width={960} height={480} priority className="rounded-xl w-full max-w-3xl h-auto" />
+            <Image
+              src="/mia-foto.png"
+              alt="La mia auto"
+              width={960}
+              height={480}
+              priority
+              className="rounded-xl w-full max-w-3xl h-auto"
+            />
           </div>
         </div>
 
@@ -219,20 +367,38 @@ export default function CarsPage() {
           {/* Ricerca */}
           <div className="flex items-center border rounded-lg px-3 py-2 bg-white shadow-sm">
             <Search className="text-gray-500 mr-2" size={18} />
-            <input type="text" placeholder={searchBy === "auto" ? "Cerca per nome o telaio…" : `Cerca per ${searchBy} (identificativo)…`} value={search} onChange={(e) => setSearch(e.target.value)} className="outline-none text-sm w-48 md:w-72" />
-            <select value={searchBy} onChange={(e) => setSearchBy(e.target.value as any)} className="ml-2 text-sm border rounded px-2 py-1">
+            <input
+              type="text"
+              placeholder={searchBy === "auto" ? "Cerca per nome o telaio…" : `Cerca per ${searchBy} (identificativo)…`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="outline-none text-sm w-48 md:w-72"
+            />
+            <select
+              value={searchBy}
+              onChange={(e) => setSearchBy(e.target.value as any)}
+              className="ml-2 text-sm border rounded px-2 py-1"
+            >
               <option value="auto">Auto</option>
               {COMPONENT_TYPES.map((t) => (<option key={t} value={t}>{capitalize(t)}</option>))}
             </select>
           </div>
 
           {/* Switch vista */}
-          <button onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2">
+          <button
+            onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
+          >
             {view === "sintetica" ? (<><Grid size={18} /> Vista dettagliata</>) : (<><List size={18} /> Vista sintetica</>)}
           </button>
 
           {/* Aggiungi Auto */}
-          <button onClick={openAdd} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">+ Aggiungi Auto</button>
+          <button
+            onClick={openAdd}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
+          >
+            + Aggiungi Auto
+          </button>
         </div>
       </div>
 
@@ -247,8 +413,18 @@ export default function CarsPage() {
               </div>
               {view === "sintetica" && (
                 <div className="flex gap-2">
-                  <button onClick={() => openEdit(car)} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"><Edit size={16} /> Modifica</button>
-                  <button onClick={() => openView(car)} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"><Info size={16} /> Dettagli</button>
+                  <button
+                    onClick={() => openEdit(car)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Edit size={16} /> Modifica
+                  </button>
+                  <button
+                    onClick={() => openView(car)}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Info size={16} /> Dettagli
+                  </button>
                 </div>
               )}
             </div>
@@ -260,20 +436,41 @@ export default function CarsPage() {
                     {(car.components || []).map((comp: any) => (
                       <div key={comp.id} className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg">
                         <span>{comp.type} – {comp.identifier}</span>
-                        {comp.expiry_date && (<span className={`font-medium ${getExpiryColor(comp.expiry_date)}`}>{new Date(comp.expiry_date).toLocaleDateString("it-IT")}</span>)}
+                        {comp.expiry_date && (
+                          <span className={`font-medium ${getExpiryColor(comp.expiry_date)}`}>
+                            {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-end mt-4 gap-2">
-                    <button onClick={() => openEdit(car)} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"><Edit size={16} /> Modifica</button>
+                    <button
+                      onClick={() => openEdit(car)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <Edit size={16} /> Modifica
+                    </button>
                   </div>
                 </>
-              ) : (<p className="text-sm text-gray-500">—</p>)}
+              ) : (
+                <p className="text-sm text-gray-500">—</p>
+              )}
             </div>
 
             <div className="px-4 pb-4 flex justify-end gap-2">
-              <Link href={`/cars/${car.id}/documents`} className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"><FileText size={16} /> Documenti</Link>
-              <Link href={`/cars/${car.id}/print`} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"><Printer size={16} /> Stampa</Link>
+              <Link
+                href={`/cars/${car.id}/documents`}
+                className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
+              >
+                <FileText size={16} /> Documenti
+              </Link>
+              <Link
+                href={`/cars/${car.id}/print`}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
+              >
+                <Printer size={16} /> Stampa
+              </Link>
             </div>
           </div>
         ))}
@@ -282,65 +479,263 @@ export default function CarsPage() {
       {/* MODAL comune per Add/Edit/View */}
       {openModal && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => !saving && setOpenModal(false)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => !saving && setOpenModal(false)}
+          />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <h3 className="text-xl font-bold text-gray-800">
                   {mode === "add" ? "Aggiungi Auto" : mode === "edit" ? "Modifica Auto" : "Dettagli Auto"}
                 </h3>
-                <button onClick={() => !saving && setOpenModal(false)} className="p-2 rounded hover:bg-gray-100">✕</button>
+                <button
+                  onClick={() => !saving && setOpenModal(false)}
+                  className="p-2 rounded hover:bg-gray-100"
+                >
+                  ✕
+                </button>
               </div>
 
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Dati auto */}
                 <div className="space-y-3">
                   <label className="block text-sm text-gray-700">Nome auto</label>
-                  <input className="border rounded-lg p-2 w-full" value={name} onChange={(e) => setName(e.target.value)} disabled={mode === "view"} />
+                  <input
+                    className="border rounded-lg p-2 w-full"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={mode === "view"}
+                  />
                   <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
-                  <input className="border rounded-lg p-2 w-full" value={chassis} onChange={(e) => setChassis(e.target.value)} disabled={mode === "view"} />
+                  <input
+                    className="border rounded-lg p-2 w-full"
+                    value={chassis}
+                    onChange={(e) => setChassis(e.target.value)}
+                    disabled={mode === "view"}
+                  />
                 </div>
 
                 {/* Componenti base */}
                 <div className="space-y-3">
                   <p className="font-semibold text-gray-800">Componenti base</p>
-                  {baseComponents.map((b, idx) => (
-                    <div key={b.type} className="flex items-center gap-2">
-                      <span className="w-32 text-sm text-gray-600 capitalize">{b.type}</span>
-                      <input className="border rounded-lg p-2 w-full" value={b.identifier} onChange={(e) => {
-                        const v = e.target.value;
-                        setBaseComponents((prev) => prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x)));
-                      }} disabled={mode === "view"} />
-                    </div>
-                  ))}
+
+                  {baseComponents.map((b) => {
+                    const type = b.type;
+                    if (mode === "edit") {
+                      const { unassigned, assigned } = optionsForType(type);
+                      const currentSel = editChoice[type]?.selection || "";
+                      return (
+                        <div key={type} className="space-y-1">
+                          <span className="w-32 text-sm text-gray-600 capitalize block">{type}</span>
+                          <select
+                            className="border rounded-lg p-2 w-full"
+                            value={currentSel}
+                            onChange={(e) =>
+                              setEditChoice((prev) => ({
+                                ...prev,
+                                [type]: { selection: e.target.value, newIdentifier: "" },
+                              }))
+                            }
+                            disabled={mode === "view"}
+                          >
+                            {/* Opzioni smontati */}
+                            {unassigned.length > 0 && (
+                              <>
+                                <option disabled>— Smontati —</option>
+                                {unassigned.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.identifier} (smontato)
+                                  </option>
+                                ))}
+                              </>
+                            )}
+                            {/* Opzioni montati */}
+                            {assigned.length > 0 && (
+                              <>
+                                <option disabled>— Montati —</option>
+                                {assigned.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.identifier} – Montato su: {c.car?.name || "—"}
+                                  </option>
+                                ))}
+                              </>
+                            )}
+                            {/* Corrente selezionato (se non già dentro alla lista) */}
+                            {!currentSel && <option value="">— Seleziona —</option>}
+                            {/* Crea nuovo */}
+                            <option value="__new__">➕ Crea nuovo componente…</option>
+                          </select>
+
+                          {editChoice[type]?.selection === "__new__" && (
+                            <input
+                              className="border rounded-lg p-2 w-full mt-1"
+                              placeholder={`Identificativo nuovo ${defaultLabel[type as ComponentType]}`}
+                              value={editChoice[type]?.newIdentifier || ""}
+                              onChange={(e) =>
+                                setEditChoice((prev) => ({
+                                  ...prev,
+                                  [type]: { selection: "__new__", newIdentifier: e.target.value },
+                                }))
+                              }
+                              disabled={mode === "view"}
+                            />
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // modalità add/view: UI originale (input)
+                    return (
+                      <div key={type} className="flex items-center gap-2">
+                        <span className="w-32 text-sm text-gray-600 capitalize">{type}</span>
+                        <input
+                          className="border rounded-lg p-2 w-full"
+                          value={b.identifier}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setBaseComponents((prev) =>
+                              prev.map((x) => (x.type === type ? { ...x, identifier: v } : x))
+                            );
+                          }}
+                          disabled={mode === "view"}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Componenti con scadenza */}
                 <div className="md:col-span-2">
                   <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {expiringComponents.map((e, idx) => (
-                      <div key={e.type} className="grid grid-cols-5 gap-2 items-center">
-                        <span className="col-span-1 text-sm text-gray-600 capitalize">{e.type}</span>
-                        <input className="col-span-2 border rounded-lg p-2" value={e.identifier} onChange={(ev) => {
-                          const v = ev.target.value;
-                          setExpiringComponents((prev) => prev.map((x, i) => (i === idx ? { ...x, identifier: v } : x)));
-                        }} disabled={mode === "view"} />
-                        <input type="date" className="col-span-2 border rounded-lg p-2" value={e.expiry} onChange={(ev) => {
-                          const v = ev.target.value;
-                          setExpiringComponents((prev) => prev.map((x, i) => (i === idx ? { ...x, expiry: v } : x)));
-                        }} disabled={mode === "view"} />
-                      </div>
-                    ))}
+                    {expiringComponents.map((e) => {
+                      const type = e.type;
+                      if (mode === "edit") {
+                        const { unassigned, assigned } = optionsForType(type);
+                        const currentSel = editChoice[type]?.selection || "";
+                        return (
+                          <div key={type} className="grid grid-cols-5 gap-2 items-center">
+                            <span className="col-span-1 text-sm text-gray-600 capitalize">{type}</span>
+
+                            <div className="col-span-2">
+                              <select
+                                className="border rounded-lg p-2 w-full"
+                                value={currentSel}
+                                onChange={(ev) =>
+                                  setEditChoice((prev) => ({
+                                    ...prev,
+                                    [type]: { selection: ev.target.value, newIdentifier: "" },
+                                  }))
+                                }
+                                disabled={mode === "view"}
+                              >
+                                {unassigned.length > 0 && (
+                                  <>
+                                    <option disabled>— Smontati —</option>
+                                    {unassigned.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.identifier} (smontato)
+                                      </option>
+                                    ))}
+                                  </>
+                                )}
+                                {assigned.length > 0 && (
+                                  <>
+                                    <option disabled>— Montati —</option>
+                                    {assigned.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.identifier} – Montato su: {c.car?.name || "—"}
+                                      </option>
+                                    ))}
+                                  </>
+                                )}
+                                {!currentSel && <option value="">— Seleziona —</option>}
+                                <option value="__new__">➕ Crea nuovo componente…</option>
+                              </select>
+
+                              {editChoice[type]?.selection === "__new__" && (
+                                <input
+                                  className="border rounded-lg p-2 w-full mt-1"
+                                  placeholder={`Identificativo nuovo ${defaultLabel[type as ComponentType]}`}
+                                  value={editChoice[type]?.newIdentifier || ""}
+                                  onChange={(ev) =>
+                                    setEditChoice((prev) => ({
+                                      ...prev,
+                                      [type]: { selection: "__new__", newIdentifier: ev.target.value },
+                                    }))
+                                  }
+                                  disabled={mode === "view"}
+                                />
+                              )}
+                            </div>
+
+                            {/* Campo scadenza rimane (se utile) */}
+                            <input
+                              type="date"
+                              className="col-span-2 border rounded-lg p-2"
+                              value={e.expiry}
+                              onChange={(ev) => {
+                                const v = ev.target.value;
+                                setExpiringComponents((prev) =>
+                                  prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
+                                );
+                              }}
+                              disabled={mode === "view"}
+                            />
+                          </div>
+                        );
+                      }
+
+                      // modalità add/view: UI originale
+                      return (
+                        <div key={type} className="grid grid-cols-5 gap-2 items-center">
+                          <span className="col-span-1 text-sm text-gray-600 capitalize">{type}</span>
+                          <input
+                            className="col-span-2 border rounded-lg p-2"
+                            value={e.identifier}
+                            onChange={(ev) => {
+                              const v = ev.target.value;
+                              setExpiringComponents((prev) =>
+                                prev.map((x) => (x.type === type ? { ...x, identifier: v } : x))
+                              );
+                            }}
+                            disabled={mode === "view"}
+                          />
+                          <input
+                            type="date"
+                            className="col-span-2 border rounded-lg p-2"
+                            value={e.expiry}
+                            onChange={(ev) => {
+                              const v = ev.target.value;
+                              setExpiringComponents((prev) =>
+                                prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
+                              );
+                            }}
+                            disabled={mode === "view"}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
               {mode !== "view" && (
                 <div className="flex justify-end gap-3 px-6 py-4 border-t">
-                  <button onClick={() => setOpenModal(false)} disabled={saving} className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800">Annulla</button>
-                  <button onClick={mode === "add" ? onSaveCar : onUpdateCar} disabled={saving} className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold">
-                    {saving ? "Salvataggio..." : "Salva auto"}
+                  <button
+                    onClick={() => setOpenModal(false)}
+                    disabled={saving}
+                    className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    onClick={mode === "add" ? onSaveCar : onUpdateCar}
+                    disabled={saving}
+                    className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
+                  >
+                    {saving ? "Salvataggio..." : mode === "add" ? "Salva auto" : "Salva modifiche"}
                   </button>
                 </div>
               )}
