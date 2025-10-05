@@ -566,7 +566,7 @@ export default function CarsPage() {
                             className="border rounded-lg p-2 w-full"
                             value={currentSel}
                             onChange={(e) => handleSelectChange(type, e.target.value)}
-                            disabled={currentMode === "view"}
+                            disabled={mode === "view"}
                           >
                             {/* Opzioni smontati */}
                             {unassigned.length > 0 && (
@@ -605,7 +605,7 @@ export default function CarsPage() {
                                   [type]: { selection: "__new__", newIdentifier: e.target.value },
                                 }))
                               }
-                              disabled={currentMode === "view"}
+                              disabled={mode === "view"}
                             />
                           )}
                         </div>
@@ -650,7 +650,7 @@ export default function CarsPage() {
                                 className="border rounded-lg p-2 w-full"
                                 value={currentSel}
                                 onChange={(ev) => handleSelectChange(type, ev.target.value)}
-                                disabled={currentMode === "view"}
+                                disabled={mode === "view"}
                               >
                                 {unassigned.length > 0 && (
                                   <>
@@ -687,7 +687,7 @@ export default function CarsPage() {
                                       [type]: { selection: "__new__", newIdentifier: ev.target.value },
                                     }))
                                   }
-                                  disabled={currentMode === "view"}
+                                  disabled={mode === "view"}
                                 />
                               )}
                             </div>
@@ -703,7 +703,7 @@ export default function CarsPage() {
                                   prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
                                 );
                               }}
-                              disabled={currentMode === "view"}
+                              disabled={mode === "view"}
                             />
                           </div>
                         );
@@ -722,7 +722,7 @@ export default function CarsPage() {
                                 prev.map((x) => (x.type === type ? { ...x, identifier: v } : x))
                               );
                             }}
-                            disabled={currentMode === "view"}
+                            disabled={mode === "view"}
                           />
                           <input
                             type="date"
@@ -734,7 +734,7 @@ export default function CarsPage() {
                                 prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
                               );
                             }}
-                            disabled={currentMode === "view"}
+                            disabled={mode === "view"}
                           />
                         </div>
                       );
