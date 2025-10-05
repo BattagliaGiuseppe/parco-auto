@@ -42,7 +42,6 @@ const EXP_RULES: Record<
   serbatoio: 5,
   passaporto: 10,
 };
-
 const defaultLabel: Record<ComponentType, string> = {
   motore: "Motore",
   cambio: "Cambio",
