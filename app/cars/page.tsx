@@ -186,14 +186,55 @@ export default function CarsPage() {
           .includes(search.toLowerCase())
       );
     }
-    const comps = (car.components || []).filter((c: any) => c.type === searchBy);
-    if (!search.trim()) return comps.length > 0;
-    return comps.some((c: any) =>
-      (c.identifier || "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  // salva nuova auto
+  const onSaveCar = async () => {
+    if (!name.trim() || !chassis.trim()) return;
+    setSaving(true);
+    try {
+      const { data: newCar, error: carErr } = await supabase
+        .from("cars")
+        .insert([{ name, chassis_number: chassis }])
+        .select()
+        .single();
+      if (carErr) throw carErr;
 
-  // montaggio con smontaggio automatico
+      const baseToInsert = baseComponents.map((b) => ({
+        type: b.type,
+        identifier:
+          b.identifier ||
+          `${name} - ${defaultLabel[b.type as ComponentType]}`,
+        car_id: newCar.id,
+        is_active: true,
+      }));
+
+      const expToInsert = expiringComponents.map((e) => {
+        const years = EXP_RULES[e.type as keyof typeof EXP_RULES] ?? 2;
+        return {
+          type: e.type,
+          identifier:
+            e.identifier || defaultLabel[e.type as ComponentType],
+          car_id: newCar.id,
+          expiry_date: e.expiry || addYearsYYYYMMDD(years),
+          is_active: true,
+        };
+      });
+
+      await supabase
+        .from("components")
+        .insert([...baseToInsert, ...expToInsert]);
+
+      setOpenModal(false);
+      resetForm();
+      fetchCars();
+    } catch (e) {
+      console.error("Errore salvataggio auto:", e);
+      alert("Errore nel salvataggio. Controlla la console.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Monta un componente su un’auto (con smontaggio automatico)
   const mountComponent = async (carId: string, compId: string) => {
     if (!carId || !compId) return;
 
@@ -203,9 +244,12 @@ export default function CarsPage() {
       .eq("id", compId)
       .single();
 
-    if (compErr || !selectedComp) return;
+    if (compErr || !selectedComp) {
+      console.error("Errore nel recupero componente:", compErr);
+      return;
+    }
 
-    // se montato su altra auto -> smonta
+    // Se è già montato su un’altra auto → smontalo
     if (selectedComp.car_id && selectedComp.car_id !== carId) {
       await supabase
         .from("components")
@@ -213,13 +257,14 @@ export default function CarsPage() {
         .eq("id", selectedComp.id);
     }
 
-    // smonta eventuale componente dello stesso tipo già presente su quest'auto
+    // Smonta eventuale componente dello stesso tipo già presente sull’auto
     const { data: existingComp } = await supabase
       .from("components")
       .select("id")
       .eq("car_id", carId)
       .eq("type", selectedComp.type)
       .single();
+
     if (existingComp) {
       await supabase
         .from("components")
@@ -227,8 +272,55 @@ export default function CarsPage() {
         .eq("id", existingComp.id);
     }
 
-    // monta
-    await supabase.from("components").update({ car_id: carId }).eq("id", compId);
+    // Monta il nuovo componente
+    const { error } = await supabase
+      .from("components")
+      .update({ car_id: carId })
+      .eq("id", selectedComp.id);
+
+    if (error) console.error("Errore durante il montaggio:", error);
+  };
+
+  // aggiorna auto esistente
+  const onUpdateCar = async () => {
+    if (!selectedCar) return;
+    setSaving(true);
+    try {
+      const { error: carErr } = await supabase
+        .from("cars")
+        .update({ name, chassis_number: chassis })
+        .eq("id", selectedCar.id);
+      if (carErr) throw carErr;
+
+      for (const b of baseComponents) {
+        await supabase
+          .from("components")
+          .update({ identifier: b.identifier })
+          .eq("car_id", selectedCar.id)
+          .eq("type", b.type);
+      }
+
+      for (const e of expiringComponents) {
+        await supabase
+          .from("components")
+          .update({
+            identifier: e.identifier,
+            expiry_date: e.expiry,
+          })
+          .eq("car_id", selectedCar.id)
+          .eq("type", e.type);
+      }
+
+      setOpenModal(false);
+      resetForm();
+      await fetchCars();
+      await fetchAllComponents();
+    } catch (e) {
+      console.error("Errore aggiornamento auto:", e);
+      alert("Errore nell'aggiornamento.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // apri modali
