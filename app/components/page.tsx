@@ -355,7 +355,7 @@ const fetchAll = async () => {
     </span>
   );
 
-  // ---- RENDER ----
+  // RENDER
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -405,7 +405,7 @@ const fetchAll = async () => {
             ))}
           </select>
 
-          {/* Auto (Smontati subito dopo Tutte) */}
+          {/* Auto */}
           <select
             value={carFilter}
             onChange={(e) =>
@@ -465,7 +465,9 @@ const fetchAll = async () => {
                   <h2 className="text-lg font-bold capitalize">{c.type}</h2>
                   <span className="text-sm opacity-80">
                     {c.car?.name
-                      ? `${c.car.name}${c.car.chassis_number ? ` – ${c.car.chassis_number}` : ""}`
+                      ? `${c.car.name}${
+                          c.car.chassis_number ? ` – ${c.car.chassis_number}` : ""
+                        }`
                       : "— Smontato —"}
                   </span>
                 </div>
@@ -499,14 +501,11 @@ const fetchAll = async () => {
                   </span>
                 </div>
 
-                {/* Ore Lavoro (se presente) */}
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700 text-sm font-semibold">
                     Ore Lavoro:
                   </span>
-                  <span className="text-gray-800 text-sm">
-                    {workHours(c)}
-                  </span>
+                  <span className="text-gray-800 text-sm">{workHours(c)}</span>
                 </div>
 
                 {c.expiry_date && (
@@ -514,7 +513,9 @@ const fetchAll = async () => {
                     <span className="text-gray-700 text-sm font-semibold">
                       Scadenza:
                     </span>
-                    <span className={`font-semibold ${expiryColor(c.expiry_date)}`}>
+                    <span
+                      className={`font-semibold ${expiryColor(c.expiry_date)}`}
+                    >
                       {new Date(c.expiry_date).toLocaleDateString("it-IT")}
                     </span>
                   </div>
@@ -526,7 +527,9 @@ const fetchAll = async () => {
                       Ultima manutenzione:
                     </span>
                     <span className="font-semibold text-blue-600 text-sm">
-                      {new Date(c.last_maintenance_date).toLocaleDateString("it-IT")}
+                      {new Date(
+                        c.last_maintenance_date
+                      ).toLocaleDateString("it-IT")}
                     </span>
                   </div>
                 )}
@@ -544,6 +547,16 @@ const fetchAll = async () => {
           ))}
         </div>
       )}
+
+      {/* Toast */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[80] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-lg shadow-lg">
+          {toast.text}
+        </div>
+      )}
+    </div>
+  );
+}
 
       {/* MODAL: Aggiungi */}
       {showAdd && (
