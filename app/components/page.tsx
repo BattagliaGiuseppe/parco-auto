@@ -10,7 +10,6 @@ import {
   CheckCircle,
   XCircle,
   Wrench,
-  RotateCcw,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -29,7 +28,6 @@ export default function ComponentsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mountModal, setMountModal] = useState(false);
-  const [remountModal, setRemountModal] = useState(false);
 
   const [editing, setEditing] = useState<any | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
@@ -117,26 +115,16 @@ export default function ComponentsPage() {
     }
   };
 
-  // --- RIMONTAGGIO ---
-  const handleRemountComponent = async () => {
-    if (!selectedCarId || !selectedComponent) {
-      alert("Seleziona un'auto per rimontare il componente");
-      return;
-    }
-    const lastRecord = history[selectedComponent.id]?.[0];
-    if (!lastRecord) {
-      alert("Nessun record di montaggio precedente trovato");
-      return;
-    }
-    const { error } = await supabase.rpc("remount_component", {
-      p_car_component_id: lastRecord.id,
-      p_new_car_id: selectedCarId,
+  // --- SMONTAGGIO ---
+  const handleUnmountComponent = async (componentId: string) => {
+    if (!confirm("Vuoi davvero smontare questo componente?")) return;
+    const { error } = await supabase.rpc("unmount_component", {
+      p_car_component_id: componentId,
     });
     if (error) {
-      showToast("❌ Errore rimontaggio: " + error.message, "error");
+      showToast("❌ Errore smontaggio: " + error.message, "error");
     } else {
-      showToast("✅ Componente rimontato su nuova auto", "success");
-      setRemountModal(false);
+      showToast("✅ Componente smontato", "success");
       fetchComponents();
     }
   };
@@ -153,7 +141,25 @@ export default function ComponentsPage() {
         .single();
       car_id = car?.id || null;
     }
+
     if (editing) {
+      const oldCarId = editing.car_id?.id || null;
+      const newCarId = car_id;
+
+      if (oldCarId && newCarId && oldCarId !== newCarId) {
+        const confirmed = confirm(
+          "Il componente è attualmente montato su un'altra auto. Vuoi spostarlo?"
+        );
+        if (!confirmed) return;
+        await supabase.rpc("unmount_component", {
+          p_car_component_id: editing.id,
+        });
+        await supabase.rpc("mount_component", {
+          p_car_id: newCarId,
+          p_component_id: editing.id,
+        });
+      }
+
       const { error } = await supabase
         .from("components")
         .update({
@@ -176,6 +182,7 @@ export default function ComponentsPage() {
       if (error) showToast("❌ Errore insert", "error");
       else showToast("✅ Componente aggiunto", "success");
     }
+
     setModalOpen(false);
     await fetchComponents();
   };
@@ -225,44 +232,6 @@ export default function ComponentsPage() {
               className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
             />
           </div>
-          <select
-            value={filterCar}
-            onChange={(e) => setFilterCar(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
-          >
-            <option value="">Tutte le auto</option>
-            <option value="unassigned">Smontati</option>
-            {[...new Set(
-              components.map((c) => c.car_id?.name).filter(Boolean)
-            )].map((car) => (
-              <option key={car} value={car}>
-                {car}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
-          >
-            <option value="">Tutti i tipi</option>
-            {[...new Set(
-              components.map((c) => c.type).filter(Boolean)
-            )].map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
-          >
-            <option value="all">Tutti</option>
-            <option value="expiring">In scadenza (≤ 6 mesi)</option>
-            <option value="expired">Scaduti</option>
-          </select>
           <button
             onClick={() => {
               setEditing(null);
@@ -282,7 +251,7 @@ export default function ComponentsPage() {
         </div>
       </div>
 
-      {/* Cards componenti */}
+      {/* Cards */}
       {loading ? (
         <p>Caricamento...</p>
       ) : (
@@ -311,13 +280,6 @@ export default function ComponentsPage() {
                   <span className="font-semibold">Ore lavoro:</span>{" "}
                   {comp.work_hours}
                 </p>
-
-                {comp.expiry_date && (
-                  <p className={`text-sm ${getExpiryColor(comp.expiry_date)}`}>
-                    <span className="font-semibold">Scadenza:</span>{" "}
-                    {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
-                  </p>
-                )}
 
                 {/* Pulsanti */}
                 <div className="flex justify-end gap-2 flex-wrap">
@@ -350,53 +312,13 @@ export default function ComponentsPage() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
-                        setSelectedComponent(comp);
-                        setRemountModal(true);
-                      }}
-                      className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-3 py-2 rounded-lg shadow-sm flex items-center gap-1"
+                      onClick={() => handleUnmountComponent(comp.id)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg shadow-sm"
                     >
-                      <RotateCcw size={16} /> Rimonta
+                      ❌ Smonta
                     </button>
                   )}
                 </div>
-
-                {/* Storico */}
-                {history[comp.id]?.length > 0 && (
-                  <div className="mt-3 border-t pt-2">
-                    <h3 className="font-semibold text-sm mb-1">
-                      Storico Montaggi:
-                    </h3>
-                    <table className="w-full text-xs border">
-                      <thead className="bg-gray-200 text-gray-700">
-                        <tr>
-                          <th className="p-1 text-left">Auto</th>
-                          <th className="p-1 text-left">Da</th>
-                          <th className="p-1 text-left">A</th>
-                          <th className="p-1 text-left">Ore</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {history[comp.id].map((h) => (
-                          <tr key={h.id} className="border-t">
-                            <td className="p-1">{h.car_id?.name || "—"}</td>
-                            <td className="p-1">
-                              {h.mounted_at
-                                ? new Date(h.mounted_at).toLocaleDateString("it-IT")
-                                : "—"}
-                            </td>
-                            <td className="p-1">
-                              {h.removed_at
-                                ? new Date(h.removed_at).toLocaleDateString("it-IT")
-                                : "—"}
-                            </td>
-                            <td className="p-1">{h.hours_used?.toFixed(1) || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -427,14 +349,9 @@ export default function ComponentsPage() {
                 }
                 className="border rounded-lg p-2"
               />
-              {/* Campo ore disabilitato */}
-              <input
-                type="number"
-                placeholder="Ore di lavoro"
-                value={formData.work_hours}
-                disabled
-                className="border rounded-lg p-2 bg-gray-100 text-gray-500 cursor-not-allowed"
-              />
+              <div className="border rounded-lg p-2 bg-gray-100 text-gray-500">
+                Ore lavoro: {formData.work_hours}
+              </div>
               <input
                 type="date"
                 value={formData.expiry_date}
