@@ -15,6 +15,18 @@ import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
+// Tipi conosciuti per il select "Tipo" in Aggiungi
+const COMPONENT_TYPES = [
+  "motore",
+  "cambio",
+  "differenziale",
+  "cinture",
+  "cavi",
+  "estintore",
+  "serbatoio",
+  "passaporto",
+] as const;
+
 export default function ComponentsPage() {
   const [components, setComponents] = useState<any[]>([]);
   const [cars, setCars] = useState<any[]>([]);
@@ -26,21 +38,31 @@ export default function ComponentsPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [search, setSearch] = useState<string>("");
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [mountModal, setMountModal] = useState(false);
+  // Modali
+  const [modalOpen, setModalOpen] = useState(false); // Aggiungi/Modifica
+  const [mountModal, setMountModal] = useState(false); // Monta
 
+  // Stato editing/selection
   const [editing, setEditing] = useState<any | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
   const [selectedCarId, setSelectedCarId] = useState<string>("");
 
-  const [formData, setFormData] = useState({
+  // Form modale Aggiungi/Modifica
+  const [formData, setFormData] = useState<{
+    type: string;
+    identifier: string;
+    work_hours: number | null;
+    expiry_date: string; // YYYY-MM-DD
+    car_id: string; // selezione tramite id (più robusta del nome)
+  }>({
     type: "",
     identifier: "",
     work_hours: 0,
     expiry_date: "",
-    car_name: "",
+    car_id: "",
   });
 
+  // Toast
   const [toast, setToast] = useState<{
     show: boolean;
     message: string;
@@ -62,7 +84,11 @@ export default function ComponentsPage() {
       )
       .order("id", { ascending: true });
 
-    const { data: carsData } = await supabase.from("cars").select("id, name");
+    const { data: carsData } = await supabase
+      .from("cars")
+      .select("id, name, chassis_number")
+      .order("name", { ascending: true });
+
     setCars(carsData || []);
     setComponents(comps || []);
     setLoading(false);
@@ -96,7 +122,7 @@ export default function ComponentsPage() {
     return "text-orange-500";
   };
 
-  // --- MONTAGGIO ---
+  // --- MONTAGGIO (da card: tasto Monta) ---
   const handleMountComponent = async () => {
     if (!selectedCarId || !selectedComponent) {
       alert("Seleziona un'auto per montare il componente");
@@ -111,15 +137,17 @@ export default function ComponentsPage() {
     } else {
       showToast("✅ Componente montato con successo", "success");
       setMountModal(false);
+      setSelectedCarId("");
+      setSelectedComponent(null);
       fetchComponents();
     }
   };
 
-  // --- SMONTAGGIO ---
+  // --- SMONTAGGIO (da card: tasto Smonta) ---
   const handleUnmountComponent = async (componentId: string) => {
     if (!confirm("Vuoi davvero smontare questo componente?")) return;
     const { error } = await supabase.rpc("unmount_component", {
-      p_car_component_id: componentId,
+      p_car_component_id: componentId, // nella tua base sembra accettare l'id componente
     });
     if (error) {
       showToast("❌ Errore smontaggio: " + error.message, "error");
@@ -129,58 +157,114 @@ export default function ComponentsPage() {
     }
   };
 
-  // --- SALVA / MODIFICA ---
+  // --- SALVA / MODIFICA (modale) ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    let car_id = null;
-    if (formData.car_name) {
-      const { data: car } = await supabase
-        .from("cars")
-        .select("id, name")
-        .eq("name", formData.car_name)
+
+    if (!editing) {
+      // AGGIUNTA
+      // 1) creo il componente (smontato)
+      const { data: inserted, error: insErr } = await supabase
+        .from("components")
+        .insert([
+          {
+            type: formData.type,
+            identifier: formData.identifier,
+            expiry_date: formData.expiry_date || null,
+          },
+        ])
+        .select()
         .single();
-      car_id = car?.id || null;
-    }
 
-    if (editing) {
-      const oldCarId = editing.car_id?.id || null;
-      const newCarId = car_id;
-
-      // Conferma cambio auto
-      if (oldCarId && newCarId && oldCarId !== newCarId) {
-        const confirmChange = confirm(
-          "Questo componente è attualmente montato su un’altra auto. Vuoi spostarlo?"
-        );
-        if (!confirmChange) return;
+      if (insErr || !inserted) {
+        showToast("❌ Errore inserimento", "error");
+        return;
       }
 
-      const { error } = await supabase
-        .from("components")
-        .update({
-          identifier: formData.identifier,
-          expiry_date: formData.expiry_date || null,
-          car_id: newCarId,
-        })
-        .eq("id", editing.id);
+      // 2) se è stata selezionata un'auto, monto con RPC (crea storico)
+      if (formData.car_id) {
+        const { error: mErr } = await supabase.rpc("mount_component", {
+          p_car_id: formData.car_id,
+          p_component_id: inserted.id,
+        });
+        if (mErr) {
+          showToast("⚠️ Componente creato, ma errore nel montaggio: " + mErr.message, "error");
+        } else {
+          showToast("✅ Componente creato e montato", "success");
+        }
+      } else {
+        showToast("✅ Componente creato (smontato)", "success");
+      }
 
-      if (error) showToast("❌ Errore aggiornamento", "error");
-      else {
-        showToast("✅ Componente aggiornato", "success");
-        await fetchComponents();
+      setModalOpen(false);
+      setFormData({
+        type: "",
+        identifier: "",
+        work_hours: 0,
+        expiry_date: "",
+        car_id: "",
+      });
+      await fetchComponents();
+      return;
+    }
+
+    // MODIFICA
+    const oldCarId = editing.car_id?.id || null;
+    const newCarId = formData.car_id || null;
+
+    // Conferma cambio auto (solo se effettivamente diversa)
+    if (oldCarId !== newCarId) {
+      const ok = confirm(
+        "Questo componente è attualmente associato a un’altra auto. Vuoi confermare lo spostamento?"
+      );
+      if (!ok) return;
+    }
+
+    // 1) aggiorno i campi base (identifier/expiry) — ore lavoro NON modificabili
+    const { error: upErr } = await supabase
+      .from("components")
+      .update({
+        identifier: formData.identifier,
+        expiry_date: formData.expiry_date || null,
+      })
+      .eq("id", editing.id);
+
+    if (upErr) {
+      showToast("❌ Errore aggiornamento dati componente", "error");
+      return;
+    }
+
+    // 2) Se cambia l’auto: smonto/monto con RPC (gestisce car_id e storico)
+    if (oldCarId !== newCarId) {
+      if (oldCarId) {
+        const { error: uErr } = await supabase.rpc("unmount_component", {
+          p_car_component_id: editing.id,
+        });
+        if (uErr) {
+          showToast("⚠️ Aggiornato ma errore nello smontaggio: " + uErr.message, "error");
+          // Continua comunque, poi tenteremo il montaggio
+        }
+      }
+      if (newCarId) {
+        const { error: mErr } = await supabase.rpc("mount_component", {
+          p_car_id: newCarId,
+          p_component_id: editing.id,
+        });
+        if (mErr) {
+          showToast("⚠️ Aggiornato ma errore nel montaggio: " + mErr.message, "error");
+        } else {
+          showToast("✅ Componente aggiornato e spostato", "success");
+        }
+      } else {
+        showToast("✅ Componente aggiornato e lasciato smontato", "success");
       }
     } else {
-      const { error } = await supabase.from("components").insert([
-        {
-          type: formData.type,
-          identifier: formData.identifier,
-          expiry_date: formData.expiry_date || null,
-        },
-      ]);
-      if (error) showToast("❌ Errore inserimento", "error");
-      else showToast("✅ Componente aggiunto", "success");
+      showToast("✅ Componente aggiornato", "success");
     }
+
     setModalOpen(false);
-    fetchComponents();
+    setEditing(null);
+    await fetchComponents();
   };
 
   // --- FILTRI ---
@@ -189,11 +273,14 @@ export default function ComponentsPage() {
       if (c.car_id?.name) return false;
     } else if (filterCar && c.car_id?.name !== filterCar) return false;
     if (filterType && c.type !== filterType) return false;
-    const matchSearch =
-      c.type.toLowerCase().includes(search.toLowerCase()) ||
-      c.identifier.toLowerCase().includes(search.toLowerCase()) ||
-      (c.car_id?.name || "").toLowerCase().includes(search.toLowerCase());
+
+    const needle = search.toLowerCase();
+    const hayType = (c.type || "").toLowerCase();
+    const hayIdent = (c.identifier || "").toLowerCase();
+    const hayCar = (c.car_id?.name || "").toLowerCase();
+    const matchSearch = hayType.includes(needle) || hayIdent.includes(needle) || hayCar.includes(needle);
     if (!matchSearch) return false;
+
     if (!c.expiry_date) return true;
     const expiry = new Date(c.expiry_date);
     const now = new Date();
@@ -214,7 +301,9 @@ export default function ComponentsPage() {
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <Cog size={32} className="text-yellow-500" /> Componenti
         </h1>
+
         <div className="flex flex-wrap gap-3 items-center">
+          {/* Ricerca */}
           <div className="relative">
             <input
               type="text"
@@ -228,6 +317,8 @@ export default function ComponentsPage() {
               className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
             />
           </div>
+
+          {/* Filtri */}
           <select
             value={filterCar}
             onChange={(e) => setFilterCar(e.target.value)}
@@ -241,6 +332,7 @@ export default function ComponentsPage() {
               </option>
             ))}
           </select>
+
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
@@ -253,6 +345,18 @@ export default function ComponentsPage() {
               </option>
             ))}
           </select>
+
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="all">Tutti</option>
+            <option value="expiring">In scadenza (≤ 6 mesi)</option>
+            <option value="expired">Scaduti</option>
+          </select>
+
+          {/* Aggiungi */}
           <button
             onClick={() => {
               setEditing(null);
@@ -261,7 +365,7 @@ export default function ComponentsPage() {
                 identifier: "",
                 work_hours: 0,
                 expiry_date: "",
-                car_name: "",
+                car_id: "",
               });
               setModalOpen(true);
             }}
@@ -272,7 +376,7 @@ export default function ComponentsPage() {
         </div>
       </div>
 
-      {/* Cards componenti */}
+      {/* Lista */}
       {loading ? (
         <p>Caricamento...</p>
       ) : (
@@ -328,9 +432,11 @@ export default function ComponentsPage() {
                       setFormData({
                         type: comp.type,
                         identifier: comp.identifier,
-                        work_hours: comp.work_hours,
-                        expiry_date: comp.expiry_date?.split("T")[0] || "",
-                        car_name: comp.car_id?.name || "",
+                        work_hours: comp.work_hours ?? 0,
+                        expiry_date: comp.expiry_date
+                          ? String(comp.expiry_date).split("T")[0]
+                          : "",
+                        car_id: comp.car_id?.id || "",
                       });
                       setModalOpen(true);
                     }}
@@ -343,6 +449,7 @@ export default function ComponentsPage() {
                     <button
                       onClick={() => {
                         setSelectedComponent(comp);
+                        setSelectedCarId("");
                         setMountModal(true);
                       }}
                       className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-3 py-2 rounded-lg shadow-sm"
@@ -358,13 +465,199 @@ export default function ComponentsPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Storico */}
+                {history[comp.id]?.length > 0 && (
+                  <div className="mt-3 border-t pt-2">
+                    <h3 className="font-semibold text-sm mb-1">
+                      Storico Montaggi:
+                    </h3>
+                    <table className="w-full text-xs border">
+                      <thead className="bg-gray-200 text-gray-700">
+                        <tr>
+                          <th className="p-1 text-left">Auto</th>
+                          <th className="p-1 text-left">Stato</th>
+                          <th className="p-1 text-left">Da</th>
+                          <th className="p-1 text-left">A</th>
+                          <th className="p-1 text-left">Ore</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {history[comp.id].map((h) => (
+                          <tr key={h.id} className="border-t">
+                            <td className="p-1">{h.car_id?.name || "—"}</td>
+                            <td className="p-1">
+                              {h.status === "mounted"
+                                ? "🟢 Montato"
+                                : "⚪ Smontato"}
+                            </td>
+                            <td className="p-1">
+                              {h.mounted_at
+                                ? new Date(h.mounted_at).toLocaleDateString(
+                                    "it-IT"
+                                  )
+                                : "—"}
+                            </td>
+                            <td className="p-1">
+                              {h.removed_at
+                                ? new Date(h.removed_at).toLocaleDateString(
+                                    "it-IT"
+                                  )
+                                : "—"}
+                            </td>
+                            <td className="p-1">
+                              {h.hours_used?.toFixed(1) || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal Montaggio */}
+      {/* MODALE: Aggiungi / Modifica */}
+      {modalOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => setModalOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {editing ? "Modifica componente" : "Aggiungi componente"}
+                </h3>
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="p-2 rounded hover:bg-gray-100"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form
+                onSubmit={handleSave}
+                className="p-6 space-y-4"
+              >
+                {/* Tipo */}
+                <div>
+                  <label className="block text-sm text-gray-700 font-semibold">
+                    Tipo
+                  </label>
+                  {editing ? (
+                    <div className="border rounded-lg p-2 w-full bg-gray-50 font-bold capitalize">
+                      {editing.type}
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.type}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, type: e.target.value }))
+                      }
+                      required
+                      className="border rounded-lg p-2 w-full bg-white"
+                    >
+                      <option value="">— Seleziona tipo —</option>
+                      {COMPONENT_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Identificativo */}
+                <div>
+                  <label className="block text-sm text-gray-700 font-semibold">
+                    Identificativo
+                  </label>
+                  <input
+                    value={formData.identifier}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, identifier: e.target.value }))
+                    }
+                    required
+                    placeholder="Es. Motore Pista #01"
+                    className="border rounded-lg p-2 w-full"
+                  />
+                </div>
+
+                {/* Scadenza */}
+                <div>
+                  <label className="block text-sm text-gray-700 font-semibold">
+                    Scadenza (opzionale)
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, expiry_date: e.target.value }))
+                    }
+                    className="border rounded-lg p-2 w-full"
+                  />
+                </div>
+
+                {/* Ore lavoro (solo lettura) */}
+                <div>
+                  <label className="block text-sm text-gray-700 font-semibold">
+                    Ore lavoro
+                  </label>
+                  <div className="border rounded-lg p-2 w-full bg-gray-50">
+                    {formData.work_hours ?? 0}
+                  </div>
+                </div>
+
+                {/* Auto (opzionale) */}
+                <div>
+                  <label className="block text-sm text-gray-700 font-semibold">
+                    Auto (opzionale)
+                  </label>
+                  <select
+                    value={formData.car_id}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, car_id: e.target.value }))
+                    }
+                    className="border rounded-lg p-2 w-full bg-white"
+                  >
+                    <option value="">— Nessuna (smontato) —</option>
+                    {cars.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.chassis_number ? `(${c.chassis_number})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
+                  >
+                    Salva
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* MODALE: Montaggio da card */}
       {mountModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -379,13 +672,17 @@ export default function ComponentsPage() {
               <option value="">Seleziona auto</option>
               {cars.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.name} {c.chassis_number ? `(${c.chassis_number})` : ""}
                 </option>
               ))}
             </select>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setMountModal(false)}
+                onClick={() => {
+                  setMountModal(false);
+                  setSelectedCarId("");
+                  setSelectedComponent(null);
+                }}
                 className="px-4 py-2 rounded-lg border"
               >
                 Annulla
