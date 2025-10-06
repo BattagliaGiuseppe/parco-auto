@@ -116,45 +116,24 @@ export default function ComponentsPage() {
   const [formExpiry, setFormExpiry] = useState<string>("");
 
   // fetch
-const fetchAll = async () => {
-  setLoading(true);
-  const [{ data: comps }, { data: carsData }] = await Promise.all([
-    supabase
-      .from("components")
-      .select(`
-        id,
-        type,
-        identifier,
-        expiry_date,
-        is_active,
-        last_maintenance_date,
-        car_id,
-        work_hours,
-        hours_worked,
-        hours,
-        car:car_id!inner (
-          id,
-          name,
-          chassis_number
+  const fetchAll = async () => {
+    setLoading(true);
+    const [{ data: comps }, { data: carsData }] = await Promise.all([
+      supabase
+        .from("components")
+        .select(
+          "id,type,identifier,expiry_date,is_active,last_maintenance_date,car_id,work_hours,hours_worked,hours, car:car_id(id,name,chassis_number)"
         )
-      `)
-      .order("id", { ascending: true }),
-    supabase
-      .from("cars")
-      .select("id,name,chassis_number")
-      .order("id", { ascending: true }),
-  ]);
-
-  // 🔧 Fix importante: se car è null (smontato), manteniamo car = null e non []
-  const normalizedComps = (comps || []).map((c: any) => ({
-    ...c,
-    car: c.car ? c.car : null,
-  }));
-
-  setComponents(normalizedComps as ComponentRow[]);
-  setCars((carsData as Car[]) || []);
-  setLoading(false);
-};
+        .order("id", { ascending: true }),
+      supabase
+        .from("cars")
+        .select("id,name,chassis_number")
+        .order("id", { ascending: true }),
+    ]);
+    setComponents(((comps as any[])?.map((c) => ({
+  ...c,
+  car: Array.isArray(c.car) ? c.car[0] : c.car,
+})) || []) as ComponentRow[]);
 
     setCars((carsData as Car[]) || []);
     setLoading(false);
