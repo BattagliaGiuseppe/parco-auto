@@ -130,7 +130,11 @@ export default function ComponentsPage() {
         .select("id,name,chassis_number")
         .order("id", { ascending: true }),
     ]);
-    setComponents((comps as ComponentRow[]) || []);
+    setComponents(((comps as any[])?.map((c) => ({
+  ...c,
+  car: Array.isArray(c.car) ? c.car[0] : c.car,
+})) || []) as ComponentRow[]);
+
     setCars((carsData as Car[]) || []);
     setLoading(false);
   };
