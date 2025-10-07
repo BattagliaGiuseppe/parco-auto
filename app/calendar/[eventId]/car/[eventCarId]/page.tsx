@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Wrench, Gauge, Fuel, ClipboardCheck, ArrowLeft } from "lucide-react";
+import { Wrench, Gauge, Fuel, ClipboardCheck, ArrowLeft, History } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
-// Funzioni di servizio (potresti spostarle in /lib/eventCarService.ts)
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
+// Funzione generica per caricare una sezione
 async function loadSection(table: string, eventCarId: string) {
   const { data } = await supabase.from(table).select("*").eq("event_car_id", eventCarId).single();
   return data || null;
 }
 
+// Funzione generica per salvare una sezione
 async function saveSection(table: string, eventCarId: string, payload: any) {
   const existing = await loadSection(table, eventCarId);
   if (existing) {
@@ -22,7 +25,20 @@ async function saveSection(table: string, eventCarId: string, payload: any) {
   }
 }
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+// Aggiungi un log di intervento
+async function addLog(eventCarId: string, action: string, details?: string) {
+  await supabase.from("event_car_logs").insert([{ event_car_id: eventCarId, action, details }]);
+}
+
+// Carica log per un evento-auto
+async function loadLogs(eventCarId: string) {
+  const { data } = await supabase
+    .from("event_car_logs")
+    .select("*")
+    .eq("event_car_id", eventCarId)
+    .order("created_at", { ascending: false });
+  return data || [];
+}
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as { eventId: string; eventCarId: string };
@@ -31,11 +47,12 @@ export default function EventCarPage() {
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // dati locali
+  // dati sezioni
   const [setup, setSetup] = useState<any>({});
   const [checkup, setCheckup] = useState<any>({});
   const [fuel, setFuel] = useState<any>({});
   const [notes, setNotes] = useState("");
+  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,11 +70,12 @@ export default function EventCarPage() {
         .eq("id", eventCarId)
         .single();
 
-      // carica dati sezioni
-      const [setupData, checkupData, fuelData] = await Promise.all([
+      // carica sezioni e log
+      const [setupData, checkupData, fuelData, logData] = await Promise.all([
         loadSection("event_car_setup", eventCarId),
         loadSection("event_car_checkup", eventCarId),
         loadSection("event_car_fuel", eventCarId),
+        loadLogs(eventCarId),
       ]);
 
       setEvent(eventData);
@@ -65,6 +83,7 @@ export default function EventCarPage() {
       setSetup(setupData || {});
       setCheckup(checkupData || {});
       setFuel(fuelData || {});
+      setLogs(logData);
       setLoading(false);
     };
 
@@ -74,17 +93,27 @@ export default function EventCarPage() {
   // Gestori di salvataggio
   const handleSaveSetup = async () => {
     await saveSection("event_car_setup", eventCarId, setup);
+    await addLog(eventCarId, "Salvato assetto", `Pressioni: ${setup.front_pressure}/${setup.rear_pressure}`);
     alert("✅ Assetto salvato!");
+    setLogs(await loadLogs(eventCarId));
   };
 
   const handleSaveCheckup = async () => {
     await saveSection("event_car_checkup", eventCarId, checkup);
+    await addLog(eventCarId, "Salvato check-up");
     alert("✅ Check-up salvato!");
+    setLogs(await loadLogs(eventCarId));
   };
 
   const handleSaveFuel = async () => {
     await saveSection("event_car_fuel", eventCarId, fuel);
+    await addLog(
+      eventCarId,
+      "Aggiornato carburante",
+      `Restante: ${fuel.fuel_remaining} L – Da fare: ${fuel.fuel_to_add} L`
+    );
     alert("✅ Dati carburante aggiornati!");
+    setLogs(await loadLogs(eventCarId));
   };
 
   if (loading) return <p className="p-6">Caricamento dati...</p>;
@@ -243,6 +272,28 @@ export default function EventCarPage() {
           className="border rounded-lg p-2 w-full"
           rows={3}
         />
+      </section>
+
+      {/* Log interventi */}
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+          <History className="text-yellow-500" /> Storico interventi
+        </h2>
+        {logs.length === 0 ? (
+          <p className="text-sm text-gray-500">Nessun intervento registrato.</p>
+        ) : (
+          <ul className="space-y-2">
+            {logs.map((log) => (
+              <li key={log.id} className="border-b pb-2">
+                <p className="text-gray-800 text-sm font-semibold">{log.action}</p>
+                {log.details && <p className="text-gray-600 text-xs">{log.details}</p>}
+                <p className="text-gray-400 text-xs">
+                  {new Date(log.created_at).toLocaleString("it-IT")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
