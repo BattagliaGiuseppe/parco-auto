@@ -7,6 +7,21 @@ import { Wrench, Gauge, Fuel, ClipboardCheck, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
+// Funzioni di servizio (potresti spostarle in /lib/eventCarService.ts)
+async function loadSection(table: string, eventCarId: string) {
+  const { data } = await supabase.from(table).select("*").eq("event_car_id", eventCarId).single();
+  return data || null;
+}
+
+async function saveSection(table: string, eventCarId: string, payload: any) {
+  const existing = await loadSection(table, eventCarId);
+  if (existing) {
+    await supabase.from(table).update(payload).eq("event_car_id", eventCarId);
+  } else {
+    await supabase.from(table).insert([{ event_car_id: eventCarId, ...payload }]);
+  }
+}
+
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function EventCarPage() {
@@ -16,29 +31,61 @@ export default function EventCarPage() {
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // sezioni
-  const [setup, setSetup] = useState<any>(null);
-  const [checkup, setCheckup] = useState<any>(null);
-  const [fuel, setFuel] = useState<any>(null);
+  // dati locali
+  const [setup, setSetup] = useState<any>({});
+  const [checkup, setCheckup] = useState<any>({});
+  const [fuel, setFuel] = useState<any>({});
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: eventData } = await supabase.from("events").select("id, name, date").eq("id", eventId).single();
+
+      const { data: eventData } = await supabase
+        .from("events")
+        .select("id, name, date_start, date_end, location")
+        .eq("id", eventId)
+        .single();
+
       const { data: carData } = await supabase
         .from("event_cars")
-        .select("id, car_id (name), status")
+        .select("id, car_id (name)")
         .eq("id", eventCarId)
         .single();
 
+      // carica dati sezioni
+      const [setupData, checkupData, fuelData] = await Promise.all([
+        loadSection("event_car_setup", eventCarId),
+        loadSection("event_car_checkup", eventCarId),
+        loadSection("event_car_fuel", eventCarId),
+      ]);
+
       setEvent(eventData);
       setCar(carData);
+      setSetup(setupData || {});
+      setCheckup(checkupData || {});
+      setFuel(fuelData || {});
       setLoading(false);
     };
 
     fetchData();
   }, [eventId, eventCarId]);
+
+  // Gestori di salvataggio
+  const handleSaveSetup = async () => {
+    await saveSection("event_car_setup", eventCarId, setup);
+    alert("✅ Assetto salvato!");
+  };
+
+  const handleSaveCheckup = async () => {
+    await saveSection("event_car_checkup", eventCarId, checkup);
+    alert("✅ Check-up salvato!");
+  };
+
+  const handleSaveFuel = async () => {
+    await saveSection("event_car_fuel", eventCarId, fuel);
+    alert("✅ Dati carburante aggiornati!");
+  };
 
   if (loading) return <p className="p-6">Caricamento dati...</p>;
   if (!event || !car) return <p className="p-6 text-red-500">Errore: dati non trovati.</p>;
@@ -66,24 +113,41 @@ export default function EventCarPage() {
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
           <Gauge className="text-yellow-500" /> Assetto
         </h2>
-        <p className="text-gray-600 text-sm mb-3">
-          Gestisci pressioni, altezze, campanature e parametri assetto per questa auto durante l’evento.
-        </p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <input type="number" placeholder="Pressione anteriore (bar)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Pressione posteriore (bar)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Altezza (mm)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Campanatura ant. (°)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Campanatura post. (°)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Angolo ala (°)" className="border rounded-lg p-2" />
+          <input
+            type="number"
+            placeholder="Pressione ant. (bar)"
+            value={setup.front_pressure || ""}
+            onChange={(e) => setSetup({ ...setup, front_pressure: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Pressione post. (bar)"
+            value={setup.rear_pressure || ""}
+            onChange={(e) => setSetup({ ...setup, rear_pressure: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Altezza (mm)"
+            value={setup.ride_height || ""}
+            onChange={(e) => setSetup({ ...setup, ride_height: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
         </div>
         <textarea
           placeholder="Note assetto..."
+          value={setup.notes || ""}
+          onChange={(e) => setSetup({ ...setup, notes: e.target.value })}
           className="mt-3 border rounded-lg p-2 w-full"
           rows={2}
         ></textarea>
         <div className="flex justify-end mt-3">
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">
+          <button
+            onClick={handleSaveSetup}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
+          >
             Salva assetto
           </button>
         </div>
@@ -95,20 +159,30 @@ export default function EventCarPage() {
           <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {["freni", "motore", "olio", "benzina", "cambio", "elettronica"].map((item) => (
-            <label key={item} className="flex items-center gap-2">
-              <input type="checkbox" className="scale-125" />{" "}
-              <span className="capitalize">{item}</span>
+          {["brakes", "engine", "oil", "fuel_system", "gearbox", "electronics"].map((key) => (
+            <label key={key} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={checkup[key] || false}
+                onChange={(e) => setCheckup({ ...checkup, [key]: e.target.checked })}
+                className="scale-125"
+              />
+              <span className="capitalize">{key.replace("_", " ")}</span>
             </label>
           ))}
         </div>
         <textarea
           placeholder="Note check-up..."
+          value={checkup.notes || ""}
+          onChange={(e) => setCheckup({ ...checkup, notes: e.target.value })}
           className="mt-3 border rounded-lg p-2 w-full"
           rows={2}
         ></textarea>
         <div className="flex justify-end mt-3">
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">
+          <button
+            onClick={handleSaveCheckup}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
+          >
             Salva check-up
           </button>
         </div>
@@ -120,56 +194,48 @@ export default function EventCarPage() {
           <Fuel className="text-yellow-500" /> Gestione carburante
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <input type="number" placeholder="Benzina iniziale (L)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Consumo (L/h)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Benzina restante (L)" className="border rounded-lg p-2" />
-          <input type="number" placeholder="Benzina da fare (L)" className="border rounded-lg p-2" />
+          <input
+            type="number"
+            placeholder="Benzina iniziale (L)"
+            value={fuel.fuel_start || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_start: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Consumo (L/h)"
+            value={fuel.fuel_consumption || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_consumption: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Benzina restante (L)"
+            value={fuel.fuel_remaining || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_remaining: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Benzina da fare (L)"
+            value={fuel.fuel_to_add || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_to_add: parseFloat(e.target.value) })}
+            className="border rounded-lg p-2"
+          />
         </div>
         <div className="flex justify-end mt-3">
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">
+          <button
+            onClick={handleSaveFuel}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
+          >
             Aggiorna carburante
           </button>
         </div>
       </section>
 
-      {/* Sezione Manutenzioni */}
-      <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <Wrench className="text-yellow-500" /> Manutenzioni
-        </h2>
-        <p className="text-gray-600 text-sm mb-3">
-          Elenco interventi tecnici eseguiti su questa auto durante l’evento.
-        </p>
-        <div className="flex justify-end mb-2">
-          <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-lg text-sm">
-            + Aggiungi manutenzione
-          </button>
-        </div>
-        <table className="w-full border text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2 text-left">Descrizione</th>
-              <th className="p-2 text-left">Componente</th>
-              <th className="p-2 text-center">Stato</th>
-              <th className="p-2 text-right">Ore</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="p-2">Cambio pastiglie freno</td>
-              <td className="p-2">Freni anteriori</td>
-              <td className="p-2 text-center">Completato</td>
-              <td className="p-2 text-right">1.5</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
       {/* Sezione Note */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          🗒️ Note e osservazioni
-        </h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-3">🗒️ Note e osservazioni</h2>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -177,11 +243,6 @@ export default function EventCarPage() {
           className="border rounded-lg p-2 w-full"
           rows={3}
         />
-        <div className="flex justify-end mt-3">
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">
-            Salva note
-          </button>
-        </div>
       </section>
     </div>
   );
