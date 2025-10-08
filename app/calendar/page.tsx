@@ -38,7 +38,7 @@ export default function CalendarPage() {
   // aggiunta turni
   const [turnForm, setTurnForm] = useState<Record<string, { date: string; minutes: string }>>({});
 
-  // ========= FETCH =========
+  // ==================== FETCH PRINCIPALI ====================
   const fetchEvents = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -51,45 +51,40 @@ export default function CalendarPage() {
   };
 
   const fetchCars = async () => {
-    const { data } = await supabase.from("cars").select("id, name").order("name");
-    setCars((data as Car[]) || []);
+    const { data, error } = await supabase.from("cars").select("id, name").order("name");
+    if (!error) setCars((data as Car[]) || []);
   };
 
   const fetchCircuits = async () => {
-    const { data } = await supabase.from("circuits").select("id, name").order("name");
-    setCircuits((data as Circuit[]) || []);
+    const { data, error } = await supabase.from("circuits").select("id, name").order("name");
+    if (!error) setCircuits((data as Circuit[]) || []);
   };
 
+  // ==================== FETCH EVENT_CARS AGGIORNATO ====================
   const fetchEventCars = async (eventId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("event_cars")
-      .select("id, car_id (id, name), status, notes")
-      .eq("event_id", eventId);
+      .select("id, car_id (id, name), status")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true });
 
-    setEventCars(data || []);
-    // carica eventuali turni già presenti
-    for (const ec of data || []) {
-      await fetchTurnsForCar(ec.id);
+    if (error) {
+      console.error("Errore fetch event_cars:", error);
+      return;
     }
+
+    console.log("Event cars aggiornate:", data);
+    setEventCars(data || []);
   };
 
-  const fetchTurnsForCar = async (eventCarId: string) => {
-    const { data } = await supabase
-      .from("event_car_turns")
-      .select("id, date, minutes")
-      .eq("event_car_id", eventCarId)
-      .order("date", { ascending: true });
-
-    setEventTurns((prev) => ({ ...prev, [eventCarId]: data || [] }));
-  };
-
+  // ==================== EFFETTO INIZIALE ====================
   useEffect(() => {
     fetchEvents();
     fetchCars();
     fetchCircuits();
   }, []);
 
-  // ========= MODALE EVENTO =========
+  // ==================== FUNZIONI PRINCIPALI ====================
   const openModal = (ev: any | null = null) => {
     setEditing(ev);
     setFormDate(ev?.date?.split("T")[0] || "");
@@ -126,7 +121,6 @@ export default function CalendarPage() {
     setModalOpen(false);
   };
 
-  // ========= AUTODROMI =========
   const handleAddCircuit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCircuitName.trim()) return;
@@ -136,55 +130,32 @@ export default function CalendarPage() {
     await fetchCircuits();
   };
 
-  // ========= AUTO DELL'EVENTO =========
+  // ==================== AGGIUNTA AUTO ====================
   const handleAddCarToEvent = async () => {
-    if (!editing?.id || !selectedCarId) return;
-    await supabase
-      .from("event_cars")
-      .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
-    setSelectedCarId("");
-    await fetchEventCars(editing.id);
-  };
-
-  const handleAddTurn = async (eventCarId: string) => {
-    const form = turnForm[eventCarId];
-    if (!form?.date || !form?.minutes) {
-      alert("Compila data e minuti");
+    console.log("Aggiunta auto all’evento:", editing?.id, selectedCarId);
+    if (!editing?.id) {
+      alert("Errore: evento non valido");
       return;
     }
-    const minutes = parseInt(form.minutes, 10);
-    if (minutes <= 0) {
-      alert("Inserisci minuti validi");
+    if (!selectedCarId) {
+      alert("Seleziona un’auto prima di aggiungerla.");
       return;
     }
 
     const { error } = await supabase
-      .from("event_car_turns")
-      .insert([{ event_car_id: eventCarId, date: form.date, minutes }]);
+      .from("event_cars")
+      .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
 
     if (error) {
-      alert("Errore salvataggio turno: " + error.message);
-      return;
+      alert("Errore durante l’aggiunta: " + error.message);
+    } else {
+      alert("Auto aggiunta correttamente!");
+      setSelectedCarId("");
+      await fetchEventCars(editing.id);
     }
-
-    setTurnForm((prev) => ({ ...prev, [eventCarId]: { date: "", minutes: "" } }));
-    await fetchTurnsForCar(eventCarId);
   };
 
-  const handleDeleteTurn = async (turnId: string, eventCarId: string) => {
-    if (!confirm("Vuoi davvero eliminare questo turno?")) return;
-
-    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
-
-    if (error) {
-      alert("Errore eliminazione turno: " + error.message);
-      return;
-    }
-
-    await fetchTurnsForCar(eventCarId);
-  };
-
-  // ========= ELIMINA EVENTO =========
+  // ==================== ELIMINA EVENTO ====================
   const handleDeleteEvent = async (id: string) => {
     if (!confirm("Vuoi davvero eliminare questo evento? Tutti i dati collegati verranno persi.")) return;
 
@@ -196,6 +167,7 @@ export default function CalendarPage() {
     }
   };
 
+  // ==================== RENDER PRINCIPALE ====================
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -262,7 +234,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ======= MODALE EVENTO ======= */}
+      {/* ==================== MODALE EVENTO ==================== */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
@@ -345,72 +317,7 @@ export default function CalendarPage() {
                 ) : (
                   eventCars.map((ec) => (
                     <div key={ec.id} className="border rounded-lg p-3 mb-4">
-                      <h4 className="font-semibold mb-2">{ec.car_id?.name}</h4>
-                      {/* Lista turni */}
-                      <div className="mb-2">
-                        {eventTurns[ec.id]?.length ? (
-                          <table className="w-full text-sm border">
-                            <thead className="bg-gray-100">
-                              <tr>
-                                <th className="p-2 text-left">Data</th>
-                                <th className="p-2 text-left">Durata</th>
-                                <th className="p-2 text-right">Azioni</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {eventTurns[ec.id].map((t) => (
-                                <tr key={t.id} className="border-t">
-                                  <td className="p-2">{new Date(t.date).toLocaleDateString("it-IT")}</td>
-                                  <td className="p-2">{t.minutes} min</td>
-                                  <td className="p-2 text-right">
-                                    <button
-                                      onClick={() => handleDeleteTurn(t.id, ec.id)}
-                                      className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center gap-1"
-                                    >
-                                      <Trash2 size={14} /> Elimina
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-gray-500 text-sm">Nessun turno registrato</p>
-                        )}
-                      </div>
-                      {/* Form nuovo turno */}
-                      <div className="flex flex-col md:flex-row gap-2 mt-2">
-                        <input
-                          type="date"
-                          value={turnForm[ec.id]?.date || ""}
-                          onChange={(e) =>
-                            setTurnForm((prev) => ({
-                              ...prev,
-                              [ec.id]: { ...prev[ec.id], date: e.target.value },
-                            }))
-                          }
-                          className="border rounded-lg px-2 py-1 text-sm flex-1"
-                        />
-                        <input
-                          type="number"
-                          value={turnForm[ec.id]?.minutes || ""}
-                          onChange={(e) =>
-                            setTurnForm((prev) => ({
-                              ...prev,
-                              [ec.id]: { ...prev[ec.id], minutes: e.target.value },
-                            }))
-                          }
-                          placeholder="Minuti"
-                          className="border rounded-lg px-2 py-1 text-sm flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleAddTurn(ec.id)}
-                          className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
-                        >
-                          ➕ Turno
-                        </button>
-                      </div>
+                      <h4 className="font-semibold mb-2">{ec.car_id?.name || "Auto non trovata"}</h4>
                     </div>
                   ))
                 )}
@@ -434,39 +341,6 @@ export default function CalendarPage() {
                 Salva evento
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======= MODALE NUOVO AUTODROMO ======= */}
-      {circuitModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">Aggiungi Autodromo</h2>
-            <form onSubmit={handleAddCircuit} className="flex flex-col gap-3">
-              <input
-                type="text"
-                value={newCircuitName}
-                onChange={(e) => setNewCircuitName(e.target.value)}
-                placeholder="Nome autodromo"
-                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCircuitModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border"
-                >
-                  Annulla
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-                >
-                  Salva
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
