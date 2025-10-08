@@ -34,9 +34,7 @@ export default function CalendarPage() {
 
   // aggiunta auto
   const [selectedCarId, setSelectedCarId] = useState("");
-
-  // aggiunta turni
-  const [turnForm, setTurnForm] = useState<Record<string, { date: string; minutes: string }>>({});
+  const [selectedCarsForNewEvent, setSelectedCarsForNewEvent] = useState<string[]>([]);
 
   // ==================== FETCH PRINCIPALI ====================
   const fetchEvents = async () => {
@@ -60,7 +58,7 @@ export default function CalendarPage() {
     if (!error) setCircuits((data as Circuit[]) || []);
   };
 
-  // ==================== FETCH EVENT_CARS AGGIORNATO ====================
+  // ==================== FETCH EVENT_CARS ====================
   const fetchEventCars = async (eventId: string) => {
     const { data, error } = await supabase
       .from("event_cars")
@@ -99,6 +97,7 @@ export default function CalendarPage() {
     }
   };
 
+  // ==================== CREAZIONE / MODIFICA EVENTO ====================
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -109,30 +108,49 @@ export default function CalendarPage() {
       circuit_id: formCircuitId || null,
     };
 
+    let eventId = editing?.id;
+
+    // 🔸 1. Creazione o aggiornamento evento
     if (editing) {
-      await supabase.from("events").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("events").update(payload).eq("id", editing.id);
+      if (error) {
+        alert("Errore aggiornamento evento: " + error.message);
+        return;
+      }
       alert("Evento aggiornato!");
     } else {
-      await supabase.from("events").insert([payload]);
-      alert("Evento aggiunto!");
+      const { data, error } = await supabase.from("events").insert([payload]).select("id").single();
+      if (error) {
+        alert("Errore creazione evento: " + error.message);
+        return;
+      }
+      eventId = data.id;
+      alert("Evento creato!");
     }
 
+    // 🔸 2. Associazione auto selezionate
+    if (selectedCarsForNewEvent.length > 0 && eventId) {
+      const records = selectedCarsForNewEvent.map((carId) => ({
+        event_id: eventId,
+        car_id: carId,
+        status: "in_corso",
+      }));
+
+      const { error } = await supabase.from("event_cars").insert(records);
+      if (error) {
+        alert("Errore aggiunta auto: " + error.message);
+        return;
+      }
+    }
+
+    // 🔸 3. Refresh lista eventi
     await fetchEvents();
     setModalOpen(false);
+    setSelectedCarsForNewEvent([]);
   };
 
-  const handleAddCircuit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCircuitName.trim()) return;
-    await supabase.from("circuits").insert([{ name: newCircuitName.trim() }]);
-    setNewCircuitName("");
-    setCircuitModalOpen(false);
-    await fetchCircuits();
-  };
-
-  // ==================== AGGIUNTA AUTO ====================
+  // ==================== AGGIUNTA AUTO A EVENTO ESISTENTE ====================
   const handleAddCarToEvent = async () => {
-    console.log("Aggiunta auto all’evento:", editing?.id, selectedCarId);
     if (!editing?.id) {
       alert("Errore: evento non valido");
       return;
@@ -278,6 +296,33 @@ export default function CalendarPage() {
                   ➕
                 </button>
               </div>
+
+              {/* Multi-select auto coinvolte */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Auto coinvolte
+                </label>
+                <select
+                  multiple
+                  value={selectedCarsForNewEvent}
+                  onChange={(e) =>
+                    setSelectedCarsForNewEvent(
+                      Array.from(e.target.selectedOptions, (option) => option.value)
+                    )
+                  }
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 h-32"
+                >
+                  {cars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Tieni premuto Ctrl (Windows) o Cmd (Mac) per selezionare più auto
+                </p>
+              </div>
+
               <textarea
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
@@ -286,10 +331,10 @@ export default function CalendarPage() {
               />
             </form>
 
-            {/* Auto coinvolte */}
+            {/* Sezione gestione auto (solo se evento già creato) */}
             {editing?.id && (
               <div className="mt-6">
-                <h3 className="text-lg font-bold mb-3">Auto coinvolte</h3>
+                <h3 className="text-lg font-bold mb-3">Auto aggiuntive</h3>
                 <div className="flex items-center gap-2 mb-3">
                   <select
                     value={selectedCarId}
