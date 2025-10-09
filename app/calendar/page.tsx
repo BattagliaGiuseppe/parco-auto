@@ -94,6 +94,7 @@ export default function CalendarPage() {
     else {
       setEventCars([]);
       setEventTurns({});
+      setSelectedCarsForNewEvent([]);
     }
   };
 
@@ -297,29 +298,34 @@ export default function CalendarPage() {
                 </button>
               </div>
 
-              {/* Multi-select auto coinvolte */}
+              {/* ✅ Checkbox per auto coinvolte */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Auto coinvolte
                 </label>
-                <select
-                  multiple
-                  value={selectedCarsForNewEvent}
-                  onChange={(e) =>
-                    setSelectedCarsForNewEvent(
-                      Array.from(e.target.selectedOptions, (option) => option.value)
-                    )
-                  }
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 h-32"
-                >
-                  {cars.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border rounded-lg p-3 bg-gray-50">
+                  {cars.map((car) => (
+                    <label key={car.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedCarsForNewEvent.includes(car.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCarsForNewEvent([...selectedCarsForNewEvent, car.id]);
+                          } else {
+                            setSelectedCarsForNewEvent(
+                              selectedCarsForNewEvent.filter((id) => id !== car.id)
+                            );
+                          }
+                        }}
+                        className="scale-110 accent-yellow-500"
+                      />
+                      <span className="text-sm text-gray-800">{car.name}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Tieni premuto Ctrl (Windows) o Cmd (Mac) per selezionare più auto
+                  Seleziona una o più auto da collegare all’evento
                 </p>
               </div>
 
