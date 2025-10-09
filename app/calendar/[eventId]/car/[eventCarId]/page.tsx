@@ -26,7 +26,6 @@ export default function EventCarPage() {
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // sezioni
   const [setup, setSetup] = useState<any>({});
   const [checkup, setCheckup] = useState<any>({});
   const [fuel, setFuel] = useState<any>({});
@@ -38,7 +37,6 @@ export default function EventCarPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      // evento e auto
       const { data: eventData } = await supabase
         .from("events")
         .select("id, name, date")
@@ -51,21 +49,18 @@ export default function EventCarPage() {
         .eq("id", eventCarId)
         .single();
 
-      // setup
       const { data: setupData } = await supabase
         .from("event_car_setup")
         .select("*")
         .eq("event_car_id", eventCarId)
         .maybeSingle();
 
-      // checkup
       const { data: checkupData } = await supabase
         .from("event_car_checkup")
         .select("*")
         .eq("event_car_id", eventCarId)
         .maybeSingle();
 
-      // fuel
       const { data: fuelData } = await supabase
         .from("event_car_fuel")
         .select("*")
@@ -93,8 +88,8 @@ export default function EventCarPage() {
   const handleSaveSetup = async () => {
     const { error } = await supabase.from("event_car_setup").upsert({
       event_car_id: eventCarId,
-      pressure_front: setup.pressure_front || null,
-      pressure_rear: setup.pressure_rear || null,
+      front_pressure: setup.front_pressure || null,
+      rear_pressure: setup.rear_pressure || null,
       ride_height: setup.ride_height || null,
       camber_front: setup.camber_front || null,
       camber_rear: setup.camber_rear || null,
@@ -181,15 +176,15 @@ export default function EventCarPage() {
           <input
             type="number"
             placeholder="Pressione ant. (bar)"
-            value={setup.pressure_front || ""}
-            onChange={(e) => setSetup({ ...setup, pressure_front: e.target.value })}
+            value={setup.front_pressure || ""}
+            onChange={(e) => setSetup({ ...setup, front_pressure: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
             type="number"
             placeholder="Pressione post. (bar)"
-            value={setup.pressure_rear || ""}
-            onChange={(e) => setSetup({ ...setup, pressure_rear: e.target.value })}
+            value={setup.rear_pressure || ""}
+            onChange={(e) => setSetup({ ...setup, rear_pressure: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
