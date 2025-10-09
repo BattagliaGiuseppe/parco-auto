@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
+import SetupPanel from "./setup"; // ✅ nuovo componente Assetto touch
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -26,7 +27,6 @@ export default function EventCarPage() {
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [setup, setSetup] = useState<any>({});
   const [checkup, setCheckup] = useState<any>({});
   const [fuel, setFuel] = useState<any>({});
   const [notes, setNotes] = useState("");
@@ -49,12 +49,6 @@ export default function EventCarPage() {
         .eq("id", eventCarId)
         .single();
 
-      const { data: setupData } = await supabase
-        .from("event_car_setup")
-        .select("*")
-        .eq("event_car_id", eventCarId)
-        .maybeSingle();
-
       const { data: checkupData } = await supabase
         .from("event_car_checkup")
         .select("*")
@@ -70,7 +64,6 @@ export default function EventCarPage() {
       setEvent(eventData || null);
       setCar(carData?.car_id || null);
       setNotes(carData?.notes || "");
-      setSetup(setupData || {});
       setCheckup(checkupData || {});
       setFuel(fuelData || {});
       setLoading(false);
@@ -82,22 +75,6 @@ export default function EventCarPage() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
-  };
-
-  // Salvataggio Assetto
-  const handleSaveSetup = async () => {
-    const { error } = await supabase.from("event_car_setup").upsert({
-      event_car_id: eventCarId,
-      front_pressure: setup.front_pressure || null,
-      rear_pressure: setup.rear_pressure || null,
-      ride_height: setup.ride_height || null,
-      camber_front: setup.camber_front || null,
-      camber_rear: setup.camber_rear || null,
-      wing_angle: setup.wing_angle || null,
-      notes: setup.notes || null,
-    });
-    if (error) alert("Errore salvataggio assetto: " + error.message);
-    else showToast("Assetto salvato ✅");
   };
 
   // Salvataggio Check-up
@@ -167,71 +144,11 @@ export default function EventCarPage() {
         </Link>
       </div>
 
-      {/* Sezione Assetto */}
-      <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <Gauge className="text-yellow-500" /> Assetto
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <input
-            type="number"
-            placeholder="Pressione ant. (bar)"
-            value={setup.front_pressure || ""}
-            onChange={(e) => setSetup({ ...setup, front_pressure: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-          <input
-            type="number"
-            placeholder="Pressione post. (bar)"
-            value={setup.rear_pressure || ""}
-            onChange={(e) => setSetup({ ...setup, rear_pressure: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-          <input
-            type="number"
-            placeholder="Altezza (mm)"
-            value={setup.ride_height || ""}
-            onChange={(e) => setSetup({ ...setup, ride_height: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-          <input
-            type="number"
-            placeholder="Campanatura ant. (°)"
-            value={setup.camber_front || ""}
-            onChange={(e) => setSetup({ ...setup, camber_front: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-          <input
-            type="number"
-            placeholder="Campanatura post. (°)"
-            value={setup.camber_rear || ""}
-            onChange={(e) => setSetup({ ...setup, camber_rear: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-          <input
-            type="number"
-            placeholder="Angolo ala (°)"
-            value={setup.wing_angle || ""}
-            onChange={(e) => setSetup({ ...setup, wing_angle: e.target.value })}
-            className="border rounded-lg p-2"
-          />
-        </div>
-        <textarea
-          placeholder="Note assetto..."
-          value={setup.notes || ""}
-          onChange={(e) => setSetup({ ...setup, notes: e.target.value })}
-          className="mt-3 border rounded-lg p-2 w-full"
-          rows={2}
-        />
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleSaveSetup}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-4 py-2 rounded-lg"
-          >
-            Salva assetto
-          </button>
-        </div>
-      </section>
+      {/* ✅ Sezione Assetto con nuova UI touch */}
+      <SetupPanel
+        eventCarId={eventCarId}
+        onSaved={(msg) => showToast(msg)}
+      />
 
       {/* Sezione Check-up */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
@@ -239,22 +156,24 @@ export default function EventCarPage() {
           <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {["freni", "motore", "olio", "benzina", "cambio", "elettronica"].map((item) => (
-            <label key={item} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={checkup.items?.[item] || false}
-                onChange={(e) =>
-                  setCheckup({
-                    ...checkup,
-                    items: { ...checkup.items, [item]: e.target.checked },
-                  })
-                }
-                className="scale-125 accent-yellow-500"
-              />
-              <span className="capitalize">{item}</span>
-            </label>
-          ))}
+          {["freni", "motore", "olio", "benzina", "cambio", "elettronica"].map(
+            (item) => (
+              <label key={item} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={checkup.items?.[item] || false}
+                  onChange={(e) =>
+                    setCheckup({
+                      ...checkup,
+                      items: { ...checkup.items, [item]: e.target.checked },
+                    })
+                  }
+                  className="scale-125 accent-yellow-500"
+                />
+                <span className="capitalize">{item}</span>
+              </label>
+            )
+          )}
         </div>
         <textarea
           placeholder="Note check-up..."
@@ -290,14 +209,18 @@ export default function EventCarPage() {
             type="number"
             placeholder="Consumo (L/h)"
             value={fuel.fuel_consumption || ""}
-            onChange={(e) => setFuel({ ...fuel, fuel_consumption: e.target.value })}
+            onChange={(e) =>
+              setFuel({ ...fuel, fuel_consumption: e.target.value })
+            }
             className="border rounded-lg p-2"
           />
           <input
             type="number"
             placeholder="Benzina restante (L)"
             value={fuel.fuel_remaining || ""}
-            onChange={(e) => setFuel({ ...fuel, fuel_remaining: e.target.value })}
+            onChange={(e) =>
+              setFuel({ ...fuel, fuel_remaining: e.target.value })
+            }
             className="border rounded-lg p-2"
           />
           <input
