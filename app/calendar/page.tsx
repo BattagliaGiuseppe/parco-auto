@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit, Wrench, Trash2 } from "lucide-react";
+import { PlusCircle, CalendarDays, Edit, Wrench, Trash2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
@@ -56,7 +56,6 @@ export default function CalendarPage() {
     if (!error) setCircuits((data as Circuit[]) || []);
   };
 
-  // ==================== FETCH EVENT_CARS ====================
   const fetchEventCars = async (eventId: string) => {
     const { data, error } = await supabase
       .from("event_cars")
@@ -64,22 +63,16 @@ export default function CalendarPage() {
       .eq("event_id", eventId)
       .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error("Errore fetch event_cars:", error);
-      return;
-    }
-
-    setEventCars(data || []);
+    if (!error) setEventCars(data || []);
   };
 
-  // ==================== EFFETTO INIZIALE ====================
   useEffect(() => {
     fetchEvents();
     fetchCars();
     fetchCircuits();
   }, []);
 
-  // ==================== FUNZIONI PRINCIPALI ====================
+  // ==================== MODALE ====================
   const openModal = (ev: any | null = null) => {
     setEditing(ev);
     setFormDate(ev?.date?.split("T")[0] || "");
@@ -92,9 +85,7 @@ export default function CalendarPage() {
   };
 
   // ==================== CREAZIONE / MODIFICA EVENTO ====================
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-
+  const handleSubmit = async () => {
     const payload: any = {
       date: formDate,
       name: formName,
@@ -102,9 +93,6 @@ export default function CalendarPage() {
       circuit_id: formCircuitId || null,
     };
 
-    let eventId = editing?.id;
-
-    // 🔸 Creazione evento
     if (editing) {
       const { error } = await supabase.from("events").update(payload).eq("id", editing.id);
       if (error) {
@@ -117,23 +105,55 @@ export default function CalendarPage() {
         alert("Errore creazione evento: " + error.message);
         return;
       }
-      eventId = data.id;
+      setEditing({ id: data.id, ...payload });
     }
 
-    // 🔸 Refresh lista eventi
     await fetchEvents();
-    setModalOpen(false);
+    alert("Evento salvato!");
   };
 
   // ==================== AGGIUNTA AUTO ====================
   const handleAddCarToEvent = async () => {
-    const currentEventId = editing?.id;
+    let currentEventId = editing?.id;
+
+    // se l'evento non è ancora salvato → lo crea prima
     if (!currentEventId) {
-      alert("L'evento deve essere salvato prima di aggiungere auto.");
-      return;
+      const { data, error } = await supabase
+        .from("events")
+        .insert([
+          {
+            date: formDate,
+            name: formName,
+            notes: formNotes || null,
+            circuit_id: formCircuitId || null,
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (error) {
+        alert("Errore creazione evento: " + error.message);
+        return;
+      }
+      currentEventId = data.id;
+      setEditing({ id: data.id });
     }
+
     if (!selectedCarId) {
       alert("Seleziona un’auto prima di aggiungerla.");
+      return;
+    }
+
+    // 🔍 verifica se già esiste
+    const { data: existing } = await supabase
+      .from("event_cars")
+      .select("id")
+      .eq("event_id", currentEventId)
+      .eq("car_id", selectedCarId)
+      .maybeSingle();
+
+    if (existing) {
+      alert("⚠️ Quest’auto è già associata a questo evento.");
       return;
     }
 
@@ -147,6 +167,17 @@ export default function CalendarPage() {
       await fetchEventCars(currentEventId);
       setSelectedCarId("");
     }
+  };
+
+  // ==================== RIMOZIONE AUTO ====================
+  const handleRemoveCarFromEvent = async (id: string) => {
+    if (!confirm("Vuoi davvero rimuovere questa auto dall’evento?")) return;
+    const { error } = await supabase.from("event_cars").delete().eq("id", id);
+    if (error) {
+      alert("Errore rimozione auto: " + error.message);
+      return;
+    }
+    await fetchEventCars(editing.id);
   };
 
   // ==================== ELIMINA EVENTO ====================
@@ -237,7 +268,7 @@ export default function CalendarPage() {
             </h2>
 
             {/* Form evento */}
-            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-4">
               <input
                 type="date"
                 value={formDate}
@@ -278,9 +309,9 @@ export default function CalendarPage() {
                 placeholder="Note (opzionale)"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
-            </form>
+            </div>
 
-            {/* Sezione gestione auto */}
+            {/* Auto associate */}
             <div className="mt-6">
               <h3 className="text-lg font-bold mb-3">Auto associate</h3>
               <div className="flex items-center gap-2 mb-3">
@@ -309,8 +340,17 @@ export default function CalendarPage() {
                 <p className="text-gray-600">Nessuna auto collegata</p>
               ) : (
                 eventCars.map((ec) => (
-                  <div key={ec.id} className="border rounded-lg p-3 mb-4">
-                    <h4 className="font-semibold mb-2">{ec.car_id?.name || "Auto non trovata"}</h4>
+                  <div
+                    key={ec.id}
+                    className="border rounded-lg p-3 mb-3 flex items-center justify-between"
+                  >
+                    <h4 className="font-semibold">{ec.car_id?.name || "Auto non trovata"}</h4>
+                    <button
+                      onClick={() => handleRemoveCarFromEvent(ec.id)}
+                      className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm font-semibold"
+                    >
+                      <XCircle size={16} /> Rimuovi
+                    </button>
                   </div>
                 ))
               )}
