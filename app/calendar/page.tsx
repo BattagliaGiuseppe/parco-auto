@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit, Wrench, Trash2, XCircle } from "lucide-react";
+import { PlusCircle, CalendarDays, Edit, Wrench, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
@@ -18,7 +18,12 @@ export default function CalendarPage() {
   const [eventCars, setEventCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // gestione modali
   const [modalOpen, setModalOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmMessage, setConfirmMessage] = useState("");
+
   const [editing, setEditing] = useState<any | null>(null);
 
   // gestione autodromi
@@ -34,7 +39,9 @@ export default function CalendarPage() {
   // aggiunta auto
   const [selectedCarId, setSelectedCarId] = useState("");
 
-  // ==================== FETCH PRINCIPALI ====================
+  const [toast, setToast] = useState("");
+
+  // ==================== FETCH DATI ====================
   const fetchEvents = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -72,7 +79,7 @@ export default function CalendarPage() {
     fetchCircuits();
   }, []);
 
-  // ==================== MODALE ====================
+  // ==================== MODALE EVENTO ====================
   const openModal = (ev: any | null = null) => {
     setEditing(ev);
     setFormDate(ev?.date?.split("T")[0] || "");
@@ -84,7 +91,6 @@ export default function CalendarPage() {
     else setEventCars([]);
   };
 
-  // ==================== CREAZIONE / MODIFICA EVENTO ====================
   const handleSubmit = async () => {
     const payload: any = {
       date: formDate,
@@ -109,34 +115,16 @@ export default function CalendarPage() {
     }
 
     await fetchEvents();
-    alert("Evento salvato!");
+    setToast("Evento salvato con successo ✅");
+    setTimeout(() => setToast(""), 2500);
+    setModalOpen(false);
   };
 
-  // ==================== AGGIUNTA AUTO ====================
+  // ==================== GESTIONE AUTO ====================
   const handleAddCarToEvent = async () => {
-    let currentEventId = editing?.id;
-
-    // se l'evento non è ancora salvato → lo crea prima
-    if (!currentEventId) {
-      const { data, error } = await supabase
-        .from("events")
-        .insert([
-          {
-            date: formDate,
-            name: formName,
-            notes: formNotes || null,
-            circuit_id: formCircuitId || null,
-          },
-        ])
-        .select("id")
-        .single();
-
-      if (error) {
-        alert("Errore creazione evento: " + error.message);
-        return;
-      }
-      currentEventId = data.id;
-      setEditing({ id: data.id });
+    if (!editing?.id) {
+      alert("Salva prima l'evento prima di aggiungere un'auto.");
+      return;
     }
 
     if (!selectedCarId) {
@@ -144,11 +132,10 @@ export default function CalendarPage() {
       return;
     }
 
-    // 🔍 verifica se già esiste
     const { data: existing } = await supabase
       .from("event_cars")
       .select("id")
-      .eq("event_id", currentEventId)
+      .eq("event_id", editing.id)
       .eq("car_id", selectedCarId)
       .maybeSingle();
 
@@ -159,42 +146,44 @@ export default function CalendarPage() {
 
     const { error } = await supabase
       .from("event_cars")
-      .insert([{ event_id: currentEventId, car_id: selectedCarId, status: "in_corso" }]);
+      .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
 
-    if (error) {
-      alert("Errore durante l’aggiunta: " + error.message);
-    } else {
-      await fetchEventCars(currentEventId);
+    if (error) alert("Errore durante l’aggiunta: " + error.message);
+    else {
+      await fetchEventCars(editing.id);
       setSelectedCarId("");
     }
   };
 
-  // ==================== RIMOZIONE AUTO ====================
   const handleRemoveCarFromEvent = async (id: string) => {
-    if (!confirm("Vuoi davvero rimuovere questa auto dall’evento?")) return;
-    const { error } = await supabase.from("event_cars").delete().eq("id", id);
-    if (error) {
-      alert("Errore rimozione auto: " + error.message);
-      return;
-    }
-    await fetchEventCars(editing.id);
+    setConfirmMessage("Vuoi davvero rimuovere questa auto dall’evento?");
+    setConfirmAction(() => async () => {
+      const { error } = await supabase.from("event_cars").delete().eq("id", id);
+      if (!error) await fetchEventCars(editing.id);
+    });
+    setConfirmOpen(true);
   };
 
   // ==================== ELIMINA EVENTO ====================
   const handleDeleteEvent = async (id: string) => {
-    if (!confirm("Vuoi davvero eliminare questo evento? Tutti i dati collegati verranno persi.")) return;
-
-    const { error } = await supabase.from("events").delete().eq("id", id);
-    if (error) alert("Errore eliminazione evento: " + error.message);
-    else {
-      alert("Evento eliminato correttamente!");
-      await fetchEvents();
-    }
+    setConfirmMessage("Vuoi davvero eliminare questo evento e tutti i dati collegati?");
+    setConfirmAction(() => async () => {
+      const { error } = await supabase.from("events").delete().eq("id", id);
+      if (!error) await fetchEvents();
+    });
+    setConfirmOpen(true);
   };
 
   // ==================== RENDER ====================
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-md z-50">
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
@@ -226,7 +215,7 @@ export default function CalendarPage() {
             </thead>
             <tbody>
               {events.map((ev) => (
-                <tr key={ev.id} className="border-t">
+                <tr key={ev.id} className="border-t hover:bg-gray-50">
                   <td className="p-3">{ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}</td>
                   <td className="p-3">{ev.name}</td>
                   <td className="p-3">{ev.circuit_id?.name || "—"}</td>
@@ -262,10 +251,15 @@ export default function CalendarPage() {
       {/* ==================== MODALE EVENTO ==================== */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl font-bold mb-4">
-              {editing ? "Modifica evento" : "Aggiungi evento"}
-            </h2>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh] relative">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              onClick={() => setModalOpen(false)}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-4">{editing ? "Modifica evento" : "Aggiungi evento"}</h2>
 
             {/* Form evento */}
             <div className="flex flex-col gap-4">
@@ -312,65 +306,91 @@ export default function CalendarPage() {
             </div>
 
             {/* Auto associate */}
-            <div className="mt-6">
-              <h3 className="text-lg font-bold mb-3">Auto associate</h3>
-              <div className="flex items-center gap-2 mb-3">
-                <select
-                  value={selectedCarId}
-                  onChange={(e) => setSelectedCarId(e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="">— Seleziona auto —</option>
-                  {cars.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleAddCarToEvent}
-                  type="button"
-                  className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
-                >
-                  Aggiungi
-                </button>
-              </div>
-
-              {eventCars.length === 0 ? (
-                <p className="text-gray-600">Nessuna auto collegata</p>
-              ) : (
-                eventCars.map((ec) => (
-                  <div
-                    key={ec.id}
-                    className="border rounded-lg p-3 mb-3 flex items-center justify-between"
+            {editing && (
+              <div className="mt-6">
+                <h3 className="text-lg font-bold mb-3">Auto associate</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <select
+                    value={selectedCarId}
+                    onChange={(e) => setSelectedCarId(e.target.value)}
+                    className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
                   >
-                    <h4 className="font-semibold">{ec.car_id?.name || "Auto non trovata"}</h4>
-                    <button
-                      onClick={() => handleRemoveCarFromEvent(ec.id)}
-                      className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm font-semibold"
-                    >
-                      <XCircle size={16} /> Rimuovi
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+                    <option value="">— Seleziona auto —</option>
+                    {cars.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAddCarToEvent}
+                    type="button"
+                    className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
+                  >
+                    Aggiungi
+                  </button>
+                </div>
 
-            {/* Bottoni finali */}
+                {eventCars.length === 0 ? (
+                  <p className="text-gray-600">Nessuna auto collegata</p>
+                ) : (
+                  eventCars.map((ec) => (
+                    <div
+                      key={ec.id}
+                      className="border rounded-lg p-3 mb-3 flex items-center justify-between"
+                    >
+                      <h4 className="font-semibold">{ec.car_id?.name || "Auto non trovata"}</h4>
+                      <button
+                        onClick={() => handleRemoveCarFromEvent(ec.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-semibold flex items-center gap-1"
+                      >
+                        <Trash2 size={14} /> Rimuovi
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Bottoni */}
             <div className="flex justify-end gap-3 mt-6">
               <button
-                type="button"
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded-lg border"
+                className="px-4 py-2 rounded-lg border text-gray-700"
               >
                 Annulla
               </button>
               <button
-                type="button"
                 onClick={handleSubmit}
                 className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
               >
                 Salva evento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODALE CONFERMA ==================== */}
+      {confirmOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
+            <p className="text-gray-800 mb-6 text-center">{confirmMessage}</p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setConfirmOpen(false);
+                  confirmAction();
+                }}
+                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+              >
+                Conferma
+              </button>
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="px-4 py-2 rounded-lg border text-gray-700"
+              >
+                Annulla
               </button>
             </div>
           </div>
