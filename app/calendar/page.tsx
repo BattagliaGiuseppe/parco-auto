@@ -16,7 +16,6 @@ export default function CalendarPage() {
   const [cars, setCars] = useState<Car[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [eventCars, setEventCars] = useState<any[]>([]);
-  const [eventTurns, setEventTurns] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,7 +33,6 @@ export default function CalendarPage() {
 
   // aggiunta auto
   const [selectedCarId, setSelectedCarId] = useState("");
-  const [selectedCarsForNewEvent, setSelectedCarsForNewEvent] = useState<string[]>([]);
 
   // ==================== FETCH PRINCIPALI ====================
   const fetchEvents = async () => {
@@ -71,7 +69,6 @@ export default function CalendarPage() {
       return;
     }
 
-    console.log("Event cars aggiornate:", data);
     setEventCars(data || []);
   };
 
@@ -91,11 +88,7 @@ export default function CalendarPage() {
     setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
     setModalOpen(true);
     if (ev?.id) fetchEventCars(ev.id);
-    else {
-      setEventCars([]);
-      setEventTurns({});
-      setSelectedCarsForNewEvent([]);
-    }
+    else setEventCars([]);
   };
 
   // ==================== CREAZIONE / MODIFICA EVENTO ====================
@@ -111,14 +104,13 @@ export default function CalendarPage() {
 
     let eventId = editing?.id;
 
-    // 🔸 1. Creazione o aggiornamento evento
+    // 🔸 Creazione evento
     if (editing) {
       const { error } = await supabase.from("events").update(payload).eq("id", editing.id);
       if (error) {
         alert("Errore aggiornamento evento: " + error.message);
         return;
       }
-      alert("Evento aggiornato!");
     } else {
       const { data, error } = await supabase.from("events").insert([payload]).select("id").single();
       if (error) {
@@ -126,34 +118,18 @@ export default function CalendarPage() {
         return;
       }
       eventId = data.id;
-      alert("Evento creato!");
     }
 
-    // 🔸 2. Associazione auto selezionate
-    if (selectedCarsForNewEvent.length > 0 && eventId) {
-      const records = selectedCarsForNewEvent.map((carId) => ({
-        event_id: eventId,
-        car_id: carId,
-        status: "in_corso",
-      }));
-
-      const { error } = await supabase.from("event_cars").insert(records);
-      if (error) {
-        alert("Errore aggiunta auto: " + error.message);
-        return;
-      }
-    }
-
-    // 🔸 3. Refresh lista eventi
+    // 🔸 Refresh lista eventi
     await fetchEvents();
     setModalOpen(false);
-    setSelectedCarsForNewEvent([]);
   };
 
-  // ==================== AGGIUNTA AUTO A EVENTO ESISTENTE ====================
+  // ==================== AGGIUNTA AUTO ====================
   const handleAddCarToEvent = async () => {
-    if (!editing?.id) {
-      alert("Errore: evento non valido");
+    const currentEventId = editing?.id;
+    if (!currentEventId) {
+      alert("L'evento deve essere salvato prima di aggiungere auto.");
       return;
     }
     if (!selectedCarId) {
@@ -163,14 +139,13 @@ export default function CalendarPage() {
 
     const { error } = await supabase
       .from("event_cars")
-      .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
+      .insert([{ event_id: currentEventId, car_id: selectedCarId, status: "in_corso" }]);
 
     if (error) {
       alert("Errore durante l’aggiunta: " + error.message);
     } else {
-      alert("Auto aggiunta correttamente!");
+      await fetchEventCars(currentEventId);
       setSelectedCarId("");
-      await fetchEventCars(editing.id);
     }
   };
 
@@ -186,7 +161,7 @@ export default function CalendarPage() {
     }
   };
 
-  // ==================== RENDER PRINCIPALE ====================
+  // ==================== RENDER ====================
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -297,38 +272,6 @@ export default function CalendarPage() {
                   ➕
                 </button>
               </div>
-
-              {/* ✅ Checkbox per auto coinvolte */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Auto coinvolte
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border rounded-lg p-3 bg-gray-50">
-                  {cars.map((car) => (
-                    <label key={car.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedCarsForNewEvent.includes(car.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCarsForNewEvent([...selectedCarsForNewEvent, car.id]);
-                          } else {
-                            setSelectedCarsForNewEvent(
-                              selectedCarsForNewEvent.filter((id) => id !== car.id)
-                            );
-                          }
-                        }}
-                        className="scale-110 accent-yellow-500"
-                      />
-                      <span className="text-sm text-gray-800">{car.name}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Seleziona una o più auto da collegare all’evento
-                </p>
-              </div>
-
               <textarea
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
@@ -337,43 +280,41 @@ export default function CalendarPage() {
               />
             </form>
 
-            {/* Sezione gestione auto (solo se evento già creato) */}
-            {editing?.id && (
-              <div className="mt-6">
-                <h3 className="text-lg font-bold mb-3">Auto aggiuntive</h3>
-                <div className="flex items-center gap-2 mb-3">
-                  <select
-                    value={selectedCarId}
-                    onChange={(e) => setSelectedCarId(e.target.value)}
-                    className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
-                  >
-                    <option value="">— Seleziona auto —</option>
-                    {cars.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAddCarToEvent}
-                    type="button"
-                    className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
-                  >
-                    Aggiungi
-                  </button>
-                </div>
-
-                {eventCars.length === 0 ? (
-                  <p className="text-gray-600">Nessuna auto collegata</p>
-                ) : (
-                  eventCars.map((ec) => (
-                    <div key={ec.id} className="border rounded-lg p-3 mb-4">
-                      <h4 className="font-semibold mb-2">{ec.car_id?.name || "Auto non trovata"}</h4>
-                    </div>
-                  ))
-                )}
+            {/* Sezione gestione auto */}
+            <div className="mt-6">
+              <h3 className="text-lg font-bold mb-3">Auto associate</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <select
+                  value={selectedCarId}
+                  onChange={(e) => setSelectedCarId(e.target.value)}
+                  className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
+                >
+                  <option value="">— Seleziona auto —</option>
+                  {cars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddCarToEvent}
+                  type="button"
+                  className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-sm font-semibold"
+                >
+                  Aggiungi
+                </button>
               </div>
-            )}
+
+              {eventCars.length === 0 ? (
+                <p className="text-gray-600">Nessuna auto collegata</p>
+              ) : (
+                eventCars.map((ec) => (
+                  <div key={ec.id} className="border rounded-lg p-3 mb-4">
+                    <h4 className="font-semibold mb-2">{ec.car_id?.name || "Auto non trovata"}</h4>
+                  </div>
+                ))
+              )}
+            </div>
 
             {/* Bottoni finali */}
             <div className="flex justify-end gap-3 mt-6">
