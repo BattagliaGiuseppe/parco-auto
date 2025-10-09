@@ -95,7 +95,7 @@ export default function EventCarPage() {
       event_car_id: eventCarId,
       pressure_front: setup.pressure_front || null,
       pressure_rear: setup.pressure_rear || null,
-      height: setup.height || null,
+      ride_height: setup.ride_height || null,
       camber_front: setup.camber_front || null,
       camber_rear: setup.camber_rear || null,
       wing_angle: setup.wing_angle || null,
@@ -120,10 +120,10 @@ export default function EventCarPage() {
   const handleSaveFuel = async () => {
     const { error } = await supabase.from("event_car_fuel").upsert({
       event_car_id: eventCarId,
-      initial: fuel.initial || null,
-      consumption: fuel.consumption || null,
-      remaining: fuel.remaining || null,
-      refuel: fuel.refuel || null,
+      fuel_start: fuel.fuel_start || null,
+      fuel_consumption: fuel.fuel_consumption || null,
+      fuel_remaining: fuel.fuel_remaining || null,
+      fuel_to_add: fuel.fuel_to_add || null,
     });
     if (error) alert("Errore salvataggio carburante: " + error.message);
     else showToast("Carburante aggiornato ✅");
@@ -195,8 +195,8 @@ export default function EventCarPage() {
           <input
             type="number"
             placeholder="Altezza (mm)"
-            value={setup.height || ""}
-            onChange={(e) => setSetup({ ...setup, height: e.target.value })}
+            value={setup.ride_height || ""}
+            onChange={(e) => setSetup({ ...setup, ride_height: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
@@ -287,29 +287,29 @@ export default function EventCarPage() {
           <input
             type="number"
             placeholder="Benzina iniziale (L)"
-            value={fuel.initial || ""}
-            onChange={(e) => setFuel({ ...fuel, initial: e.target.value })}
+            value={fuel.fuel_start || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_start: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
             type="number"
             placeholder="Consumo (L/h)"
-            value={fuel.consumption || ""}
-            onChange={(e) => setFuel({ ...fuel, consumption: e.target.value })}
+            value={fuel.fuel_consumption || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_consumption: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
             type="number"
             placeholder="Benzina restante (L)"
-            value={fuel.remaining || ""}
-            onChange={(e) => setFuel({ ...fuel, remaining: e.target.value })}
+            value={fuel.fuel_remaining || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_remaining: e.target.value })}
             className="border rounded-lg p-2"
           />
           <input
             type="number"
             placeholder="Benzina da fare (L)"
-            value={fuel.refuel || ""}
-            onChange={(e) => setFuel({ ...fuel, refuel: e.target.value })}
+            value={fuel.fuel_to_add || ""}
+            onChange={(e) => setFuel({ ...fuel, fuel_to_add: e.target.value })}
             className="border rounded-lg p-2"
           />
         </div>
