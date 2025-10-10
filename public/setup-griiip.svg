@@ -1,0 +1,216 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="1280" height="900" viewBox="0 0 1280 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b0b0b"></stop>
+      <stop offset="100%" stop-color="#111317"></stop>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="blur"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+    <style>
+      .panel { fill: #0f1115; stroke: #2a2f3a; stroke-width: 2; }
+      .title { fill: #ffd600; font: 700 18px 'Arial', sans-serif; letter-spacing: .5px; }
+      .label { fill: #9aa4b2; font: 600 13px 'Arial', sans-serif; }
+      .val   { fill: #e6edf3; font: 700 18px 'Arial', sans-serif; }
+      .pill  { fill: #0b0c0f; stroke: #404652; stroke-width: 1.5; rx: 8; ry: 8; }
+      .click { cursor: pointer; }
+    </style>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="900" fill="url(#bg)"></rect>
+
+  <!-- HEADER -->
+  <g transform="translate(20,20)">
+    <rect width="1240" height="60" rx="12" class="panel"></rect>
+    <text x="32" y="40" class="title">Setup — Racing Sim (metric) · Griiip</text>
+    <text x="1000" y="40" class="label">Width: 1800 mm · Wheelbase: 2500 mm</text>
+  </g>
+
+  <!-- LAYOUT: Front (top), Rear (bottom), Aero & Brakes (right) -->
+  <!-- FRONT PANEL -->
+  <g transform="translate(20,100)">
+    <rect width="820" height="330" rx="16" class="panel"></rect>
+    <text x="24" y="36" class="title">Front</text>
+
+    <!-- FL block -->
+    <g transform="translate(24,60)">
+      <rect width="380" height="250" class="pill"></rect>
+      <text x="16" y="28" class="label">Front Left (FL)</text>
+
+      <!-- Pressure -->
+      <g class="click" data-key="front.fl.pressure" transform="translate(16,50)">
+        <text class="label">Pressure</text>
+        <text x="220" class="val">bar</text>
+      </g>
+      <!-- Camber -->
+      <g class="click" data-key="front.fl.camber" transform="translate(16,90)">
+        <text class="label">Camber</text>
+        <text x="220" class="val">°</text>
+      </g>
+      <!-- Toe -->
+      <g class="click" data-key="front.fl.toe" transform="translate(16,130)">
+        <text class="label">Toe</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <!-- Ride Height -->
+      <g class="click" data-key="front.fl.ride_height" transform="translate(16,170)">
+        <text class="label">Ride Height</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <!-- Spring -->
+      <g class="click" data-key="front.fl.spring_rate" transform="translate(16,210)">
+        <text class="label">Spring</text>
+        <text x="220" class="val">N/mm</text>
+      </g>
+    </g>
+
+    <!-- FR block -->
+    <g transform="translate(416,60)">
+      <rect width="380" height="250" class="pill"></rect>
+      <text x="16" y="28" class="label">Front Right (FR)</text>
+
+      <g class="click" data-key="front.fr.pressure" transform="translate(16,50)">
+        <text class="label">Pressure</text>
+        <text x="220" class="val">bar</text>
+      </g>
+      <g class="click" data-key="front.fr.camber" transform="translate(16,90)">
+        <text class="label">Camber</text>
+        <text x="220" class="val">°</text>
+      </g>
+      <g class="click" data-key="front.fr.toe" transform="translate(16,130)">
+        <text class="label">Toe</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="front.fr.ride_height" transform="translate(16,170)">
+        <text class="label">Ride Height</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="front.fr.spring_rate" transform="translate(16,210)">
+        <text class="label">Spring</text>
+        <text x="220" class="val">N/mm</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- REAR PANEL -->
+  <g transform="translate(20,450)">
+    <rect width="820" height="330" rx="16" class="panel"></rect>
+    <text x="24" y="36" class="title">Rear</text>
+
+    <!-- RL -->
+    <g transform="translate(24,60)">
+      <rect width="380" height="250" class="pill"></rect>
+      <text x="16" y="28" class="label">Rear Left (RL)</text>
+
+      <g class="click" data-key="rear.rl.pressure" transform="translate(16,50)">
+        <text class="label">Pressure</text>
+        <text x="220" class="val">bar</text>
+      </g>
+      <g class="click" data-key="rear.rl.camber" transform="translate(16,90)">
+        <text class="label">Camber</text>
+        <text x="220" class="val">°</text>
+      </g>
+      <g class="click" data-key="rear.rl.toe" transform="translate(16,130)">
+        <text class="label">Toe</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="rear.rl.ride_height" transform="translate(16,170)">
+        <text class="label">Ride Height</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="rear.rl.spring_rate" transform="translate(16,210)">
+        <text class="label">Spring</text>
+        <text x="220" class="val">N/mm</text>
+      </g>
+    </g>
+
+    <!-- RR -->
+    <g transform="translate(416,60)">
+      <rect width="380" height="250" class="pill"></rect>
+      <text x="16" y="28" class="label">Rear Right (RR)</text>
+
+      <g class="click" data-key="rear.rr.pressure" transform="translate(16,50)">
+        <text class="label">Pressure</text>
+        <text x="220" class="val">bar</text>
+      </g>
+      <g class="click" data-key="rear.rr.camber" transform="translate(16,90)">
+        <text class="label">Camber</text>
+        <text x="220" class="val">°</text>
+      </g>
+      <g class="click" data-key="rear.rr.toe" transform="translate(16,130)">
+        <text class="label">Toe</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="rear.rr.ride_height" transform="translate(16,170)">
+        <text class="label">Ride Height</text>
+        <text x="220" class="val">mm</text>
+      </g>
+      <g class="click" data-key="rear.rr.spring_rate" transform="translate(16,210)">
+        <text class="label">Spring</text>
+        <text x="220" class="val">N/mm</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- RIGHT COLUMN: Aero, Brakes, Diff -->
+  <g transform="translate(860,100)">
+    <!-- Aero -->
+    <g>
+      <rect width="400" height="190" rx="16" class="panel"></rect>
+      <text x="16" y="32" class="title">Aero</text>
+
+      <g class="click" data-key="aero.front_flap" transform="translate(16,56)">
+        <text class="label">Front flap</text>
+        <text x="280" class="val">°</text>
+      </g>
+      <g class="click" data-key="aero.rear_wing" transform="translate(16,96)">
+        <text class="label">Rear wing</text>
+        <text x="280" class="val">°</text>
+      </g>
+      <g class="click" data-key="aero.rake" transform="translate(16,136)">
+        <text class="label">Rake</text>
+        <text x="280" class="val">mm</text>
+      </g>
+    </g>
+
+    <!-- Brakes -->
+    <g transform="translate(0,210)">
+      <rect width="400" height="170" rx="16" class="panel"></rect>
+      <text x="16" y="32" class="title">Brakes</text>
+
+      <g class="click" data-key="brakes.bias" transform="translate(16,56)">
+        <text class="label">Brake bias</text>
+        <text x="280" class="val">%</text>
+      </g>
+      <g class="click" data-key="brakes.duct" transform="translate(16,96)">
+        <text class="label">Duct opening</text>
+        <text x="280" class="val">%</text>
+      </g>
+    </g>
+
+    <!-- Diff -->
+    <g transform="translate(0,400)">
+      <rect width="400" height="190" rx="16" class="panel"></rect>
+      <text x="16" y="32" class="title">Differential</text>
+
+      <g class="click" data-key="rear.diff_power" transform="translate(16,56)">
+        <text class="label">Power</text>
+        <text x="280" class="val">%</text>
+      </g>
+      <g class="click" data-key="rear.diff_coast" transform="translate(16,96)">
+        <text class="label">Coast</text>
+        <text x="280" class="val">%</text>
+      </g>
+      <g class="click" data-key="rear.diff_preload" transform="translate(16,136)">
+        <text class="label">Preload</text>
+        <text x="280" class="val">Nm</text>
+      </g>
+    </g>
+  </g>
+</svg>
