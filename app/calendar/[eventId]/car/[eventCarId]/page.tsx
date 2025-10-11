@@ -14,6 +14,10 @@ import {
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
+// ✅ Importa i due setup esistenti
+import SetupPanel from "./setup";         // touch UI
+import SetupRacing from "./setup-racing"; // interattivo SVG
+
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function EventCarPage() {
@@ -26,6 +30,7 @@ export default function EventCarPage() {
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
+  const [tab, setTab] = useState<"touch" | "racing">("touch"); // 👈 per commutare tra setup
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,19 +83,43 @@ export default function EventCarPage() {
         </Link>
       </div>
 
-      {/* Sezione Assetto (interattiva) */}
+      {/* Sezione Setup */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
           <Gauge className="text-yellow-500" /> Assetto
         </h2>
 
-        <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-gray-200">
-          <iframe
-            src="/setup-g1-interactive.html"
-            className="w-full h-full rounded-xl"
-            style={{ border: "none" }}
-            allowFullScreen
-          ></iframe>
+        {/* Tabs per i due tipi di setup */}
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={() => setTab("touch")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "touch"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Touch
+          </button>
+          <button
+            onClick={() => setTab("racing")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "racing"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Interattivo
+          </button>
+        </div>
+
+        {/* Contenuto dinamico */}
+        <div className="transition-all duration-300">
+          {tab === "touch" ? (
+            <SetupPanel eventCarId={eventCarId} />
+          ) : (
+            <SetupRacing eventCarId={eventCarId} />
+          )}
         </div>
       </section>
 
