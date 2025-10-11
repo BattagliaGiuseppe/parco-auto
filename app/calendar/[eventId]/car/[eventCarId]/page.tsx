@@ -18,7 +18,6 @@ import { Audiowide } from "next/font/google";
 import SetupPanel from "./setup";         // touch UI
 import SetupRacing from "./setup-racing"; // interattivo SVG
 import SetupScheda from "./setup-scheda";
-
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function EventCarPage() {
