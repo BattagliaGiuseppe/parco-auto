@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  Wrench,
   Gauge,
   Fuel,
   ClipboardCheck,
@@ -14,10 +13,11 @@ import {
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
-// ✅ Importa i due setup esistenti
-import SetupPanel from "./setup";         // touch UI
-import SetupRacing from "./setup-racing"; // interattivo SVG
-import SetupScheda from "./setup-scheda";
+// ✅ Importa i tre setup
+import SetupPanel from "./setup";          // touch UI
+import SetupRacing from "./setup-racing";  // interattivo SVG
+import SetupScheda from "./setup-scheda";  // scheda tecnica grafica
+
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function EventCarPage() {
@@ -30,7 +30,7 @@ export default function EventCarPage() {
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
-  const [tab, setTab] = useState<"touch" | "racing">("touch"); // 👈 per commutare tra setup
+  const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,8 +89,8 @@ export default function EventCarPage() {
           <Gauge className="text-yellow-500" /> Assetto
         </h2>
 
-        {/* Tabs per i due tipi di setup */}
-        <div className="flex gap-3 mb-4">
+        {/* Tabs per i tre tipi di setup */}
+        <div className="flex flex-wrap gap-3 mb-4">
           <button
             onClick={() => setTab("touch")}
             className={`px-4 py-2 rounded-lg font-semibold ${
@@ -101,6 +101,7 @@ export default function EventCarPage() {
           >
             Setup Touch
           </button>
+
           <button
             onClick={() => setTab("racing")}
             className={`px-4 py-2 rounded-lg font-semibold ${
@@ -111,15 +112,24 @@ export default function EventCarPage() {
           >
             Setup Interattivo
           </button>
+
+          <button
+            onClick={() => setTab("scheda")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "scheda"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Scheda Tecnica
+          </button>
         </div>
 
         {/* Contenuto dinamico */}
         <div className="transition-all duration-300">
-          {tab === "touch" ? (
-            <SetupPanel eventCarId={eventCarId} />
-          ) : (
-            <SetupRacing eventCarId={eventCarId} />
-          )}
+          {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
+          {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
+          {tab === "scheda" && <SetupScheda />}
         </div>
       </section>
 
