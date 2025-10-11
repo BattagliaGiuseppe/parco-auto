@@ -1,304 +1,212 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 export default function SetupScheda() {
-  const [layout, setLayout] = useState<"affiancato" | "verticale">("affiancato");
-  const [data, setData] = useState({
-    date: "",
-    autodromo: "",
-    telaio: "",
-    // Aerodinamica
-    posizione: "",
-    gradi: "",
-    ala: "",
-    flap: "",
-    pesoAnt: "",
-    pesoPost: "",
-    // Anteriore
-    camberAntDeg: "",
-    camberAntMm: "",
-    toeOutMm: "",
-    toeOutDeg: "",
-    pressioneAnt: "",
-    antirollAnt: "",
-    altezzaStaggiaAnt: "",
-    altezzaSuoloAnt: "",
-    mollaAnt: "",
-    precaricoAnt: "",
-    idraulicaAnt: "",
-    // Posteriore
-    camberPostDeg: "",
-    camberPostMm: "",
-    toeInMm: "",
-    toeInDeg: "",
-    pressionePost: "",
-    antirollPost: "",
-    altezzaStaggiaPost: "",
-    altezzaSuoloPost: "",
-    mollaPost: "",
-    precaricoPost: "",
-    idraulicaPost: "",
-    pesoPostSx: "",
-    pesoPostDx: "",
-    // Finali
-    beam: "",
-    main: "",
-    ripartitore: "",
-    rake: "",
-    note: "",
-  });
+  const [setup, setSetup] = useState<any>({});
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setData((prev) => ({ ...prev, [name]: value }));
+    setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div className="p-6 bg-white border rounded-xl shadow-sm flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-800 uppercase">
-          Setup Griiip G1 — Scheda Tecnica
-        </h1>
-        <button
-          onClick={() =>
-            setLayout(layout === "affiancato" ? "verticale" : "affiancato")
-          }
-          className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg"
-        >
-          {layout === "affiancato"
-            ? "🟨 Layout Verticale"
-            : "🟦 Layout Affiancato"}
-        </button>
-      </div>
+    <div className="p-4 flex flex-col items-center gap-6 bg-white text-gray-800">
+      <h1 className="text-2xl font-bold text-center uppercase">
+        Setup Griiip G1 — Scheda Tecnica
+      </h1>
 
-      {/* Intestazione */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm text-gray-700">Data</label>
-          <input
-            type="text"
-            name="date"
-            value={data.date}
-            onChange={handleChange}
-            className="w-full border rounded-md p-2"
+      {/* --- GRIGLIA PRINCIPALE 3x2 --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+
+        {/* ---------- ZONA 2: ANTERIORE SX ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <Image
+            src="/in-alto-a-sinistra.png"
+            alt="in alto sinistra"
+            width={220}
+            height={100}
+            className="mb-2"
+          />
+          <ZoneBox title="Anteriore SX" fields={[
+            { name: "pesoAntSx", label: "Peso", unit: "Kg" },
+            { name: "camberAntSxDeg", label: "Camber", unit: "°" },
+            { name: "camberAntSxMm", label: "Camber", unit: "mm" },
+            { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
+            { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
+            { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
+            { name: "antirollAntSx", label: "Antirollio" },
+            { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
+            { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
+            { name: "mollaAntSx", label: "Molla", unit: "Lbs" },
+            { name: "precaricoAntSx", label: "Precarico", unit: "giri" },
+            { name: "idraulicaAntSx", label: "Idraulica", unit: "click" },
+          ]} handleChange={handleChange} setup={setup} />
+          <Image
+            src="/in-basso-a-sinistra.png"
+            alt="in basso sinistra"
+            width={220}
+            height={100}
+            className="mt-2"
           />
         </div>
-        <div>
-          <label className="block text-sm text-gray-700">Autodromo</label>
-          <input
-            type="text"
-            name="autodromo"
-            value={data.autodromo}
-            onChange={handleChange}
-            className="w-full border rounded-md p-2"
+
+        {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <Image
+            src="/in-alto-al-centro.png"
+            alt="in alto centro"
+            width={220}
+            height={100}
+            className="mb-2"
+          />
+          <ZoneBox title="Ala Anteriore" fields={[
+            { name: "posizioneAlaAnt", label: "Posizione", unit: "°" },
+            { name: "gradiAlaAnt", label: "Gradi", unit: "°" },
+            { name: "alaAnt", label: "Ala", unit: "°" },
+            { name: "flapAnt", label: "Flap", unit: "°" },
+            { name: "pesoAlaAntSx", label: "Peso SX", unit: "Kg" },
+            { name: "pesoAlaAntDx", label: "Peso DX", unit: "Kg" },
+          ]} handleChange={handleChange} setup={setup} />
+        </div>
+
+        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <Image
+            src="/in-alto-a-destra.png"
+            alt="in alto destra"
+            width={220}
+            height={100}
+            className="mb-2"
+          />
+          <ZoneBox title="Anteriore DX" fields={[
+            { name: "pesoAntDx", label: "Peso", unit: "Kg" },
+            { name: "camberAntDxDeg", label: "Camber", unit: "°" },
+            { name: "camberAntDxMm", label: "Camber", unit: "mm" },
+            { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
+            { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
+            { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
+            { name: "antirollAntDx", label: "Antirollio" },
+            { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
+            { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
+            { name: "mollaAntDx", label: "Molla", unit: "Lbs" },
+            { name: "precaricoAntDx", label: "Precarico", unit: "giri" },
+            { name: "idraulicaAntDx", label: "Idraulica", unit: "click" },
+          ]} handleChange={handleChange} setup={setup} />
+        </div>
+
+        {/* ---------- ZONA 4: POSTERIORE SX ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <ZoneBox title="Posteriore SX" fields={[
+            { name: "pesoPostSx", label: "Peso", unit: "Kg" },
+            { name: "camberPostSxDeg", label: "Camber", unit: "°" },
+            { name: "camberPostSxMm", label: "Camber", unit: "mm" },
+            { name: "toeInSxMm", label: "Toe in", unit: "mm" },
+            { name: "toeInSxDeg", label: "Toe in", unit: "°" },
+            { name: "pressionePostSx", label: "Pressione a freddo", unit: "bar" },
+            { name: "antirollPostSx", label: "Antirollio" },
+            { name: "altezzaStaggiaPostSx", label: "Altezza a staggia", unit: "mm" },
+            { name: "altezzaSuoloPostSx", label: "Altezza da suolo", unit: "mm" },
+            { name: "mollaPostSx", label: "Molla", unit: "Lbs" },
+            { name: "precaricoPostSx", label: "Precarico", unit: "giri" },
+            { name: "idraulicaPostSx", label: "Idraulica", unit: "click" },
+          ]} handleChange={handleChange} setup={setup} />
+        </div>
+
+        {/* ---------- ZONA 5: ALA POSTERIORE ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <Image
+            src="/macchina-al-centro.png"
+            alt="macchina"
+            width={400}
+            height={400}
+            className="my-4"
+          />
+          <ZoneBox title="Ala Posteriore" fields={[
+            { name: "posizioneAlaPost", label: "Posizione", unit: "°" },
+            { name: "gradiAlaPost", label: "Gradi", unit: "°" },
+            { name: "beam", label: "Beam", unit: "°" },
+            { name: "main", label: "Main", unit: "°" },
+          ]} handleChange={handleChange} setup={setup} />
+        </div>
+
+        {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
+        <div className="flex flex-col items-center gap-2">
+          <ZoneBox title="Posteriore DX" fields={[
+            { name: "pesoPostDx", label: "Peso", unit: "Kg" },
+            { name: "camberPostDxDeg", label: "Camber", unit: "°" },
+            { name: "camberPostDxMm", label: "Camber", unit: "mm" },
+            { name: "toeInDxMm", label: "Toe in", unit: "mm" },
+            { name: "toeInDxDeg", label: "Toe in", unit: "°" },
+            { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
+            { name: "antirollPostDx", label: "Antirollio" },
+            { name: "altezzaStaggiaPostDx", label: "Altezza a staggia", unit: "mm" },
+            { name: "altezzaSuoloPostDx", label: "Altezza da suolo", unit: "mm" },
+            { name: "mollaPostDx", label: "Molla", unit: "Lbs" },
+            { name: "precaricoPostDx", label: "Precarico", unit: "giri" },
+            { name: "idraulicaPostDx", label: "Idraulica", unit: "click" },
+          ]} handleChange={handleChange} setup={setup} />
+          <Image
+            src="/in-basso-a-destra.png"
+            alt="in basso destra"
+            width={220}
+            height={100}
+            className="mt-2"
           />
         </div>
-        <div>
-          <label className="block text-sm text-gray-700">Telaio</label>
-          <input
-            type="text"
-            name="telaio"
-            value={data.telaio}
-            onChange={handleChange}
-            className="w-full border rounded-md p-2"
-          />
-        </div>
       </div>
 
-      {/* Aerodinamica */}
-      <div className="border rounded-lg p-4">
-        <h2 className="font-semibold text-gray-800 mb-3">Aerodinamica</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InputField label="Posizione" name="posizione" unit="°" value={data.posizione} onChange={handleChange} />
-          <InputField label="Gradi" name="gradi" unit="°" value={data.gradi} onChange={handleChange} />
-          <InputField label="Ala" name="ala" unit="°" value={data.ala} onChange={handleChange} />
-          <InputField label="Flap" name="flap" unit="°" value={data.flap} onChange={handleChange} />
+      {/* ---------- MINI SEZIONE RIPARTITORE / RAKE ---------- */}
+      <div className="border rounded-lg p-3 mt-4 w-full max-w-sm">
+        <h3 className="font-semibold mb-2">Ripartizione e Rake</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
+          <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <InputField label="Peso Ant." name="pesoAnt" unit="Kg" value={data.pesoAnt} onChange={handleChange} />
-          <InputField label="Peso Post." name="pesoPost" unit="Kg" value={data.pesoPost} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* Layout dinamico */}
-      <div
-        className={
-          layout === "affiancato"
-            ? "grid grid-cols-1 md:grid-cols-2 gap-6"
-            : "flex flex-col gap-6"
-        }
-      >
-        {/* Sezione Anteriore */}
-        <SectionSetup
-          title="Anteriore"
-          data={data}
-          onChange={handleChange}
-          prefix="Ant"
-        />
-
-        {/* Sezione Posteriore */}
-        <SectionSetup
-          title="Posteriore"
-          data={data}
-          onChange={handleChange}
-          prefix="Post"
-        />
-      </div>
-
-      {/* Sezione finale */}
-      <div className="border rounded-lg p-4">
-        <h3 className="font-semibold text-gray-800 mb-3">Parametri finali</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InputField label="Beam" name="beam" value={data.beam} onChange={handleChange} />
-          <InputField label="Main" name="main" value={data.main} onChange={handleChange} />
-          <InputField label="Ripartitore" name="ripartitore" unit="%" value={data.ripartitore} onChange={handleChange} />
-          <InputField label="Rake" name="rake" unit="°" value={data.rake} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* Note */}
-      <div className="border rounded-lg p-4">
-        <h3 className="font-semibold text-gray-800 mb-3">Note</h3>
-        <textarea
-          name="note"
-          value={data.note}
-          onChange={handleChange}
-          rows={3}
-          className="w-full border rounded-md p-2"
-          placeholder="Annotazioni, sensazioni pilota, modifiche..."
-        />
       </div>
     </div>
   );
 }
 
-/* ------------------------- COMPONENTI ------------------------- */
+/* ---------- COMPONENTI ---------- */
 
-function SectionSetup({
-  title,
-  data,
-  onChange,
-  prefix,
-}: {
-  title: string;
-  data: any;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  prefix: "Ant" | "Post";
-}) {
-  const isAnt = prefix === "Ant";
-
+function ZoneBox({ title, fields, handleChange, setup }: any) {
   return (
-    <div className="border rounded-lg p-4">
-      <h3 className="font-semibold text-gray-800 mb-3">{title}</h3>
-      <div className="grid grid-cols-2 gap-3">
-        <InputField
-          label="Camber"
-          name={`camber${prefix}Deg`}
-          unit="°"
-          value={data[`camber${prefix}Deg`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Camber"
-          name={`camber${prefix}Mm`}
-          unit="mm"
-          value={data[`camber${prefix}Mm`]}
-          onChange={onChange}
-        />
-        <InputField
-          label={isAnt ? "Toe out" : "Toe in"}
-          name={`toe${prefix === "Ant" ? "Out" : "In"}Mm`}
-          unit="mm"
-          value={data[`toe${prefix === "Ant" ? "Out" : "In"}Mm`]}
-          onChange={onChange}
-        />
-        <InputField
-          label={isAnt ? "Toe out" : "Toe in"}
-          name={`toe${prefix === "Ant" ? "Out" : "In"}Deg`}
-          unit="°"
-          value={data[`toe${prefix === "Ant" ? "Out" : "In"}Deg`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Pressione a freddo"
-          name={`pressione${prefix}`}
-          unit="bar"
-          value={data[`pressione${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Antirollio"
-          name={`antiroll${prefix}`}
-          value={data[`antiroll${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Altezza a staggia"
-          name={`altezzaStaggia${prefix}`}
-          unit="mm"
-          value={data[`altezzaStaggia${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Altezza da suolo"
-          name={`altezzaSuolo${prefix}`}
-          unit="mm"
-          value={data[`altezzaSuolo${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Molla"
-          name={`molla${prefix}`}
-          unit="Lbs"
-          value={data[`molla${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Precarico"
-          name={`precarico${prefix}`}
-          unit="giri"
-          value={data[`precarico${prefix}`]}
-          onChange={onChange}
-        />
-        <InputField
-          label="Idraulica"
-          name={`idraulica${prefix}`}
-          unit="click"
-          value={data[`idraulica${prefix}`]}
-          onChange={onChange}
-        />
+    <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
+      <h3 className="font-semibold text-center mb-2">{title}</h3>
+      <div className="grid grid-cols-2 gap-1">
+        {fields.map((f: any) => (
+          <div key={f.name} className="flex items-center gap-1">
+            <label className="text-xs text-gray-600 w-24">{f.label}</label>
+            <input
+              type="text"
+              name={f.name}
+              value={setup[f.name] || ""}
+              onChange={handleChange}
+              className="border rounded px-1 py-0.5 text-sm w-20"
+            />
+            {f.unit && <span className="text-xs text-gray-500">{f.unit}</span>}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function InputField({
-  label,
-  name,
-  unit,
-  value,
-  onChange,
-}: {
-  label: string;
-  name: string;
-  unit?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}) {
+function InputShort({ label, name, unit, handleChange, setup }: any) {
   return (
-    <div className="flex flex-col">
-      <label className="text-sm text-gray-700">{label}</label>
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col text-sm">
+      <label className="text-xs text-gray-600">{label}</label>
+      <div className="flex items-center gap-1">
         <input
           type="text"
           name={name}
-          value={value}
-          onChange={onChange}
-          className="flex-1 border rounded-md p-2"
+          value={setup[name] || ""}
+          onChange={handleChange}
+          className="border rounded px-1 py-1 w-24"
         />
-        {unit && <span className="text-gray-500 text-sm">{unit}</span>}
+        {unit && <span className="text-xs text-gray-500">{unit}</span>}
       </div>
     </div>
   );
