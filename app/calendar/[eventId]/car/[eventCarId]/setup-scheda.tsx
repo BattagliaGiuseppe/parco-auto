@@ -20,14 +20,25 @@ export default function SetupScheda() {
       {/* --- GRIGLIA 3x2 --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
 
-        {/* ---------- ZONA 2: ANTERIORE SX ---------- */}
+        {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
         <div className="flex flex-col items-center gap-3">
+          {/* Mini tabella Data / Autodromo / Telaio */}
+          <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
+            <h3 className="font-semibold text-center mb-1">Info Generali</h3>
+            <div className="flex flex-col gap-1">
+              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
+              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
+              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
+            </div>
+          </div>
+
           <Image
             src="/in-alto-a-sinistra.png"
             alt="in alto sinistra"
             width={220}
             height={100}
           />
+
           <ZoneBox
             title="Anteriore SX"
             fields={[
@@ -54,8 +65,8 @@ export default function SetupScheda() {
           <Image
             src="/in-alto-al-centro.png"
             alt="in alto centro"
-            width={240}
-            height={110}
+            width={320} // ingrandita
+            height={140}
           />
           <ZoneBox
             title="Ala Anteriore"
@@ -73,7 +84,7 @@ export default function SetupScheda() {
         </div>
 
         {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 justify-end">
           <Image
             src="/in-alto-a-destra.png"
             alt="in alto destra"
@@ -101,7 +112,7 @@ export default function SetupScheda() {
           />
         </div>
 
-        {/* ---------- ZONA 4: POSTERIORE SX ---------- */}
+        {/* ---------- ZONA 4: POSTERIORE SX + immagine + Rake ---------- */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore SX"
@@ -128,7 +139,7 @@ export default function SetupScheda() {
             width={220}
             height={100}
           />
-          <div className="border rounded-lg p-2 mt-2 w-full text-sm bg-gray-50">
+          <div className="border rounded-lg p-2 mt-1 w-full text-sm bg-gray-50">
             <h3 className="font-semibold text-center mb-2">
               Ripartizione e Rake
             </h3>
@@ -151,14 +162,14 @@ export default function SetupScheda() {
           </div>
         </div>
 
-        {/* ---------- ZONA 5: ALA POSTERIORE ---------- */}
+        {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
         <div className="flex flex-col items-center gap-3">
-          <div className="my-2">
+          <div className="my-1">
             <Image
               src="/macchina-al-centro.png"
               alt="macchina"
-              width={350}
-              height={350}
+              width={460} // ingrandita +1/3
+              height={460}
               className="mx-auto"
             />
           </div>
@@ -199,8 +210,8 @@ export default function SetupScheda() {
           <Image
             src="/in-basso-a-destra.png"
             alt="in basso destra"
-            width={220}
-            height={100}
+            width={300} // ingrandita
+            height={130}
           />
         </div>
       </div>
