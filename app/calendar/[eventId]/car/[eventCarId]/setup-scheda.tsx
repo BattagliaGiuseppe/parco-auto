@@ -361,4 +361,28 @@ function WingTable({ title, rows, setup, onChange }: any) {
   return (
     <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
       <h3 className="font-semibold mb-2">{title}</h3>
-      <
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr>
+            <th></th>
+            <th className="border px-2 py-1">Posizione</th>
+            <th className="border px-2 py-1">Gradi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r: any) => (
+            <tr key={r.label}>
+              <td className="border px-2 py-1 text-left">{r.label}</td>
+              <td className="border px-2 py-1">
+                <input type="text" name={r.pos} value={setup[r.pos] || ""} onChange={onChange} className="w-20 border rounded px-1" />
+              </td>
+              <td className="border px-2 py-1">
+                <input type="text" name={r.gradi} value={setup[r.gradi] || ""} onChange={onChange} className="w-20 border rounded px-1" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
