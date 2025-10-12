@@ -72,12 +72,17 @@ body {
     display: none !important;
   }
 
-  /* Rimuove ombre, sfondi e colori non necessari */
+  /* Rimuove ombre e sfondi solo dal body principale */
   body,
-  main,
+  main {
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Mantiene struttura griglia e proporzioni */
   section,
   div {
-    background: white !important;
+    background: transparent !important;
     box-shadow: none !important;
   }
 
@@ -94,7 +99,7 @@ body {
     display: none !important;
   }
 
-  /* Migliora la resa dei colori e blocca l’adattamento */
+  /* Migliora resa colori e evita tagli */
   html,
   body {
     -webkit-print-color-adjust: exact !important;
