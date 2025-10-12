@@ -101,10 +101,6 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      <h1 className="text-2xl font-bold text-center uppercase">
-        Setup Griiip G1 — Scheda Tecnica
-      </h1>
-
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
         {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
