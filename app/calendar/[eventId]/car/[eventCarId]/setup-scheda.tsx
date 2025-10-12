@@ -99,21 +99,10 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       <h1 className="text-2xl font-bold text-center uppercase">Setup Griiip G1 — Scheda Tecnica</h1>
 
       {/* --- GRIGLIA PRINCIPALE --- */}
-      <div
-        className="grid mx-auto text-sm"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "280px 460px 280px",
-          gridTemplateRows: "auto auto",
-          columnGap: "1.5rem",
-          rowGap: "1.5rem",
-          justifyContent: "center",
-          alignItems: "start",
-          textAlign: "center",
-        }}
-      >
+      <div className="scheda-grid mx-auto text-sm">
+
         {/* ---------- ANTERIORE SX ---------- */}
-        <div className="flex flex-col items-center gap-2 w-[280px]">
+        <div>
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-1">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
@@ -129,7 +118,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               { name: "camberAntSxMm", label: "Camber", unit: "mm" },
               { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
               { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
-              { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
+              { name: "pressioneAntSx", label: "Pressione", unit: "bar" },
               { name: "antirollAntSx", label: "Antirollio" },
               { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
               { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
@@ -143,7 +132,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
 
         {/* ---------- CENTRO ALTO: ALA ANT + MACCHINA ---------- */}
-        <div className="flex flex-col items-center gap-3 w-[460px]">
+        <div>
           <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={140} />
           <WingTable
             title="Ala Anteriore"
@@ -164,7 +153,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
 
         {/* ---------- ANTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-2 w-[280px]">
+        <div>
           <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
           <ZoneBox
             title="Anteriore DX"
@@ -174,7 +163,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               { name: "camberAntDxMm", label: "Camber", unit: "mm" },
               { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
               { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
-              { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
+              { name: "pressioneAntDx", label: "Pressione", unit: "bar" },
               { name: "antirollAntDx", label: "Antirollio" },
               { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
               { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
@@ -188,7 +177,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
 
         {/* ---------- POSTERIORE SX ---------- */}
-        <div className="flex flex-col items-center gap-2 w-[280px]">
+        <div>
           <ZoneBox
             title="Posteriore SX"
             fields={[
@@ -197,7 +186,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               { name: "camberPostSxMm", label: "Camber", unit: "mm" },
               { name: "toeInSxMm", label: "Toe in", unit: "mm" },
               { name: "toeInSxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostSx", label: "Pressione a freddo", unit: "bar" },
+              { name: "pressionePostSx", label: "Pressione", unit: "bar" },
               { name: "antirollPostSx", label: "Antirollio" },
               { name: "altezzaStaggiaPostSx", label: "Altezza a staggia", unit: "mm" },
               { name: "altezzaSuoloPostSx", label: "Altezza da suolo", unit: "mm" },
@@ -217,7 +206,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
 
         {/* ---------- CENTRO BASSO: ALA POST ---------- */}
-        <div className="flex flex-col items-center gap-3 w-[460px]">
+        <div>
           <WingTable
             title="Ala Posteriore"
             rows={[
@@ -230,7 +219,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
 
         {/* ---------- POSTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-2 w-[280px]">
+        <div>
           <ZoneBox
             title="Posteriore DX"
             fields={[
@@ -239,7 +228,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               { name: "camberPostDxMm", label: "Camber", unit: "mm" },
               { name: "toeInDxMm", label: "Toe in", unit: "mm" },
               { name: "toeInDxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
+              { name: "pressionePostDx", label: "Pressione", unit: "bar" },
               { name: "antirollPostDx", label: "Antirollio" },
               { name: "altezzaStaggiaPostDx", label: "Altezza a staggia", unit: "mm" },
               { name: "altezzaSuoloPostDx", label: "Altezza da suolo", unit: "mm" },
@@ -267,34 +256,33 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* ULTIMI 5 SALVATAGGI */}
-      <div className="max-w-6xl w-full mx-auto border-t pt-3 mt-4 print:hidden">
-        <h3 className="font-semibold mb-2 text-gray-800">🕓 Ultimi salvataggi</h3>
-        {history.length === 0 ? (
-          <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {history.map((h) => (
-              <li
-                key={h.id}
-                className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
-                onClick={() => loadHistory(h)}
-              >
-                <span>{new Date(h.created_at).toLocaleString()}</span>
-                <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
+      {/* STILI DI STAMPA */}
       <style jsx global>{`
+        .scheda-grid {
+          display: grid;
+          grid-template-columns: 280px 440px 280px;
+          grid-template-rows: auto auto;
+          justify-content: center;
+          align-items: start;
+          column-gap: 1.5rem;
+          row-gap: 1.5rem;
+        }
+        .scheda-grid > div {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .scheda-grid img {
+          max-width: 100%;
+          height: auto !important;
+          object-fit: contain;
+        }
         @media print {
           @page {
             size: A4 portrait;
             margin: 1.2cm;
           }
-          aside, nav, footer, button, .max-w-6xl.border-t.pt-3 {
+          aside, nav, footer, button {
             display: none !important;
           }
           body, main, div {
@@ -302,13 +290,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             box-shadow: none !important;
           }
           .print-container {
-            width: 100% !important;
             max-width: 19cm !important;
             margin: 0 auto !important;
-          }
-          html, body {
-            -webkit-print-color-adjust: exact !important;
-            overflow: hidden !important;
           }
         }
       `}</style>
