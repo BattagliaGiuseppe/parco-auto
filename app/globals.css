@@ -2,32 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------- */
+/*  STILI BASE DEL PROGETTO  */
+/* ------------------------- */
+
 @layer base {
   body {
     @apply bg-gray-100 text-gray-900 font-sans;
   }
 }
 
+/* Variabili di colore */
 :root {
   --color-primary: #d4af37; /* Oro */
   --color-primary-dark: #b58e2f;
-}
-
-.btn-primary {
-  @apply bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold px-4 py-2 rounded-lg transition;
-}
-:root {
   --racing-gold: #FFD700;
   --racing-gold-dark: #E6C200;
   --racing-gray: #1F1F1F;
 }
 
+/* Sfondo generale */
 body {
   background-color: #f9f9f9;
   color: #1F1F1F;
 }
 
-/* Bottoni principali */
+/* ------------------------- */
+/*  BOTTONI                 */
+/* ------------------------- */
+
 .btn-primary {
   background-color: var(--racing-gold);
   color: white;
@@ -36,30 +39,44 @@ body {
   font-weight: bold;
   transition: background 0.2s;
 }
+
 .btn-primary:hover {
   background-color: var(--racing-gold-dark);
 }
 
-/* Card */
+/* ------------------------- */
+/*  CARD BASE               */
+/* ------------------------- */
+
 .card {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
 }
+
+/* ------------------------- */
+/*  MEDIA QUERY: STAMPA      */
+/* ------------------------- */
+
 @media print {
-  /* Nasconde la sidebar e il pulsante hamburger */
-  aside, button[aria-label="Apri menu"] {
+  /* Nasconde sidebar e pulsante menu */
+  aside,
+  button[aria-label="Apri menu"] {
     display: none !important;
   }
 
-  /* Rimuove ombre, bordi e sfondi */
-  body, main, section, div {
+  /* Rimuove ombre, sfondi e colori non necessari */
+  body,
+  main,
+  section,
+  div {
     background: white !important;
     box-shadow: none !important;
   }
@@ -71,8 +88,17 @@ body {
     max-width: 1100px !important;
   }
 
-  /* Nasconde tutto ciò che non serve alla stampa */
-  nav, footer {
+  /* Nasconde elementi non rilevanti per la stampa */
+  nav,
+  footer {
     display: none !important;
+  }
+
+  /* Migliora la resa dei colori e blocca l’adattamento */
+  html,
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
   }
 }
