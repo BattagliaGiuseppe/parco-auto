@@ -102,154 +102,166 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       </div>
 
       {/* --- GRIGLIA PRINCIPALE --- */}
-      <div className="grid grid-cols-3 grid-rows-[auto_auto] gap-x-10 gap-y-6 w-full max-w-6xl mx-auto text-sm items-start justify-items-center">
-        {/* ===== RIGA 1 ===== */}
-        {/* Anteriore SX */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
-            <h3 className="font-semibold text-center mb-1">Info Generali</h3>
-            <div className="flex flex-col gap-1">
-              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
-              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
-            </div>
-          </div>
+    {/* --- GRIGLIA PRINCIPALE --- */}
+<div
+  className="grid gap-6 w-full max-w-6xl mx-auto text-sm"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gridTemplateRows: "auto auto",
+    gridTemplateAreas: `
+      'antSx centro antDx'
+      'postSx centro2 postDx'
+    `,
+    alignItems: "start",
+    justifyItems: "center",
+    columnGap: "2.5rem",
+    rowGap: "2rem",
+  }}
+>
 
-          <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
-
-          <ZoneBox
-            title="Anteriore SX"
-            singleColumn
-            fields={[
-              { name: "pesoAntSx", label: "Peso", unit: "Kg" },
-              { name: "camberAntSxDeg", label: "Camber", unit: "°" },
-              { name: "camberAntSxMm", label: "Camber", unit: "mm" },
-              { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
-              { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
-              { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollAntSx", label: "Antirollio" },
-              { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaAntSx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoAntSx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaAntSx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-        </div>
-
-        {/* Ala Anteriore + Macchina */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} />
-          <WingTable
-            title="Ala Anteriore"
-            rows={[
-              { label: "Ala", pos: "alaAntPosizione", gradi: "alaAntGradi" },
-              { label: "Flap", pos: "flapAntPosizione", gradi: "flapAntGradi" },
-            ]}
-            setup={setup}
-            onChange={handleChange}
-          />
-          <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto -mt-6" />
-        </div>
-
-        {/* Anteriore DX */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
-          <ZoneBox
-            title="Anteriore DX"
-            singleColumn
-            fields={[
-              { name: "pesoAntDx", label: "Peso", unit: "Kg" },
-              { name: "camberAntDxDeg", label: "Camber", unit: "°" },
-              { name: "camberAntDxMm", label: "Camber", unit: "mm" },
-              { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
-              { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
-              { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollAntDx", label: "Antirollio" },
-              { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaAntDx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoAntDx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaAntDx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-        </div>
-
-        {/* ===== RIGA 2 ===== */}
-        {/* Posteriore SX */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <ZoneBox
-            title="Posteriore SX"
-            singleColumn
-            fields={[
-              { name: "pesoPostSx", label: "Peso", unit: "Kg" },
-              { name: "camberPostSxDeg", label: "Camber", unit: "°" },
-              { name: "camberPostSxMm", label: "Camber", unit: "mm" },
-              { name: "toeInSxMm", label: "Toe in", unit: "mm" },
-              { name: "toeInSxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostSx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollPostSx", label: "Antirollio" },
-              { name: "altezzaStaggiaPostSx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloPostSx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaPostSx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoPostSx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaPostSx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-          <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
-          <div className="border rounded-lg p-2 mt-1 w-full text-sm bg-gray-50">
-            <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
-            <div className="flex flex-col gap-2 items-center">
-              <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
-              <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
-            </div>
-          </div>
-        </div>
-
-        {/* Ala Posteriore */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <WingTable
-            title="Ala Posteriore"
-            rows={[
-              { label: "Beam", pos: "beamPosizione", gradi: "beamGradi" },
-              { label: "Main", pos: "mainPosizione", gradi: "mainGradi" },
-            ]}
-            setup={setup}
-            onChange={handleChange}
-          />
-        </div>
-
-        {/* Posteriore DX */}
-        <div className="flex flex-col items-center gap-3 justify-start">
-          <ZoneBox
-            title="Posteriore DX"
-            singleColumn
-            fields={[
-              { name: "pesoPostDx", label: "Peso", unit: "Kg" },
-              { name: "camberPostDxDeg", label: "Camber", unit: "°" },
-              { name: "camberPostDxMm", label: "Camber", unit: "mm" },
-              { name: "toeInDxMm", label: "Toe in", unit: "mm" },
-              { name: "toeInDxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollPostDx", label: "Antirollio" },
-              { name: "altezzaStaggiaPostDx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloPostDx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaPostDx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoPostDx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaPostDx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-          <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
-        </div>
+  {/* ---------- ZONA 2: ANTERIORE SX ---------- */}
+  <div style={{ gridArea: "antSx" }} className="flex flex-col items-center gap-3">
+    <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
+      <h3 className="font-semibold text-center mb-1">Info Generali</h3>
+      <div className="flex flex-col gap-1">
+        <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
+        <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
+        <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
       </div>
+    </div>
+
+    <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
+    <ZoneBox
+      title="Anteriore SX"
+      singleColumn
+      fields={[
+        { name: "pesoAntSx", label: "Peso", unit: "Kg" },
+        { name: "camberAntSxDeg", label: "Camber", unit: "°" },
+        { name: "camberAntSxMm", label: "Camber", unit: "mm" },
+        { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
+        { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
+        { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
+        { name: "antirollAntSx", label: "Antirollio" },
+        { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
+        { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
+        { name: "mollaAntSx", label: "Molla", unit: "Lbs" },
+        { name: "precaricoAntSx", label: "Precarico", unit: "giri" },
+        { name: "idraulicaAntSx", label: "Idraulica", unit: "click" },
+      ]}
+      handleChange={handleChange}
+      setup={setup}
+    />
+  </div>
+
+  {/* ---------- ZONA CENTRO (Ala Ant + Macchina) ---------- */}
+  <div style={{ gridArea: "centro" }} className="flex flex-col items-center gap-3">
+    <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} />
+    <WingTable
+      title="Ala Anteriore"
+      rows={[
+        { label: "Ala", pos: "alaAntPosizione", gradi: "alaAntGradi" },
+        { label: "Flap", pos: "flapAntPosizione", gradi: "flapAntGradi" },
+      ]}
+      setup={setup}
+      onChange={handleChange}
+    />
+    <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto -mt-6" />
+  </div>
+
+  {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
+  <div style={{ gridArea: "antDx" }} className="flex flex-col items-center gap-3">
+    <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
+    <ZoneBox
+      title="Anteriore DX"
+      singleColumn
+      fields={[
+        { name: "pesoAntDx", label: "Peso", unit: "Kg" },
+        { name: "camberAntDxDeg", label: "Camber", unit: "°" },
+        { name: "camberAntDxMm", label: "Camber", unit: "mm" },
+        { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
+        { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
+        { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
+        { name: "antirollAntDx", label: "Antirollio" },
+        { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
+        { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
+        { name: "mollaAntDx", label: "Molla", unit: "Lbs" },
+        { name: "precaricoAntDx", label: "Precarico", unit: "giri" },
+        { name: "idraulicaAntDx", label: "Idraulica", unit: "click" },
+      ]}
+      handleChange={handleChange}
+      setup={setup}
+    />
+  </div>
+
+  {/* ---------- ZONA 4: POSTERIORE SX ---------- */}
+  <div style={{ gridArea: "postSx" }} className="flex flex-col items-center gap-3">
+    <ZoneBox
+      title="Posteriore SX"
+      singleColumn
+      fields={[
+        { name: "pesoPostSx", label: "Peso", unit: "Kg" },
+        { name: "camberPostSxDeg", label: "Camber", unit: "°" },
+        { name: "camberPostSxMm", label: "Camber", unit: "mm" },
+        { name: "toeInSxMm", label: "Toe in", unit: "mm" },
+        { name: "toeInSxDeg", label: "Toe in", unit: "°" },
+        { name: "pressionePostSx", label: "Pressione a freddo", unit: "bar" },
+        { name: "antirollPostSx", label: "Antirollio" },
+        { name: "altezzaStaggiaPostSx", label: "Altezza a staggia", unit: "mm" },
+        { name: "altezzaSuoloPostSx", label: "Altezza da suolo", unit: "mm" },
+        { name: "mollaPostSx", label: "Molla", unit: "Lbs" },
+        { name: "precaricoPostSx", label: "Precarico", unit: "giri" },
+        { name: "idraulicaPostSx", label: "Idraulica", unit: "click" },
+      ]}
+      handleChange={handleChange}
+      setup={setup}
+    />
+    <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
+  </div>
+
+  {/* ---------- ZONA CENTRO2 (Ala Post + Ripartizione) ---------- */}
+  <div style={{ gridArea: "centro2" }} className="flex flex-col items-center gap-3">
+    <WingTable
+      title="Ala Posteriore"
+      rows={[
+        { label: "Beam", pos: "beamPosizione", gradi: "beamGradi" },
+        { label: "Main", pos: "mainPosizione", gradi: "mainGradi" },
+      ]}
+      setup={setup}
+      onChange={handleChange}
+    />
+    <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
+      <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
+      <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
+      <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
+    </div>
+  </div>
+
+  {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
+  <div style={{ gridArea: "postDx" }} className="flex flex-col items-center gap-3">
+    <ZoneBox
+      title="Posteriore DX"
+      singleColumn
+      fields={[
+        { name: "pesoPostDx", label: "Peso", unit: "Kg" },
+        { name: "camberPostDxDeg", label: "Camber", unit: "°" },
+        { name: "camberPostDxMm", label: "Camber", unit: "mm" },
+        { name: "toeInDxMm", label: "Toe in", unit: "mm" },
+        { name: "toeInDxDeg", label: "Toe in", unit: "°" },
+        { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
+        { name: "antirollPostDx", label: "Antirollio" },
+        { name: "altezzaStaggiaPostDx", label: "Altezza a staggia", unit: "mm" },
+        { name: "altezzaSuoloPostDx", label: "Altezza da suolo", unit: "mm" },
+        { name: "mollaPostDx", label: "Molla", unit: "Lbs" },
+        { name: "precaricoPostDx", label: "Precarico", unit: "giri" },
+        { name: "idraulicaPostDx", label: "Idraulica", unit: "click" },
+      ]}
+      handleChange={handleChange}
+      setup={setup}
+    />
+    <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
+  </div>
+</div>
 
       {/* ---------- NOTE ---------- */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
