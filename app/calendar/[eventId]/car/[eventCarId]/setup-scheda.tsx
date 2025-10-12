@@ -102,10 +102,10 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       </div>
 
       {/* --- GRIGLIA PRINCIPALE --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-        {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
-        <div className="flex flex-col items-center gap-3">
-          {/* Info Generali */}
+      <div className="grid grid-cols-3 grid-rows-[auto_auto] gap-x-10 gap-y-6 w-full max-w-6xl mx-auto text-sm items-start justify-items-center">
+        {/* ===== RIGA 1 ===== */}
+        {/* Anteriore SX */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
@@ -139,8 +139,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
-        <div className="flex flex-col items-center gap-3">
+        {/* Ala Anteriore + Macchina */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} />
           <WingTable
             title="Ala Anteriore"
@@ -151,11 +151,11 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
             onChange={handleChange}
           />
-         <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
+          <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto -mt-6" />
         </div>
 
-        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-3 justify-end">
+        {/* Anteriore DX */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
           <ZoneBox
             title="Anteriore DX"
@@ -179,8 +179,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 4: POSTERIORE SX + Rake ---------- */}
-        <div className="flex flex-col items-center gap-3">
+        {/* ===== RIGA 2 ===== */}
+        {/* Posteriore SX */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <ZoneBox
             title="Posteriore SX"
             singleColumn
@@ -211,8 +212,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           </div>
         </div>
 
-        {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
-        <div className="flex flex-col items-center gap-3 relative">
+        {/* Ala Posteriore */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <WingTable
             title="Ala Posteriore"
             rows={[
@@ -224,8 +225,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-3">
+        {/* Posteriore DX */}
+        <div className="flex flex-col items-center gap-3 justify-start">
           <ZoneBox
             title="Posteriore DX"
             singleColumn
@@ -351,20 +352,4 @@ function WingTable({ title, rows, setup, onChange }: any) {
             <th className="border px-2 py-1">Gradi</th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map((r: any) => (
-            <tr key={r.label}>
-              <td className="border px-2 py-1 text-left">{r.label}</td>
-              <td className="border px-2 py-1">
-                <input type="text" name={r.pos} value={setup[r.pos] || ""} onChange={onChange} className="w-20 border rounded px-1" />
-              </td>
-              <td className="border px-2 py-1">
-                <input type="text" name={r.gradi} value={setup[r.gradi] || ""} onChange={onChange} className="w-20 border rounded px-1" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+        <
