@@ -59,8 +59,8 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`z-50 md:static fixed top-0 left-0 h-full w-64 bg-black text-yellow-500 flex flex-col shadow-2xl transform transition-transform
-        ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+        className={`z-50 lg:static fixed top-0 left-0 h-full w-64 bg-black text-yellow-500 flex flex-col shadow-2xl transform transition-transform
+  ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         {/* Logo */}
         <div className="flex flex-col items-center justify-center p-6 border-b border-yellow-500">
