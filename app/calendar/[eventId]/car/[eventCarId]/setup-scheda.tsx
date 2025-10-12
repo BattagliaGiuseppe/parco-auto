@@ -12,7 +12,6 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // 🔹 Carica dati correnti + ultimi 5 salvataggi
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -93,7 +92,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
       </div>
 
-      {/* LOGO visibile solo in stampa */}
+      {/* LOGO solo in stampa */}
       <div className="hidden print:flex justify-center mb-4">
         <Image
           src="/logo-stampa.png"
@@ -103,16 +102,12 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* --- GRIGLIA 3x2 --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto text-sm">
-        {/* ---------- ZONA 2: ANTERIORE SX ---------- */}
+      {/* ---- GRIGLIA STRUTTURATA 3x2 ---- */}
+      <div className="grid grid-cols-3 grid-rows-2 gap-6 w-full max-w-5xl mx-auto text-sm">
+        {/* ===== RIGA 1 ===== */}
+        {/* Anteriore SX */}
         <div className="flex flex-col items-center gap-3">
-          <Image
-            src="/in-alto-a-sinistra.png"
-            alt="in alto sinistra"
-            width={200}
-            height={100}
-          />
+          <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={200} height={100} />
           <ZoneBox
             title="Anteriore SX"
             fields={[
@@ -126,15 +121,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 1: ALA ANTERIORE + MACCHINA + ALA POSTERIORE ---------- */}
+        {/* Ala Anteriore + Macchina */}
         <div className="flex flex-col items-center gap-3">
-          {/* Ala Anteriore */}
-          <Image
-            src="/in-alto-al-centro.png"
-            alt="in alto centro"
-            width={360}
-            height={150}
-          />
+          <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={150} />
           <WingTable
             title="Ala Anteriore"
             row1Label="Ala"
@@ -146,35 +135,12 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
             onChange={handleChange}
           />
-          {/* Macchina */}
-          <Image
-            src="/macchina-al-centro.png"
-            alt="macchina"
-            width={460}
-            height={460}
-          />
-          {/* Ala Posteriore */}
-          <WingTable
-            title="Ala Posteriore"
-            row1Label="Beam"
-            row2Label="Main"
-            posName1="beamPosizione"
-            degName1="beamGradi"
-            posName2="mainPosizione"
-            degName2="mainGradi"
-            setup={setup}
-            onChange={handleChange}
-          />
+          <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} />
         </div>
 
-        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
+        {/* Anteriore DX */}
         <div className="flex flex-col items-center gap-3">
-          <Image
-            src="/in-alto-a-destra.png"
-            alt="in alto destra"
-            width={200}
-            height={100}
-          />
+          <Image src="/in-alto-a-destra.png" alt="in alto destra" width={200} height={100} />
           <ZoneBox
             title="Anteriore DX"
             fields={[
@@ -188,7 +154,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 4: POSTERIORE SX + Rake ---------- */}
+        {/* ===== RIGA 2 ===== */}
+        {/* Posteriore SX */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore SX"
@@ -201,32 +168,30 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             handleChange={handleChange}
             setup={setup}
           />
-          <Image
-            src="/in-basso-a-sinistra.png"
-            alt="in basso sinistra"
-            width={220}
-            height={100}
-          />
+          <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
             <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
-            <InputShort
-              label="Ripartitore"
-              name="ripartitore"
-              unit="%"
-              handleChange={handleChange}
-              setup={setup}
-            />
-            <InputShort
-              label="Rake"
-              name="rake"
-              unit="°"
-              handleChange={handleChange}
-              setup={setup}
-            />
+            <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
+            <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
           </div>
         </div>
 
-        {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
+        {/* Ala Posteriore */}
+        <div className="flex flex-col items-center gap-3">
+          <WingTable
+            title="Ala Posteriore"
+            row1Label="Beam"
+            row2Label="Main"
+            posName1="beamPosizione"
+            degName1="beamGradi"
+            posName2="mainPosizione"
+            degName2="mainGradi"
+            setup={setup}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Posteriore DX */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore DX"
@@ -239,12 +204,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             handleChange={handleChange}
             setup={setup}
           />
-          <Image
-            src="/in-basso-a-destra.png"
-            alt="in basso destra"
-            width={300}
-            height={130}
-          />
+          <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
       </div>
 
@@ -261,7 +221,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* ULTIMI 5 SALVATAGGI */}
+      {/* CRONOLOGIA */}
       <div className="max-w-5xl w-full mx-auto border-t pt-3 mt-4 print:hidden">
         <h3 className="font-semibold mb-2 text-gray-800">🕓 Ultimi salvataggi</h3>
         {history.length === 0 ? (
@@ -281,62 +241,18 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           </ul>
         )}
       </div>
-
-      {/* STILI DI STAMPA */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 1.5cm;
-          }
-          aside,
-          nav,
-          footer,
-          button,
-          .max-w-5xl.border-t.pt-3 {
-            display: none !important;
-          }
-          body,
-          main,
-          div {
-            background: white !important;
-            box-shadow: none !important;
-          }
-          .print-container {
-            margin: 0 auto !important;
-            width: 100% !important;
-            max-width: 19cm !important;
-          }
-          html,
-          body {
-            -webkit-print-color-adjust: exact !important;
-            page-break-inside: avoid !important;
-            overflow: hidden !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
-/* ------------------- COMPONENTI ------------------- */
+/* ---------------- COMPONENTI ---------------- */
 
-function ZoneBox({
-  title,
-  fields,
-  handleChange,
-  setup,
-}: {
-  title: string;
-  fields: { name: string; label: string; unit?: string }[];
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  setup: Record<string, any>;
-}) {
+function ZoneBox({ title, fields, handleChange, setup }: any) {
   return (
     <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
       <h3 className="font-semibold text-center mb-2">{title}</h3>
       <div className="flex flex-col gap-1">
-        {fields.map((f) => (
+        {fields.map((f: any) => (
           <div key={f.name} className="flex items-center gap-2">
             <label className="text-xs text-gray-600 w-28">{f.label}</label>
             <input
@@ -370,17 +286,7 @@ function InputShort({ label, name, unit, handleChange, setup }: any) {
   );
 }
 
-function WingTable({
-  title,
-  row1Label,
-  row2Label,
-  posName1,
-  degName1,
-  posName2,
-  degName2,
-  setup,
-  onChange,
-}: any) {
+function WingTable({ title, row1Label, row2Label, posName1, degName1, posName2, degName2, setup, onChange }: any) {
   return (
     <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
       <h3 className="font-semibold mb-2">{title}</h3>
@@ -396,43 +302,19 @@ function WingTable({
           <tr>
             <td className="border px-2 py-1 text-left">{row1Label}</td>
             <td className="border px-2 py-1">
-              <input
-                type="text"
-                name={posName1}
-                value={setup[posName1] || ""}
-                onChange={onChange}
-                className="border rounded px-1 w-14"
-              />
+              <input type="text" name={posName1} value={setup[posName1] || ""} onChange={onChange} className="border rounded px-1 w-14" />
             </td>
             <td className="border px-2 py-1">
-              <input
-                type="text"
-                name={degName1}
-                value={setup[degName1] || ""}
-                onChange={onChange}
-                className="border rounded px-1 w-14"
-              />
+              <input type="text" name={degName1} value={setup[degName1] || ""} onChange={onChange} className="border rounded px-1 w-14" />
             </td>
           </tr>
           <tr>
             <td className="border px-2 py-1 text-left">{row2Label}</td>
             <td className="border px-2 py-1">
-              <input
-                type="text"
-                name={posName2}
-                value={setup[posName2] || ""}
-                onChange={onChange}
-                className="border rounded px-1 w-14"
-              />
+              <input type="text" name={posName2} value={setup[posName2] || ""} onChange={onChange} className="border rounded px-1 w-14" />
             </td>
             <td className="border px-2 py-1">
-              <input
-                type="text"
-                name={degName2}
-                value={setup[degName2] || ""}
-                onChange={onChange}
-                className="border rounded px-1 w-14"
-              />
+              <input type="text" name={degName2} value={setup[degName2] || ""} onChange={onChange} className="border rounded px-1 w-14" />
             </td>
           </tr>
         </tbody>
