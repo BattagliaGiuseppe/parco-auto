@@ -129,7 +129,7 @@ export default function EventCarPage() {
         <div className="transition-all duration-300">
           {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
           {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
-          {tab === "scheda" && <SetupScheda />}
+          {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
         </div>
       </section>
 
