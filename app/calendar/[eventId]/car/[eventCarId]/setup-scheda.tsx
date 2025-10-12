@@ -151,6 +151,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
             onChange={handleChange}
           />
+         <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
         </div>
 
         {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
@@ -212,7 +213,6 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
         {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
         <div className="flex flex-col items-center gap-3 relative">
-          <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
           <WingTable
             title="Ala Posteriore"
             rows={[
