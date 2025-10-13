@@ -200,7 +200,7 @@ export default function SetupScheda() {
 
         {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
         <div className="flex flex-col items-center gap-3 relative">
-          <div className="relative -translate-y-[25%]">
+          <div className="relative -translate-y-[20%]">
             <Image
               src="/macchina-al-centro.png"
               alt="macchina"
