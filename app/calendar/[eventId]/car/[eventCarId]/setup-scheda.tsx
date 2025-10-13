@@ -68,7 +68,6 @@ export default function SetupScheda() {
             alt="in alto centro"
             width={360} // ingrandita
             height={160}
-            className="-mt-2 md:-mt-4"
             />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
             <h3 className="font-semibold mb-2">Ala Anteriore</h3>
