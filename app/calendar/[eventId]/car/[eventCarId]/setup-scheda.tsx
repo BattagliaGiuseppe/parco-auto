@@ -32,12 +32,7 @@ export default function SetupScheda() {
             </div>
           </div>
 
-          <Image
-            src="/in-alto-a-sinistra.png"
-            alt="in alto sinistra"
-            width={220}
-            height={100}
-          />
+          <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
 
           <ZoneBox
             title="Anteriore SX"
@@ -66,10 +61,10 @@ export default function SetupScheda() {
           <Image
             src="/in-alto-al-centro.png"
             alt="in alto centro"
-            width={360} // ingrandita
+            width={360}
             height={160}
             className="-mt-2 md:-mt-4"
-            />
+          />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
             <h3 className="font-semibold mb-2">Ala Anteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -84,47 +79,19 @@ export default function SetupScheda() {
                 <tr>
                   <td className="border px-2 py-1 text-left">Ala</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="alaAntPosizione"
-                      value={setup.alaAntPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="alaAntPosizione" value={setup.alaAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="alaAntGradi"
-                      value={setup.alaAntGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="alaAntGradi" value={setup.alaAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Flap</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="flapAntPosizione"
-                      value={setup.flapAntPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="flapAntPosizione" value={setup.flapAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="flapAntGradi"
-                      value={setup.flapAntGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="flapAntGradi" value={setup.flapAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                 </tr>
               </tbody>
@@ -134,12 +101,7 @@ export default function SetupScheda() {
 
         {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
         <div className="flex flex-col items-center gap-3 justify-end">
-          <Image
-            src="/in-alto-a-destra.png"
-            alt="in alto destra"
-            width={220}
-            height={100}
-          />
+          <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
           <ZoneBox
             title="Anteriore DX"
             singleColumn
@@ -184,12 +146,7 @@ export default function SetupScheda() {
             handleChange={handleChange}
             setup={setup}
           />
-          <Image
-            src="/in-basso-a-sinistra.png"
-            alt="in basso sinistra"
-            width={220}
-            height={100}
-          />
+          <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
           <div className="border rounded-lg p-2 mt-1 w-full text-sm bg-gray-50">
             <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
             <div className="flex flex-col gap-2 items-center">
@@ -202,13 +159,7 @@ export default function SetupScheda() {
         {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
         <div className="flex flex-col items-center gap-3 relative">
           <div className="relative -translate-y-[25%]">
-            <Image
-              src="/macchina-al-centro.png"
-              alt="macchina"
-              width={460}
-              height={460}
-              className="mx-auto"
-            />
+            <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
           </div>
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center -mt-8">
             <h3 className="font-semibold mb-2">Ala Posteriore</h3>
@@ -224,47 +175,19 @@ export default function SetupScheda() {
                 <tr>
                   <td className="border px-2 py-1 text-left">Beam</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="beamPosizione"
-                      value={setup.beamPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="beamPosizione" value={setup.beamPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="beamGradi"
-                      value={setup.beamGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="beamGradi" value={setup.beamGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Main</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="mainPosizione"
-                      value={setup.mainPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="mainPosizione" value={setup.mainPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="mainGradi"
-                      value={setup.mainGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />
-                    °
+                    <input type="text" name="mainGradi" value={setup.mainGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
                   </td>
                 </tr>
               </tbody>
@@ -294,12 +217,7 @@ export default function SetupScheda() {
             handleChange={handleChange}
             setup={setup}
           />
-          <Image
-            src="/in-basso-a-destra.png"
-            alt="in basso destra"
-            width={300}
-            height={130}
-          />
+          <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
       </div>
 
