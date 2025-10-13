@@ -17,10 +17,11 @@ export default function SetupScheda() {
         Setup Griiip G1 — Scheda Tecnica
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+      {/* --- GRIGLIA PRINCIPALE --- */}
+      <div className="grid grid-cols-1 md:grid-cols-[0.9fr_1.2fr_0.9fr] gap-4 w-full max-w-6xl">
 
-        {/* ---------- ZONA 2 ---------- */}
-        <div className="flex flex-col items-center gap-3">
+        {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
+        <div className="flex flex-col items-center gap-3 scale-[0.95] origin-top">
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
@@ -30,7 +31,7 @@ export default function SetupScheda() {
             </div>
           </div>
 
-          <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
+          <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={200} height={100} />
 
           <ZoneBox
             title="Anteriore SX"
@@ -54,15 +55,9 @@ export default function SetupScheda() {
           />
         </div>
 
-        {/* ---------- ZONA 1 (CENTRALE) ---------- */}
-        <div className="flex flex-col items-center gap-3 relative">
-          {/* Ala Anteriore */}
-          <Image
-            src="/in-alto-al-centro.png"
-            alt="in alto centro"
-            width={360}
-            height={160}
-          />
+        {/* ---------- ZONA 1: CENTRALE (ala + macchina + ala) ---------- */}
+        <div className="flex flex-col items-center gap-3">
+          <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
             <h3 className="font-semibold mb-2">Ala Anteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -77,61 +72,31 @@ export default function SetupScheda() {
                 <tr>
                   <td className="border px-2 py-1 text-left">Ala</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="alaAntPosizione"
-                      value={setup.alaAntPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="alaAntPosizione" value={setup.alaAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="alaAntGradi"
-                      value={setup.alaAntGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="alaAntGradi" value={setup.alaAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Flap</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="flapAntPosizione"
-                      value={setup.flapAntPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="flapAntPosizione" value={setup.flapAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="flapAntGradi"
-                      value={setup.flapAntGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="flapAntGradi" value={setup.flapAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Macchina rialzata */}
-          <div className="relative -mt-24">
-            <Image
-              src="/macchina-al-centro.png"
-              alt="macchina"
-              width={460}
-              height={460}
-              className="mx-auto"
-            />
+          {/* Macchina */}
+          <div className="relative">
+            <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
           </div>
 
-          {/* Ala Posteriore */}
+          {/* Ala posteriore */}
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center -mt-8">
             <h3 className="font-semibold mb-2">Ala Posteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -146,43 +111,19 @@ export default function SetupScheda() {
                 <tr>
                   <td className="border px-2 py-1 text-left">Beam</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="beamPosizione"
-                      value={setup.beamPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="beamPosizione" value={setup.beamPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="beamGradi"
-                      value={setup.beamGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="beamGradi" value={setup.beamGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Main</td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="mainPosizione"
-                      value={setup.mainPosizione || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="mainPosizione" value={setup.mainPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="text"
-                      name="mainGradi"
-                      value={setup.mainGradi || ""}
-                      onChange={handleChange}
-                      className="w-20 border rounded px-1"
-                    />°
+                    <input type="text" name="mainGradi" value={setup.mainGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />°
                   </td>
                 </tr>
               </tbody>
@@ -190,13 +131,50 @@ export default function SetupScheda() {
           </div>
         </div>
 
-        {/* Le altre zone (3, 4, 5, 6) restano identiche */}
+        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
+        <div className="flex flex-col items-center gap-3 scale-[0.95] origin-top">
+          <Image src="/in-alto-a-destra.png" alt="in alto destra" width={200} height={100} />
+          <ZoneBox
+            title="Anteriore DX"
+            singleColumn
+            fields={[
+              { name: "pesoAntDx", label: "Peso", unit: "Kg" },
+              { name: "camberAntDxDeg", label: "Camber", unit: "°" },
+              { name: "camberAntDxMm", label: "Camber", unit: "mm" },
+              { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
+              { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
+              { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
+              { name: "antirollAntDx", label: "Antirollio" },
+              { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
+              { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
+              { name: "mollaAntDx", label: "Molla", unit: "Lbs" },
+              { name: "precaricoAntDx", label: "Precarico", unit: "giri" },
+              { name: "idraulicaAntDx", label: "Idraulica", unit: "click" },
+            ]}
+            handleChange={handleChange}
+            setup={setup}
+          />
+        </div>
+      </div>
+
+      {/* NOTE */}
+      <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
+        <h3 className="font-semibold mb-2">Note</h3>
+        <textarea
+          name="note"
+          value={setup.note || ""}
+          onChange={handleChange}
+          rows={3}
+          className="w-full border rounded p-2 text-sm"
+          placeholder="Annotazioni, modifiche, sensazioni del pilota..."
+        />
       </div>
     </div>
   );
 }
 
-/* COMPONENTI */
+/* ---------- COMPONENTI ---------- */
+
 function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: any) {
   return (
     <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
