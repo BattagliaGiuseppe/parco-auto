@@ -202,21 +202,39 @@ function CheckupSection({ eventCarId }: { eventCarId: string }) {
   );
 }
 
+/* ------------------- TURNI SVOLTI ------------------- */
+
 function TurnsSection({ eventCarId }: { eventCarId: string }) {
   const [data, setData] = useState<any>({});
   const [history, setHistory] = useState<any[]>([]);
 
   async function saveToDB() {
-    const payload = { event_car_id: eventCarId, extras: data };
-    await supabase.from("event_car_turns").insert([payload]);
-    const { data: h } = await supabase
-      .from("event_car_turns")
-      .select("id, created_at, extras")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    setHistory(h || []);
-    alert("✅ Turni salvati");
+    try {
+      const payload = { event_car_id: eventCarId, extras: data };
+      await supabase.from("event_car_turns").insert([payload]);
+
+      // 🔁 Aggiorna ore lavoro componenti
+      if (data.ore && data.ore > 0) {
+        const { error } = await supabase.rpc("increment_component_hours", {
+          p_event_car_id: eventCarId,
+          p_hours: data.ore,
+        });
+        if (error) console.error("Errore aggiornamento ore:", error);
+      }
+
+      // Recupera ultimi 3 salvataggi
+      const { data: h } = await supabase
+        .from("event_car_turns")
+        .select("id, created_at, extras")
+        .eq("event_car_id", eventCarId)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setHistory(h || []);
+      alert("✅ Turno salvato e ore componenti aggiornate");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Errore durante il salvataggio turno");
+    }
   }
 
   return (
@@ -249,6 +267,8 @@ function TurnsSection({ eventCarId }: { eventCarId: string }) {
     </section>
   );
 }
+
+/* ------------------- GESTIONE CARBURANTE ------------------- */
 
 function FuelSection({ eventCarId }: { eventCarId: string }) {
   const [fuel, setFuel] = useState({
@@ -338,6 +358,8 @@ function FuelSection({ eventCarId }: { eventCarId: string }) {
     </section>
   );
 }
+
+/* ------------------- NOTE ------------------- */
 
 function NotesSection({
   eventCarId,
