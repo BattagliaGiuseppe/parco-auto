@@ -9,11 +9,13 @@ import {
   ClipboardCheck,
   StickyNote,
   Clock,
+  Save,
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
+// Setup Views
 import SetupPanel from "./setup";
 import SetupRacing from "./setup-racing";
 import SetupScheda from "./setup-scheda";
@@ -120,7 +122,7 @@ export default function EventCarPage() {
       {/* ------------------- TURNI SVOLTI ------------------- */}
       <TurnsSection eventCarId={eventCarId} />
 
-      {/* ------------------- GESTIONE CARBURANTE ------------------- */}
+      {/* ------------------- CARBURANTE ------------------- */}
       <FuelSection eventCarId={eventCarId} />
 
       {/* ------------------- NOTE ------------------- */}
@@ -129,7 +131,8 @@ export default function EventCarPage() {
   );
 }
 
-/* ------------------- CHECK-UP ------------------- */
+/* ------------------- SEZIONI ------------------- */
+
 function CheckupSection({ eventCarId }: { eventCarId: string }) {
   const [data, setData] = useState<any>({});
   const [history, setHistory] = useState<any[]>([]);
@@ -147,13 +150,16 @@ function CheckupSection({ eventCarId }: { eventCarId: string }) {
     alert("✅ Check-up salvato");
   }
 
+  function loadHistory(entry: any) {
+    if (confirm("Vuoi caricare questo check-up salvato?"))
+      setData(entry.extras);
+  }
+
   return (
     <section className="bg-white border rounded-xl shadow-sm p-5">
       <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
         <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
       </h2>
-
-      {/* Campi già presenti (non modificati) */}
       <div className="flex flex-col gap-2 mb-3">
         <input
           type="text"
@@ -172,7 +178,6 @@ function CheckupSection({ eventCarId }: { eventCarId: string }) {
           }
         />
       </div>
-
       <button
         onClick={saveToDB}
         className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
@@ -180,24 +185,23 @@ function CheckupSection({ eventCarId }: { eventCarId: string }) {
         💾 Salva
       </button>
 
-      {history.length > 0 && (
-        <div className="mt-3 border-t pt-2">
-          <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            >
-              <span>{new Date(h.created_at).toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-3 border-t pt-2">
+        <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
+        {history.map((h) => (
+          <div
+            key={h.id}
+            className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
+            onClick={() => loadHistory(h)}
+          >
+            <span>{new Date(h.created_at).toLocaleString()}</span>
+            <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
 
-/* ------------------- TURNI ------------------- */
 function TurnsSection({ eventCarId }: { eventCarId: string }) {
   const [data, setData] = useState<any>({});
   const [history, setHistory] = useState<any[]>([]);
@@ -205,16 +209,6 @@ function TurnsSection({ eventCarId }: { eventCarId: string }) {
   async function saveToDB() {
     const payload = { event_car_id: eventCarId, extras: data };
     await supabase.from("event_car_turns").insert([payload]);
-
-    // Aggiornamento automatico ore componenti
-    if (data.ore && data.ore > 0) {
-      const { error } = await supabase.rpc("increment_component_hours", {
-        p_event_car_id: eventCarId,
-        p_hours: data.ore,
-      });
-      if (error) console.error("Errore aggiornamento ore:", error);
-    }
-
     const { data: h } = await supabase
       .from("event_car_turns")
       .select("id, created_at, extras")
@@ -222,7 +216,7 @@ function TurnsSection({ eventCarId }: { eventCarId: string }) {
       .order("created_at", { ascending: false })
       .limit(3);
     setHistory(h || []);
-    alert("✅ Turno salvato e ore componenti aggiornate");
+    alert("✅ Turni salvati");
   }
 
   return (
@@ -230,7 +224,6 @@ function TurnsSection({ eventCarId }: { eventCarId: string }) {
       <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
         <Clock className="text-yellow-500" /> Turni svolti
       </h2>
-
       <div className="flex flex-col gap-2 mb-3">
         <input
           type="number"
@@ -247,32 +240,16 @@ function TurnsSection({ eventCarId }: { eventCarId: string }) {
           onChange={(e) => setData({ ...data, note: e.target.value })}
         />
       </div>
-
       <button
         onClick={saveToDB}
         className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
       >
         💾 Salva
       </button>
-
-      {history.length > 0 && (
-        <div className="mt-3 border-t pt-2">
-          <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            >
-              <span>{new Date(h.created_at).toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
 
-/* ------------------- CARBURANTE ------------------- */
 function FuelSection({ eventCarId }: { eventCarId: string }) {
   const [fuel, setFuel] = useState({
     start: 0,
@@ -284,8 +261,8 @@ function FuelSection({ eventCarId }: { eventCarId: string }) {
   const [history, setHistory] = useState<any[]>([]);
 
   const fuelToAdd =
-    fuel.lapsPlanned > 0 && fuel.fuelPerLap > 0
-      ? fuel.lapsPlanned * fuel.fuelPerLap - fuel.end
+    fuel.fuelPerLap > 0 && fuel.lapsPlanned > 0
+      ? fuel.fuelPerLap * fuel.lapsPlanned - fuel.end
       : 0;
 
   async function saveToDB() {
@@ -298,7 +275,7 @@ function FuelSection({ eventCarId }: { eventCarId: string }) {
       .order("created_at", { ascending: false })
       .limit(3);
     setHistory(h || []);
-    alert("✅ Dati carburante salvati");
+    alert("✅ Carburante salvato");
   }
 
   return (
@@ -307,7 +284,6 @@ function FuelSection({ eventCarId }: { eventCarId: string }) {
         <Fuel className="text-yellow-500" /> Gestione carburante
       </h2>
 
-      {/* Ordine richiesto: iniziale, residuo, giri, consumo, previsti, da aggiungere */}
       <div className="grid md:grid-cols-3 gap-3 mb-3">
         <input
           type="number"
@@ -359,25 +335,10 @@ function FuelSection({ eventCarId }: { eventCarId: string }) {
       >
         💾 Salva
       </button>
-
-      {history.length > 0 && (
-        <div className="mt-3 border-t pt-2">
-          <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            >
-              <span>{new Date(h.created_at).toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
 
-/* ------------------- NOTE ------------------- */
 function NotesSection({
   eventCarId,
   notes,
@@ -402,12 +363,16 @@ function NotesSection({
     alert("✅ Note salvate");
   }
 
+  function loadHistory(entry: any) {
+    if (confirm("Vuoi caricare queste note salvate?"))
+      setNotes(entry.extras.notes);
+  }
+
   return (
     <section className="bg-white border rounded-xl shadow-sm p-5">
       <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
         <StickyNote className="text-yellow-500" /> Note e osservazioni
       </h2>
-
       <textarea
         className="border rounded-lg p-2 w-full mb-3"
         rows={3}
@@ -415,7 +380,6 @@ function NotesSection({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
       />
-
       <button
         onClick={saveToDB}
         className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
@@ -423,19 +387,20 @@ function NotesSection({
         💾 Salva
       </button>
 
-      {history.length > 0 && (
-        <div className="mt-3 border-t pt-2">
-          <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            >
-              <span>{new Date(h.created_at).toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-3 border-t pt-2">
+        <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
+        {history.map((h) => (
+          <div
+            key={h.id}
+            className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
+            onClick={() => loadHistory(h)}
+          >
+            <span>{new Date(h.created_at).toLocaleString()}</span>
+            <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
+7
