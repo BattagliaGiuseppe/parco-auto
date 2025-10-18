@@ -8,14 +8,11 @@ import {
   Fuel,
   ClipboardCheck,
   StickyNote,
-  Clock,
-  Save,
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
-// Setup Views
 import SetupPanel from "./setup";
 import SetupRacing from "./setup-racing";
 import SetupScheda from "./setup-scheda";
@@ -34,9 +31,28 @@ export default function EventCarPage() {
   const [notes, setNotes] = useState("");
   const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
 
+  // Turni svolti
+  const [turns, setTurns] = useState<{ durata: number; giri: number; note: string }[]>([]);
+  const [newTurn, setNewTurn] = useState({ durata: "", giri: "", note: "" });
+  const [totalHours, setTotalHours] = useState(0);
+
+  // Carburante
+  const [fuelStart, setFuelStart] = useState(0);
+  const [fuelEnd, setFuelEnd] = useState(0);
+  const [lapsDone, setLapsDone] = useState(0);
+  const [lapsPlanned, setLapsPlanned] = useState(0);
+
+  const fuelPerLap =
+    lapsDone > 0 && fuelStart > 0 && fuelEnd >= 0
+      ? (fuelStart - fuelEnd) / lapsDone
+      : 0;
+
+  const fuelToAdd = fuelPerLap > 0 && lapsPlanned > 0 ? fuelPerLap * lapsPlanned : 0;
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+
       const { data: eventData } = await supabase
         .from("events")
         .select("id, name, date")
@@ -54,8 +70,35 @@ export default function EventCarPage() {
       setNotes(carData?.notes || "");
       setLoading(false);
     };
+
     fetchData();
   }, [eventId, eventCarId]);
+
+  // ➕ Aggiungi turno
+  async function addTurn() {
+    if (!newTurn.durata) return alert("Inserisci la durata del turno");
+    const turno = {
+      durata: Number(newTurn.durata),
+      giri: Number(newTurn.giri) || 0,
+      note: newTurn.note || "",
+    };
+    const updated = [...turns, turno];
+    setTurns(updated);
+
+    // Calcolo ore totali
+    const totalMin = updated.reduce((sum, t) => sum + t.durata, 0);
+    const oreTot = totalMin / 60;
+    setTotalHours(oreTot);
+
+    // Aggiorna ore componenti in Supabase
+    const oreTurno = Number(newTurn.durata) / 60;
+    await supabase.rpc("increment_component_hours", {
+      p_car_id: eventCarId,
+      p_hours: oreTurno,
+    });
+
+    setNewTurn({ durata: "", giri: "", note: "" });
+  }
 
   if (loading) return <p className="p-6 text-gray-600">Caricamento dati...</p>;
   if (!event || !car)
@@ -83,30 +126,43 @@ export default function EventCarPage() {
         </Link>
       </div>
 
-      {/* ------------------- SETUP ------------------- */}
+      {/* Sezione Setup */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
           <Gauge className="text-yellow-500" /> Assetto
         </h2>
 
         <div className="flex flex-wrap gap-3 mb-4">
-          {["touch", "racing", "scheda"].map((key) => (
-            <button
-              key={key}
-              onClick={() => setTab(key as any)}
-              className={`px-4 py-2 rounded-lg font-semibold ${
-                tab === key
-                  ? "bg-yellow-400 text-black"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {key === "touch"
-                ? "Setup Touch"
-                : key === "racing"
-                ? "Setup Interattivo"
-                : "Setup Scheda Tecnica"}
-            </button>
-          ))}
+          <button
+            onClick={() => setTab("touch")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "touch"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Touch
+          </button>
+          <button
+            onClick={() => setTab("racing")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "racing"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Interattivo
+          </button>
+          <button
+            onClick={() => setTab("scheda")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "scheda"
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Scheda Tecnica
+          </button>
         </div>
 
         <div className="transition-all duration-300">
@@ -116,291 +172,195 @@ export default function EventCarPage() {
         </div>
       </section>
 
-      {/* ------------------- CHECK-UP TECNICO ------------------- */}
-      <CheckupSection eventCarId={eventCarId} />
+      {/* 🧰 Check-up tecnico */}
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+          <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
+        </h2>
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-gray-50 text-gray-700">
+              <th className="border p-2 text-left">Controllo</th>
+              <th className="border p-2 text-center">Stato</th>
+            </tr>
+          </thead>
+          <tbody>
+            {["Serraggi", "Freni", "Liquidi", "Sospensioni", "Elettronica", "Ruote", "Cambio"].map((item) => (
+              <tr key={item}>
+                <td className="border p-2">{item}</td>
+                <td className="border p-2 text-center">
+                  <select className="border rounded-lg p-1 text-sm">
+                    <option>OK</option>
+                    <option>Da controllare</option>
+                    <option>Problema</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-      {/* ------------------- TURNI SVOLTI ------------------- */}
-      <TurnsSection eventCarId={eventCarId} />
+      {/* 🕓 Turni Svolti */}
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+          🕓 Turni Svolti
+        </h2>
 
-      {/* ------------------- CARBURANTE ------------------- */}
-      <FuelSection eventCarId={eventCarId} />
+        <table className="w-full text-sm border-collapse mb-4">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="border p-2">#</th>
+              <th className="border p-2">Durata (min)</th>
+              <th className="border p-2">Giri</th>
+              <th className="border p-2">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {turns.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center text-gray-400 p-3">
+                  Nessun turno registrato
+                </td>
+              </tr>
+            ) : (
+              turns.map((t, i) => (
+                <tr key={i}>
+                  <td className="border p-2 text-center">{i + 1}</td>
+                  <td className="border p-2 text-center">{t.durata}</td>
+                  <td className="border p-2 text-center">{t.giri}</td>
+                  <td className="border p-2">{t.note}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
 
-      {/* ------------------- NOTE ------------------- */}
-      <NotesSection eventCarId={eventCarId} notes={notes} setNotes={setNotes} />
+        <div className="text-right text-gray-700 font-semibold mb-4">
+          Totale ore lavoro:{" "}
+          <span className="text-yellow-600 font-bold">{totalHours.toFixed(2)} h</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <input
+            type="number"
+            placeholder="Durata (min)"
+            value={newTurn.durata}
+            onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
+            className="border rounded-lg p-2 text-sm"
+          />
+          <input
+            type="number"
+            placeholder="Giri"
+            value={newTurn.giri}
+            onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
+            className="border rounded-lg p-2 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Note"
+            value={newTurn.note}
+            onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
+            className="border rounded-lg p-2 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={addTurn}
+          className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg"
+        >
+          ➕ Aggiungi Turno
+        </button>
+      </section>
+
+      {/* ⛽ Gestione carburante */}
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+          <Fuel className="text-yellow-500" /> Gestione carburante
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Carburante iniziale (L)
+            </label>
+            <input
+              type="number"
+              value={fuelStart}
+              onChange={(e) => setFuelStart(Number(e.target.value))}
+              className="border rounded-lg p-2 w-full text-center"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Carburante residuo (L)
+            </label>
+            <input
+              type="number"
+              value={fuelEnd}
+              onChange={(e) => setFuelEnd(Number(e.target.value))}
+              className="border rounded-lg p-2 w-full text-center"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Giri effettuati
+            </label>
+            <input
+              type="number"
+              value={lapsDone}
+              onChange={(e) => setLapsDone(Number(e.target.value))}
+              className="border rounded-lg p-2 w-full text-center"
+            />
+          </div>
+        </div>
+
+        <hr className="my-3 border-gray-300" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Consumo medio a giro (L/giro)
+            </label>
+            <div className="border rounded-lg p-2 bg-gray-50 text-center font-semibold">
+              {fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Giri previsti prossimo turno
+            </label>
+            <input
+              type="number"
+              value={lapsPlanned}
+              onChange={(e) => setLapsPlanned(Number(e.target.value))}
+              className="border rounded-lg p-2 w-full text-center"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Carburante da aggiungere (L)
+            </label>
+            <div className="rounded-lg p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
+              {fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 🗒️ Note */}
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+          <StickyNote className="text-yellow-500" /> Note e osservazioni
+        </h2>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
+          className="border rounded-lg p-2 w-full"
+          rows={3}
+        />
+      </section>
     </div>
   );
 }
-
-/* ------------------- SEZIONI ------------------- */
-
-function CheckupSection({ eventCarId }: { eventCarId: string }) {
-  const [data, setData] = useState<any>({});
-  const [history, setHistory] = useState<any[]>([]);
-
-  async function saveToDB() {
-    const payload = { event_car_id: eventCarId, extras: data };
-    await supabase.from("event_car_checkup").insert([payload]);
-    const { data: h } = await supabase
-      .from("event_car_checkup")
-      .select("id, created_at, extras")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    setHistory(h || []);
-    alert("✅ Check-up salvato");
-  }
-
-  function loadHistory(entry: any) {
-    if (confirm("Vuoi caricare questo check-up salvato?"))
-      setData(entry.extras);
-  }
-
-  return (
-    <section className="bg-white border rounded-xl shadow-sm p-5">
-      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-        <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
-      </h2>
-      <div className="flex flex-col gap-2 mb-3">
-        <input
-          type="text"
-          placeholder="Pressione olio"
-          className="border rounded-lg p-2"
-          value={data.pressioneOlio || ""}
-          onChange={(e) => setData({ ...data, pressioneOlio: e.target.value })}
-        />
-        <input
-          type="text"
-          placeholder="Temperatura acqua"
-          className="border rounded-lg p-2"
-          value={data.temperaturaAcqua || ""}
-          onChange={(e) =>
-            setData({ ...data, temperaturaAcqua: e.target.value })
-          }
-        />
-      </div>
-      <button
-        onClick={saveToDB}
-        className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
-      >
-        💾 Salva
-      </button>
-
-      <div className="mt-3 border-t pt-2">
-        <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-        {history.map((h) => (
-          <div
-            key={h.id}
-            className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            onClick={() => loadHistory(h)}
-          >
-            <span>{new Date(h.created_at).toLocaleString()}</span>
-            <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TurnsSection({ eventCarId }: { eventCarId: string }) {
-  const [data, setData] = useState<any>({});
-  const [history, setHistory] = useState<any[]>([]);
-
-  async function saveToDB() {
-    const payload = { event_car_id: eventCarId, extras: data };
-    await supabase.from("event_car_turns").insert([payload]);
-    const { data: h } = await supabase
-      .from("event_car_turns")
-      .select("id, created_at, extras")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    setHistory(h || []);
-    alert("✅ Turni salvati");
-  }
-
-  return (
-    <section className="bg-white border rounded-xl shadow-sm p-5">
-      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-        <Clock className="text-yellow-500" /> Turni svolti
-      </h2>
-      <div className="flex flex-col gap-2 mb-3">
-        <input
-          type="number"
-          placeholder="Ore lavoro"
-          className="border rounded-lg p-2"
-          value={data.ore || ""}
-          onChange={(e) => setData({ ...data, ore: Number(e.target.value) })}
-        />
-        <input
-          type="text"
-          placeholder="Note turno"
-          className="border rounded-lg p-2"
-          value={data.note || ""}
-          onChange={(e) => setData({ ...data, note: e.target.value })}
-        />
-      </div>
-      <button
-        onClick={saveToDB}
-        className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
-      >
-        💾 Salva
-      </button>
-    </section>
-  );
-}
-
-function FuelSection({ eventCarId }: { eventCarId: string }) {
-  const [fuel, setFuel] = useState({
-    start: 0,
-    end: 0,
-    laps: 0,
-    fuelPerLap: 0,
-    lapsPlanned: 0,
-  });
-  const [history, setHistory] = useState<any[]>([]);
-
-  const fuelToAdd =
-    fuel.fuelPerLap > 0 && fuel.lapsPlanned > 0
-      ? fuel.fuelPerLap * fuel.lapsPlanned - fuel.end
-      : 0;
-
-  async function saveToDB() {
-    const payload = { event_car_id: eventCarId, extras: fuel };
-    await supabase.from("event_car_fuel").insert([payload]);
-    const { data: h } = await supabase
-      .from("event_car_fuel")
-      .select("id, created_at, extras")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    setHistory(h || []);
-    alert("✅ Carburante salvato");
-  }
-
-  return (
-    <section className="bg-white border rounded-xl shadow-sm p-5">
-      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-        <Fuel className="text-yellow-500" /> Gestione carburante
-      </h2>
-
-      <div className="grid md:grid-cols-3 gap-3 mb-3">
-        <input
-          type="number"
-          placeholder="Carburante iniziale (L)"
-          className="border rounded-lg p-2"
-          value={fuel.start}
-          onChange={(e) => setFuel({ ...fuel, start: Number(e.target.value) })}
-        />
-        <input
-          type="number"
-          placeholder="Carburante residuo (L)"
-          className="border rounded-lg p-2"
-          value={fuel.end}
-          onChange={(e) => setFuel({ ...fuel, end: Number(e.target.value) })}
-        />
-        <input
-          type="number"
-          placeholder="Giri effettuati"
-          className="border rounded-lg p-2"
-          value={fuel.laps}
-          onChange={(e) => setFuel({ ...fuel, laps: Number(e.target.value) })}
-        />
-        <input
-          type="number"
-          placeholder="Consumo a giro (L)"
-          className="border rounded-lg p-2"
-          value={fuel.fuelPerLap}
-          onChange={(e) =>
-            setFuel({ ...fuel, fuelPerLap: Number(e.target.value) })
-          }
-        />
-        <input
-          type="number"
-          placeholder="Giri previsti prossimo turno"
-          className="border rounded-lg p-2"
-          value={fuel.lapsPlanned}
-          onChange={(e) =>
-            setFuel({ ...fuel, lapsPlanned: Number(e.target.value) })
-          }
-        />
-        <div className="border rounded-lg p-2 bg-yellow-100 font-semibold text-center">
-          Carburante da aggiungere: {fuelToAdd.toFixed(2)} L
-        </div>
-      </div>
-
-      <button
-        onClick={saveToDB}
-        className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
-      >
-        💾 Salva
-      </button>
-    </section>
-  );
-}
-
-function NotesSection({
-  eventCarId,
-  notes,
-  setNotes,
-}: {
-  eventCarId: string;
-  notes: string;
-  setNotes: (v: string) => void;
-}) {
-  const [history, setHistory] = useState<any[]>([]);
-
-  async function saveToDB() {
-    const payload = { event_car_id: eventCarId, extras: { notes } };
-    await supabase.from("event_car_notes").insert([payload]);
-    const { data: h } = await supabase
-      .from("event_car_notes")
-      .select("id, created_at, extras")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    setHistory(h || []);
-    alert("✅ Note salvate");
-  }
-
-  function loadHistory(entry: any) {
-    if (confirm("Vuoi caricare queste note salvate?"))
-      setNotes(entry.extras.notes);
-  }
-
-  return (
-    <section className="bg-white border rounded-xl shadow-sm p-5">
-      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-        <StickyNote className="text-yellow-500" /> Note e osservazioni
-      </h2>
-      <textarea
-        className="border rounded-lg p-2 w-full mb-3"
-        rows={3}
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
-      />
-      <button
-        onClick={saveToDB}
-        className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
-      >
-        💾 Salva
-      </button>
-
-      <div className="mt-3 border-t pt-2">
-        <h4 className="font-semibold mb-1">🕓 Ultimi salvataggi</h4>
-        {history.map((h) => (
-          <div
-            key={h.id}
-            className="text-sm flex justify-between border rounded px-2 py-1 cursor-pointer hover:bg-gray-100"
-            onClick={() => loadHistory(h)}
-          >
-            <span>{new Date(h.created_at).toLocaleString()}</span>
-            <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-7
