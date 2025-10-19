@@ -6,90 +6,100 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Audiowide } from "next/font/google";
 import {
-  Gauge,
-  Fuel,
-  ClipboardCheck,
-  StickyNote,
   ArrowLeft,
-  Download,
-  RotateCcw,
+  ClipboardCheck,
+  Fuel,
+  Gauge,
+  Loader2,
+  StickyNote,
+  CheckCircle2,
   Save,
-  History,
-  Plus,
+  RotateCcw,
 } from "lucide-react";
 
-// Viste Assetto già presenti
-import SetupPanel from "./setup";          // touch UI (gestisce salvataggi interni)
-import SetupRacing from "./setup-racing";  // svg interattivo (gestisce salvataggi interni)
-import SetupScheda from "./setup-scheda";  // scheda grafica (solo UI, stampa dal suo interno)
+// Setup pages già presenti
+import SetupPanel from "./setup";          // touch UI
+import SetupRacing from "./setup-racing";  // interattivo SVG
+import SetupScheda from "./setup-scheda";  // scheda tecnica (stampa gestita lì)
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-type CheckItem = { name: string; state: "OK" | "Da controllare" | "Problema" };
-type TurnRow = { durata: number; giri: number; note: string };
-type FuelState = {
-  fuelStart: number;   // L iniziali
-  fuelEnd: number;     // L residui
-  lapsDone: number;    // giri effettuati
-  lapsPlanned: number; // giri previsti
+type DataRow = {
+  id: string;
+  event_car_id: string;
+  section: "checkup" | "fuel" | "notes";
+  data: any;
+  created_at: string;
 };
-type NotesState = { text: string };
-
-type HistoryRow<T> = { id: string; created_at: string; data: T };
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as { eventId: string; eventCarId: string };
 
-  // intestazioni
   const [event, setEvent] = useState<any>(null);
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // tab assetto
   const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
 
-  // --- Check-up ---
-  const defaultChecks: CheckItem[] = useMemo(
-    () => [
-      { name: "Serraggi", state: "OK" },
-      { name: "Freni", state: "OK" },
-      { name: "Liquidi", state: "OK" },
-      { name: "Sospensioni", state: "OK" },
-      { name: "Elettronica", state: "OK" },
-      { name: "Ruote", state: "OK" },
-      { name: "Cambio", state: "OK" },
-    ],
+  // ------------------------
+  // Check-up (grafica + salvataggi)
+  // ------------------------
+  const defaultCheckupItems = useMemo(
+    () => ["Serraggi", "Freni", "Liquidi", "Sospensioni", "Elettronica", "Ruote", "Cambio"],
     []
   );
-  const [checks, setChecks] = useState<CheckItem[]>(defaultChecks);
-  const [checkHist, setCheckHist] = useState<HistoryRow<CheckItem[]>[]>([]);
+  const [checkup, setCheckup] = useState<Record<string, "OK" | "Da controllare" | "Problema">>({});
+  const [checkupSaving, setCheckupSaving] = useState(false);
+  const [checkupTick, setCheckupTick] = useState(0);
+  const [checkupHistory, setCheckupHistory] = useState<DataRow[]>([]);
 
-  // --- Turni svolti ---
-  const [turns, setTurns] = useState<TurnRow[]>([]);
-  const [newTurn, setNewTurn] = useState({ durata: "", giri: "", note: "" });
-  const [turnHist, setTurnHist] = useState<HistoryRow<TurnRow[]>[]>([]);
+  // ------------------------
+  // Turni svolti (tabella propria)
+  // ------------------------
+  type TurnInput = { durata: string; giri: string; note: string };
+  const [turns, setTurns] = useState<{ minutes: number; laps: number; notes: string }[]>([]);
+  const [newTurn, setNewTurn] = useState<TurnInput>({ durata: "", giri: "", note: "" });
+  const [turnsSaving, setTurnsSaving] = useState(false);
+  const totalHours = useMemo(() => turns.reduce((acc, t) => acc + t.minutes, 0) / 60, [turns]);
 
-  // --- Carburante ---
-  const [fuel, setFuel] = useState<FuelState>({ fuelStart: 0, fuelEnd: 0, lapsDone: 0, lapsPlanned: 0 });
-  const [fuelHist, setFuelHist] = useState<HistoryRow<FuelState>[]>([]);
-  const fuelPerLap = fuel.lapsDone > 0 && fuel.fuelStart >= 0 && fuel.fuelEnd >= 0
-    ? (fuel.fuelStart - fuel.fuelEnd) / fuel.lapsDone
-    : 0;
-  const fuelToAddRaw = fuelPerLap > 0 && fuel.lapsPlanned > 0 ? (fuelPerLap * fuel.lapsPlanned) - fuel.fuelEnd : 0;
-  const fuelToAdd = Math.max(0, fuelToAddRaw); // mai negativo
+  // ------------------------
+  // Carburante (grafica + salvataggi)
+  // ------------------------
+  const [fuelStart, setFuelStart] = useState<number>(0); // iniziale
+  const [fuelEnd, setFuelEnd] = useState<number>(0);     // residuo
+  const [lapsDone, setLapsDone] = useState<number>(0);
+  const [lapsPlanned, setLapsPlanned] = useState<number>(0);
 
-  // --- Note ---
-  const [notes, setNotes] = useState<NotesState>({ text: "" });
-  const [notesHist, setNotesHist] = useState<HistoryRow<NotesState>[]>([]);
+  const fuelPerLap = useMemo(() => {
+    if (lapsDone > 0 && fuelStart >= 0 && fuelEnd >= 0) {
+      const used = fuelStart - fuelEnd;
+      return used > 0 ? used / lapsDone : 0;
+    }
+    return 0;
+  }, [fuelStart, fuelEnd, lapsDone]);
 
-  // toast
-  const [toast, setToast] = useState<{ show: boolean; text: string }>({ show: false, text: "" });
+  const fuelToAddRaw = lapsPlanned > 0 && fuelPerLap > 0 ? lapsPlanned * fuelPerLap - fuelEnd : 0;
+  const fuelToAdd = Math.max(0, fuelToAddRaw); // clamp >= 0
 
+  const [fuelSaving, setFuelSaving] = useState(false);
+  const [fuelTick, setFuelTick] = useState(0);
+  const [fuelHistory, setFuelHistory] = useState<DataRow[]>([]);
+
+  // ------------------------
+  // Note (grafica + salvataggi)
+  // ------------------------
+  const [notes, setNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesTick, setNotesTick] = useState(0);
+  const [notesHistory, setNotesHistory] = useState<DataRow[]>([]);
+
+  // ---------------------------------------
+  // Load base: evento, auto + ultimi dati per sezioni da event_car_data
+  // ---------------------------------------
   useEffect(() => {
     (async () => {
       setLoading(true);
 
-      // intestazioni
+      // Evento + auto
       const { data: eventData } = await supabase
         .from("events")
         .select("id, name, date")
@@ -98,138 +108,249 @@ export default function EventCarPage() {
 
       const { data: carData } = await supabase
         .from("event_cars")
-        .select("id, car_id (id, name)")
+        .select("id, car_id (id, name), notes")
         .eq("id", eventCarId)
         .single();
 
       setEvent(eventData || null);
       setCar(carData?.car_id || null);
 
-      // carica ultimi salvataggi (1 corrente + lista 3)
-      await Promise.all([
-        loadLatestWithHistory<CheckItem[]>("event_car_checkup", setChecks, setCheckHist, defaultChecks),
-        loadLatestWithHistory<TurnRow[]>("event_car_turns", setTurns, setTurnHist, []),
-        loadLatestWithHistory<FuelState>("event_car_fuel", setFuel, setFuelHist, { fuelStart: 0, fuelEnd: 0, lapsDone: 0, lapsPlanned: 0 }),
-        loadLatestWithHistory<NotesState>("event_car_notes", setNotes, setNotesHist, { text: "" }),
-      ]);
+      // Carica ultimo checkup
+      const { data: lastCheck } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "checkup")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastCheck?.data) setCheckup(lastCheck.data);
+
+      // Carica storico checkup (ultimi 3)
+      const { data: chkHist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "checkup")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setCheckupHistory(chkHist || []);
+
+      // Carica ultimo fuel
+      const { data: lastFuel } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "fuel")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastFuel?.data) {
+        setFuelStart(Number(lastFuel.data.fuelStart ?? 0));
+        setFuelEnd(Number(lastFuel.data.fuelEnd ?? 0));
+        setLapsDone(Number(lastFuel.data.lapsDone ?? 0));
+        setLapsPlanned(Number(lastFuel.data.lapsPlanned ?? 0));
+      }
+
+      // Carica storico fuel (ultimi 3)
+      const { data: fuelHist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "fuel")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setFuelHistory(fuelHist || []);
+
+      // Carica ultime note
+      const { data: lastNotes } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "notes")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastNotes?.data?.text) setNotes(String(lastNotes.data.text));
+
+      // Carica storico note (ultimi 3)
+      const { data: notesHist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "notes")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setNotesHistory(notesHist || []);
 
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, eventCarId]);
 
-  async function loadLatestWithHistory<T>(
-    table: string,
-    setCurrent: (d: T) => void,
-    setHistory: (h: HistoryRow<T>[]) => void,
-    fallback: T
-  ) {
-    const { data: latest } = await supabase
-      .from(table)
-      .select("id, created_at, data")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latest?.data) setCurrent(latest.data as T);
-    else setCurrent(fallback);
-
-    const { data: last3 } = await supabase
-      .from(table)
-      .select("id, created_at, data")
-      .eq("event_car_id", eventCarId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    setHistory((last3 || []) as any);
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center gap-2 text-gray-600">
+        <Loader2 className="animate-spin" /> Caricamento dati...
+      </div>
+    );
   }
-
-  function showToast(text: string) {
-    setToast({ show: true, text });
-    setTimeout(() => setToast({ show: false, text: "" }), 2200);
-  }
-
-  // ---- SALVATAGGI ----
-  async function saveCheckup() {
-    const payload = { event_car_id: eventCarId, data: checks };
-    const { error } = await supabase.from("event_car_checkup").insert(payload);
-    if (!error) {
-      await loadLatestWithHistory<CheckItem[]>("event_car_checkup", setChecks, setCheckHist, defaultChecks);
-      showToast("Check-up salvato ✅");
-    } else alert("Errore salvataggio check-up: " + error.message);
-  }
-
-  async function saveTurns() {
-    const payload = { event_car_id: eventCarId, data: turns };
-    const { error } = await supabase.from("event_car_turns").insert(payload);
-    if (!error) {
-      await loadLatestWithHistory<TurnRow[]>("event_car_turns", setTurns, setTurnHist, []);
-      showToast("Turni salvati ✅");
-    } else alert("Errore salvataggio turni: " + error.message);
-  }
-
-  async function saveFuel() {
-    const payload = { event_car_id: eventCarId, data: fuel };
-    const { error } = await supabase.from("event_car_fuel").insert(payload);
-    if (!error) {
-      await loadLatestWithHistory<FuelState>("event_car_fuel", setFuel, setFuelHist, { fuelStart: 0, fuelEnd: 0, lapsDone: 0, lapsPlanned: 0 });
-      showToast("Dati carburante salvati ✅");
-    } else alert("Errore salvataggio carburante: " + error.message);
-  }
-
-  async function saveNotes() {
-    const payload = { event_car_id: eventCarId, data: notes };
-    const { error } = await supabase.from("event_car_notes").insert(payload);
-    if (!error) {
-      await loadLatestWithHistory<NotesState>("event_car_notes", setNotes, setNotesHist, { text: "" });
-      showToast("Note salvate ✅");
-    } else alert("Errore salvataggio note: " + error.message);
-  }
-
-  // ripristina da history
-  function openHistory<T>(row: HistoryRow<T>, setCurrent: (d: T) => void) {
-    if (confirm("Vuoi aprire questo salvataggio?")) setCurrent(row.data);
-  }
-
-  // aggiungi turno + RPC ore componenti
-  async function addTurn() {
-    if (!newTurn.durata) return alert("Inserisci la durata (minuti)");
-    const toAdd: TurnRow = {
-      durata: Number(newTurn.durata) || 0,
-      giri: Number(newTurn.giri) || 0,
-      note: newTurn.note || "",
-    };
-    const next = [...turns, toAdd];
-    setTurns(next);
-
-    // aggiorna ore componenti (min/60)
-    const hours = (Number(newTurn.durata) || 0) / 60;
-    try {
-      await supabase.rpc("increment_component_hours", {
-        p_car_id: eventCarId,
-        p_hours: hours,
-      });
-    } catch {
-      // Ignora errori RPC
-    }
-    setNewTurn({ durata: "", giri: "", note: "" });
-  }
-
-  const totalHours = useMemo(() => {
-    const min = turns.reduce((s, t) => s + (t.durata || 0), 0);
-    return min / 60;
-  }, [turns]);
-
-  if (loading)
-    return <p className="p-6 text-gray-600">Caricamento dati...</p>;
-
-  if (!event || !car)
+  if (!event || !car) {
     return (
       <div className="p-6 text-center text-red-500 font-semibold">
         ❌ Errore: dati non trovati.
       </div>
     );
+  }
+
+  // ------------------------
+  // Helpers salvataggi (event_car_data)
+  // ------------------------
+  async function saveSection(section: DataRow["section"], data: any) {
+    // Inseriamo SEMPRE una nuova riga per avere storico consultabile
+    const payload = { event_car_id: eventCarId, section, data };
+    const { error } = await supabase.from("event_car_data").insert([payload]);
+    if (error) throw new Error(error.message);
+  }
+
+  // ------------------------
+  // Save Check-up
+  // ------------------------
+  async function onSaveCheckup() {
+    try {
+      setCheckupSaving(true);
+      await saveSection("checkup", checkup);
+      // ricarica ultimi 3
+      const { data } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "checkup")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setCheckupHistory(data || []);
+      setCheckupTick((t) => t + 1);
+    } catch (e: any) {
+      alert("Errore salvataggio check-up: " + e.message);
+    } finally {
+      setCheckupSaving(false);
+    }
+  }
+  function loadCheckup(row: DataRow) {
+    if (!row?.data) return;
+    setCheckup(row.data || {});
+  }
+
+  // ------------------------
+  // Add Turn + Save Turn
+  // ------------------------
+  async function addTurn() {
+    if (!newTurn.durata) return alert("Inserisci la durata (minuti).");
+    const minutes = Number(newTurn.durata);
+    const laps = Number(newTurn.giri) || 0;
+    const notes = newTurn.note || "";
+
+    try {
+      setTurnsSaving(true);
+
+      // scrive in tabella normalizzata
+      const { error } = await supabase.from("event_car_turns").insert([
+        {
+          event_car_id: eventCarId,
+          minutes,
+          laps,
+          notes,
+        },
+      ]);
+      if (error) throw new Error(error.message);
+
+      // aggiorna stato locale
+      setTurns((prev) => [...prev, { minutes, laps, notes }]);
+      setNewTurn({ durata: "", giri: "", note: "" });
+
+      // aggiorna ore componenti (rpc)
+      try {
+        await supabase.rpc("increment_component_hours", {
+          p_car_id: eventCarId, // NB: manteniamo l'argomento che hai già in funzione
+          p_hours: minutes / 60,
+        });
+      } catch {
+        // silenzioso: se l'RPC non esiste/non è abilitato non blocchiamo il flusso
+      }
+    } catch (e: any) {
+      alert("Errore salvataggio turni: " + e.message);
+    } finally {
+      setTurnsSaving(false);
+    }
+  }
+
+  // ------------------------
+  // Save Fuel
+  // ------------------------
+  async function onSaveFuel() {
+    try {
+      setFuelSaving(true);
+      const data = { fuelStart, fuelEnd, lapsDone, lapsPlanned };
+      await saveSection("fuel", data);
+
+      const { data: hist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "fuel")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setFuelHistory(hist || []);
+      setFuelTick((t) => t + 1);
+    } catch (e: any) {
+      alert("Errore salvataggio carburante: " + e.message);
+    } finally {
+      setFuelSaving(false);
+    }
+  }
+  function loadFuel(row: DataRow) {
+    if (!row?.data) return;
+    setFuelStart(Number(row.data.fuelStart ?? 0));
+    setFuelEnd(Number(row.data.fuelEnd ?? 0));
+    setLapsDone(Number(row.data.lapsDone ?? 0));
+    setLapsPlanned(Number(row.data.lapsPlanned ?? 0));
+  }
+
+  // ------------------------
+  // Save Notes
+  // ------------------------
+  async function onSaveNotes() {
+    try {
+      setNotesSaving(true);
+      const data = { text: notes };
+      await saveSection("notes", data);
+
+      const { data: hist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "notes")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setNotesHistory(hist || []);
+      setNotesTick((t) => t + 1);
+    } catch (e: any) {
+      alert("Errore salvataggio note: " + e.message);
+    } finally {
+      setNotesSaving(false);
+    }
+  }
+  function loadNotes(row: DataRow) {
+    if (!row?.data) return;
+    setNotes(String(row.data.text ?? ""));
+  }
 
   return (
     <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
@@ -257,42 +378,59 @@ export default function EventCarPage() {
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-3 mb-4">
-          <TabButton active={tab === "touch"} onClick={() => setTab("touch")}>Setup Touch</TabButton>
-          <TabButton active={tab === "racing"} onClick={() => setTab("racing")}>Setup Interattivo</TabButton>
-          <TabButton active={tab === "scheda"} onClick={() => setTab("scheda")}>Setup Scheda Tecnica</TabButton>
-          {tab === "scheda" && (
-            <div className="ml-auto flex items-center gap-2">
-              {/* Esporta è gestito dentro SetupScheda (window.print). Qui lo lasciamo informativo */}
-              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
-                <Download size={14}/> Stampa da dentro la scheda
-              </span>
-            </div>
-          )}
+          <button
+            onClick={() => setTab("touch")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "touch" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Touch
+          </button>
+          <button
+            onClick={() => setTab("racing")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "racing" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Interattivo
+          </button>
+          <button
+            onClick={() => setTab("scheda")}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              tab === "scheda" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Setup Scheda Tecnica
+          </button>
         </div>
 
         {/* Contenuto dinamico */}
         <div className="transition-all duration-300">
           {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
           {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
-          {/* NB: manteniamo senza prop per aderire al componente attuale */}
-          {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
+          {tab === "scheda" && <SetupScheda />}
         </div>
       </section>
 
-      {/* 🧰 Check-up tecnico */}
-      <section className="bg-white border rounded-xl shadow-sm p-5">
+      {/* 🧰 Check-up tecnico (grafica + salvataggi) */}
+      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
           </h2>
           <div className="flex items-center gap-2">
-            <button onClick={saveCheckup} className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold inline-flex items-center gap-2">
-              <Save size={16}/> Salva
+            <button
+              onClick={onSaveCheckup}
+              disabled={checkupSaving}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+            >
+              {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              Salva
+              <CheckCircle2
+                size={18}
+                className={`transition-opacity ${checkupTick ? "opacity-100" : "opacity-0"}`}
+              />
             </button>
-            <HistoryDropdown
-              rows={checkHist}
-              onOpen={(r) => openHistory(r, setChecks)}
-            />
           </div>
         </div>
 
@@ -304,18 +442,14 @@ export default function EventCarPage() {
             </tr>
           </thead>
           <tbody>
-            {checks.map((c, idx) => (
-              <tr key={c.name + idx}>
-                <td className="border p-2">{c.name}</td>
+            {defaultCheckupItems.map((item) => (
+              <tr key={item}>
+                <td className="border p-2">{item}</td>
                 <td className="border p-2 text-center">
                   <select
-                    value={c.state}
+                    value={checkup[item] || "OK"}
                     onChange={(e) =>
-                      setChecks((arr) =>
-                        arr.map((it, i) =>
-                          i === idx ? { ...it, state: e.target.value as CheckItem["state"] } : it
-                        )
-                      )
+                      setCheckup((s) => ({ ...s, [item]: e.target.value as any }))
                     }
                     className="border rounded-lg p-1 text-sm"
                   >
@@ -328,19 +462,18 @@ export default function EventCarPage() {
             ))}
           </tbody>
         </table>
+
+        {/* Storico ultimi 3 */}
+        <HistoryBar
+          title="Ultimi 3 salvataggi Check-up"
+          rows={checkupHistory}
+          onOpen={loadCheckup}
+        />
       </section>
 
       {/* 🕓 Turni Svolti */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-800">🕓 Turni Svolti</h2>
-          <div className="flex items-center gap-2">
-            <button onClick={saveTurns} className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold inline-flex items-center gap-2">
-              <Save size={16}/> Salva
-            </button>
-            <HistoryDropdown rows={turnHist} onOpen={(r) => openHistory(r, setTurns)} />
-          </div>
-        </div>
+        <h2 className="text-lg font-bold text-gray-800 mb-3">🕓 Turni Svolti</h2>
 
         <table className="w-full text-sm border-collapse mb-4">
           <thead>
@@ -362,9 +495,9 @@ export default function EventCarPage() {
               turns.map((t, i) => (
                 <tr key={i}>
                   <td className="border p-2 text-center">{i + 1}</td>
-                  <td className="border p-2 text-center">{t.durata}</td>
-                  <td className="border p-2 text-center">{t.giri}</td>
-                  <td className="border p-2">{t.note}</td>
+                  <td className="border p-2 text-center">{t.minutes}</td>
+                  <td className="border p-2 text-center">{t.laps}</td>
+                  <td className="border p-2">{t.notes}</td>
                 </tr>
               ))
             )}
@@ -402,214 +535,184 @@ export default function EventCarPage() {
 
         <button
           onClick={addTurn}
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-yellow-400 font-semibold rounded-lg inline-flex items-center gap-2"
+          disabled={turnsSaving}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg"
         >
-          <Plus size={16}/> Aggiungi Turno
+          {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
+          Aggiungi Turno
         </button>
       </section>
 
       {/* ⛽ Gestione carburante */}
-      <section className="bg-white border rounded-xl shadow-sm p-5">
+      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <Fuel className="text-yellow-500" /> Gestione carburante
           </h2>
           <div className="flex items-center gap-2">
-            <button onClick={saveFuel} className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold inline-flex items-center gap-2">
-              <Save size={16}/> Salva
+            <button
+              onClick={onSaveFuel}
+              disabled={fuelSaving}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+            >
+              {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              Salva
+              <CheckCircle2
+                size={18}
+                className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
+              />
             </button>
-            <HistoryDropdown rows={fuelHist} onOpen={(r) => openHistory(r, setFuel)} />
           </div>
         </div>
 
-        {/* riga 1 */}
+        {/* Riga 1 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-          <NumberField
-            label="Carburante iniziale (L)"
-            value={fuel.fuelStart}
-            onChange={(v) => setFuel((s) => ({ ...s, fuelStart: v }))}
-          />
-          <NumberField
-            label="Carburante residuo (L)"
-            value={fuel.fuelEnd}
-            onChange={(v) => setFuel((s) => ({ ...s, fuelEnd: v }))}
-          />
-          <NumberField
-            label="Giri effettuati"
-            value={fuel.lapsDone}
-            onChange={(v) => setFuel((s) => ({ ...s, lapsDone: v }))}
-          />
+          <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
+          <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
+          <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
         </div>
 
         <hr className="my-3 border-gray-300" />
 
-        {/* riga 2 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
-          <DisplayField
-            label="Consumo medio a giro (L/giro)"
-            value={fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"}
+        {/* Riga 2 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <ReadOnlyCard label="Consumo medio a giro (L/giro)" value={fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"} />
+          <NumberCard label="Giri previsti prossimo turno" value={lapsPlanned} setValue={setLapsPlanned} integer />
+          <HighlightCard
+            label="Carburante da aggiungere (L)"
+            value={fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
           />
-          <NumberField
-            label="Giri previsti prossimo turno"
-            value={fuel.lapsPlanned}
-            onChange={(v) => setFuel((s) => ({ ...s, lapsPlanned: v }))}
-          />
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Carburante da aggiungere (L)
-            </label>
-            <div className="rounded-lg p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
-              {fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
-            </div>
-          </div>
         </div>
+
+        {/* Storico ultimi 3 */}
+        <HistoryBar
+          title="Ultimi 3 salvataggi Carburante"
+          rows={fuelHistory}
+          onOpen={loadFuel}
+        />
       </section>
 
-      {/* 🗒️ Note */}
-      <section className="bg-white border rounded-xl shadow-sm p-5">
+      {/* 🗒️ Note e osservazioni */}
+      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <StickyNote className="text-yellow-500" /> Note e osservazioni
           </h2>
           <div className="flex items-center gap-2">
-            <button onClick={saveNotes} className="px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold inline-flex items-center gap-2">
-              <Save size={16}/> Salva
+            <button
+              onClick={onSaveNotes}
+              disabled={notesSaving}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+            >
+              {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              Salva
+              <CheckCircle2
+                size={18}
+                className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
+              />
             </button>
-            <HistoryDropdown rows={notesHist} onOpen={(r) => openHistory(r, setNotes)} />
           </div>
         </div>
 
         <textarea
-          value={notes.text}
-          onChange={(e) => setNotes({ text: e.target.value })}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
           className="border rounded-lg p-2 w-full"
           rows={3}
         />
-      </section>
 
-      {/* Toast */}
-      <div
-        className={`fixed right-4 bottom-4 z-50 transition-all duration-300 ${
-          toast.show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
-        }`}
-      >
-        <div className="bg-gray-900 text-white rounded-xl shadow-lg px-4 py-3 flex items-center gap-2">
-          <RotateCcw size={16} className="text-yellow-400" />
-          <span className="text-sm">{toast.text}</span>
-        </div>
-      </div>
+        {/* Storico ultimi 3 */}
+        <HistoryBar
+          title="Ultimi 3 salvataggi Note"
+          rows={notesHistory}
+          onOpen={loadNotes}
+        />
+      </section>
     </div>
   );
 }
 
-/* ---------------- UI helpers ---------------- */
+/* ---------------- UI SUBCOMPONENTS ---------------- */
 
-function TabButton({
-  active,
-  onClick,
-  children,
+function HistoryBar({
+  title,
+  rows,
+  onOpen,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  title: string;
+  rows: DataRow[];
+  onOpen: (row: DataRow) => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg font-semibold ${
-        active ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="mt-4 border-t pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
+        <div className="text-xs text-gray-500 flex items-center gap-1">
+          <RotateCcw size={14} /> Storico
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {rows.map((r) => (
+            <li
+              key={r.id}
+              className="flex items-center justify-between border rounded px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+              onClick={() => onOpen(r)}
+              title="Apri questo salvataggio"
+            >
+              <span>{new Date(r.created_at).toLocaleString()}</span>
+              <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
-function NumberField({
+function NumberCard({
   label,
   value,
-  onChange,
+  setValue,
+  integer = false,
 }: {
   label: string;
   value: number;
-  onChange: (v: number) => void;
+  setValue: (n: number) => void;
+  integer?: boolean;
 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">
-        {label}
-      </label>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
       <input
         type="number"
         value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => setValue(integer ? parseInt(e.target.value || "0") : parseFloat(e.target.value || "0"))}
         className="border rounded-lg p-2 w-full text-center"
       />
     </div>
   );
 }
 
-function DisplayField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function ReadOnlyCard({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">
-        {label}
-      </label>
-      <div className="border rounded-lg p-2 bg-gray-50 text-center font-semibold">
-        {value}
-      </div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="border rounded-lg p-2 bg-gray-50 text-center font-semibold">{value}</div>
     </div>
   );
 }
 
-function HistoryDropdown<T>({
-  rows,
-  onOpen,
-}: {
-  rows: HistoryRow<T>[];
-  onOpen: (row: HistoryRow<T>) => void;
-}) {
-  if (!rows || rows.length === 0) {
-    return (
-      <div className="text-xs text-gray-400 inline-flex items-center gap-1">
-        <History size={14} /> Nessun salvataggio
-      </div>
-    );
-  }
-
+function HighlightCard({ label, value }: { label: string; value: string }) {
   return (
-    <details className="relative">
-      <summary className="list-none inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer text-sm">
-        <History size={16} />
-        Ultimi {rows.length}
-      </summary>
-      <div className="absolute right-0 mt-2 w-64 bg-white border rounded-xl shadow-lg overflow-hidden z-10">
-        <ul className="max-h-64 overflow-auto text-sm">
-          {rows.map((r) => (
-            <li
-              key={r.id}
-              className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between"
-            >
-              <span className="text-gray-700">
-                {new Date(r.created_at).toLocaleString()}
-              </span>
-              <button
-                className="text-yellow-700 font-semibold"
-                onClick={() => onOpen(r)}
-              >
-                Apri
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="rounded-lg p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
+        {value}
       </div>
-    </details>
+    </div>
   );
 }
