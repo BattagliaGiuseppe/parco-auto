@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
-export default function SetupScheda() {
+export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
