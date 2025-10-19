@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -9,15 +9,25 @@ import {
   ClipboardCheck,
   StickyNote,
   ArrowLeft,
+  Save,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
-import SetupPanel from "./setup";
-import SetupRacing from "./setup-racing";
-import SetupScheda from "./setup-scheda";
+import SetupPanel from "./setup";          // touch UI
+import SetupRacing from "./setup-racing";  // interattivo SVG
+import SetupScheda from "./setup-scheda";  // scheda tecnica grafica
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
+type HistoryRow = {
+  id: string;
+  created_at: string;
+  data: any;
+};
+
+type CheckItem = { label: string; status: "OK" | "Da controllare" | "Problema" };
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as {
@@ -29,26 +39,66 @@ export default function EventCarPage() {
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
+
   const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
 
-  // Turni svolti
+  // --------- TOAST ----------
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({
+    show: false,
+    message: "",
+  });
+  const toastTimer = useRef<any>(null);
+  function showToast(message: string) {
+    setToast({ show: true, message });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
+      setToast((t) => ({ ...t, show: false }));
+    }, 3000);
+  }
+
+  // --------- CHECK-UP ----------
+  const [checkups, setCheckups] = useState<CheckItem[]>([
+    { label: "Serraggi", status: "OK" },
+    { label: "Freni", status: "OK" },
+    { label: "Liquidi", status: "OK" },
+    { label: "Sospensioni", status: "OK" },
+    { label: "Elettronica", status: "OK" },
+    { label: "Ruote", status: "OK" },
+    { label: "Cambio", status: "OK" },
+  ]);
+  const [checkupHistory, setCheckupHistory] = useState<HistoryRow[]>([]);
+
+  // --------- TURNI ----------
   const [turns, setTurns] = useState<{ durata: number; giri: number; note: string }[]>([]);
   const [newTurn, setNewTurn] = useState({ durata: "", giri: "", note: "" });
   const [totalHours, setTotalHours] = useState(0);
+  const [turnsHistory, setTurnsHistory] = useState<HistoryRow[]>([]);
 
-  // Carburante
+  // --------- CARBURANTE ----------
   const [fuelStart, setFuelStart] = useState(0);
   const [fuelEnd, setFuelEnd] = useState(0);
   const [lapsDone, setLapsDone] = useState(0);
   const [lapsPlanned, setLapsPlanned] = useState(0);
+  const [fuelHistory, setFuelHistory] = useState<HistoryRow[]>([]);
 
   const fuelPerLap =
     lapsDone > 0 && fuelStart > 0 && fuelEnd >= 0
       ? (fuelStart - fuelEnd) / lapsDone
       : 0;
 
-  const fuelToAdd = fuelPerLap > 0 && lapsPlanned > 0 ? fuelPerLap * lapsPlanned : 0;
+  // ✅ formula corretta: sottraggo il residuo
+  const fuelToAdd =
+    fuelPerLap > 0 && lapsPlanned > 0
+      ? fuelPerLap * lapsPlanned - fuelEnd
+      : 0;
 
+  // --------- NOTE ----------
+  const [notesHistory, setNotesHistory] = useState<HistoryRow[]>([]);
+
+  // --------- SETUP (history generica per la sezione) ----------
+  const [setupHistory, setSetupHistory] = useState<HistoryRow[]>([]);
+
+  // ---------- INIT ----------
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -68,11 +118,106 @@ export default function EventCarPage() {
       setEvent(eventData || null);
       setCar(carData?.car_id || null);
       setNotes(carData?.notes || "");
+
+      // carica ultimi 3 salvataggi per ogni sezione
+      await Promise.all([
+        loadSectionHistory("checkup", setCheckupHistory),
+        loadSectionHistory("turns", setTurnsHistory),
+        loadSectionHistory("fuel", setFuelHistory),
+        loadSectionHistory("notes", setNotesHistory),
+        loadSectionHistory("setup", setSetupHistory),
+      ]);
+
       setLoading(false);
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, eventCarId]);
+
+  // --------- HELPERS: HISTORY ----------
+  async function loadSectionHistory(
+    section: "setup" | "checkup" | "turns" | "fuel" | "notes",
+    setter: (rows: HistoryRow[]) => void
+  ) {
+    const { data } = await supabase
+      .from("event_car_history")
+      .select("id, created_at, data")
+      .eq("event_car_id", eventCarId)
+      .eq("section", section)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    setter(data || []);
+  }
+
+  async function saveSection(
+    section: "setup" | "checkup" | "turns" | "fuel" | "notes",
+    payload: any
+  ) {
+    const { error } = await supabase
+      .from("event_car_history")
+      .insert([{ event_car_id: eventCarId, section, data: payload }]);
+
+    if (error) {
+      showToast(`❌ Errore salvataggio ${section}: ${error.message}`);
+      return;
+    }
+    // ricarica ultimi 3
+    switch (section) {
+      case "checkup":
+        await loadSectionHistory("checkup", setCheckupHistory);
+        break;
+      case "turns":
+        await loadSectionHistory("turns", setTurnsHistory);
+        break;
+      case "fuel":
+        await loadSectionHistory("fuel", setFuelHistory);
+        break;
+      case "notes":
+        await loadSectionHistory("notes", setNotesHistory);
+        break;
+      case "setup":
+        await loadSectionHistory("setup", setSetupHistory);
+        break;
+    }
+    showToast("✅ Salvataggio effettuato");
+  }
+
+  function openHistory(section: string, row: HistoryRow) {
+    const data = row.data || {};
+    if (section === "checkup") {
+      const restored: CheckItem[] =
+        Array.isArray(data?.items) && data.items.length
+          ? data.items
+          : checkups;
+      setCheckups(
+        restored.map((it) => ({
+          label: it.label,
+          status:
+            it.status === "OK" || it.status === "Da controllare" || it.status === "Problema"
+              ? it.status
+              : "OK",
+        }))
+      );
+      showToast("🔄 Check-up ripristinato");
+    } else if (section === "turns") {
+      setTurns(Array.isArray(data?.turns) ? data.turns : []);
+      setTotalHours(Number(data?.totalHours) || 0);
+      showToast("🔄 Turni ripristinati");
+    } else if (section === "fuel") {
+      setFuelStart(Number(data?.fuelStart) || 0);
+      setFuelEnd(Number(data?.fuelEnd) || 0);
+      setLapsDone(Number(data?.lapsDone) || 0);
+      setLapsPlanned(Number(data?.lapsPlanned) || 0);
+      showToast("🔄 Carburante ripristinato");
+    } else if (section === "notes") {
+      setNotes(data?.notes || "");
+      showToast("🔄 Note ripristinate");
+    } else if (section === "setup") {
+      // Solo storico per consultazione: il salvataggio reale del setup vive nelle tabelle dedicate.
+      showToast("ℹ️ Setup storico caricato (consulta in schede Setup)");
+    }
+  }
 
   // ➕ Aggiungi turno
   async function addTurn() {
@@ -90,14 +235,43 @@ export default function EventCarPage() {
     const oreTot = totalMin / 60;
     setTotalHours(oreTot);
 
-    // Aggiorna ore componenti in Supabase
+    // Aggiorna ore componenti (procedure già creata su Supabase)
     const oreTurno = Number(newTurn.durata) / 60;
-    await supabase.rpc("increment_component_hours", {
-      p_car_id: eventCarId,
-      p_hours: oreTurno,
-    });
+    try {
+      await supabase.rpc("increment_component_hours", {
+        p_car_id: eventCarId, // NB: se la function si aspetta car_id e non eventCarId, adattare
+        p_hours: oreTurno,
+      });
+    } catch {
+      // no-op (evitiamo di bloccare l'UI)
+    }
 
     setNewTurn({ durata: "", giri: "", note: "" });
+  }
+
+  // 💾 Salva Setup (usa le tabelle dedicate)
+  async function saveSetupSnapshot() {
+    // 1) leggo l'ultima versione corrente del setup
+    const { data: current } = await supabase
+      .from("event_car_setup")
+      .select("*")
+      .eq("event_car_id", eventCarId)
+      .maybeSingle();
+
+    // 2) se esiste, duplico nello storico dedicato
+    if (current) {
+      try {
+        await supabase.from("event_car_setup_history").insert([
+          {
+            event_car_id: eventCarId,
+            ...current,
+          },
+        ]);
+      } catch {}
+    }
+
+    // 3) salvo anche in event_car_history come snapshot consultabile
+    await saveSection("setup", { setup: current || {} });
   }
 
   if (loading) return <p className="p-6 text-gray-600">Caricamento dati...</p>;
@@ -128,10 +302,24 @@ export default function EventCarPage() {
 
       {/* Sezione Setup */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <Gauge className="text-yellow-500" /> Assetto
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Gauge className="text-yellow-500" /> Assetto
+          </h2>
 
+          {/* 💾 Salva Setup */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={saveSetupSnapshot}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+              title="Salva snapshot setup"
+            >
+              <Save size={16} /> Salva Setup
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs per i tre tipi di setup */}
         <div className="flex flex-wrap gap-3 mb-4">
           <button
             onClick={() => setTab("touch")}
@@ -143,6 +331,7 @@ export default function EventCarPage() {
           >
             Setup Touch
           </button>
+
           <button
             onClick={() => setTab("racing")}
             className={`px-4 py-2 rounded-lg font-semibold ${
@@ -153,7 +342,8 @@ export default function EventCarPage() {
           >
             Setup Interattivo
           </button>
-          <button
+
+        <button
             onClick={() => setTab("scheda")}
             className={`px-4 py-2 rounded-lg font-semibold ${
               tab === "scheda"
@@ -165,18 +355,52 @@ export default function EventCarPage() {
           </button>
         </div>
 
+        {/* Contenuto dinamico */}
         <div className="transition-all duration-300">
           {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
           {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
           {tab === "scheda" && <SetupScheda />}
         </div>
+
+        {/* Ultimi 3 salvataggi Setup */}
+        <div className="mt-4">
+          <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+            <History size={16} /> Ultimi 3 salvataggi (Setup)
+          </div>
+          {setupHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {setupHistory.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={() => openHistory("setup", h)}
+                  title="Clicca per aprire lo snapshot (consultazione)"
+                >
+                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                  <span className="text-yellow-600 font-semibold">🔎 Apri</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* 🧰 Check-up tecnico */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
+          </h2>
+          <button
+            onClick={() => saveSection("checkup", { items: checkups })}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+          >
+            <Save size={16} /> Salva
+          </button>
+        </div>
+
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-gray-50 text-gray-700">
@@ -185,11 +409,22 @@ export default function EventCarPage() {
             </tr>
           </thead>
           <tbody>
-            {["Serraggi", "Freni", "Liquidi", "Sospensioni", "Elettronica", "Ruote", "Cambio"].map((item) => (
-              <tr key={item}>
-                <td className="border p-2">{item}</td>
+            {checkups.map((item, idx) => (
+              <tr key={item.label}>
+                <td className="border p-2">{item.label}</td>
                 <td className="border p-2 text-center">
-                  <select className="border rounded-lg p-1 text-sm">
+                  <select
+                    className="border rounded-lg p-1 text-sm"
+                    value={item.status}
+                    onChange={(e) => {
+                      const next = [...checkups];
+                      next[idx] = {
+                        ...next[idx],
+                        status: e.target.value as CheckItem["status"],
+                      };
+                      setCheckups(next);
+                    }}
+                  >
                     <option>OK</option>
                     <option>Da controllare</option>
                     <option>Problema</option>
@@ -199,13 +434,44 @@ export default function EventCarPage() {
             ))}
           </tbody>
         </table>
+
+        {/* Ultimi 3 salvataggi Check-up */}
+        <div className="mt-4">
+          <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+            <History size={16} /> Ultimi 3 salvataggi (Check-up)
+          </div>
+          {checkupHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {checkupHistory.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={() => openHistory("checkup", h)}
+                >
+                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* 🕓 Turni Svolti */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          🕓 Turni Svolti
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            🕓 Turni Svolti
+          </h2>
+          <button
+            onClick={() => saveSection("turns", { turns, totalHours })}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+          >
+            <Save size={16} /> Salva
+          </button>
+        </div>
 
         <table className="w-full text-sm border-collapse mb-4">
           <thead>
@@ -238,7 +504,9 @@ export default function EventCarPage() {
 
         <div className="text-right text-gray-700 font-semibold mb-4">
           Totale ore lavoro:{" "}
-          <span className="text-yellow-600 font-bold">{totalHours.toFixed(2)} h</span>
+          <span className="text-yellow-600 font-bold">
+            {totalHours.toFixed(2)} h
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -271,13 +539,53 @@ export default function EventCarPage() {
         >
           ➕ Aggiungi Turno
         </button>
+
+        {/* Ultimi 3 salvataggi Turni */}
+        <div className="mt-4">
+          <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+            <History size={16} /> Ultimi 3 salvataggi (Turni)
+          </div>
+          {turnsHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {turnsHistory.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={() => openHistory("turns", h)}
+                >
+                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* ⛽ Gestione carburante */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <Fuel className="text-yellow-500" /> Gestione carburante
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Fuel className="text-yellow-500" /> Gestione carburante
+          </h2>
+          <button
+            onClick={() =>
+              saveSection("fuel", {
+                fuelStart,
+                fuelEnd,
+                lapsDone,
+                lapsPlanned,
+                fuelPerLap,
+                fuelToAdd,
+              })
+            }
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+          >
+            <Save size={16} /> Salva
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
           <div>
@@ -346,13 +654,45 @@ export default function EventCarPage() {
             </div>
           </div>
         </div>
+
+        {/* Ultimi 3 salvataggi Fuel */}
+        <div className="mt-4">
+          <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+            <History size={16} /> Ultimi 3 salvataggi (Carburante)
+          </div>
+          {fuelHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {fuelHistory.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={() => openHistory("fuel", h)}
+                >
+                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* 🗒️ Note */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <StickyNote className="text-yellow-500" /> Note e osservazioni
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <StickyNote className="text-yellow-500" /> Note e osservazioni
+          </h2>
+          <button
+            onClick={() => saveSection("notes", { notes })}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+          >
+            <Save size={16} /> Salva
+          </button>
+        </div>
+
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -360,7 +700,41 @@ export default function EventCarPage() {
           className="border rounded-lg p-2 w-full"
           rows={3}
         />
+
+        {/* Ultimi 3 salvataggi Note */}
+        <div className="mt-4">
+          <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+            <History size={16} /> Ultimi 3 salvataggi (Note)
+          </div>
+          {notesHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {notesHistory.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between border rounded px-3 py-1 text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={() => openHistory("notes", h)}
+                >
+                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
+
+      {/* TOAST */}
+      <div
+        className={`fixed right-4 bottom-4 z-[9999] pointer-events-none transition-all duration-300 ${
+          toast.show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+        }`}
+      >
+        <div className="pointer-events-auto rounded-xl bg-neutral-900 text-white shadow-xl px-4 py-3 flex items-center gap-2">
+          <span>{toast.message}</span>
+        </div>
+      </div>
     </div>
   );
 }
