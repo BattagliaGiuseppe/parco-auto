@@ -275,7 +275,7 @@ export default function EventCarPage() {
           {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
           {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
           {/* NB: manteniamo senza prop per aderire al componente attuale */}
-          {tab === "scheda" && <SetupScheda />}
+          {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
         </div>
       </section>
 
