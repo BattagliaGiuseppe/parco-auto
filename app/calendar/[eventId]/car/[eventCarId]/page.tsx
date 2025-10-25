@@ -84,6 +84,7 @@ export default function EventCarPage() {
   const [newTurn, setNewTurn] = useState<TurnInput>({ durata: "", giri: "", note: "" });
   const [turnsSaving, setTurnsSaving] = useState(false);
   const totalHours = useMemo(() => turns.reduce((acc, t) => acc + t.minutes, 0) / 60, [turns]);
+  const totalTurns = useMemo(() => turns.length, [turns]);
 
   // ------------------------
   // Carburante (grafica + salvataggi)
@@ -107,6 +108,7 @@ export default function EventCarPage() {
   const [fuelSaving, setFuelSaving] = useState(false);
   const [fuelTick, setFuelTick] = useState(0);
   const [fuelHistory, setFuelHistory] = useState<DataRow[]>([]);
+  const [lastFuelTime, setLastFuelTime] = useState<string | null>(null);
 
   // ------------------------
   // Note (grafica + salvataggi)
@@ -115,6 +117,7 @@ export default function EventCarPage() {
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesTick, setNotesTick] = useState(0);
   const [notesHistory, setNotesHistory] = useState<DataRow[]>([]);
+  const [lastNotesTime, setLastNotesTime] = useState<string | null>(null);
 
   // ---------------------------------------
   // Load base: evento, auto + ultimi dati per sezioni da event_car_data
@@ -181,6 +184,7 @@ export default function EventCarPage() {
         setFuelEnd(Number(lastFuel.data.fuelEnd ?? 0));
         setLapsDone(Number(lastFuel.data.lapsDone ?? 0));
         setLapsPlanned(Number(lastFuel.data.lapsPlanned ?? 0));
+        if (lastFuel?.created_at) setLastFuelTime(new Date(lastFuel.created_at).toLocaleString());
       }
 
       // Carica storico fuel (ultimi 3)
@@ -204,7 +208,10 @@ export default function EventCarPage() {
         .limit(1)
         .maybeSingle();
 
-      if (lastNotes?.data?.text) setNotes(String(lastNotes.data.text));
+      if (lastNotes?.data?.text) {
+        setNotes(String(lastNotes.data.text));
+        if (lastNotes?.created_at) setLastNotesTime(new Date(lastNotes.created_at).toLocaleString());
+      }
 
       // Carica storico note (ultimi 3)
       const { data: notesHist } = await supabase
@@ -311,6 +318,26 @@ export default function EventCarPage() {
         // silenzioso: se l'RPC non esiste/non è abilitato non blocchiamo il flusso
       }
 
+      // ✅ Toast
+      {
+        const toast = document.createElement("div");
+        toast.textContent = "✅ Turno aggiunto con successo";
+        Object.assign(toast.style, {
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          background: "#86efac",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          fontWeight: "600",
+          color: "#064e3b",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          zIndex: "9999",
+        } as CSSStyleDeclaration);
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      }
+
       // ✅ Prompt per check-up post turno con scroll alla sezione
       if (confirm("Vuoi eseguire subito il check-up post turno?")) {
         const el = document.getElementById("checkup-section");
@@ -342,6 +369,27 @@ export default function EventCarPage() {
 
       setFuelHistory(hist || []);
       setFuelTick((t) => t + 1);
+      setLastFuelTime(new Date().toLocaleString());
+
+      // ✅ Toast
+      {
+        const toast = document.createElement("div");
+        toast.textContent = "💾 Dati carburante salvati con successo";
+        Object.assign(toast.style, {
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          background: "#fde68a",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          fontWeight: "600",
+          color: "#1f2937",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          zIndex: "9999",
+        } as CSSStyleDeclaration);
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      }
     } catch (e: any) {
       alert("Errore salvataggio carburante: " + e.message);
     } finally {
@@ -375,6 +423,27 @@ export default function EventCarPage() {
 
       setNotesHistory(hist || []);
       setNotesTick((t) => t + 1);
+      setLastNotesTime(new Date().toLocaleString());
+
+      // ✅ Toast
+      {
+        const toast = document.createElement("div");
+        toast.textContent = "🗒️ Note salvate";
+        Object.assign(toast.style, {
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          background: "#bfdbfe",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          fontWeight: "600",
+          color: "#1e3a8a",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          zIndex: "9999",
+        } as CSSStyleDeclaration);
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      }
     } catch (e: any) {
       alert("Errore salvataggio note: " + e.message);
     } finally {
@@ -629,7 +698,15 @@ export default function EventCarPage() {
 
       {/* 🕓 Turni Svolti */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">🕓 Turni Svolti</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">🕓 Turni Svolti</h2>
+        </div>
+
+        {/* Riepilogo Turni */}
+        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex items-center justify-between">
+          <span className="font-semibold text-gray-700">Turni totali: <span className="text-gray-900">{totalTurns}</span></span>
+          <span className="font-semibold text-gray-700">Ore totali: <span className="text-yellow-700">{totalHours.toFixed(2)} h</span></span>
+        </div>
 
         <table className="w-full text-sm border-collapse mb-4">
           <thead>
@@ -649,7 +726,7 @@ export default function EventCarPage() {
               </tr>
             ) : (
               turns.map((t, i) => (
-                <tr key={i}>
+                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className="border p-2 text-center">{i + 1}</td>
                   <td className="border p-2 text-center">{t.minutes}</td>
                   <td className="border p-2 text-center">{t.laps}</td>
@@ -660,39 +737,34 @@ export default function EventCarPage() {
           </tbody>
         </table>
 
-        <div className="text-right text-gray-700 font-semibold mb-4">
-          Totale ore lavoro:{" "}
-          <span className="text-yellow-600 font-bold">{totalHours.toFixed(2)} h</span>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           <input
             type="number"
             placeholder="Durata (min)"
             value={newTurn.durata}
             onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
-            className="border rounded-lg p-2 text-sm"
+            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
           />
           <input
             type="number"
             placeholder="Giri"
             value={newTurn.giri}
             onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
-            className="border rounded-lg p-2 text-sm"
+            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
           />
           <input
             type="text"
             placeholder="Note"
             value={newTurn.note}
             onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
-            className="border rounded-lg p-2 text-sm"
+            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
           />
         </div>
 
         <button
           onClick={addTurn}
           disabled={turnsSaving}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
         >
           {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
           Aggiungi Turno
@@ -705,20 +777,22 @@ export default function EventCarPage() {
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <Fuel className="text-yellow-500" /> Gestione carburante
           </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onSaveFuel}
-              disabled={fuelSaving}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-            >
-              {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-              Salva
-              <CheckCircle2
-                size={18}
-                className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
-              />
-            </button>
-          </div>
+        </div>
+
+        {/* Riquadro analisi */}
+        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <span className="font-semibold text-gray-700">
+            Consumo medio:{" "}
+            <span className="text-gray-900">
+              {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
+            </span>
+          </span>
+          <span className="font-semibold text-gray-700">
+            Carburante da aggiungere:{" "}
+            <span className="text-yellow-700">
+              {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L` : "—"}
+            </span>
+          </span>
         </div>
 
         {/* Riga 1 */}
@@ -728,7 +802,7 @@ export default function EventCarPage() {
           <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
         </div>
 
-        <hr className="my-3 border-gray-300" />
+        <hr className="my-3 border-gray-200" />
 
         {/* Riga 2 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -739,6 +813,28 @@ export default function EventCarPage() {
             value={fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
           />
         </div>
+
+        {/* Pulsante Salva (centrato) */}
+        <div className="flex justify-center mt-5 mb-2">
+          <button
+            onClick={onSaveFuel}
+            disabled={fuelSaving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+          >
+            {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+            Salva carburante
+            <CheckCircle2
+              size={18}
+              className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
+            />
+          </button>
+        </div>
+
+        {lastFuelTime && (
+          <p className="text-xs text-gray-500 text-center mb-4">
+            Ultimo salvataggio: {lastFuelTime}
+          </p>
+        )}
 
         {/* Storico ultimi 3 */}
         <HistoryBar
@@ -754,29 +850,37 @@ export default function EventCarPage() {
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <StickyNote className="text-yellow-500" /> Note e osservazioni
           </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onSaveNotes}
-              disabled={notesSaving}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-            >
-              {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-              Salva
-              <CheckCircle2
-                size={18}
-                className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
-              />
-            </button>
-          </div>
         </div>
 
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
-          className="border rounded-lg p-2 w-full"
-          rows={3}
+          className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-yellow-300 outline-none"
+          rows={4}
         />
+
+        {/* Pulsante Salva (centrato) */}
+        <div className="flex justify-center mt-4 mb-2">
+          <button
+            onClick={onSaveNotes}
+            disabled={notesSaving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+          >
+            {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+            Salva Note
+            <CheckCircle2
+              size={18}
+              className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
+            />
+          </button>
+        </div>
+
+        {lastNotesTime && (
+          <p className="text-xs text-gray-500 text-center mb-4">
+            Ultimo salvataggio: {lastNotesTime}
+          </p>
+        )}
 
         {/* Storico ultimi 3 */}
         <HistoryBar
@@ -847,7 +951,7 @@ function NumberCard({
         type="number"
         value={Number.isFinite(value) ? value : 0}
         onChange={(e) => setValue(integer ? parseInt(e.target.value || "0") : parseFloat(e.target.value || "0"))}
-        className="border rounded-lg p-2 w-full text-center"
+        className="border rounded-lg p-2 w-full text-center focus:ring-2 focus:ring-yellow-300 outline-none"
       />
     </div>
   );
