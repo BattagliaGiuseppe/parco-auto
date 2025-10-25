@@ -52,6 +52,30 @@ export default function EventCarPage() {
   const [checkupTick, setCheckupTick] = useState(0);
   const [checkupHistory, setCheckupHistory] = useState<DataRow[]>([]);
 
+  // Nuovi stati per UX avanzata
+  const [activeCheckupId, setActiveCheckupId] = useState<string | null>(null);
+  const [lastCheckupTime, setLastCheckupTime] = useState<string | null>(null);
+
+  // Stato complessivo auto (riepilogo visivo)
+  const overallStatus = useMemo(() => {
+    const values = Object.values(checkup);
+    if (values.length === 0) return "Da controllare";
+    if (values.includes("Problema")) return "Problema";
+    if (values.every((v) => v === "OK")) return "OK";
+    return "Da controllare";
+  }, [checkup]);
+
+  // Conteggi per stato
+  const statusCounts = useMemo(() => {
+    const counts = { OK: 0, "Da controllare": 0, Problema: 0 };
+    for (const value of Object.values(checkup)) {
+      if (value === "OK") counts.OK++;
+      else if (value === "Problema") counts.Problema++;
+      else counts["Da controllare"]++;
+    }
+    return counts;
+  }, [checkup]);
+
   // ------------------------
   // Turni svolti (tabella propria)
   // ------------------------
@@ -125,7 +149,11 @@ export default function EventCarPage() {
         .limit(1)
         .maybeSingle();
 
-      if (lastCheck?.data) setCheckup(lastCheck.data);
+      if (lastCheck?.data) {
+        setCheckup(lastCheck.data);
+        if (lastCheck?.created_at) setLastCheckupTime(new Date(lastCheck.created_at).toLocaleString());
+        if (lastCheck?.id) setActiveCheckupId(lastCheck.id);
+      }
 
       // Carica storico checkup (ultimi 3)
       const { data: chkHist } = await supabase
@@ -253,7 +281,7 @@ export default function EventCarPage() {
     if (!newTurn.durata) return alert("Inserisci la durata (minuti).");
     const minutes = Number(newTurn.durata);
     const laps = Number(newTurn.giri) || 0;
-    const notes = newTurn.note || "";
+    const noteText = newTurn.note || "";
 
     try {
       setTurnsSaving(true);
@@ -264,13 +292,13 @@ export default function EventCarPage() {
           event_car_id: eventCarId,
           minutes,
           laps,
-          notes,
+          notes: noteText,
         },
       ]);
       if (error) throw new Error(error.message);
 
       // aggiorna stato locale
-      setTurns((prev) => [...prev, { minutes, laps, notes }]);
+      setTurns((prev) => [...prev, { minutes, laps, notes: noteText }]);
       setNewTurn({ durata: "", giri: "", note: "" });
 
       // aggiorna ore componenti (rpc)
@@ -281,6 +309,12 @@ export default function EventCarPage() {
         });
       } catch {
         // silenzioso: se l'RPC non esiste/non è abilitato non blocchiamo il flusso
+      }
+
+      // ✅ Prompt per check-up post turno con scroll alla sezione
+      if (confirm("Vuoi eseguire subito il check-up post turno?")) {
+        const el = document.getElementById("checkup-section");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     } catch (e: any) {
       alert("Errore salvataggio turni: " + e.message);
@@ -361,6 +395,18 @@ export default function EventCarPage() {
             {car.name} – {event.name}
           </h1>
           <p className="text-gray-600 text-sm">Gestione tecnica evento</p>
+          {/* Stato auto aggregato */}
+          <div className="mt-1">
+            {overallStatus === "OK" && (
+              <span className="text-green-700 font-semibold">🟢 Auto OK</span>
+            )}
+            {overallStatus === "Da controllare" && (
+              <span className="text-yellow-700 font-semibold">🟠 Check-up da completare</span>
+            )}
+            {overallStatus === "Problema" && (
+              <span className="text-red-700 font-semibold">🔴 Problema tecnico segnalato</span>
+            )}
+          </div>
         </div>
         <Link
           href={`/calendar/${eventId}`}
@@ -413,62 +459,172 @@ export default function EventCarPage() {
       </section>
 
       {/* 🧰 Check-up tecnico (grafica + salvataggi) */}
-      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
+      <section id="checkup-section" className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
           </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onSaveCheckup}
-              disabled={checkupSaving}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-            >
-              {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-              Salva
-              <CheckCircle2
-                size={18}
-                className={`transition-opacity ${checkupTick ? "opacity-100" : "opacity-0"}`}
-              />
-            </button>
+        </div>
+
+        {/* Riepilogo visivo stato generale */}
+        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 text-base font-semibold">
+            {overallStatus === "OK" && (
+              <span className="text-green-700">🟢 Tutti i controlli OK</span>
+            )}
+            {overallStatus === "Da controllare" && (
+              <span className="text-yellow-700">🟠 Check-up da completare</span>
+            )}
+            {overallStatus === "Problema" && (
+              <span className="text-red-700">🔴 Problema rilevato</span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="text-green-700">✅ {statusCounts.OK} OK</span>
+            <span className="text-yellow-700">🟡 {statusCounts["Da controllare"]} Da controllare</span>
+            <span className="text-red-700">❌ {statusCounts.Problema} Problema</span>
           </div>
         </div>
 
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full text-sm border-collapse mb-4">
           <thead>
             <tr className="bg-gray-50 text-gray-700">
               <th className="border p-2 text-left">Controllo</th>
               <th className="border p-2 text-center">Stato</th>
+              <th className="border p-2 text-center">Azione</th>
             </tr>
           </thead>
           <tbody>
-            {defaultCheckupItems.map((item) => (
-              <tr key={item}>
-                <td className="border p-2">{item}</td>
-                <td className="border p-2 text-center">
-                  <select
-                    value={checkup[item] || "OK"}
-                    onChange={(e) =>
-                      setCheckup((s) => ({ ...s, [item]: e.target.value as any }))
-                    }
-                    className="border rounded-lg p-1 text-sm"
-                  >
-                    <option>OK</option>
-                    <option>Da controllare</option>
-                    <option>Problema</option>
-                  </select>
-                </td>
-              </tr>
-            ))}
+            {defaultCheckupItems.map((item) => {
+              const value = checkup[item] || "Da controllare";
+              const bgColor =
+                value === "OK"
+                  ? "bg-green-100"
+                  : value === "Da controllare"
+                  ? "bg-yellow-100"
+                  : "bg-red-100";
+              const borderColor =
+                value === "OK"
+                  ? "border-green-400"
+                  : value === "Da controllare"
+                  ? "border-yellow-400"
+                  : "border-red-400";
+
+              return (
+                <tr key={item} className={`${bgColor}`}>
+                  <td className="border p-2">{item}</td>
+                  <td className="border p-2 text-center">
+                    <select
+                      value={value}
+                      onChange={(e) =>
+                        setCheckup((s) => ({ ...s, [item]: e.target.value as any }))
+                      }
+                      className={`border rounded-lg p-1 text-sm ${borderColor}`}
+                    >
+                      <option>OK</option>
+                      <option>Da controllare</option>
+                      <option>Problema</option>
+                    </select>
+                  </td>
+                  <td className="border p-2 text-center">
+                    {value === "Problema" && (
+                      <button
+                        onClick={() => alert(`🔧 Crea manutenzione per: ${item} (funzione in sviluppo)`)}
+                        className="text-red-700 text-xs font-semibold hover:underline"
+                      >
+                        Crea manutenzione
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
+        {/* Pulsante Salva (in basso) */}
+        <div className="flex justify-center mt-4 mb-2">
+          <button
+            onClick={async () => {
+              await onSaveCheckup();
+              setLastCheckupTime(new Date().toLocaleString());
+              // Mini toast semplice, senza dipendenze
+              const toast = document.createElement("div");
+              toast.textContent = "💾 Check-up salvato con successo";
+              Object.assign(toast.style, {
+                position: "fixed",
+                top: "20px",
+                right: "20px",
+                background: "#facc15",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "600",
+                color: "#222",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                zIndex: "9999",
+              } as CSSStyleDeclaration);
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 2000);
+            }}
+            disabled={checkupSaving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+          >
+            {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+            Salva Check-up
+            <CheckCircle2
+              size={18}
+              className={`transition-opacity duration-500 ${checkupTick ? "opacity-100 text-green-600" : "opacity-0"}`}
+            />
+          </button>
+        </div>
+
+        {/* Ultimo salvataggio */}
+        {lastCheckupTime && (
+          <p className="text-xs text-gray-500 text-center mb-4">
+            Ultimo salvataggio: {lastCheckupTime}
+          </p>
+        )}
+
         {/* Storico ultimi 3 */}
-        <HistoryBar
-          title="Ultimi 3 salvataggi Check-up"
-          rows={checkupHistory}
-          onOpen={loadCheckup}
-        />
+        <div className="border-t pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Check-up</h3>
+            <div className="text-xs text-gray-500 flex items-center gap-1">
+              <RotateCcw size={14} /> Storico
+            </div>
+          </div>
+          {checkupHistory.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {checkupHistory.map((r) => {
+                const isActive = r.id === activeCheckupId;
+                return (
+                  <li
+                    key={r.id}
+                    className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
+                      isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
+                    }`}
+                    onClick={() => {
+                      loadCheckup(r);
+                      setActiveCheckupId(r.id);
+                      setLastCheckupTime(new Date(r.created_at).toLocaleString());
+                    }}
+                    title="Apri questo salvataggio"
+                  >
+                    <span>{new Date(r.created_at).toLocaleString()}</span>
+                    {isActive ? (
+                      <span className="text-green-700 font-semibold">✅ Aperto</span>
+                    ) : (
+                      <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* 🕓 Turni Svolti */}
@@ -716,4 +872,3 @@ function HighlightCard({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
