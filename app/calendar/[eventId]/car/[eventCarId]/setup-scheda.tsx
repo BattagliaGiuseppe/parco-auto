@@ -1,20 +1,116 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Loader2, Save, RotateCcw, CheckCircle2, Trash2 } from "lucide-react";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [setupHistory, setSetupHistory] = useState<any[]>([]);
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    console.log("💾 Setup salvato:", setup);
-    alert("Setup salvato (simulazione).");
-  };
+  // 🔄 Carica storico ultimi 3 setup
+  useEffect(() => {
+    loadHistory();
+  }, [eventCarId]);
+
+  async function loadHistory() {
+    const { data, error } = await supabase
+      .from("event_car_data")
+      .select("*")
+      .eq("event_car_id", eventCarId)
+      .eq("section", "setup")
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (!error) setSetupHistory(data || []);
+  }
+
+  // 💾 Salva setup (doppio salvataggio)
+  async function handleSave() {
+    try {
+      setSaving(true);
+
+      // 1️⃣ Inserisci storico in event_car_data
+      await supabase.from("event_car_data").insert([
+        {
+          event_car_id: eventCarId,
+          section: "setup",
+          setup,
+        },
+      ]);
+
+      // 2️⃣ Aggiorna o inserisci in event_car_setup
+      const { data: existing } = await supabase
+        .from("event_car_setup")
+        .select("id")
+        .eq("event_car_id", eventCarId)
+        .maybeSingle();
+
+      if (existing?.id) {
+        await supabase
+          .from("event_car_setup")
+          .update({ setup })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("event_car_setup").insert([
+          { event_car_id: eventCarId, setup },
+        ]);
+      }
+
+      // 🔁 Aggiorna lo storico visivo
+      await loadHistory();
+
+      // ✅ Toast conferma
+      const toast = document.createElement("div");
+      toast.textContent = "💾 Setup salvato con successo";
+      Object.assign(toast.style, {
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        background: "#facc15",
+        padding: "8px 14px",
+        borderRadius: "8px",
+        fontWeight: "600",
+        color: "#222",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+        zIndex: "9999",
+      } as CSSStyleDeclaration);
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    } catch (error: any) {
+      alert("Errore durante il salvataggio: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 📂 Carica un setup precedente
+  function handleLoadSetup(row: any) {
+    if (!row?.setup) return;
+    setSetup(row.setup);
+    setActiveSetupId(row.id);
+  }
+
+  // ❌ Elimina un salvataggio
+  async function handleDeleteSetup(id: string) {
+    const confirmDelete = confirm("Vuoi eliminare questo salvataggio?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from("event_car_data").delete().eq("id", id);
+    if (!error) {
+      await loadHistory();
+      if (id === activeSetupId) {
+        setActiveSetupId(null);
+      }
+    }
+  }
 
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
@@ -24,16 +120,15 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-
         {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
         <div className="flex flex-col items-center gap-3">
           {/* Mini tabella Data / Autodromo / Telaio */}
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
-              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} wide />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} wide />
-              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
+              <InputWide label="Data" name="data" handleChange={handleChange} setup={setup} />
+              <InputWide label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
+              <InputWide label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
             </div>
           </div>
 
@@ -128,105 +223,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
           />
         </div>
-
-        {/* ---------- ZONA 4: POSTERIORE SX + immagine + Rake ---------- */}
-        <div className="flex flex-col items-center gap-3">
-          <ZoneBox
-            title="Posteriore SX"
-            singleColumn
-            fields={[
-              { name: "pesoPostSx", label: "Peso", unit: "Kg" },
-              { name: "camberPostSxDeg", label: "Camber", unit: "°" },
-              { name: "camberPostSxMm", label: "Camber", unit: "mm" },
-              { name: "toeInSxMm", label: "Toe in", unit: "mm" },
-              { name: "toeInSxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostSx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollPostSx", label: "Antirollio" },
-              { name: "altezzaStaggiaPostSx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloPostSx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaPostSx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoPostSx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaPostSx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-          <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
-          <div className="border rounded-lg p-2 mt-1 w-full text-sm bg-gray-50">
-            <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
-            <div className="flex flex-col gap-2 items-center">
-              <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
-              <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
-            </div>
-          </div>
-        </div>
-
-        {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
-        <div className="flex flex-col items-center gap-3 relative">
-          <div className="relative -translate-y-[25%]">
-            <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
-          </div>
-          <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center -mt-8">
-            <h3 className="font-semibold mb-2">Ala Posteriore</h3>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th className="border px-2 py-1">Posizione</th>
-                  <th className="border px-2 py-1">Gradi</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border px-2 py-1 text-left">Beam</td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="beamPosizione" value={setup.beamPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="beamGradi" value={setup.beamGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                </tr>
-                <tr>
-                  <td className="border px-2 py-1 text-left">Main</td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="mainPosizione" value={setup.mainPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="mainGradi" value={setup.mainGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-3">
-          <ZoneBox
-            title="Posteriore DX"
-            singleColumn
-            fields={[
-              { name: "pesoPostDx", label: "Peso", unit: "Kg" },
-              { name: "camberPostDxDeg", label: "Camber", unit: "°" },
-              { name: "camberPostDxMm", label: "Camber", unit: "mm" },
-              { name: "toeInDxMm", label: "Toe in", unit: "mm" },
-              { name: "toeInDxDeg", label: "Toe in", unit: "°" },
-              { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollPostDx", label: "Antirollio" },
-              { name: "altezzaStaggiaPostDx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloPostDx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaPostDx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoPostDx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaPostDx", label: "Idraulica", unit: "click" },
-            ]}
-            handleChange={handleChange}
-            setup={setup}
-          />
-          <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
-        </div>
       </div>
 
-      {/* ---------- NOTE + SALVA ---------- */}
+      {/* ---------- NOTE ---------- */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
         <h3 className="font-semibold mb-2">Note</h3>
         <textarea
@@ -239,14 +238,61 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* Tasto Salva centrato */}
-      <div className="flex justify-center mt-2 mb-6">
+      {/* ---------- PULSANTE SALVA ---------- */}
+      <div className="flex justify-center mt-6">
         <button
           onClick={handleSave}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-6 py-2 rounded-lg shadow"
+          disabled={saving}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
         >
-          💾 Salva Setup
+          {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+          Salva Setup
+          <CheckCircle2 size={18} className="text-green-700" />
         </button>
+      </div>
+
+      {/* ---------- STORICO ---------- */}
+      <div className="border-t pt-4 w-full max-w-6xl">
+        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          <RotateCcw size={16} /> Ultimi 3 salvataggi Setup
+        </h3>
+        {setupHistory.length === 0 ? (
+          <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {setupHistory.map((r) => {
+              const isActive = r.id === activeSetupId;
+              return (
+                <li
+                  key={r.id}
+                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
+                    isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <span>{new Date(r.created_at).toLocaleString()}</span>
+                  <div className="flex items-center gap-3">
+                    {isActive ? (
+                      <span className="text-green-700 font-semibold">✅ Aperto</span>
+                    ) : (
+                      <button
+                        onClick={() => handleLoadSetup(r)}
+                        className="text-yellow-600 font-semibold hover:underline"
+                      >
+                        🔄 Apri
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteSetup(r.id)}
+                      className="text-red-600 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -277,7 +323,7 @@ function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: a
   );
 }
 
-function InputShort({ label, name, unit, handleChange, setup, wide = false }: any) {
+function InputWide({ label, name, unit, handleChange, setup }: any) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-xs text-gray-600 w-24">{label}</label>
@@ -286,7 +332,7 @@ function InputShort({ label, name, unit, handleChange, setup, wide = false }: an
         name={name}
         value={setup[name] || ""}
         onChange={handleChange}
-        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-64" : "w-20"}`} // ← larghezza aumentata
+        className="border rounded px-1 py-0.5 text-sm w-48"
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </div>
