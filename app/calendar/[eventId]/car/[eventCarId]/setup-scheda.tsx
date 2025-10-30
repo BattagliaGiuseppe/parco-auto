@@ -1,83 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../../../../../lib/supabase";
-import { Loader2, Save, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, Save, CheckCircle2 } from "lucide-react";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
-  const [setupHistory, setSetupHistory] = useState<any[]>([]);
-  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
-  const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // --- Carica ultimo setup e storico ---
-  useEffect(() => {
-    (async () => {
-      // Ultimo setup da event_car_data
-      const { data: lastSetup } = await supabase
-        .from("event_car_data")
-        .select("*")
-        .eq("event_car_id", eventCarId)
-        .eq("section", "setup")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (lastSetup?.data) {
-        setSetup(lastSetup.data);
-        if (lastSetup?.id) setActiveSetupId(lastSetup.id);
-        if (lastSetup?.created_at)
-          setLastSetupTime(new Date(lastSetup.created_at).toLocaleString());
-      }
-
-      // Storico ultimi 3
-      const { data: hist } = await supabase
-        .from("event_car_data")
-        .select("*")
-        .eq("event_car_id", eventCarId)
-        .eq("section", "setup")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      setSetupHistory(hist || []);
-    })();
-  }, [eventCarId]);
-
-  // --- Salvataggio doppio ---
   async function onSaveSetup() {
     try {
       setSaving(true);
+      const { error } = await supabase.from("event_car_setup").insert([
+        {
+          event_car_id: eventCarId,
+          setup,
+        },
+      ]);
+      if (error) throw new Error(error.message);
 
-      // 1️⃣ salva in event_car_setup
-      const { error: setupErr } = await supabase
-        .from("event_car_setup")
-        .insert([{ event_car_id: eventCarId, setup }]);
-      if (setupErr) console.warn("⚠️ event_car_setup:", setupErr.message);
+      // Feedback visivo
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
 
-      // 2️⃣ salva in event_car_data (con storico)
-      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
-      const { error: dataErr } = await supabase.from("event_car_data").insert([payload]);
-      if (dataErr) throw new Error(dataErr.message);
-
-      // Aggiorna storico
-      const { data: hist } = await supabase
-        .from("event_car_data")
-        .select("*")
-        .eq("event_car_id", eventCarId)
-        .eq("section", "setup")
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      setSetupHistory(hist || []);
-      setLastSetupTime(new Date().toLocaleString());
-
-      // Toast visivo
       const toast = document.createElement("div");
       toast.textContent = "💾 Setup salvato con successo";
       Object.assign(toast.style, {
@@ -95,13 +47,12 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2000);
     } catch (e: any) {
-      alert("Errore salvataggio setup: " + e.message);
+      alert("Errore durante il salvataggio: " + e.message);
     } finally {
       setSaving(false);
     }
   }
 
-  // --- UI ---
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
       <h1 className="text-2xl font-bold text-center uppercase">
@@ -116,9 +67,27 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
-              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} wide />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} wide />
-              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
+              <InputShort
+                label="Data"
+                name="data"
+                handleChange={handleChange}
+                setup={setup}
+                wide
+              />
+              <InputShort
+                label="Autodromo"
+                name="autodromo"
+                handleChange={handleChange}
+                setup={setup}
+                wide
+              />
+              <InputShort
+                label="Telaio"
+                name="telaio"
+                handleChange={handleChange}
+                setup={setup}
+                wide
+              />
             </div>
           </div>
 
@@ -197,56 +166,11 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         >
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           Salva Setup
-          <CheckCircle2 size={18} className={`transition-opacity ${saving ? "opacity-0" : "opacity-100"}`} />
+          <CheckCircle2
+            size={18}
+            className={`transition-opacity ${saved ? "opacity-100 text-green-600" : "opacity-0"}`}
+          />
         </button>
-      </div>
-
-      {lastSetupTime && (
-        <p className="text-xs text-gray-500 text-center mb-4">
-          Ultimo salvataggio: {lastSetupTime}
-        </p>
-      )}
-
-      {/* ---------- STORICO ---------- */}
-      <div className="border-t pt-3 w-full max-w-6xl">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Setup</h3>
-          <div className="text-xs text-gray-500 flex items-center gap-1">
-            <RotateCcw size={14} /> Storico
-          </div>
-        </div>
-        {setupHistory.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center">Nessun salvataggio disponibile.</p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {setupHistory.map((r) => {
-              const isActive = r.id === activeSetupId;
-              return (
-                <li
-                  key={r.id}
-                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
-                    isActive
-                      ? "bg-yellow-100 border-yellow-400 shadow-inner"
-                      : "hover:bg-gray-50"
-                  }`}
-                  onClick={() => {
-                    setSetup(r.data);
-                    setActiveSetupId(r.id);
-                    setLastSetupTime(new Date(r.created_at).toLocaleString());
-                  }}
-                  title="Apri questo salvataggio"
-                >
-                  <span>{new Date(r.created_at).toLocaleString()}</span>
-                  {isActive ? (
-                    <span className="text-green-700 font-semibold">✅ Aperto</span>
-                  ) : (
-                    <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
       </div>
     </div>
   );
@@ -286,7 +210,7 @@ function InputShort({ label, name, unit, handleChange, setup, wide = false }: an
         name={name}
         value={setup[name] || ""}
         onChange={handleChange}
-        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-52" : "w-20"}`}
+        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-72" : "w-20"}`} // ← più largo
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </div>
