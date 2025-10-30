@@ -7,7 +7,6 @@ import { Button } from "../../../../../components/Button";
 import dayjs from "dayjs";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
-  const supabase = createClient();
   const [setup, setSetup] = useState<any>({});
   const [storico, setStorico] = useState<any[]>([]);
 
