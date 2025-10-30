@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../../lib/supabase";
 import { Loader2, Save, CheckCircle2, RotateCcw } from "lucide-react";
-import { Button } from "../../../../../components/Button";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
@@ -18,9 +17,10 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // Caricamento ultimo setup e storico
+  // --- Carica ultimo setup e storico ---
   useEffect(() => {
     (async () => {
+      // Ultimo setup da event_car_data
       const { data: lastSetup } = await supabase
         .from("event_car_data")
         .select("*")
@@ -37,6 +37,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           setLastSetupTime(new Date(lastSetup.created_at).toLocaleString());
       }
 
+      // Storico ultimi 3
       const { data: hist } = await supabase
         .from("event_car_data")
         .select("*")
@@ -44,19 +45,27 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         .eq("section", "setup")
         .order("created_at", { ascending: false })
         .limit(3);
-
       setSetupHistory(hist || []);
     })();
   }, [eventCarId]);
 
-  // Salvataggio setup
+  // --- Salvataggio doppio ---
   async function onSaveSetup() {
     try {
       setSaving(true);
-      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
-      const { error } = await supabase.from("event_car_data").insert([payload]);
-      if (error) throw new Error(error.message);
 
+      // 1️⃣ salva in event_car_setup
+      const { error: setupErr } = await supabase
+        .from("event_car_setup")
+        .insert([{ event_car_id: eventCarId, setup }]);
+      if (setupErr) console.warn("⚠️ event_car_setup:", setupErr.message);
+
+      // 2️⃣ salva in event_car_data (con storico)
+      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
+      const { error: dataErr } = await supabase.from("event_car_data").insert([payload]);
+      if (dataErr) throw new Error(dataErr.message);
+
+      // Aggiorna storico
       const { data: hist } = await supabase
         .from("event_car_data")
         .select("*")
@@ -68,6 +77,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       setSetupHistory(hist || []);
       setLastSetupTime(new Date().toLocaleString());
 
+      // Toast visivo
       const toast = document.createElement("div");
       toast.textContent = "💾 Setup salvato con successo";
       Object.assign(toast.style, {
@@ -91,6 +101,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     }
   }
 
+  // --- UI ---
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
       <h1 className="text-2xl font-bold text-center uppercase">
@@ -99,8 +110,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-        {/* ---------- INFO GENERALI ---------- */}
+        {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
         <div className="flex flex-col items-center gap-3">
+          {/* Info generali */}
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
@@ -109,6 +121,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
             </div>
           </div>
+
           <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
 
           <ZoneBox
@@ -117,15 +130,23 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             fields={[
               { name: "pesoAntSx", label: "Peso", unit: "Kg" },
               { name: "camberAntSxDeg", label: "Camber", unit: "°" },
+              { name: "camberAntSxMm", label: "Camber", unit: "mm" },
               { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
+              { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
               { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
+              { name: "antirollAntSx", label: "Antirollio" },
+              { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
+              { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
+              { name: "mollaAntSx", label: "Molla", unit: "Lbs" },
+              { name: "precaricoAntSx", label: "Precarico", unit: "giri" },
+              { name: "idraulicaAntSx", label: "Idraulica", unit: "click" },
             ]}
             handleChange={handleChange}
             setup={setup}
           />
         </div>
 
-        {/* ---------- ZONA CENTRALE CON AUTO ---------- */}
+        {/* ---------- ZONA 1: CENTRALE CON AUTO ---------- */}
         <div className="flex flex-col items-center gap-3">
           <Image
             src="/macchina-al-centro.png"
@@ -136,7 +157,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- POSTERIORE DX ---------- */}
+        {/* ---------- ZONA 3: POSTERIORE DX ---------- */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore DX"
