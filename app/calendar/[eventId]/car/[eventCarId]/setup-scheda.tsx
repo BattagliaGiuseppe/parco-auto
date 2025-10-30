@@ -11,6 +11,11 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
+  const handleSave = () => {
+    console.log("💾 Setup salvato:", setup);
+    alert("Setup salvato (simulazione).");
+  };
+
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
       <h1 className="text-2xl font-bold text-center uppercase">
@@ -221,7 +226,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         </div>
       </div>
 
-      {/* ---------- NOTE ---------- */}
+      {/* ---------- NOTE + SALVA ---------- */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
         <h3 className="font-semibold mb-2">Note</h3>
         <textarea
@@ -232,6 +237,16 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           className="w-full border rounded p-2 text-sm"
           placeholder="Annotazioni, modifiche, sensazioni del pilota..."
         />
+      </div>
+
+      {/* Tasto Salva centrato */}
+      <div className="flex justify-center mt-2 mb-6">
+        <button
+          onClick={handleSave}
+          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-6 py-2 rounded-lg shadow"
+        >
+          💾 Salva Setup
+        </button>
       </div>
     </div>
   );
