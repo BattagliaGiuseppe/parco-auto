@@ -3,65 +3,93 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../../lib/supabase";
+import { Loader2, Save, CheckCircle2, RotateCcw } from "lucide-react";
 import { Button } from "../../../../../components/Button";
-import dayjs from "dayjs";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
-  const [storico, setStorico] = useState<any[]>([]);
+  const [setupHistory, setSetupHistory] = useState<any[]>([]);
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
+  const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // 🔹 Carica ultimi 3 salvataggi
+  // Caricamento ultimo setup e storico
   useEffect(() => {
-    const fetchStorico = async () => {
-      const { data } = await supabase
-        .from("event_car_setup")
+    (async () => {
+      const { data: lastSetup } = await supabase
+        .from("event_car_data")
         .select("*")
         .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastSetup?.data) {
+        setSetup(lastSetup.data);
+        if (lastSetup?.id) setActiveSetupId(lastSetup.id);
+        if (lastSetup?.created_at)
+          setLastSetupTime(new Date(lastSetup.created_at).toLocaleString());
+      }
+
+      const { data: hist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
         .order("created_at", { ascending: false })
         .limit(3);
-      if (data) setStorico(data);
-    };
-    fetchStorico();
+
+      setSetupHistory(hist || []);
+    })();
   }, [eventCarId]);
 
-  // 🔹 Salva setup
-  const handleSave = async () => {
-    const { error } = await supabase.from("event_car_setup").insert({
-      event_car_id: eventCarId,
-      section: "setup",
-      data: setup,
-      created_at: new Date().toISOString(),
-    });
+  // Salvataggio setup
+  async function onSaveSetup() {
+    try {
+      setSaving(true);
+      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
+      const { error } = await supabase.from("event_car_data").insert([payload]);
+      if (error) throw new Error(error.message);
 
-    if (!error) {
-      alert("💾 Setup salvato con successo!");
-      const { data } = await supabase
-        .from("event_car_setup")
+      const { data: hist } = await supabase
+        .from("event_car_data")
         .select("*")
         .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
         .order("created_at", { ascending: false })
         .limit(3);
-      setStorico(data || []);
-    }
-  };
 
-  // 🔹 Elimina setup
-  const handleDelete = async (id: string) => {
-    if (confirm("Vuoi eliminare questo salvataggio?")) {
-      await supabase.from("event_car_setup").delete().eq("id", id);
-      setStorico((prev) => prev.filter((s) => s.id !== id));
-    }
-  };
+      setSetupHistory(hist || []);
+      setLastSetupTime(new Date().toLocaleString());
 
-  // 🔹 Apri setup salvato
-  const handleOpen = (data: any) => {
-    setSetup(data.data);
-  };
+      const toast = document.createElement("div");
+      toast.textContent = "💾 Setup salvato con successo";
+      Object.assign(toast.style, {
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        background: "#facc15",
+        padding: "8px 14px",
+        borderRadius: "8px",
+        fontWeight: "600",
+        color: "#222",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+        zIndex: "9999",
+      });
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    } catch (e: any) {
+      alert("Errore salvataggio setup: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
@@ -71,9 +99,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-        {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
+        {/* ---------- INFO GENERALI ---------- */}
         <div className="flex flex-col items-center gap-3">
-          {/* Mini tabella Data / Autodromo / Telaio */}
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
@@ -82,7 +109,6 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
             </div>
           </div>
-
           <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
 
           <ZoneBox
@@ -91,91 +117,41 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             fields={[
               { name: "pesoAntSx", label: "Peso", unit: "Kg" },
               { name: "camberAntSxDeg", label: "Camber", unit: "°" },
-              { name: "camberAntSxMm", label: "Camber", unit: "mm" },
               { name: "toeOutSxMm", label: "Toe out", unit: "mm" },
-              { name: "toeOutSxDeg", label: "Toe out", unit: "°" },
               { name: "pressioneAntSx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollAntSx", label: "Antirollio" },
-              { name: "altezzaStaggiaAntSx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloAntSx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaAntSx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoAntSx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaAntSx", label: "Idraulica", unit: "click" },
             ]}
             handleChange={handleChange}
             setup={setup}
           />
         </div>
 
-        {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
+        {/* ---------- ZONA CENTRALE CON AUTO ---------- */}
         <div className="flex flex-col items-center gap-3">
           <Image
-            src="/in-alto-al-centro.png"
-            alt="in alto centro"
-            width={360}
-            height={160}
-            className="-mt-2 md:-mt-4"
+            src="/macchina-al-centro.png"
+            alt="macchina"
+            width={460}
+            height={460}
+            className="mx-auto"
           />
-          <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
-            <h3 className="font-semibold mb-2">Ala Anteriore</h3>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th className="border px-2 py-1">Posizione</th>
-                  <th className="border px-2 py-1">Gradi</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border px-2 py-1 text-left">Ala</td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="alaAntPosizione" value={setup.alaAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="alaAntGradi" value={setup.alaAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                </tr>
-                <tr>
-                  <td className="border px-2 py-1 text-left">Flap</td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="flapAntPosizione" value={setup.flapAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <input type="text" name="flapAntGradi" value={setup.flapAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
 
-        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
-        <div className="flex flex-col items-center gap-3 justify-end">
-          <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
+        {/* ---------- POSTERIORE DX ---------- */}
+        <div className="flex flex-col items-center gap-3">
           <ZoneBox
-            title="Anteriore DX"
+            title="Posteriore DX"
             singleColumn
             fields={[
-              { name: "pesoAntDx", label: "Peso", unit: "Kg" },
-              { name: "camberAntDxDeg", label: "Camber", unit: "°" },
-              { name: "camberAntDxMm", label: "Camber", unit: "mm" },
-              { name: "toeOutDxMm", label: "Toe out", unit: "mm" },
-              { name: "toeOutDxDeg", label: "Toe out", unit: "°" },
-              { name: "pressioneAntDx", label: "Pressione a freddo", unit: "bar" },
-              { name: "antirollAntDx", label: "Antirollio" },
-              { name: "altezzaStaggiaAntDx", label: "Altezza a staggia", unit: "mm" },
-              { name: "altezzaSuoloAntDx", label: "Altezza da suolo", unit: "mm" },
-              { name: "mollaAntDx", label: "Molla", unit: "Lbs" },
-              { name: "precaricoAntDx", label: "Precarico", unit: "giri" },
-              { name: "idraulicaAntDx", label: "Idraulica", unit: "click" },
+              { name: "pesoPostDx", label: "Peso", unit: "Kg" },
+              { name: "camberPostDxDeg", label: "Camber", unit: "°" },
+              { name: "toeInDxMm", label: "Toe in", unit: "mm" },
+              { name: "pressionePostDx", label: "Pressione a freddo", unit: "bar" },
             ]}
             handleChange={handleChange}
             setup={setup}
           />
+          <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
-
-        {/* ... resto invariato ... */}
       </div>
 
       {/* ---------- NOTE ---------- */}
@@ -191,39 +167,65 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* ---------- SALVA E STORICO ---------- */}
-      <div className="flex flex-col items-center w-full max-w-6xl gap-4 mt-4">
-        <Button
-          onClick={handleSave}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-semibold"
+      {/* ---------- SALVA ---------- */}
+      <div className="flex justify-center mt-6 mb-2">
+        <button
+          onClick={onSaveSetup}
+          disabled={saving}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
         >
-          💾 Salva
-        </Button>
+          {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+          Salva Setup
+          <CheckCircle2 size={18} className={`transition-opacity ${saving ? "opacity-0" : "opacity-100"}`} />
+        </button>
+      </div>
 
-        <div className="border rounded-lg p-4 bg-gray-50 w-full">
-          <h3 className="font-semibold mb-2 text-center">Storico Setup (ultimi 3)</h3>
-          {storico.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center">Nessun salvataggio recente</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {storico.map((s) => (
-                <div key={s.id} className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm">
-                    {dayjs(s.created_at).format("DD/MM/YYYY HH:mm")}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleOpen(s)}>
-                      Apri
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDelete(s.id)}>
-                      Elimina
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {lastSetupTime && (
+        <p className="text-xs text-gray-500 text-center mb-4">
+          Ultimo salvataggio: {lastSetupTime}
+        </p>
+      )}
+
+      {/* ---------- STORICO ---------- */}
+      <div className="border-t pt-3 w-full max-w-6xl">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Setup</h3>
+          <div className="text-xs text-gray-500 flex items-center gap-1">
+            <RotateCcw size={14} /> Storico
+          </div>
         </div>
+        {setupHistory.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center">Nessun salvataggio disponibile.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {setupHistory.map((r) => {
+              const isActive = r.id === activeSetupId;
+              return (
+                <li
+                  key={r.id}
+                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
+                    isActive
+                      ? "bg-yellow-100 border-yellow-400 shadow-inner"
+                      : "hover:bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    setSetup(r.data);
+                    setActiveSetupId(r.id);
+                    setLastSetupTime(new Date(r.created_at).toLocaleString());
+                  }}
+                  title="Apri questo salvataggio"
+                >
+                  <span>{new Date(r.created_at).toLocaleString()}</span>
+                  {isActive ? (
+                    <span className="text-green-700 font-semibold">✅ Aperto</span>
+                  ) : (
+                    <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -263,7 +265,7 @@ function InputShort({ label, name, unit, handleChange, setup, wide = false }: an
         name={name}
         value={setup[name] || ""}
         onChange={handleChange}
-        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-64" : "w-20"}`}
+        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-52" : "w-20"}`}
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </div>
