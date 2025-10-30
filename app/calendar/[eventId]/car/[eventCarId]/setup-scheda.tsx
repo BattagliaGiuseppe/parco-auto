@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { createClient } from "../../../../../utils/supabase/client";
-import { Button } from "../../../../../components/ui/button";
+import { createClient } from "../../../../../lib/supabaseClient";
+import { Button } from "../../../../../components/Button";
 import dayjs from "dayjs";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
