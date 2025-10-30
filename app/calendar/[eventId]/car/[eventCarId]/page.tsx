@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Save,
   RotateCcw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 // Setup pages già presenti
@@ -40,6 +42,13 @@ export default function EventCarPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
 
+  // Vista sintetica/dettagliata
+  const [setupExpanded, setSetupExpanded] = useState(true); // Setup aperto di default
+  const [checkupExpanded, setCheckupExpanded] = useState(false);
+  const [turnsExpanded, setTurnsExpanded] = useState(false);
+  const [fuelExpanded, setFuelExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+
   // ------------------------
   // Check-up (grafica + salvataggi)
   // ------------------------
@@ -51,8 +60,6 @@ export default function EventCarPage() {
   const [checkupSaving, setCheckupSaving] = useState(false);
   const [checkupTick, setCheckupTick] = useState(0);
   const [checkupHistory, setCheckupHistory] = useState<DataRow[]>([]);
-
-  // Nuovi stati per UX avanzata
   const [activeCheckupId, setActiveCheckupId] = useState<string | null>(null);
   const [lastCheckupTime, setLastCheckupTime] = useState<string | null>(null);
 
@@ -67,7 +74,7 @@ export default function EventCarPage() {
 
   // Conteggi per stato
   const statusCounts = useMemo(() => {
-    const counts = { OK: 0, "Da controllare": 0, Problema: 0 };
+    const counts = { OK: 0, "Da controllare": 0, Problema: 0 } as Record<"OK"|"Da controllare"|"Problema", number>;
     for (const value of Object.values(checkup)) {
       if (value === "OK") counts.OK++;
       else if (value === "Problema") counts.Problema++;
@@ -108,6 +115,7 @@ export default function EventCarPage() {
   const [fuelSaving, setFuelSaving] = useState(false);
   const [fuelTick, setFuelTick] = useState(0);
   const [fuelHistory, setFuelHistory] = useState<DataRow[]>([]);
+  const [activeFuelId, setActiveFuelId] = useState<string | null>(null);
   const [lastFuelTime, setLastFuelTime] = useState<string | null>(null);
 
   // ------------------------
@@ -117,6 +125,7 @@ export default function EventCarPage() {
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesTick, setNotesTick] = useState(0);
   const [notesHistory, setNotesHistory] = useState<DataRow[]>([]);
+  const [activeNotesId, setActiveNotesId] = useState<string | null>(null);
   const [lastNotesTime, setLastNotesTime] = useState<string | null>(null);
 
   // ---------------------------------------
@@ -185,6 +194,7 @@ export default function EventCarPage() {
         setLapsDone(Number(lastFuel.data.lapsDone ?? 0));
         setLapsPlanned(Number(lastFuel.data.lapsPlanned ?? 0));
         if (lastFuel?.created_at) setLastFuelTime(new Date(lastFuel.created_at).toLocaleString());
+        if (lastFuel?.id) setActiveFuelId(lastFuel.id);
       }
 
       // Carica storico fuel (ultimi 3)
@@ -211,6 +221,7 @@ export default function EventCarPage() {
       if (lastNotes?.data?.text) {
         setNotes(String(lastNotes.data.text));
         if (lastNotes?.created_at) setLastNotesTime(new Date(lastNotes.created_at).toLocaleString());
+        if (lastNotes?.id) setActiveNotesId(lastNotes.id);
       }
 
       // Carica storico note (ultimi 3)
@@ -247,7 +258,6 @@ export default function EventCarPage() {
   // Helpers salvataggi (event_car_data)
   // ------------------------
   async function saveSection(section: DataRow["section"], data: any) {
-    // Inseriamo SEMPRE una nuova riga per avere storico consultabile
     const payload = { event_car_id: eventCarId, section, data };
     const { error } = await supabase.from("event_car_data").insert([payload]);
     if (error) throw new Error(error.message);
@@ -260,7 +270,6 @@ export default function EventCarPage() {
     try {
       setCheckupSaving(true);
       await saveSection("checkup", checkup);
-      // ricarica ultimi 3
       const { data } = await supabase
         .from("event_car_data")
         .select("*")
@@ -293,7 +302,6 @@ export default function EventCarPage() {
     try {
       setTurnsSaving(true);
 
-      // scrive in tabella normalizzata
       const { error } = await supabase.from("event_car_turns").insert([
         {
           event_car_id: eventCarId,
@@ -304,41 +312,33 @@ export default function EventCarPage() {
       ]);
       if (error) throw new Error(error.message);
 
-      // aggiorna stato locale
       setTurns((prev) => [...prev, { minutes, laps, notes: noteText }]);
       setNewTurn({ durata: "", giri: "", note: "" });
 
-      // aggiorna ore componenti (rpc)
       try {
         await supabase.rpc("increment_component_hours", {
-          p_car_id: eventCarId, // NB: manteniamo l'argomento che hai già in funzione
+          p_car_id: eventCarId,
           p_hours: minutes / 60,
         });
-      } catch {
-        // silenzioso: se l'RPC non esiste/non è abilitato non blocchiamo il flusso
-      }
+      } catch {}
 
-      // ✅ Toast
-      {
-        const toast = document.createElement("div");
-        toast.textContent = "✅ Turno aggiunto con successo";
-        Object.assign(toast.style, {
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          background: "#86efac",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          fontWeight: "600",
-          color: "#064e3b",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-          zIndex: "9999",
-        } as CSSStyleDeclaration);
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-      }
+      const toast = document.createElement("div");
+      toast.textContent = "✅ Turno aggiunto con successo";
+      Object.assign(toast.style, {
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        background: "#86efac",
+        padding: "8px 14px",
+        borderRadius: "8px",
+        fontWeight: "600",
+        color: "#064e3b",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+        zIndex: "9999",
+      } as CSSStyleDeclaration);
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
 
-      // ✅ Prompt per check-up post turno con scroll alla sezione
       if (confirm("Vuoi eseguire subito il check-up post turno?")) {
         const el = document.getElementById("checkup-section");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -370,26 +370,6 @@ export default function EventCarPage() {
       setFuelHistory(hist || []);
       setFuelTick((t) => t + 1);
       setLastFuelTime(new Date().toLocaleString());
-
-      // ✅ Toast
-      {
-        const toast = document.createElement("div");
-        toast.textContent = "💾 Dati carburante salvati con successo";
-        Object.assign(toast.style, {
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          background: "#fde68a",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          fontWeight: "600",
-          color: "#1f2937",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-          zIndex: "9999",
-        } as CSSStyleDeclaration);
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-      }
     } catch (e: any) {
       alert("Errore salvataggio carburante: " + e.message);
     } finally {
@@ -424,26 +404,6 @@ export default function EventCarPage() {
       setNotesHistory(hist || []);
       setNotesTick((t) => t + 1);
       setLastNotesTime(new Date().toLocaleString());
-
-      // ✅ Toast
-      {
-        const toast = document.createElement("div");
-        toast.textContent = "🗒️ Note salvate";
-        Object.assign(toast.style, {
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          background: "#bfdbfe",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          fontWeight: "600",
-          color: "#1e3a8a",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-          zIndex: "9999",
-        } as CSSStyleDeclaration);
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-      }
     } catch (e: any) {
       alert("Errore salvataggio note: " + e.message);
     } finally {
@@ -485,291 +445,314 @@ export default function EventCarPage() {
         </Link>
       </div>
 
+      {/* ======== Separatore giallo tenue ======== */}
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
+
       {/* Sezione Setup */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
-          <Gauge className="text-yellow-500" /> Assetto
-        </h2>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-3 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Gauge className="text-yellow-500" /> Assetto
+          </h2>
           <button
-            onClick={() => setTab("touch")}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              tab === "touch" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            onClick={() => setSetupExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            Setup Touch
-          </button>
-          <button
-            onClick={() => setTab("racing")}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              tab === "racing" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Setup Interattivo
-          </button>
-          <button
-            onClick={() => setTab("scheda")}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              tab === "scheda" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Setup Scheda Tecnica
+            {setupExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+            {setupExpanded ? "Vista sintetica" : "Dettagli"}
           </button>
         </div>
 
-        {/* Contenuto dinamico */}
-        <div className="transition-all duration-300">
-          {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
-          {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
-          {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
-        </div>
+        {setupExpanded ? (
+          <>
+            {/* Tabs */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <button
+                onClick={() => setTab("touch")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "touch" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Setup Touch
+              </button>
+              <button
+                onClick={() => setTab("racing")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "racing" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Setup Interattivo
+              </button>
+              <button
+                onClick={() => setTab("scheda")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "scheda" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Setup Scheda Tecnica
+              </button>
+            </div>
+
+            {/* Contenuto dinamico */}
+            <div className="transition-all duration-300">
+              {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
+              {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
+              {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">Vista sintetica</div>
+        )}
       </section>
 
-      {/* 🧰 Check-up tecnico (grafica + salvataggi) */}
+      {/* ======== Separatore giallo tenue ======== */}
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
+
+      {/* 🧰 Check-up tecnico */}
       <section id="checkup-section" className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
           </h2>
-        </div>
-
-        {/* Riepilogo visivo stato generale */}
-        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 text-base font-semibold">
-            {overallStatus === "OK" && (
-              <span className="text-green-700">🟢 Tutti i controlli OK</span>
-            )}
-            {overallStatus === "Da controllare" && (
-              <span className="text-yellow-700">🟠 Check-up da completare</span>
-            )}
-            {overallStatus === "Problema" && (
-              <span className="text-red-700">🔴 Problema rilevato</span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-sm font-semibold">
-            <span className="text-green-700">✅ {statusCounts.OK} OK</span>
-            <span className="text-yellow-700">🟡 {statusCounts["Da controllare"]} Da controllare</span>
-            <span className="text-red-700">❌ {statusCounts.Problema} Problema</span>
-          </div>
-        </div>
-
-        <table className="w-full text-sm border-collapse mb-4">
-          <thead>
-            <tr className="bg-gray-50 text-gray-700">
-              <th className="border p-2 text-left">Controllo</th>
-              <th className="border p-2 text-center">Stato</th>
-              <th className="border p-2 text-center">Azione</th>
-            </tr>
-          </thead>
-          <tbody>
-            {defaultCheckupItems.map((item) => {
-              const value = checkup[item] || "Da controllare";
-              const bgColor =
-                value === "OK"
-                  ? "bg-green-100"
-                  : value === "Da controllare"
-                  ? "bg-yellow-100"
-                  : "bg-red-100";
-              const borderColor =
-                value === "OK"
-                  ? "border-green-400"
-                  : value === "Da controllare"
-                  ? "border-yellow-400"
-                  : "border-red-400";
-
-              return (
-                <tr key={item} className={`${bgColor}`}>
-                  <td className="border p-2">{item}</td>
-                  <td className="border p-2 text-center">
-                    <select
-                      value={value}
-                      onChange={(e) =>
-                        setCheckup((s) => ({ ...s, [item]: e.target.value as any }))
-                      }
-                      className={`border rounded-lg p-1 text-sm ${borderColor}`}
-                    >
-                      <option>OK</option>
-                      <option>Da controllare</option>
-                      <option>Problema</option>
-                    </select>
-                  </td>
-                  <td className="border p-2 text-center">
-                    {value === "Problema" && (
-                      <button
-                        onClick={() => alert(`🔧 Crea manutenzione per: ${item} (funzione in sviluppo)`)}
-                        className="text-red-700 text-xs font-semibold hover:underline"
-                      >
-                        Crea manutenzione
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Pulsante Salva (in basso) */}
-        <div className="flex justify-center mt-4 mb-2">
           <button
-            onClick={async () => {
-              await onSaveCheckup();
-              setLastCheckupTime(new Date().toLocaleString());
-              // Mini toast semplice, senza dipendenze
-              const toast = document.createElement("div");
-              toast.textContent = "💾 Check-up salvato con successo";
-              Object.assign(toast.style, {
-                position: "fixed",
-                top: "20px",
-                right: "20px",
-                background: "#facc15",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontWeight: "600",
-                color: "#222",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                zIndex: "9999",
-              } as CSSStyleDeclaration);
-              document.body.appendChild(toast);
-              setTimeout(() => toast.remove(), 2000);
-            }}
-            disabled={checkupSaving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+            onClick={() => setCheckupExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Salva Check-up
-            <CheckCircle2
-              size={18}
-              className={`transition-opacity duration-500 ${checkupTick ? "opacity-100 text-green-600" : "opacity-0"}`}
-            />
+            {checkupExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+            {checkupExpanded ? "Vista sintetica" : "Dettagli"}
           </button>
         </div>
 
-        {/* Ultimo salvataggio */}
-        {lastCheckupTime && (
-          <p className="text-xs text-gray-500 text-center mb-4">
-            Ultimo salvataggio: {lastCheckupTime}
-          </p>
-        )}
-
-        {/* Storico ultimi 3 */}
-        <div className="border-t pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Check-up</h3>
-            <div className="text-xs text-gray-500 flex items-center gap-1">
-              <RotateCcw size={14} /> Storico
+        {checkupExpanded ? (
+          <>
+            {/* Riepilogo visivo stato generale */}
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2 text-base font-semibold">
+                {overallStatus === "OK" && <span className="text-green-700">🟢 Tutti i controlli OK</span>}
+                {overallStatus === "Da controllare" && <span className="text-yellow-700">🟠 Check-up da completare</span>}
+                {overallStatus === "Problema" && <span className="text-red-700">🔴 Problema rilevato</span>}
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm font-semibold">
+                <span className="text-green-700">✅ {statusCounts.OK} OK</span>
+                <span className="text-yellow-700">🟡 {statusCounts["Da controllare"]} Da controllare</span>
+                <span className="text-red-700">❌ {statusCounts.Problema} Problema</span>
+              </div>
             </div>
-          </div>
-          {checkupHistory.length === 0 ? (
-            <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {checkupHistory.map((r) => {
-                const isActive = r.id === activeCheckupId;
-                return (
-                  <li
-                    key={r.id}
-                    className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
-                      isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
-                    }`}
-                    onClick={() => {
-                      loadCheckup(r);
-                      setActiveCheckupId(r.id);
-                      setLastCheckupTime(new Date(r.created_at).toLocaleString());
-                    }}
-                    title="Apri questo salvataggio"
-                  >
-                    <span>{new Date(r.created_at).toLocaleString()}</span>
-                    {isActive ? (
-                      <span className="text-green-700 font-semibold">✅ Aperto</span>
-                    ) : (
-                      <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+
+            <table className="w-full text-sm border-collapse mb-4">
+              <thead>
+                <tr className="bg-gray-50 text-gray-700">
+                  <th className="border p-2 text-left">Controllo</th>
+                  <th className="border p-2 text-center">Stato</th>
+                  <th className="border p-2 text-center">Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {defaultCheckupItems.map((item) => {
+                  const value = checkup[item] || "Da controllare";
+                  const bgColor = value === "OK" ? "bg-green-100" : value === "Da controllare" ? "bg-yellow-100" : "bg-red-100";
+                  const borderColor = value === "OK" ? "border-green-400" : value === "Da controllare" ? "border-yellow-400" : "border-red-400";
+
+                  return (
+                    <tr key={item} className={`${bgColor}`}>
+                      <td className="border p-2">{item}</td>
+                      <td className="border p-2 text-center">
+                        <select
+                          value={value}
+                          onChange={(e) => setCheckup((s) => ({ ...s, [item]: e.target.value as any }))}
+                          className={`border rounded-lg p-1 text-sm ${borderColor}`}
+                        >
+                          <option>OK</option>
+                          <option>Da controllare</option>
+                          <option>Problema</option>
+                        </select>
+                      </td>
+                      <td className="border p-2 text-center">
+                        {value === "Problema" && (
+                          <button
+                            onClick={() => alert(`🔧 Crea manutenzione per: ${item} (funzione in sviluppo)`)}
+                            className="text-red-700 text-xs font-semibold hover:underline"
+                          >
+                            Crea manutenzione
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Pulsante Salva (in basso) */}
+            <div className="flex justify-center mt-4 mb-2">
+              <button
+                onClick={async () => {
+                  await onSaveCheckup();
+                  setLastCheckupTime(new Date().toLocaleString());
+                  const toast = document.createElement("div");
+                  toast.textContent = "💾 Check-up salvato con successo";
+                  Object.assign(toast.style, {
+                    position: "fixed",
+                    top: "20px",
+                    right: "20px",
+                    background: "#facc15",
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    fontWeight: "600",
+                    color: "#222",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                    zIndex: "9999",
+                  } as CSSStyleDeclaration);
+                  document.body.appendChild(toast);
+                  setTimeout(() => toast.remove(), 2000);
+                }}
+                disabled={checkupSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+              >
+                {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva Check-up
+                <CheckCircle2 size={18} className={`transition-opacity duration-500 ${checkupTick ? "opacity-100 text-green-600" : "opacity-0"}`} />
+              </button>
+            </div>
+
+            {lastCheckupTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastCheckupTime}</p>}
+
+            {/* Storico ultimi 3 (custom per evidenza "Aperto") */}
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Check-up</h3>
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <RotateCcw size={14} /> Storico
+                </div>
+              </div>
+              {checkupHistory.length === 0 ? (
+                <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {checkupHistory.map((r) => {
+                    const isActive = r.id === activeCheckupId;
+                    return (
+                      <li
+                        key={r.id}
+                        className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"}`}
+                        onClick={() => {
+                          loadCheckup(r);
+                          setActiveCheckupId(r.id);
+                          setLastCheckupTime(new Date(r.created_at).toLocaleString());
+                        }}
+                        title="Apri questo salvataggio"
+                      >
+                        <span>{new Date(r.created_at).toLocaleString()}</span>
+                        {isActive ? <span className="text-green-700 font-semibold">✅ Aperto</span> : <span className="text-yellow-600 font-semibold">🔄 Apri</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">Vista sintetica</div>
+        )}
       </section>
+
+      {/* ======== Separatore giallo tenue ======== */}
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
       {/* 🕓 Turni Svolti */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">🕓 Turni Svolti</h2>
+          <button
+            onClick={() => setTurnsExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {turnsExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+            {turnsExpanded ? "Vista sintetica" : "Dettagli"}
+          </button>
         </div>
 
-        {/* Riepilogo Turni */}
-        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex items-center justify-between">
-          <span className="font-semibold text-gray-700">Turni totali: <span className="text-gray-900">{totalTurns}</span></span>
-          <span className="font-semibold text-gray-700">Ore totali: <span className="text-yellow-700">{totalHours.toFixed(2)} h</span></span>
-        </div>
+        {turnsExpanded ? (
+          <>
+            {/* Riepilogo Turni */}
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex items-center justify-between">
+              <span className="font-semibold text-gray-700">
+                Turni totali: <span className="text-gray-900">{totalTurns}</span>
+              </span>
+              <span className="font-semibold text-gray-700">
+                Ore totali: <span className="text-yellow-700">{totalHours.toFixed(2)} h</span>
+              </span>
+            </div>
 
-        <table className="w-full text-sm border-collapse mb-4">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border p-2">#</th>
-              <th className="border p-2">Durata (min)</th>
-              <th className="border p-2">Giri</th>
-              <th className="border p-2">Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {turns.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-center text-gray-400 p-3">
-                  Nessun turno registrato
-                </td>
-              </tr>
-            ) : (
-              turns.map((t, i) => (
-                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="border p-2 text-center">{i + 1}</td>
-                  <td className="border p-2 text-center">{t.minutes}</td>
-                  <td className="border p-2 text-center">{t.laps}</td>
-                  <td className="border p-2">{t.notes}</td>
+            <table className="w-full text-sm border-collapse mb-4">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border p-2">#</th>
+                  <th className="border p-2">Durata (min)</th>
+                  <th className="border p-2">Giri</th>
+                  <th className="border p-2">Note</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {turns.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center text-gray-400 p-3">
+                      Nessun turno registrato
+                    </td>
+                  </tr>
+                ) : (
+                  turns.map((t, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="border p-2 text-center">{i + 1}</td>
+                      <td className="border p-2 text-center">{t.minutes}</td>
+                      <td className="border p-2 text-center">{t.laps}</td>
+                      <td className="border p-2">{t.notes}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-          <input
-            type="number"
-            placeholder="Durata (min)"
-            value={newTurn.durata}
-            onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
-            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-          />
-          <input
-            type="number"
-            placeholder="Giri"
-            value={newTurn.giri}
-            onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
-            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Note"
-            value={newTurn.note}
-            onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
-            className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-          />
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <input
+                type="number"
+                placeholder="Durata (min)"
+                value={newTurn.durata}
+                onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
+              <input
+                type="number"
+                placeholder="Giri"
+                value={newTurn.giri}
+                onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Note"
+                value={newTurn.note}
+                onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
+            </div>
 
-        <button
-          onClick={addTurn}
-          disabled={turnsSaving}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
-        >
-          {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
-          Aggiungi Turno
-        </button>
+            <button
+              onClick={addTurn}
+              disabled={turnsSaving}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
+            >
+              {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
+              Aggiungi Turno
+            </button>
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">Vista sintetica</div>
+        )}
       </section>
+
+      {/* ======== Separatore giallo tenue ======== */}
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
       {/* ⛽ Gestione carburante */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
@@ -777,72 +760,79 @@ export default function EventCarPage() {
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <Fuel className="text-yellow-500" /> Gestione carburante
           </h2>
-        </div>
-
-        {/* Riquadro analisi */}
-        <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <span className="font-semibold text-gray-700">
-            Consumo medio:{" "}
-            <span className="text-gray-900">
-              {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
-            </span>
-          </span>
-          <span className="font-semibold text-gray-700">
-            Carburante da aggiungere:{" "}
-            <span className="text-yellow-700">
-              {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L` : "—"}
-            </span>
-          </span>
-        </div>
-
-        {/* Riga 1 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-          <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
-          <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
-          <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
-        </div>
-
-        <hr className="my-3 border-gray-200" />
-
-        {/* Riga 2 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <ReadOnlyCard label="Consumo medio a giro (L/giro)" value={fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"} />
-          <NumberCard label="Giri previsti prossimo turno" value={lapsPlanned} setValue={setLapsPlanned} integer />
-          <HighlightCard
-            label="Carburante da aggiungere (L)"
-            value={fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
-          />
-        </div>
-
-        {/* Pulsante Salva (centrato) */}
-        <div className="flex justify-center mt-5 mb-2">
           <button
-            onClick={onSaveFuel}
-            disabled={fuelSaving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+            onClick={() => setFuelExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Salva carburante
-            <CheckCircle2
-              size={18}
-              className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
-            />
+            {fuelExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+            {fuelExpanded ? "Vista sintetica" : "Dettagli"}
           </button>
         </div>
 
-        {lastFuelTime && (
-          <p className="text-xs text-gray-500 text-center mb-4">
-            Ultimo salvataggio: {lastFuelTime}
-          </p>
-        )}
+        {fuelExpanded ? (
+          <>
+            {/* Riquadro analisi */}
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="font-semibold text-gray-700">
+                Consumo medio:{" "}
+                <span className="text-gray-900">{fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}</span>
+              </span>
+              <span className="font-semibold text-gray-700">
+                Carburante da aggiungere:{" "}
+                <span className="text-yellow-700">{fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L` : "—"}</span>
+              </span>
+            </div>
 
-        {/* Storico ultimi 3 */}
-        <HistoryBar
-          title="Ultimi 3 salvataggi Carburante"
-          rows={fuelHistory}
-          onOpen={loadFuel}
-        />
+            {/* Riga 1 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+              <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
+              <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
+              <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
+            </div>
+
+            <hr className="my-3 border-gray-200" />
+
+            {/* Riga 2 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <ReadOnlyCard label="Consumo medio a giro (L/giro)" value={fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"} />
+              <NumberCard label="Giri previsti prossimo turno" value={lapsPlanned} setValue={setLapsPlanned} integer />
+              <HighlightCard label="Carburante da aggiungere (L)" value={fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"} />
+            </div>
+
+            {/* Pulsante Salva (centrato) */}
+            <div className="flex justify-center mt-5 mb-2">
+              <button
+                onClick={onSaveFuel}
+                disabled={fuelSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+              >
+                {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva carburante
+                <CheckCircle2 size={18} className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`} />
+              </button>
+            </div>
+
+            {lastFuelTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastFuelTime}</p>}
+
+            {/* Storico con evidenza attivo */}
+            <HistoryBar
+              title="Ultimi 3 salvataggi Carburante"
+              rows={fuelHistory}
+              onOpen={(row) => {
+                loadFuel(row);
+                setActiveFuelId(row.id);
+                setLastFuelTime(new Date(row.created_at).toLocaleString());
+              }}
+              activeId={activeFuelId}
+            />
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">Vista sintetica</div>
+        )}
       </section>
+
+      {/* ======== Separatore giallo tenue ======== */}
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
       {/* 🗒️ Note e osservazioni */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
@@ -850,44 +840,55 @@ export default function EventCarPage() {
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <StickyNote className="text-yellow-500" /> Note e osservazioni
           </h2>
-        </div>
-
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
-          className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-yellow-300 outline-none"
-          rows={4}
-        />
-
-        {/* Pulsante Salva (centrato) */}
-        <div className="flex justify-center mt-4 mb-2">
           <button
-            onClick={onSaveNotes}
-            disabled={notesSaving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+            onClick={() => setNotesExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Salva Note
-            <CheckCircle2
-              size={18}
-              className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
-            />
+            {notesExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+            {notesExpanded ? "Vista sintetica" : "Dettagli"}
           </button>
         </div>
 
-        {lastNotesTime && (
-          <p className="text-xs text-gray-500 text-center mb-4">
-            Ultimo salvataggio: {lastNotesTime}
-          </p>
-        )}
+        {notesExpanded ? (
+          <>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-yellow-300 outline-none"
+              rows={4}
+            />
 
-        {/* Storico ultimi 3 */}
-        <HistoryBar
-          title="Ultimi 3 salvataggi Note"
-          rows={notesHistory}
-          onOpen={loadNotes}
-        />
+            {/* Pulsante Salva (centrato) */}
+            <div className="flex justify-center mt-4 mb-2">
+              <button
+                onClick={onSaveNotes}
+                disabled={notesSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+              >
+                {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva Note
+                <CheckCircle2 size={18} className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`} />
+              </button>
+            </div>
+
+            {lastNotesTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastNotesTime}</p>}
+
+            {/* Storico con evidenza attivo */}
+            <HistoryBar
+              title="Ultimi 3 salvataggi Note"
+              rows={notesHistory}
+              onOpen={(row) => {
+                loadNotes(row);
+                setActiveNotesId(row.id);
+                setLastNotesTime(new Date(row.created_at).toLocaleString());
+              }}
+              activeId={activeNotesId}
+            />
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">Vista sintetica</div>
+        )}
       </section>
     </div>
   );
@@ -899,10 +900,12 @@ function HistoryBar({
   title,
   rows,
   onOpen,
+  activeId,
 }: {
   title: string;
   rows: DataRow[];
   onOpen: (row: DataRow) => void;
+  activeId?: string | null;
 }) {
   return (
     <div className="mt-4 border-t pt-3">
@@ -916,17 +919,26 @@ function HistoryBar({
         <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {rows.map((r) => (
-            <li
-              key={r.id}
-              className="flex items-center justify-between border rounded px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-              onClick={() => onOpen(r)}
-              title="Apri questo salvataggio"
-            >
-              <span>{new Date(r.created_at).toLocaleString()}</span>
-              <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-            </li>
-          ))}
+          {rows.map((r) => {
+            const isActive = activeId && r.id === activeId;
+            return (
+              <li
+                key={r.id}
+                className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
+                  isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
+                }`}
+                onClick={() => onOpen(r)}
+                title="Apri questo salvataggio"
+              >
+                <span>{new Date(r.created_at).toLocaleString()}</span>
+                {isActive ? (
+                  <span className="text-green-700 font-semibold">✅ Aperto</span>
+                ) : (
+                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
