@@ -31,9 +31,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
-              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
-              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
+              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} wide />
+              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} wide />
+              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
             </div>
           </div>
 
@@ -277,7 +277,7 @@ function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: a
   );
 }
 
-function InputShort({ label, name, unit, handleChange, setup }: any) {
+function InputShort({ label, name, unit, handleChange, setup, wide = false }: any) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-xs text-gray-600 w-24">{label}</label>
@@ -286,7 +286,7 @@ function InputShort({ label, name, unit, handleChange, setup }: any) {
         name={name}
         value={setup[name] || ""}
         onChange={handleChange}
-        className="border rounded px-1 py-0.5 text-sm w-20"
+        className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-64" : "w-20"}`} // ← larghezza aumentata
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </div>
