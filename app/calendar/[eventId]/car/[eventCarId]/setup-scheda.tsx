@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { createClient } from "../../../../../lib/supabaseClient";
+import { createClient } from "../../../../../lib/supabase";
 import { Button } from "../../../../../components/Button";
 import dayjs from "dayjs";
 
