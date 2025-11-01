@@ -306,7 +306,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
       </div>
-    
+      </div>
       {/* ---------- NOTE + SALVA ---------- */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
         <h3 className="font-semibold mb-2">Note</h3>
