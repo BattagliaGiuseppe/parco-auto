@@ -20,21 +20,28 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     loadHistory();
   }, [eventCarId]);
 
-  async function loadHistory() {
-    const { data, error } = await supabase
-      .from("event_car_data")
-      .select("id, created_at, setup")
-      .eq("event_car_id", eventCarId)
-      .eq("section", "setup")
-      .order("created_at", { ascending: false })
-      .limit(3);
+async function loadHistory() {
+  const { data, error } = await supabase
+    .from("event_car_data")
+    .select("id, created_at, section, setup")
+    .eq("event_car_id", eventCarId)
+    .eq("section", "setup")
+    .order("created_at", { ascending: false })
+    .limit(3);
 
-    if (!error) setSetupHistory(data || []);
+  if (error) {
+    console.error("Errore caricamento storico:", error.message);
+    return;
   }
 
-  async function handleSave() {
-    try {
-      setSaving(true);
+  console.log("📜 Storico caricato:", data); // 👈 controlla in console
+
+  if (data && data.length > 0) {
+    setSetupHistory(data);
+  } else {
+    setSetupHistory([]);
+  }
+}
 
       // Storico
       await supabase.from("event_car_data").insert([
