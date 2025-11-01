@@ -19,6 +19,52 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   useEffect(() => {
     loadHistory();
   }, [eventCarId]);
+async function handleSave() {
+  try {
+    setSaving(true);
+
+    // Storico
+    await supabase.from("event_car_data").insert([
+      { event_car_id: eventCarId, section: "setup", setup },
+    ]);
+
+    // Ultimo setup corrente
+    const { data: existing } = await supabase
+      .from("event_car_setup")
+      .select("id")
+      .eq("event_car_id", eventCarId)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase.from("event_car_setup").update({ setup }).eq("id", existing.id);
+    } else {
+      await supabase.from("event_car_setup").insert([{ event_car_id: eventCarId, setup }]);
+    }
+
+    await loadHistory();
+
+    const toast = document.createElement("div");
+    toast.textContent = "💾 Setup salvato con successo";
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      background: "#facc15",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      color: "#222",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+      zIndex: "9999",
+    } as CSSStyleDeclaration);
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  } catch (error: any) {
+    alert("Errore durante il salvataggio: " + error.message);
+  } finally {
+    setSaving(false);
+  }
+}
 
 async function loadHistory() {
   const { data, error } = await supabase
