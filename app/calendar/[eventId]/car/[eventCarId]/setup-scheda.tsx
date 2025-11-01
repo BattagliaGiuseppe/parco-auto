@@ -10,6 +10,12 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [saving, setSaving] = useState(false);
   const [setupHistory, setSetupHistory] = useState<any[]>([]);
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
+  const [lastSaveTime, setLastSaveTime] = useState<string | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setSetup((prev: any) => ({ ...prev, [name]: value }));
+  };
 
   // 🔄 Carica storico ultimi 3 setup
   useEffect(() => {
@@ -27,12 +33,12 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     if (!error) setSetupHistory(data || []);
   }
 
-  // 💾 Salva setup
+  // 💾 Salva setup (event_car_data + event_car_setup)
   async function handleSave() {
     try {
       setSaving(true);
 
-      // 1️⃣ Inserisce nuovo record in event_car_data
+      // 1) storico in event_car_data (campo data)
       const { error: insertError } = await supabase.from("event_car_data").insert([
         {
           event_car_id: eventCarId,
@@ -42,7 +48,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       ]);
       if (insertError) throw insertError;
 
-      // 2️⃣ Aggiorna o inserisce in event_car_setup
+      // 2) stato corrente in event_car_setup (upsert manuale)
       const { data: existing } = await supabase
         .from("event_car_setup")
         .select("id")
@@ -50,18 +56,22 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         .maybeSingle();
 
       if (existing?.id) {
-        await supabase
+        const { error: updErr } = await supabase
           .from("event_car_setup")
           .update({ setup })
           .eq("id", existing.id);
+        if (updErr) throw updErr;
       } else {
-        await supabase.from("event_car_setup").insert([
+        const { error: insErr } = await supabase.from("event_car_setup").insert([
           { event_car_id: eventCarId, setup },
         ]);
+        if (insErr) throw insErr;
       }
 
-      // 🔁 Ricarica storico aggiornato
+      // aggiorna storico e timestamp
       await loadHistory();
+      const now = new Date().toLocaleString();
+      setLastSaveTime(now);
 
       // ✅ Toast conferma
       const toast = document.createElement("div");
@@ -92,24 +102,18 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     if (!row?.data) return;
     setSetup(row.data);
     setActiveSetupId(row.id);
+    if (row?.created_at) setLastSaveTime(new Date(row.created_at).toLocaleString());
   }
 
   // ❌ Elimina un salvataggio
   async function handleDeleteSetup(id: string) {
-    const confirmDelete = confirm("Vuoi eliminare questo salvataggio?");
-    if (!confirmDelete) return;
-
+    if (!confirm("Vuoi eliminare questo salvataggio?")) return;
     const { error } = await supabase.from("event_car_data").delete().eq("id", id);
     if (!error) {
       await loadHistory();
       if (id === activeSetupId) setActiveSetupId(null);
     }
   }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setSetup((prev: any) => ({ ...prev, [name]: value }));
-  };
 
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
@@ -119,6 +123,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+
         {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
         <div className="flex flex-col items-center gap-3">
           {/* Mini tabella Data / Autodromo / Telaio */}
@@ -157,7 +162,13 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
         {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
         <div className="flex flex-col items-center gap-3">
-          <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} className="-mt-2 md:-mt-4" />
+          <Image
+            src="/in-alto-al-centro.png"
+            alt="in alto centro"
+            width={360}
+            height={160}
+            className="-mt-2 md:-mt-4"
+          />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
             <h3 className="font-semibold mb-2">Ala Anteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -171,13 +182,21 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               <tbody>
                 <tr>
                   <td className="border px-2 py-1 text-left">Ala</td>
-                  <td className="border px-2 py-1"><input type="text" name="alaAntPosizione" value={setup.alaAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" /></td>
-                  <td className="border px-2 py-1"><input type="text" name="alaAntGradi" value={setup.alaAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" /></td>
+                  <td className="border px-2 py-1">
+                    <input type="text" name="alaAntPosizione" value={setup.alaAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                  </td>
+                  <td className="border px-2 py-1">
+                    <input type="text" name="alaAntGradi" value={setup.alaAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                  </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Flap</td>
-                  <td className="border px-2 py-1"><input type="text" name="flapAntPosizione" value={setup.flapAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" /></td>
-                  <td className="border px-2 py-1"><input type="text" name="flapAntGradi" value={setup.flapAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" /></td>
+                  <td className="border px-2 py-1">
+                    <input type="text" name="flapAntPosizione" value={setup.flapAntPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                  </td>
+                  <td className="border px-2 py-1">
+                    <input type="text" name="flapAntGradi" value={setup.flapAntGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -208,9 +227,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
           />
         </div>
-       </div>
-      
-           {/* ---------- ZONA 4: POSTERIORE SX + immagine + Rake ---------- */}
+
+        {/* ---------- ZONA 4: POSTERIORE SX + immagine + Rake ---------- */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore SX"
@@ -305,8 +323,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
           <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
-      </div>
-      </div>
+      </div>{/* ✅ chiusura griglia principale */}
+
       {/* ---------- NOTE + SALVA ---------- */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
         <h3 className="font-semibold mb-2">Note</h3>
@@ -320,8 +338,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* ---------- Tasto Salva ---------- */}
-      <div className="flex justify-center mt-2 mb-6">
+      {/* Tasto Salva centrato */}
+      <div className="flex flex-col items-center gap-2 mt-2 mb-2">
         <button
           onClick={handleSave}
           disabled={saving}
@@ -331,6 +349,9 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           Salva Setup
           <CheckCircle2 size={18} className="text-green-700" />
         </button>
+        {lastSaveTime && (
+          <p className="text-xs text-gray-500">Ultimo salvataggio: {lastSaveTime}</p>
+        )}
       </div>
 
       {/* ---------- STORICO ---------- */}
@@ -347,8 +368,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
               return (
                 <li
                   key={r.id}
-                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm ${
-                    isActive ? "bg-yellow-100 border-yellow-400" : "hover:bg-gray-50"
+                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
+                    isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
                   }`}
                 >
                   <span>{new Date(r.created_at).toLocaleString()}</span>
@@ -381,6 +402,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 }
 
 /* ---------- COMPONENTI ---------- */
+
 function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: any) {
   return (
     <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
