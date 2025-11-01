@@ -1,51 +1,73 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, Save, CheckCircle2, RotateCcw, Trash2 } from "lucide-react";
+import { Loader2, Save, RotateCcw, CheckCircle2, Trash2 } from "lucide-react";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const [setup, setSetup] = useState<any>({});
   const [saving, setSaving] = useState(false);
-  const [tick, setTick] = useState(0);
-  const [history, setHistory] = useState<any[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [lastSaveTime, setLastSaveTime] = useState<string | null>(null);
-
-  // --- carica ultimi 3 salvataggi ---
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("event_car_data")
-        .select("id, created_at")
-        .eq("event_car_id", eventCarId)
-        .eq("section", "setup")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      setHistory(data || []);
-    })();
-  }, [eventCarId, tick]);
+  const [setupHistory, setSetupHistory] = useState<any[]>([]);
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSetup((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  // --- salva setup in Supabase ---
+  // 🔄 Carica storico ultimi 3 setup
+  useEffect(() => {
+    loadHistory();
+  }, [eventCarId]);
+
+  async function loadHistory() {
+    const { data, error } = await supabase
+      .from("event_car_data")
+      .select("*")
+      .eq("event_car_id", eventCarId)
+      .eq("section", "setup")
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (!error) setSetupHistory(data || []);
+  }
+
+  // 💾 Salva setup (doppio salvataggio)
   async function handleSave() {
     try {
       setSaving(true);
 
-      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
-      const { error } = await supabase.from("event_car_data").insert([payload]);
-      if (error) throw new Error(error.message);
+      // 1️⃣ Inserisci storico in event_car_data
+      await supabase.from("event_car_data").insert([
+        {
+          event_car_id: eventCarId,
+          section: "setup",
+          setup,
+        },
+      ]);
 
-      await supabase.from("event_car_setup").insert([{ event_car_id: eventCarId, setup }]);
+      // 2️⃣ Aggiorna o inserisci in event_car_setup
+      const { data: existing } = await supabase
+        .from("event_car_setup")
+        .select("id")
+        .eq("event_car_id", eventCarId)
+        .maybeSingle();
 
-      setTick((t) => t + 1);
-      setLastSaveTime(new Date().toLocaleString());
+      if (existing?.id) {
+        await supabase
+          .from("event_car_setup")
+          .update({ setup })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("event_car_setup").insert([
+          { event_car_id: eventCarId, setup },
+        ]);
+      }
 
+      // 🔁 Aggiorna lo storico visivo
+      await loadHistory();
+
+      // ✅ Toast conferma
       const toast = document.createElement("div");
       toast.textContent = "💾 Setup salvato con successo";
       Object.assign(toast.style, {
@@ -59,48 +81,59 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         color: "#222",
         boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
         zIndex: "9999",
-      });
+      } as CSSStyleDeclaration);
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2000);
-    } catch (e: any) {
-      alert("Errore salvataggio setup: " + e.message);
+    } catch (error: any) {
+      alert("Errore durante il salvataggio: " + error.message);
     } finally {
       setSaving(false);
     }
   }
 
-  // --- elimina uno storico ---
-  async function deleteHistory(id: string) {
-    if (!confirm("Sei sicuro di voler eliminare questo salvataggio?")) return;
-    await supabase.from("event_car_data").delete().eq("id", id);
-    setTick((t) => t + 1);
+  // 📂 Carica un setup precedente
+  function handleLoadSetup(row: any) {
+    if (!row?.setup) return;
+    setSetup(row.setup);
+    setActiveSetupId(row.id);
   }
 
-  // --- carica un salvataggio precedente ---
-  async function loadHistory(id: string) {
-    const { data } = await supabase.from("event_car_data").select("*").eq("id", id).single();
-    if (data?.data) setSetup(data.data);
-    setActiveId(id);
+  // ❌ Elimina un salvataggio
+  async function handleDeleteSetup(id: string) {
+    const confirmDelete = confirm("Vuoi eliminare questo salvataggio?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from("event_car_data").delete().eq("id", id);
+    if (!error) {
+      await loadHistory();
+      if (id === activeSetupId) {
+        setActiveSetupId(null);
+      }
+    }
   }
 
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
-      <h1 className="text-2xl font-bold text-center uppercase">Setup Griiip G1 — Scheda Tecnica</h1>
+      <h1 className="text-2xl font-bold text-center uppercase">
+        Setup Griiip G1 — Scheda Tecnica
+      </h1>
 
       {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
         {/* ---------- ZONA 2: ANTERIORE SX + intestazione ---------- */}
         <div className="flex flex-col items-center gap-3">
+          {/* Mini tabella Data / Autodromo / Telaio */}
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
-              <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
-              <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
+              <InputWide label="Data" name="data" handleChange={handleChange} setup={setup} />
+              <InputWide label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} />
+              <InputWide label="Telaio" name="telaio" handleChange={handleChange} setup={setup} />
             </div>
           </div>
 
           <Image src="/in-alto-a-sinistra.png" alt="in alto sinistra" width={220} height={100} />
+
           <ZoneBox
             title="Anteriore SX"
             singleColumn
@@ -125,7 +158,13 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
         {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
         <div className="flex flex-col items-center gap-3">
-          <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} className="-mt-2 md:-mt-4" />
+          <Image
+            src="/in-alto-al-centro.png"
+            alt="in alto centro"
+            width={360}
+            height={160}
+            className="-mt-2 md:-mt-4"
+          />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
             <h3 className="font-semibold mb-2">Ala Anteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -184,13 +223,23 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             setup={setup}
           />
         </div>
-
-        {/* ---------- resto immutato (Posteriore SX, macchina, DX, Note) + pulsante Salva + storico ---------- */}
-        {/* ... (segue il resto del tuo file completo, invariato graficamente) */}
       </div>
 
-      {/* --- Pulsante SALVA --- */}
-      <div className="flex justify-center mt-4 mb-2">
+      {/* ---------- NOTE ---------- */}
+      <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
+        <h3 className="font-semibold mb-2">Note</h3>
+        <textarea
+          name="note"
+          value={setup.note || ""}
+          onChange={handleChange}
+          rows={3}
+          className="w-full border rounded p-2 text-sm"
+          placeholder="Annotazioni, modifiche, sensazioni del pilota..."
+        />
+      </div>
+
+      {/* ---------- PULSANTE SALVA ---------- */}
+      <div className="flex justify-center mt-6">
         <button
           onClick={handleSave}
           disabled={saving}
@@ -198,43 +247,46 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         >
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           Salva Setup
-          <CheckCircle2 size={18} className={`transition-opacity ${tick ? "opacity-100" : "opacity-0"}`} />
+          <CheckCircle2 size={18} className="text-green-700" />
         </button>
       </div>
 
-      {lastSaveTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastSaveTime}</p>}
-
-      {/* --- Storico --- */}
-      <div className="border-t pt-3 w-full max-w-6xl">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Setup</h3>
-          <div className="text-xs text-gray-500 flex items-center gap-1">
-            <RotateCcw size={14} /> Storico
-          </div>
-        </div>
-        {history.length === 0 ? (
+      {/* ---------- STORICO ---------- */}
+      <div className="border-t pt-4 w-full max-w-6xl">
+        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          <RotateCcw size={16} /> Ultimi 3 salvataggi Setup
+        </h3>
+        {setupHistory.length === 0 ? (
           <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
         ) : (
           <ul className="flex flex-col gap-1">
-            {history.map((r) => {
-              const isActive = activeId === r.id;
+            {setupHistory.map((r) => {
+              const isActive = r.id === activeSetupId;
               return (
                 <li
                   key={r.id}
-                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
+                  className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
                     isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
                   }`}
                 >
-                  <span onClick={() => loadHistory(r.id)}>{new Date(r.created_at).toLocaleString()}</span>
-                  <div className="flex items-center gap-2">
+                  <span>{new Date(r.created_at).toLocaleString()}</span>
+                  <div className="flex items-center gap-3">
                     {isActive ? (
                       <span className="text-green-700 font-semibold">✅ Aperto</span>
                     ) : (
-                      <span className="text-yellow-600 font-semibold cursor-pointer" onClick={() => loadHistory(r.id)}>
+                      <button
+                        onClick={() => handleLoadSetup(r)}
+                        className="text-yellow-600 font-semibold hover:underline"
+                      >
                         🔄 Apri
-                      </span>
+                      </button>
                     )}
-                    <Trash2 size={16} className="text-red-600 cursor-pointer" onClick={() => deleteHistory(r.id)} />
+                    <button
+                      onClick={() => handleDeleteSetup(r.id)}
+                      className="text-red-600 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </button>
                   </div>
                 </li>
               );
@@ -246,7 +298,8 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   );
 }
 
-/* --- COMPONENTI SECONDARI --- */
+/* ---------- COMPONENTI ---------- */
+
 function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: any) {
   return (
     <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
@@ -270,7 +323,7 @@ function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: a
   );
 }
 
-function InputShort({ label, name, unit, handleChange, setup }: any) {
+function InputWide({ label, name, unit, handleChange, setup }: any) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-xs text-gray-600 w-24">{label}</label>
@@ -279,7 +332,7 @@ function InputShort({ label, name, unit, handleChange, setup }: any) {
         name={name}
         value={setup[name] || ""}
         onChange={handleChange}
-        className="border rounded px-1 py-0.5 text-sm w-20"
+        className="border rounded px-1 py-0.5 text-sm w-48"
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </div>
