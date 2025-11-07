@@ -17,6 +17,8 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  Trash2,
+  Clock3,
 } from "lucide-react";
 
 // Setup pages già presenti
@@ -32,6 +34,15 @@ type DataRow = {
   section: "checkup" | "fuel" | "notes";
   data: any;
   created_at: string;
+};
+
+type TurnRow = {
+  id: string;
+  event_car_id?: string;
+  minutes: number;
+  laps: number;
+  notes: string;
+  created_at?: string;
 };
 
 export default function EventCarPage() {
@@ -84,13 +95,13 @@ export default function EventCarPage() {
   }, [checkup]);
 
   // ------------------------
-  // Turni svolti (tabella propria)
+  // Turni svolti (persistenti)
   // ------------------------
   type TurnInput = { durata: string; giri: string; note: string };
-  const [turns, setTurns] = useState<{ minutes: number; laps: number; notes: string }[]>([]);
+  const [turns, setTurns] = useState<TurnRow[]>([]);
   const [newTurn, setNewTurn] = useState<TurnInput>({ durata: "", giri: "", note: "" });
   const [turnsSaving, setTurnsSaving] = useState(false);
-  const totalHours = useMemo(() => turns.reduce((acc, t) => acc + t.minutes, 0) / 60, [turns]);
+  const totalHours = useMemo(() => turns.reduce((acc, t) => acc + (t.minutes || 0), 0) / 60, [turns]);
   const totalTurns = useMemo(() => turns.length, [turns]);
 
   // ------------------------
@@ -129,7 +140,7 @@ export default function EventCarPage() {
   const [lastNotesTime, setLastNotesTime] = useState<string | null>(null);
 
   // ---------------------------------------
-  // Load base: evento, auto + ultimi dati per sezioni da event_car_data
+  // Load base: evento, auto + ultimi dati per sezioni da event_car_data + turni
   // ---------------------------------------
   useEffect(() => {
     (async () => {
@@ -177,6 +188,14 @@ export default function EventCarPage() {
         .limit(3);
 
       setCheckupHistory(chkHist || []);
+
+      // Carica turni salvati
+      const { data: turnsData } = await supabase
+        .from("event_car_turns")
+        .select("id, minutes, laps, notes, created_at")
+        .eq("event_car_id", eventCarId)
+        .order("created_at", { ascending: true });
+      setTurns((turnsData || []) as TurnRow[]);
 
       // Carica ultimo fuel
       const { data: lastFuel } = await supabase
@@ -263,6 +282,40 @@ export default function EventCarPage() {
     if (error) throw new Error(error.message);
   }
 
+  async function deleteSectionRow(rowId: string, section: DataRow["section"]) {
+    const { error } = await supabase.from("event_car_data").delete().eq("id", rowId);
+    if (error) throw new Error(error.message);
+    // reload corresponding history
+    const { data: hist } = await supabase
+      .from("event_car_data")
+      .select("*")
+      .eq("event_car_id", eventCarId)
+      .eq("section", section)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (section === "checkup") setCheckupHistory(hist || []);
+    if (section === "fuel") setFuelHistory(hist || []);
+    if (section === "notes") setNotesHistory(hist || []);
+
+    // toast (3s)
+    const toast = document.createElement("div");
+    toast.textContent = "✅ Eliminato";
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      background: "#fde68a",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      color: "#1f2937",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+      zIndex: "9999",
+    } as CSSStyleDeclaration);
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
   // ------------------------
   // Save Check-up
   // ------------------------
@@ -288,10 +341,12 @@ export default function EventCarPage() {
   function loadCheckup(row: DataRow) {
     if (!row?.data) return;
     setCheckup(row.data || {});
+    setActiveCheckupId(row.id);
+    setLastCheckupTime(new Date(row.created_at).toLocaleString());
   }
 
   // ------------------------
-  // Add Turn + Save Turn
+  // Add / Delete Turn + Load Turns
   // ------------------------
   async function addTurn() {
     if (!newTurn.durata) return alert("Inserisci la durata (minuti).");
@@ -302,19 +357,25 @@ export default function EventCarPage() {
     try {
       setTurnsSaving(true);
 
-      const { error } = await supabase.from("event_car_turns").insert([
-        {
-          event_car_id: eventCarId,
-          minutes,
-          laps,
-          notes: noteText,
-        },
-      ]);
+      const { data: inserted, error } = await supabase
+        .from("event_car_turns")
+        .insert([
+          {
+            event_car_id: eventCarId,
+            minutes,
+            laps,
+            notes: noteText,
+          },
+        ])
+        .select()
+        .single();
       if (error) throw new Error(error.message);
 
-      setTurns((prev) => [...prev, { minutes, laps, notes: noteText }]);
+      // aggiorna stato locale
+      setTurns((prev) => [...prev, inserted as TurnRow]);
       setNewTurn({ durata: "", giri: "", note: "" });
 
+      // aggiorna ore componenti (rpc)
       try {
         await supabase.rpc("increment_component_hours", {
           p_car_id: eventCarId,
@@ -322,6 +383,7 @@ export default function EventCarPage() {
         });
       } catch {}
 
+      // Toast (3s)
       const toast = document.createElement("div");
       toast.textContent = "✅ Turno aggiunto con successo";
       Object.assign(toast.style, {
@@ -337,7 +399,7 @@ export default function EventCarPage() {
         zIndex: "9999",
       } as CSSStyleDeclaration);
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
+      setTimeout(() => toast.remove(), 3000);
 
       if (confirm("Vuoi eseguire subito il check-up post turno?")) {
         const el = document.getElementById("checkup-section");
@@ -348,6 +410,33 @@ export default function EventCarPage() {
     } finally {
       setTurnsSaving(false);
     }
+  }
+
+  async function deleteTurn(turnId: string) {
+    if (!confirm("Vuoi eliminare questo turno?")) return;
+    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
+    if (error) {
+      alert("Errore eliminazione turno: " + error.message);
+      return;
+    }
+    setTurns((prev) => prev.filter((t) => t.id !== turnId));
+    // Toast (3s)
+    const toast = document.createElement("div");
+    toast.textContent = "🗑️ Turno eliminato";
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      background: "#fde68a",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      color: "#1f2937",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+      zIndex: "9999",
+    } as CSSStyleDeclaration);
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 
   // ------------------------
@@ -382,6 +471,8 @@ export default function EventCarPage() {
     setFuelEnd(Number(row.data.fuelEnd ?? 0));
     setLapsDone(Number(row.data.lapsDone ?? 0));
     setLapsPlanned(Number(row.data.lapsPlanned ?? 0));
+    setActiveFuelId(row.id);
+    setLastFuelTime(new Date(row.created_at).toLocaleString());
   }
 
   // ------------------------
@@ -413,6 +504,8 @@ export default function EventCarPage() {
   function loadNotes(row: DataRow) {
     if (!row?.data) return;
     setNotes(String(row.data.text ?? ""));
+    setActiveNotesId(row.id);
+    setLastNotesTime(new Date(row.created_at).toLocaleString());
   }
 
   return (
@@ -458,8 +551,7 @@ export default function EventCarPage() {
             onClick={() => setSetupExpanded((v) => !v)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {setupExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-            {setupExpanded ? "Vista sintetica" : "Dettagli"}
+            {setupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
@@ -518,8 +610,7 @@ export default function EventCarPage() {
             onClick={() => setCheckupExpanded((v) => !v)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {checkupExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-            {checkupExpanded ? "Vista sintetica" : "Dettagli"}
+            {checkupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
@@ -604,7 +695,7 @@ export default function EventCarPage() {
                     zIndex: "9999",
                   } as CSSStyleDeclaration);
                   document.body.appendChild(toast);
-                  setTimeout(() => toast.remove(), 2000);
+                  setTimeout(() => toast.remove(), 3000);
                 }}
                 disabled={checkupSaving}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
@@ -617,7 +708,7 @@ export default function EventCarPage() {
 
             {lastCheckupTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastCheckupTime}</p>}
 
-            {/* Storico ultimi 3 (custom per evidenza "Aperto") */}
+            {/* Storico ultimi 3 (con elimina) */}
             <div className="border-t pt-3">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Check-up</h3>
@@ -634,16 +725,44 @@ export default function EventCarPage() {
                     return (
                       <li
                         key={r.id}
-                        className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"}`}
-                        onClick={() => {
-                          loadCheckup(r);
-                          setActiveCheckupId(r.id);
-                          setLastCheckupTime(new Date(r.created_at).toLocaleString());
-                        }}
-                        title="Apri questo salvataggio"
+                        className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
+                          isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
+                        }`}
                       >
-                        <span>{new Date(r.created_at).toLocaleString()}</span>
-                        {isActive ? <span className="text-green-700 font-semibold">✅ Aperto</span> : <span className="text-yellow-600 font-semibold">🔄 Apri</span>}
+                        <button
+                          onClick={() => loadCheckup(r)}
+                          className="flex-1 text-left"
+                          title="Apri questo salvataggio"
+                        >
+                          {new Date(r.created_at).toLocaleString()}
+                        </button>
+                        <div className="flex items-center gap-3">
+                          {isActive ? (
+                            <span className="text-green-700 font-semibold">✅ Aperto</span>
+                          ) : (
+                            <button
+                              onClick={() => loadCheckup(r)}
+                              className="text-yellow-600 font-semibold"
+                            >
+                              🔄 Apri
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                              try {
+                                await deleteSectionRow(r.id, "checkup");
+                                if (activeCheckupId === r.id) setActiveCheckupId(null);
+                              } catch (e: any) {
+                                alert("Errore eliminazione: " + e.message);
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                            title="Elimina salvataggio"
+                          >
+                            <Trash2 size={14} /> Elimina
+                          </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -662,13 +781,15 @@ export default function EventCarPage() {
       {/* 🕓 Turni Svolti */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">🕓 Turni Svolti</h2>
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Clock3 className="text-yellow-500" /> Turni Svolti{" "}
+            <span className="ml-1 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-gray-800">{totalTurns}</span>
+          </h2>
           <button
             onClick={() => setTurnsExpanded((v) => !v)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {turnsExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-            {turnsExpanded ? "Vista sintetica" : "Dettagli"}
+            {turnsExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
@@ -691,22 +812,32 @@ export default function EventCarPage() {
                   <th className="border p-2">Durata (min)</th>
                   <th className="border p-2">Giri</th>
                   <th className="border p-2">Note</th>
+                  <th className="border p-2 text-center">Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {turns.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center text-gray-400 p-3">
+                    <td colSpan={5} className="text-center text-gray-400 p-3">
                       Nessun turno registrato
                     </td>
                   </tr>
                 ) : (
                   turns.map((t, i) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <tr key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                       <td className="border p-2 text-center">{i + 1}</td>
                       <td className="border p-2 text-center">{t.minutes}</td>
                       <td className="border p-2 text-center">{t.laps}</td>
                       <td className="border p-2">{t.notes}</td>
+                      <td className="border p-2 text-center">
+                        <button
+                          onClick={() => deleteTurn(t.id)}
+                          className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                          title="Elimina turno"
+                        >
+                          <Trash2 size={14} /> Elimina
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -764,8 +895,7 @@ export default function EventCarPage() {
             onClick={() => setFuelExpanded((v) => !v)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {fuelExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-            {fuelExpanded ? "Vista sintetica" : "Dettagli"}
+            {fuelExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
@@ -814,14 +944,19 @@ export default function EventCarPage() {
 
             {lastFuelTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastFuelTime}</p>}
 
-            {/* Storico con evidenza attivo */}
+            {/* Storico con evidenza attivo + elimina */}
             <HistoryBar
               title="Ultimi 3 salvataggi Carburante"
               rows={fuelHistory}
-              onOpen={(row) => {
-                loadFuel(row);
-                setActiveFuelId(row.id);
-                setLastFuelTime(new Date(row.created_at).toLocaleString());
+              onOpen={loadFuel}
+              onDelete={async (row) => {
+                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                try {
+                  await deleteSectionRow(row.id, "fuel");
+                  if (activeFuelId === row.id) setActiveFuelId(null);
+                } catch (e: any) {
+                  alert("Errore eliminazione: " + e.message);
+                }
               }}
               activeId={activeFuelId}
             />
@@ -832,7 +967,7 @@ export default function EventCarPage() {
       </section>
 
       {/* ======== Separatore giallo tenue ======== */}
-      <div className="h-[2px] bg-yellow-400/80 my-6" />
+      <div className="h/[2px] bg-yellow-400/80 my-6" />
 
       {/* 🗒️ Note e osservazioni */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
@@ -844,8 +979,7 @@ export default function EventCarPage() {
             onClick={() => setNotesExpanded((v) => !v)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
-            {notesExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-            {notesExpanded ? "Vista sintetica" : "Dettagli"}
+            {notesExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
@@ -874,14 +1008,19 @@ export default function EventCarPage() {
 
             {lastNotesTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastNotesTime}</p>}
 
-            {/* Storico con evidenza attivo */}
+            {/* Storico con evidenza attivo + elimina */}
             <HistoryBar
               title="Ultimi 3 salvataggi Note"
               rows={notesHistory}
-              onOpen={(row) => {
-                loadNotes(row);
-                setActiveNotesId(row.id);
-                setLastNotesTime(new Date(row.created_at).toLocaleString());
+              onOpen={loadNotes}
+              onDelete={async (row) => {
+                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                try {
+                  await deleteSectionRow(row.id, "notes");
+                  if (activeNotesId === row.id) setActiveNotesId(null);
+                } catch (e: any) {
+                  alert("Errore eliminazione: " + e.message);
+                }
               }}
               activeId={activeNotesId}
             />
@@ -900,11 +1039,13 @@ function HistoryBar({
   title,
   rows,
   onOpen,
+  onDelete,
   activeId,
 }: {
   title: string;
   rows: DataRow[];
   onOpen: (row: DataRow) => void;
+  onDelete?: (row: DataRow) => void;
   activeId?: string | null;
 }) {
   return (
@@ -924,18 +1065,38 @@ function HistoryBar({
             return (
               <li
                 key={r.id}
-                className={`flex items-center justify-between border rounded px-3 py-2 text-sm cursor-pointer transition-all ${
+                className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
                   isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
                 }`}
-                onClick={() => onOpen(r)}
-                title="Apri questo salvataggio"
               >
-                <span>{new Date(r.created_at).toLocaleString()}</span>
-                {isActive ? (
-                  <span className="text-green-700 font-semibold">✅ Aperto</span>
-                ) : (
-                  <span className="text-yellow-600 font-semibold">🔄 Apri</span>
-                )}
+                <button
+                  onClick={() => onOpen(r)}
+                  className="flex-1 text-left"
+                  title="Apri questo salvataggio"
+                >
+                  {new Date(r.created_at).toLocaleString()}
+                </button>
+                <div className="flex items-center gap-3">
+                  {isActive ? (
+                    <span className="text-green-700 font-semibold">✅ Aperto</span>
+                  ) : (
+                    <button
+                      onClick={() => onOpen(r)}
+                      className="text-yellow-600 font-semibold"
+                    >
+                      🔄 Apri
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(r)}
+                      className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                      title="Elimina salvataggio"
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}
