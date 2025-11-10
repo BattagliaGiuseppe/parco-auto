@@ -22,16 +22,15 @@ import {
 } from "lucide-react";
 
 // Setup pages già presenti
-import SetupPanel from "./setup";          // touch UI
-import SetupRacing from "./setup-racing";  // interattivo SVG
-import SetupScheda from "./setup-scheda";  // scheda tecnica (stampa gestita lì)
+import SetupPanel from "./setup";          // TOUCH UI (ora tab secondaria)
+import SetupScheda from "./setup-scheda";  // scheda tecnica (DEFAULT)
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type DataRow = {
   id: string;
   event_car_id: string;
-  section: "checkup" | "fuel" | "notes";
+  section: "checkup" | "fuel" | "notes" | "setup";
   data: any;
   created_at: string;
 };
@@ -51,7 +50,8 @@ export default function EventCarPage() {
   const [event, setEvent] = useState<any>(null);
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"touch" | "racing" | "scheda">("touch");
+  // Tabs: scheda (default) | touch
+  const [tab, setTab] = useState<"scheda" | "touch">("scheda");
 
   // Vista sintetica/dettagliata
   const [setupExpanded, setSetupExpanded] = useState(true); // Setup aperto di default
@@ -59,6 +59,16 @@ export default function EventCarPage() {
   const [turnsExpanded, setTurnsExpanded] = useState(false);
   const [fuelExpanded, setFuelExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
+
+  // ------------------------
+  // Setup (storico + touch params)
+  // ------------------------
+  const [setupData, setSetupData] = useState<Record<string, any>>({});
+  const [setupHistory, setSetupHistory] = useState<DataRow[]>([]);
+  const [setupSaving, setSetupSaving] = useState(false);
+  const [setupTick, setSetupTick] = useState(0);
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
+  const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
 
   // ------------------------
   // Check-up (grafica + salvataggi)
@@ -162,7 +172,30 @@ export default function EventCarPage() {
       setEvent(eventData || null);
       setCar(carData?.car_id || null);
 
-      // Carica ultimo checkup
+      // === SETUP ===
+      const { data: lastSetup } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastSetup?.data) {
+        setSetupData(lastSetup.data || {});
+        setActiveSetupId(lastSetup.id);
+        setLastSetupTime(new Date(lastSetup.created_at).toLocaleString());
+      }
+      const { data: setupHist } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setSetupHistory(setupHist || []);
+
+      // === CHECKUP ===
       const { data: lastCheck } = await supabase
         .from("event_car_data")
         .select("*")
@@ -177,8 +210,6 @@ export default function EventCarPage() {
         if (lastCheck?.created_at) setLastCheckupTime(new Date(lastCheck.created_at).toLocaleString());
         if (lastCheck?.id) setActiveCheckupId(lastCheck.id);
       }
-
-      // Carica storico checkup (ultimi 3)
       const { data: chkHist } = await supabase
         .from("event_car_data")
         .select("*")
@@ -186,10 +217,9 @@ export default function EventCarPage() {
         .eq("section", "checkup")
         .order("created_at", { ascending: false })
         .limit(3);
-
       setCheckupHistory(chkHist || []);
 
-      // Carica turni salvati
+      // === TURNI ===
       const { data: turnsData } = await supabase
         .from("event_car_turns")
         .select("id, minutes, laps, notes, created_at")
@@ -197,7 +227,7 @@ export default function EventCarPage() {
         .order("created_at", { ascending: true });
       setTurns((turnsData || []) as TurnRow[]);
 
-      // Carica ultimo fuel
+      // === FUEL ===
       const { data: lastFuel } = await supabase
         .from("event_car_data")
         .select("*")
@@ -206,7 +236,6 @@ export default function EventCarPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (lastFuel?.data) {
         setFuelStart(Number(lastFuel.data.fuelStart ?? 0));
         setFuelEnd(Number(lastFuel.data.fuelEnd ?? 0));
@@ -215,8 +244,6 @@ export default function EventCarPage() {
         if (lastFuel?.created_at) setLastFuelTime(new Date(lastFuel.created_at).toLocaleString());
         if (lastFuel?.id) setActiveFuelId(lastFuel.id);
       }
-
-      // Carica storico fuel (ultimi 3)
       const { data: fuelHist } = await supabase
         .from("event_car_data")
         .select("*")
@@ -224,10 +251,9 @@ export default function EventCarPage() {
         .eq("section", "fuel")
         .order("created_at", { ascending: false })
         .limit(3);
-
       setFuelHistory(fuelHist || []);
 
-      // Carica ultime note
+      // === NOTES ===
       const { data: lastNotes } = await supabase
         .from("event_car_data")
         .select("*")
@@ -236,14 +262,11 @@ export default function EventCarPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (lastNotes?.data?.text) {
         setNotes(String(lastNotes.data.text));
         if (lastNotes?.created_at) setLastNotesTime(new Date(lastNotes.created_at).toLocaleString());
         if (lastNotes?.id) setActiveNotesId(lastNotes.id);
       }
-
-      // Carica storico note (ultimi 3)
       const { data: notesHist } = await supabase
         .from("event_car_data")
         .select("*")
@@ -251,7 +274,6 @@ export default function EventCarPage() {
         .eq("section", "notes")
         .order("created_at", { ascending: false })
         .limit(3);
-
       setNotesHistory(notesHist || []);
 
       setLoading(false);
@@ -283,8 +305,14 @@ export default function EventCarPage() {
   }
 
   async function deleteSectionRow(rowId: string, section: DataRow["section"]) {
-    const { error } = await supabase.from("event_car_data").delete().eq("id", rowId);
+    const { error } = await supabase
+      .from("event_car_data")
+      .delete()
+      .eq("id", rowId)
+      .eq("event_car_id", eventCarId)   // fix: assicura eliminazione corretta
+      .eq("section", section);
     if (error) throw new Error(error.message);
+
     // reload corresponding history
     const { data: hist } = await supabase
       .from("event_car_data")
@@ -293,27 +321,45 @@ export default function EventCarPage() {
       .eq("section", section)
       .order("created_at", { ascending: false })
       .limit(3);
+
     if (section === "checkup") setCheckupHistory(hist || []);
     if (section === "fuel") setFuelHistory(hist || []);
     if (section === "notes") setNotesHistory(hist || []);
+    if (section === "setup") setSetupHistory(hist || []);
 
     // toast (3s)
-    const toast = document.createElement("div");
-    toast.textContent = "✅ Eliminato";
-    Object.assign(toast.style, {
-      position: "fixed",
-      top: "20px",
-      right: "20px",
-      background: "#fde68a",
-      padding: "8px 14px",
-      borderRadius: "8px",
-      fontWeight: "600",
-      color: "#1f2937",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-      zIndex: "9999",
-    } as CSSStyleDeclaration);
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    showToast("✅ Eliminato");
+  }
+
+  // ------------------------
+  // Save Setup (Touch tab)
+  // ------------------------
+  async function onSaveSetup() {
+    try {
+      setSetupSaving(true);
+      await saveSection("setup", setupData);
+      const { data } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setSetupHistory(data || []);
+      setSetupTick((t) => t + 1);
+      setLastSetupTime(new Date().toLocaleString());
+      showToast("💾 Setup salvato");
+    } catch (e: any) {
+      alert("Errore salvataggio setup: " + e.message);
+    } finally {
+      setSetupSaving(false);
+    }
+  }
+  function loadSetup(row: DataRow) {
+    if (!row?.data) return;
+    setSetupData(row.data || {});
+    setActiveSetupId(row.id);
+    setLastSetupTime(new Date(row.created_at).toLocaleString());
   }
 
   // ------------------------
@@ -332,6 +378,7 @@ export default function EventCarPage() {
         .limit(3);
       setCheckupHistory(data || []);
       setCheckupTick((t) => t + 1);
+      showToast("💾 Check-up salvato");
     } catch (e: any) {
       alert("Errore salvataggio check-up: " + e.message);
     } finally {
@@ -383,23 +430,7 @@ export default function EventCarPage() {
         });
       } catch {}
 
-      // Toast (3s)
-      const toast = document.createElement("div");
-      toast.textContent = "✅ Turno aggiunto con successo";
-      Object.assign(toast.style, {
-        position: "fixed",
-        top: "20px",
-        right: "20px",
-        background: "#86efac",
-        padding: "8px 14px",
-        borderRadius: "8px",
-        fontWeight: "600",
-        color: "#064e3b",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-        zIndex: "9999",
-      } as CSSStyleDeclaration);
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      showToast("✅ Turno aggiunto");
 
       if (confirm("Vuoi eseguire subito il check-up post turno?")) {
         const el = document.getElementById("checkup-section");
@@ -414,29 +445,13 @@ export default function EventCarPage() {
 
   async function deleteTurn(turnId: string) {
     if (!confirm("Vuoi eliminare questo turno?")) return;
-    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
+    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId).eq("event_car_id", eventCarId);
     if (error) {
       alert("Errore eliminazione turno: " + error.message);
       return;
     }
     setTurns((prev) => prev.filter((t) => t.id !== turnId));
-    // Toast (3s)
-    const toast = document.createElement("div");
-    toast.textContent = "🗑️ Turno eliminato";
-    Object.assign(toast.style, {
-      position: "fixed",
-      top: "20px",
-      right: "20px",
-      background: "#fde68a",
-      padding: "8px 14px",
-      borderRadius: "8px",
-      fontWeight: "600",
-      color: "#1f2937",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-      zIndex: "9999",
-    } as CSSStyleDeclaration);
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    showToast("🗑️ Turno eliminato");
   }
 
   // ------------------------
@@ -459,6 +474,7 @@ export default function EventCarPage() {
       setFuelHistory(hist || []);
       setFuelTick((t) => t + 1);
       setLastFuelTime(new Date().toLocaleString());
+      showToast("💾 Carburante salvato");
     } catch (e: any) {
       alert("Errore salvataggio carburante: " + e.message);
     } finally {
@@ -495,6 +511,7 @@ export default function EventCarPage() {
       setNotesHistory(hist || []);
       setNotesTick((t) => t + 1);
       setLastNotesTime(new Date().toLocaleString());
+      showToast("💾 Note salvate");
     } catch (e: any) {
       alert("Errore salvataggio note: " + e.message);
     } finally {
@@ -506,6 +523,25 @@ export default function EventCarPage() {
     setNotes(String(row.data.text ?? ""));
     setActiveNotesId(row.id);
     setLastNotesTime(new Date(row.created_at).toLocaleString());
+  }
+
+  function showToast(text: string) {
+    const toast = document.createElement("div");
+    toast.textContent = text;
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      background: "#fde68a",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      color: "#1f2937",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+      zIndex: "9999",
+    } as CSSStyleDeclaration);
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 
   return (
@@ -560,22 +596,6 @@ export default function EventCarPage() {
             {/* Tabs */}
             <div className="flex flex-wrap gap-3 mb-4">
               <button
-                onClick={() => setTab("touch")}
-                className={`px-4 py-2 rounded-lg font-semibold ${
-                  tab === "touch" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Setup Touch
-              </button>
-              <button
-                onClick={() => setTab("racing")}
-                className={`px-4 py-2 rounded-lg font-semibold ${
-                  tab === "racing" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Setup Interattivo
-              </button>
-              <button
                 onClick={() => setTab("scheda")}
                 className={`px-4 py-2 rounded-lg font-semibold ${
                   tab === "scheda" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -583,13 +603,127 @@ export default function EventCarPage() {
               >
                 Setup Scheda Tecnica
               </button>
+              <button
+                onClick={() => setTab("touch")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "touch" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Setup Touch
+              </button>
             </div>
 
             {/* Contenuto dinamico */}
             <div className="transition-all duration-300">
-              {tab === "touch" && <SetupPanel eventCarId={eventCarId} />}
-              {tab === "racing" && <SetupRacing eventCarId={eventCarId} />}
-              {tab === "scheda" && <SetupScheda eventCarId={eventCarId} />}
+              {tab === "scheda" && (
+                <div className="flex flex-col gap-3">
+                  <SetupScheda eventCarId={eventCarId} />
+
+                  {/* Storico setup (ultimi 3) con Elimina */}
+                  <HistoryBar
+                    title="Ultimi 3 salvataggi Setup"
+                    rows={setupHistory}
+                    onOpen={loadSetup}
+                    onDelete={async (row) => {
+                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                      try {
+                        await deleteSectionRow(row.id, "setup");
+                        if (activeSetupId === row.id) setActiveSetupId(null);
+                      } catch (e: any) {
+                        alert("Errore eliminazione: " + e.message);
+                      }
+                    }}
+                    activeId={activeSetupId}
+                  />
+                </div>
+              )}
+
+              {tab === "touch" && (
+                <div className="flex flex-col gap-4">
+                  {/* Immagine centrale se presente nei dati */}
+                  {"imageUrl" in setupData && setupData.imageUrl ? (
+                    <div className="w-full flex justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={setupData.imageUrl} alt="Auto centrale" className="max-h-72 object-contain" />
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs text-gray-500">Immagine auto centrale non impostata</div>
+                  )}
+
+                  {/* Tabella compatta parametri (chiave/valore) */}
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border p-2 text-left">Parametro</th>
+                        <th className="border p-2 text-left">Valore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(setupData || {}).length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="p-3 text-center text-gray-400">Nessun parametro disponibile. Salva prima dalla scheda tecnica, poi modifica qui.</td>
+                        </tr>
+                      )}
+                      {Object.entries(setupData || {}).map(([key, value]) => {
+                        if (key === "imageUrl") return null; // non editare la chiave immagine in questa tabella
+                        return (
+                          <tr key={key}>
+                            <td className="border p-2">{key}</td>
+                            <td className="border p-2">
+                              <input
+                                className="border rounded-lg p-1 w-full"
+                                value={String(value ?? "")}
+                                onChange={(e) =>
+                                  setSetupData((s) => ({
+                                    ...s,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Salva setup (in basso) */}
+                  <div className="flex justify-center mt-2 mb-2">
+                    <button
+                      onClick={onSaveSetup}
+                      disabled={setupSaving}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+                    >
+                      {setupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                      Salva Setup
+                      <CheckCircle2 size={18} className={`transition-opacity ${setupTick ? "opacity-100" : "opacity-0"}`} />
+                    </button>
+                  </div>
+
+                  {lastSetupTime && (
+                    <p className="text-xs text-gray-500 text-center -mt-2">
+                      Ultimo salvataggio: {lastSetupTime}
+                    </p>
+                  )}
+
+                  {/* Storico setup (ultimi 3) con Elimina */}
+                  <HistoryBar
+                    title="Ultimi 3 salvataggi Setup"
+                    rows={setupHistory}
+                    onOpen={loadSetup}
+                    onDelete={async (row) => {
+                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                      try {
+                        await deleteSectionRow(row.id, "setup");
+                        if (activeSetupId === row.id) setActiveSetupId(null);
+                      } catch (e: any) {
+                        alert("Errore eliminazione: " + e.message);
+                      }
+                    }}
+                    activeId={activeSetupId}
+                  />
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -677,26 +811,7 @@ export default function EventCarPage() {
             {/* Pulsante Salva (in basso) */}
             <div className="flex justify-center mt-4 mb-2">
               <button
-                onClick={async () => {
-                  await onSaveCheckup();
-                  setLastCheckupTime(new Date().toLocaleString());
-                  const toast = document.createElement("div");
-                  toast.textContent = "💾 Check-up salvato con successo";
-                  Object.assign(toast.style, {
-                    position: "fixed",
-                    top: "20px",
-                    right: "20px",
-                    background: "#facc15",
-                    padding: "8px 14px",
-                    borderRadius: "8px",
-                    fontWeight: "600",
-                    color: "#222",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                    zIndex: "9999",
-                  } as CSSStyleDeclaration);
-                  document.body.appendChild(toast);
-                  setTimeout(() => toast.remove(), 3000);
-                }}
+                onClick={onSaveCheckup}
                 disabled={checkupSaving}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
               >
@@ -709,66 +824,21 @@ export default function EventCarPage() {
             {lastCheckupTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastCheckupTime}</p>}
 
             {/* Storico ultimi 3 (con elimina) */}
-            <div className="border-t pt-3">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-gray-800 text-sm">Ultimi 3 salvataggi Check-up</h3>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <RotateCcw size={14} /> Storico
-                </div>
-              </div>
-              {checkupHistory.length === 0 ? (
-                <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
-              ) : (
-                <ul className="flex flex-col gap-1">
-                  {checkupHistory.map((r) => {
-                    const isActive = r.id === activeCheckupId;
-                    return (
-                      <li
-                        key={r.id}
-                        className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
-                          isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <button
-                          onClick={() => loadCheckup(r)}
-                          className="flex-1 text-left"
-                          title="Apri questo salvataggio"
-                        >
-                          {new Date(r.created_at).toLocaleString()}
-                        </button>
-                        <div className="flex items-center gap-3">
-                          {isActive ? (
-                            <span className="text-green-700 font-semibold">✅ Aperto</span>
-                          ) : (
-                            <button
-                              onClick={() => loadCheckup(r)}
-                              className="text-yellow-600 font-semibold"
-                            >
-                              🔄 Apri
-                            </button>
-                          )}
-                          <button
-                            onClick={async () => {
-                              if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
-                              try {
-                                await deleteSectionRow(r.id, "checkup");
-                                if (activeCheckupId === r.id) setActiveCheckupId(null);
-                              } catch (e: any) {
-                                alert("Errore eliminazione: " + e.message);
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
-                            title="Elimina salvataggio"
-                          >
-                            <Trash2 size={14} /> Elimina
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+            <HistoryBar
+              title="Ultimi 3 salvataggi Check-up"
+              rows={checkupHistory}
+              onOpen={loadCheckup}
+              onDelete={async (row) => {
+                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                try {
+                  await deleteSectionRow(row.id, "checkup");
+                  if (activeCheckupId === row.id) setActiveCheckupId(null);
+                } catch (e: any) {
+                  alert("Errore eliminazione: " + e.message);
+                }
+              }}
+              activeId={activeCheckupId}
+            />
           </>
         ) : (
           <div className="text-sm text-gray-500">Vista sintetica</div>
@@ -967,7 +1037,7 @@ export default function EventCarPage() {
       </section>
 
       {/* ======== Separatore giallo tenue ======== */}
-      <div className="h/[2px] bg-yellow-400/80 my-6" />
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
       {/* 🗒️ Note e osservazioni */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
