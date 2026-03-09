@@ -164,6 +164,18 @@ function normalizeNumberInput(value: string) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function normalizeCarRelation(value: any): ComponentCarRelation | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
+function normalizeHistoryCarRelation(value: any): { name: string } | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
 export default function ComponentsPage() {
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [cars, setCars] = useState<CarOption[]>([]);
@@ -250,9 +262,27 @@ export default function ComponentsPage() {
       if (componentError) throw componentError;
       if (carError) throw carError;
 
-      const comps = (componentRows || []) as ComponentItem[];
+      const comps: ComponentItem[] = (componentRows || []).map((row: any) => ({
+        id: row.id,
+        type: row.type,
+        identifier: row.identifier,
+        expiry_date: row.expiry_date,
+        last_maintenance_date: row.last_maintenance_date,
+        hours: row.hours,
+        life_hours: row.life_hours,
+        warning_threshold_hours: row.warning_threshold_hours,
+        revision_threshold_hours: row.revision_threshold_hours,
+        car_id: normalizeCarRelation(row.car_id),
+      }));
+
+      const normalizedCars: CarOption[] = (carRows || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        chassis_number: row.chassis_number,
+      }));
+
       setComponents(comps);
-      setCars((carRows || []) as CarOption[]);
+      setCars(normalizedCars);
 
       const componentIds = comps.map((comp) => comp.id);
 
@@ -282,7 +312,17 @@ export default function ComponentsPage() {
       if (revisionError) throw revisionError;
 
       const historyMap: Record<string, MountHistoryRow[]> = {};
-      for (const row of (historyRows || []) as MountHistoryRow[]) {
+      for (const rawRow of historyRows || []) {
+        const row: MountHistoryRow = {
+          id: (rawRow as any).id,
+          component_id: (rawRow as any).component_id,
+          status: (rawRow as any).status,
+          mounted_at: (rawRow as any).mounted_at,
+          removed_at: (rawRow as any).removed_at,
+          hours_used: (rawRow as any).hours_used,
+          car_id: normalizeHistoryCarRelation((rawRow as any).car_id),
+        };
+
         if (!historyMap[row.component_id]) historyMap[row.component_id] = [];
         historyMap[row.component_id].push(row);
       }
