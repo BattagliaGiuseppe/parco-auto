@@ -6,7 +6,6 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Edit,
-  Info,
   List,
   Grid,
   Search,
@@ -15,6 +14,7 @@ import {
   CarFront,
   GaugeCircle,
   Wrench,
+  Info,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -162,8 +162,6 @@ export default function CarsPage() {
   const [searchBy, setSearchBy] = useState<"auto" | ComponentType>("auto");
 
   const [openModal, setOpenModal] = useState(false);
-  const [mode, setMode] = useState<"add" | "edit" | "view">("add");
-  const currentMode = mode as string;
   const [selectedCar, setSelectedCar] = useState<CarRow | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -508,7 +506,7 @@ export default function CarsPage() {
   const openAdd = async () => {
     resetForm();
     await fetchAllComponents();
-    setMode("add");
+    setSelectedCar(null);
     setOpenModal(true);
   };
 
@@ -540,13 +538,7 @@ export default function CarsPage() {
     setEditChoice(nextChoice);
 
     await fetchAllComponents();
-    setMode("edit");
     setOpenModal(true);
-  };
-
-  const openView = async (car: CarRow) => {
-    await openEdit(car);
-    setMode("view");
   };
 
   const optionsForType = (type: string) => {
@@ -557,8 +549,6 @@ export default function CarsPage() {
   };
 
   const handleSelectChange = (type: string, value: string) => {
-    if (currentMode === "view") return;
-
     if (value === "__new__") {
       setEditChoice((prev) => ({
         ...prev,
@@ -614,7 +604,7 @@ export default function CarsPage() {
       return;
     }
 
-    if (currentMode === "edit" && selectedCar) {
+    if (selectedCar) {
       await mountComponent(selectedCar.id, compId);
       await fetchAllComponents();
       await fetchCars();
@@ -639,7 +629,6 @@ export default function CarsPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
@@ -707,7 +696,6 @@ export default function CarsPage() {
         </div>
       </div>
 
-      {/* Lista Auto */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCars.map((car) => {
           const criticalComponents = (car.components || []).filter((component) => {
@@ -741,13 +729,12 @@ export default function CarsPage() {
                     href={`/cars/${car.id}`}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
                   >
-                    <Info size={16} /> Apri scheda
+                    <Info size={16} /> Dettagli
                   </Link>
                 </div>
               </div>
 
               <div className="p-4 space-y-4">
-                {/* Riepilogo principale */}
                 <div className="grid grid-cols-3 gap-3 text-sm">
                   <div className="bg-gray-50 rounded-xl p-3 border">
                     <div className="text-gray-500">Ore auto</div>
@@ -765,7 +752,6 @@ export default function CarsPage() {
                   </div>
                 </div>
 
-                {/* Vista dettagliata */}
                 {view === "dettagliata" ? (
                   <>
                     {car.components?.length > 0 ? (
@@ -804,6 +790,7 @@ export default function CarsPage() {
                                     ? formatHours(comp.warning_threshold_hours)
                                     : "—"}
                                 </span>
+
                                 <span>
                                   Soglia revisione:{" "}
                                   {comp.revision_threshold_hours !== null &&
@@ -811,6 +798,7 @@ export default function CarsPage() {
                                     ? formatHours(comp.revision_threshold_hours)
                                     : "—"}
                                 </span>
+
                                 {comp.expiry_date && (
                                   <span className={getExpiryColor(comp.expiry_date)}>
                                     Scadenza:{" "}
@@ -832,21 +820,14 @@ export default function CarsPage() {
                   <div className="text-sm text-gray-600 flex items-center gap-2">
                     <Wrench size={15} className="text-yellow-500" />
                     <span>
-                      {car.components?.length || 0} componenti montati •{" "}
-                      {criticalComponents} da controllare
+                      {car.components?.length || 0} componenti montati • {criticalComponents} da
+                      controllare
                     </span>
                   </div>
                 )}
               </div>
 
               <div className="px-4 pb-4 flex justify-end gap-2 flex-wrap">
-                <Link
-                  href={`/cars/${car.id}`}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded-lg flex items-center gap-2 font-semibold"
-                >
-                  <GaugeCircle size={16} /> Scheda completa
-                </Link>
-
                 <Link
                   href={`/cars/${car.id}/documents`}
                   className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
@@ -866,7 +847,6 @@ export default function CarsPage() {
         })}
       </div>
 
-      {/* MODAL comune per Add/Edit/View */}
       {openModal && (
         <>
           <div
@@ -877,11 +857,7 @@ export default function CarsPage() {
             <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <h3 className="text-xl font-bold text-gray-800">
-                  {currentMode === "add"
-                    ? "Aggiungi Auto"
-                    : currentMode === "edit"
-                    ? "Modifica Auto"
-                    : "Dettagli Auto"}
+                  {selectedCar ? "Modifica Auto" : "Aggiungi Auto"}
                 </h3>
                 <button
                   onClick={() => !saving && setOpenModal(false)}
@@ -892,14 +868,12 @@ export default function CarsPage() {
               </div>
 
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Dati auto */}
                 <div className="space-y-3">
                   <label className="block text-sm text-gray-700">Nome auto</label>
                   <input
                     className="border rounded-lg p-2 w-full"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    disabled={currentMode === "view"}
                   />
 
                   <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
@@ -907,100 +881,81 @@ export default function CarsPage() {
                     className="border rounded-lg p-2 w-full"
                     value={chassis}
                     onChange={(e) => setChassis(e.target.value)}
-                    disabled={currentMode === "view"}
                   />
                 </div>
 
-                {/* Componenti base */}
                 <div className="space-y-3">
                   <p className="font-semibold text-gray-800">Componenti base</p>
                   {(["motore", "cambio", "differenziale"] as ComponentType[]).map((type) => {
-                    if (["edit", "add"].includes(currentMode)) {
-                      const { unassigned, assigned } = optionsForType(type);
-                      const currentSel =
-                        editChoice[type]?.selection ??
-                        selectedCar?.components?.find((c) => c.type === type)?.id ??
-                        "";
+                    const { unassigned, assigned } = optionsForType(type);
+                    const currentSel =
+                      editChoice[type]?.selection ??
+                      selectedCar?.components?.find((c) => c.type === type)?.id ??
+                      "";
 
-                      return (
-                        <div key={type} className="space-y-1">
-                          <span className="w-32 text-sm text-gray-600 capitalize block">
-                            {type}
-                          </span>
-
-                          <select
-                            className="border rounded-lg p-2 w-full"
-                            value={currentSel}
-                            onChange={(e) => handleSelectChange(type, e.target.value)}
-                            disabled={currentMode === "view"}
-                          >
-                            <option value="__new__">➕ Aggiungi nuovo componente…</option>
-
-                            {unassigned.length > 0 && (
-                              <>
-                                <option disabled className="font-bold">
-                                  — Smontati —
-                                </option>
-                                {unassigned.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.identifier} (smontato)
-                                  </option>
-                                ))}
-                              </>
-                            )}
-
-                            {assigned.length > 0 && (
-                              <>
-                                <option disabled className="font-bold">
-                                  — Montati —
-                                </option>
-                                {assigned.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
-                                  </option>
-                                ))}
-                              </>
-                            )}
-
-                            {!currentSel && <option value="">— Seleziona —</option>}
-                          </select>
-
-                          {editChoice[type]?.selection === "__new__" && (
-                            <input
-                              className="border rounded-lg p-2 w-full mt-1"
-                              placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
-                              value={editChoice[type]?.newIdentifier || ""}
-                              onChange={(e) =>
-                                setEditChoice((prev) => ({
-                                  ...prev,
-                                  [type]: {
-                                    selection: "__new__",
-                                    newIdentifier: e.target.value,
-                                  },
-                                }))
-                              }
-                              disabled={currentMode === "view"}
-                            />
-                          )}
-                        </div>
-                      );
-                    }
-
-                    const curr = baseComponents.find((b) => b.type === type);
                     return (
-                      <div key={type} className="flex items-center gap-2">
-                        <span className="w-32 text-sm text-gray-600 capitalize">{type}</span>
-                        <input
+                      <div key={type} className="space-y-1">
+                        <span className="w-32 text-sm text-gray-600 capitalize block">
+                          {type}
+                        </span>
+
+                        <select
                           className="border rounded-lg p-2 w-full"
-                          value={curr?.identifier || ""}
-                          disabled
-                        />
+                          value={currentSel}
+                          onChange={(e) => handleSelectChange(type, e.target.value)}
+                        >
+                          <option value="__new__">➕ Aggiungi nuovo componente…</option>
+
+                          {unassigned.length > 0 && (
+                            <>
+                              <option disabled className="font-bold">
+                                — Smontati —
+                              </option>
+                              {unassigned.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.identifier} (smontato)
+                                </option>
+                              ))}
+                            </>
+                          )}
+
+                          {assigned.length > 0 && (
+                            <>
+                              <option disabled className="font-bold">
+                                — Montati —
+                              </option>
+                              {assigned.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
+                                </option>
+                              ))}
+                            </>
+                          )}
+
+                          {!currentSel && <option value="">— Seleziona —</option>}
+                        </select>
+
+                        {editChoice[type]?.selection === "__new__" && (
+                          <input
+                            className="border rounded-lg p-2 w-full mt-1"
+                            placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
+                            value={editChoice[type]?.newIdentifier || ""}
+                            onChange={(e) =>
+                              setEditChoice((prev) => ({
+                                ...prev,
+                                [type]: {
+                                  selection: "__new__",
+                                  newIdentifier: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Componenti con scadenza */}
                 <div className="md:col-span-2">
                   <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1008,113 +963,83 @@ export default function CarsPage() {
                       ["cinture", "cavi", "estintore", "serbatoio", "passaporto"] as ComponentType[]
                     ).map((type) => {
                       const e = expiringComponents.find((x) => x.type === type);
-
-                      if (["edit", "add"].includes(currentMode)) {
-                        const { unassigned, assigned } = optionsForType(type);
-                        const currentSel =
-                          editChoice[type]?.selection ??
-                          selectedCar?.components?.find((c) => c.type === type)?.id ??
-                          "";
-
-                        return (
-                          <div
-                            key={type}
-                            className="grid grid-cols-5 gap-2 items-center"
-                          >
-                            <span className="col-span-1 text-sm text-gray-600 capitalize">
-                              {type}
-                            </span>
-
-                            <div className="col-span-2">
-                              <select
-                                className="border rounded-lg p-2 w-full"
-                                value={currentSel}
-                                onChange={(ev) => handleSelectChange(type, ev.target.value)}
-                                disabled={currentMode === "view"}
-                              >
-                                <option value="__new__">➕ Aggiungi nuovo componente…</option>
-
-                                {unassigned.length > 0 && (
-                                  <>
-                                    <option disabled className="font-bold">
-                                      — Smontati —
-                                    </option>
-                                    {unassigned.map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {c.identifier} (smontato)
-                                      </option>
-                                    ))}
-                                  </>
-                                )}
-
-                                {assigned.length > 0 && (
-                                  <>
-                                    <option disabled className="font-bold">
-                                      — Montati —
-                                    </option>
-                                    {assigned.map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
-                                      </option>
-                                    ))}
-                                  </>
-                                )}
-
-                                {!currentSel && <option value="">— Seleziona —</option>}
-                              </select>
-
-                              {editChoice[type]?.selection === "__new__" && (
-                                <input
-                                  className="border rounded-lg p-2 w-full mt-1"
-                                  placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
-                                  value={editChoice[type]?.newIdentifier || ""}
-                                  onChange={(ev) =>
-                                    setEditChoice((prev) => ({
-                                      ...prev,
-                                      [type]: {
-                                        selection: "__new__",
-                                        newIdentifier: ev.target.value,
-                                      },
-                                    }))
-                                  }
-                                  disabled={currentMode === "view"}
-                                />
-                              )}
-                            </div>
-
-                            <input
-                              type="date"
-                              className="col-span-2 border rounded-lg p-2"
-                              value={e?.expiry || ""}
-                              onChange={(ev) => {
-                                const v = ev.target.value;
-                                setExpiringComponents((prev) =>
-                                  prev.map((x) =>
-                                    x.type === type ? { ...x, expiry: v } : x
-                                  )
-                                );
-                              }}
-                              disabled={currentMode === "view"}
-                            />
-                          </div>
-                        );
-                      }
+                      const { unassigned, assigned } = optionsForType(type);
+                      const currentSel =
+                        editChoice[type]?.selection ??
+                        selectedCar?.components?.find((c) => c.type === type)?.id ??
+                        "";
 
                       return (
                         <div key={type} className="grid grid-cols-5 gap-2 items-center">
                           <span className="col-span-1 text-sm text-gray-600 capitalize">
                             {type}
                           </span>
-                          <input
-                            className="col-span-2 border rounded-lg p-2"
-                            value={e?.identifier || ""}
-                            disabled
-                          />
+
+                          <div className="col-span-2">
+                            <select
+                              className="border rounded-lg p-2 w-full"
+                              value={currentSel}
+                              onChange={(ev) => handleSelectChange(type, ev.target.value)}
+                            >
+                              <option value="__new__">➕ Aggiungi nuovo componente…</option>
+
+                              {unassigned.length > 0 && (
+                                <>
+                                  <option disabled className="font-bold">
+                                    — Smontati —
+                                  </option>
+                                  {unassigned.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.identifier} (smontato)
+                                    </option>
+                                  ))}
+                                </>
+                              )}
+
+                              {assigned.length > 0 && (
+                                <>
+                                  <option disabled className="font-bold">
+                                    — Montati —
+                                  </option>
+                                  {assigned.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
+                                    </option>
+                                  ))}
+                                </>
+                              )}
+
+                              {!currentSel && <option value="">— Seleziona —</option>}
+                            </select>
+
+                            {editChoice[type]?.selection === "__new__" && (
+                              <input
+                                className="border rounded-lg p-2 w-full mt-1"
+                                placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
+                                value={editChoice[type]?.newIdentifier || ""}
+                                onChange={(ev) =>
+                                  setEditChoice((prev) => ({
+                                    ...prev,
+                                    [type]: {
+                                      selection: "__new__",
+                                      newIdentifier: ev.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            )}
+                          </div>
+
                           <input
                             type="date"
                             className="col-span-2 border rounded-lg p-2"
                             value={e?.expiry || ""}
-                            disabled
+                            onChange={(ev) => {
+                              const v = ev.target.value;
+                              setExpiringComponents((prev) =>
+                                prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
+                              );
+                            }}
                           />
                         </div>
                       );
@@ -1123,34 +1048,27 @@ export default function CarsPage() {
                 </div>
               </div>
 
-              {currentMode !== "view" && (
-                <div className="flex justify-end gap-3 px-6 py-4 border-t">
-                  <button
-                    onClick={() => setOpenModal(false)}
-                    disabled={saving}
-                    className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    onClick={currentMode === "add" ? onSaveCar : onUpdateCar}
-                    disabled={saving}
-                    className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
-                  >
-                    {saving
-                      ? "Salvataggio..."
-                      : currentMode === "add"
-                      ? "Salva auto"
-                      : "Salva modifiche"}
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end gap-3 px-6 py-4 border-t">
+                <button
+                  onClick={() => setOpenModal(false)}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={selectedCar ? onUpdateCar : onSaveCar}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
+                >
+                  {saving ? "Salvataggio..." : selectedCar ? "Salva modifiche" : "Salva auto"}
+                </button>
+              </div>
             </div>
           </div>
         </>
       )}
 
-      {/* Popup conferma montaggio */}
       {confirmData.show && (
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -1159,8 +1077,8 @@ export default function CarsPage() {
             </h3>
             <p className="text-gray-700 mb-6">
               Vuoi smontare{" "}
-              <span className="font-semibold">{confirmData.compIdentifier}</span>{" "}
-              da <span className="font-semibold">{confirmData.fromAuto}</span> e montarlo su{" "}
+              <span className="font-semibold">{confirmData.compIdentifier}</span> da{" "}
+              <span className="font-semibold">{confirmData.fromAuto}</span> e montarlo su{" "}
               <span className="font-semibold">{confirmData.toAuto}</span>?
             </p>
 
@@ -1192,7 +1110,6 @@ export default function CarsPage() {
         </div>
       )}
 
-      {/* Toast */}
       {toast.show && (
         <div className="fixed top-6 right-6 z-[70] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-lg shadow-lg">
           {toast.message}
