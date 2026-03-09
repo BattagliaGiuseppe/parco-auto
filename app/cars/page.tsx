@@ -1,16 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
-import { Edit, Info, List, Grid, Search, FileText, Printer } from "lucide-react";
+import {
+  Edit,
+  Info,
+  List,
+  Grid,
+  Search,
+  FileText,
+  Printer,
+  CarFront,
+  GaugeCircle,
+  Wrench,
+} from "lucide-react";
 import { Audiowide } from "next/font/google";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-type ComponentBase = { type: string; identifier: string };
-type ComponentExp = { type: string; identifier: string; expiry: string };
 type ComponentType =
   | "motore"
   | "cambio"
@@ -20,6 +29,39 @@ type ComponentType =
   | "estintore"
   | "serbatoio"
   | "passaporto";
+
+type CarComponent = {
+  id: string;
+  type: string;
+  identifier: string;
+  expiry_date: string | null;
+  is_active: boolean | null;
+  hours: number | null;
+  life_hours: number | null;
+  warning_threshold_hours: number | null;
+  revision_threshold_hours: number | null;
+  last_maintenance_date: string | null;
+};
+
+type CarRow = {
+  id: string;
+  name: string;
+  chassis_number: string | null;
+  hours: number | null;
+  components: CarComponent[];
+};
+
+type GlobalComponent = {
+  id: string;
+  type: string;
+  identifier: string;
+  expiry_date: string | null;
+  car_id: string | null;
+  car: { name: string } | { name: string }[] | null;
+};
+
+type ComponentBase = { type: string; identifier: string };
+type ComponentExp = { type: string; identifier: string; expiry: string };
 
 const COMPONENT_TYPES: ComponentType[] = [
   "motore",
@@ -59,39 +101,82 @@ function addYearsYYYYMMDD(years: number) {
   d.setFullYear(d.getFullYear() + years);
   return d.toISOString().slice(0, 10);
 }
+
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function formatHours(value: number | null | undefined) {
+  return Number(value ?? 0).toFixed(2);
+}
+
+function getExpiryColor(date: string) {
+  const expiry = new Date(date);
+  const now = new Date();
+  const months =
+    (expiry.getFullYear() - now.getFullYear()) * 12 +
+    (expiry.getMonth() - now.getMonth());
+
+  if (expiry < now) return "text-red-500";
+  if (months > 12) return "text-green-500";
+  if (months > 6) return "text-yellow-500";
+  return "text-orange-500";
+}
+
+function getThresholdBadge(component: CarComponent) {
+  const hours = Number(component.hours ?? 0);
+  const warning = component.warning_threshold_hours;
+  const revision = component.revision_threshold_hours;
+
+  if (revision !== null && revision !== undefined && hours >= revision) {
+    return {
+      label: "Fuori soglia",
+      className: "bg-red-100 text-red-700",
+    };
+  }
+
+  if (warning !== null && warning !== undefined && hours >= warning) {
+    return {
+      label: "In attenzione",
+      className: "bg-yellow-100 text-yellow-700",
+    };
+  }
+
+  return {
+    label: "OK",
+    className: "bg-green-100 text-green-700",
+  };
+}
+
+function normalizeCarName(value: GlobalComponent["car"]) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0]?.name || null;
+  return value.name || null;
+}
+
 export default function CarsPage() {
-  const [cars, setCars] = useState<any[]>([]);
+  const [cars, setCars] = useState<CarRow[]>([]);
   const [view, setView] = useState<"sintetica" | "dettagliata">("sintetica");
 
-  // ricerca
   const [search, setSearch] = useState("");
   const [searchBy, setSearchBy] = useState<"auto" | ComponentType>("auto");
 
-  // modal gestione auto
   const [openModal, setOpenModal] = useState(false);
   const [mode, setMode] = useState<"add" | "edit" | "view">("add");
-  const currentMode = mode as string; // fix TS in JSX comparisons
-  const [selectedCar, setSelectedCar] = useState<any>(null);
+  const currentMode = mode as string;
+  const [selectedCar, setSelectedCar] = useState<CarRow | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // campi form
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
   const [baseComponents, setBaseComponents] = useState<ComponentBase[]>([]);
   const [expiringComponents, setExpiringComponents] = useState<ComponentExp[]>([]);
 
-  // elenco globale componenti (per select)
-  const [allComponents, setAllComponents] = useState<any[]>([]);
-  // selezione per add/edit: per ogni tipo { selection: compId | "__new__", newIdentifier: string }
+  const [allComponents, setAllComponents] = useState<GlobalComponent[]>([]);
   const [editChoice, setEditChoice] = useState<
     Record<string, { selection: string; newIdentifier: string }>
   >({});
 
-  // popup conferma per montare un componente già montato altrove
   const [confirmData, setConfirmData] = useState<{
     show: boolean;
     compId: string;
@@ -110,25 +195,49 @@ export default function CarsPage() {
     type: "",
   });
 
-  // toast di successo
   const [toast, setToast] = useState<{ show: boolean; message: string }>({
     show: false,
     message: "",
   });
+
   const showToast = (message: string) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: "" }), 2000);
   };
 
-  // --- FETCH DATI ---
   const fetchCars = async () => {
     const { data, error } = await supabase
       .from("cars")
-      .select(
-        "id, name, chassis_number, components(id, type, identifier, expiry_date, is_active)"
-      )
+      .select(`
+        id,
+        name,
+        chassis_number,
+        hours,
+        components (
+          id,
+          type,
+          identifier,
+          expiry_date,
+          is_active,
+          hours,
+          life_hours,
+          warning_threshold_hours,
+          revision_threshold_hours,
+          last_maintenance_date
+        )
+      `)
       .order("id", { ascending: true });
-    if (!error) setCars(data || []);
+
+    if (!error) {
+      const normalized: CarRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        chassis_number: row.chassis_number,
+        hours: row.hours,
+        components: (row.components || []) as CarComponent[],
+      }));
+      setCars(normalized);
+    }
   };
 
   const fetchAllComponents = async () => {
@@ -136,7 +245,18 @@ export default function CarsPage() {
       .from("components")
       .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
       .order("id", { ascending: true });
-    if (!error) setAllComponents(data || []);
+
+    if (!error) {
+      const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
+        id: row.id,
+        type: row.type,
+        identifier: row.identifier,
+        expiry_date: row.expiry_date,
+        car_id: row.car_id,
+        car: row.car,
+      }));
+      setAllComponents(normalized);
+    }
   };
 
   useEffect(() => {
@@ -144,7 +264,6 @@ export default function CarsPage() {
     fetchAllComponents();
   }, []);
 
-  // reset form
   const resetForm = () => {
     setName("");
     setChassis("");
@@ -163,37 +282,25 @@ export default function CarsPage() {
     setEditChoice({});
   };
 
-  // colori scadenza
-  const getExpiryColor = (date: string) => {
-    const expiry = new Date(date);
-    const now = new Date();
-    const months =
-      (expiry.getFullYear() - now.getFullYear()) * 12 +
-      (expiry.getMonth() - now.getMonth());
-    if (months > 12) return "text-green-500";
-    if (months > 6) return "text-yellow-500";
-    return "text-red-500";
-  };
+  const filteredCars = useMemo(() => {
+    return cars.filter((car) => {
+      if (searchBy === "auto") {
+        if (!search.trim()) return true;
+        return (
+          (car.name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (car.chassis_number || "").toLowerCase().includes(search.toLowerCase())
+        );
+      }
 
-  // filtro ricerca
-  const filteredCars = cars.filter((car) => {
-    if (searchBy === "auto") {
-      if (!search.trim()) return true;
-      return (
-        (car.name || "").toLowerCase().includes(search.toLowerCase()) ||
-        (car.chassis_number || "")
-          .toLowerCase()
-          .includes(search.toLowerCase())
+      const comps = (car.components || []).filter((c) => c.type === searchBy);
+      if (!search.trim()) return comps.length > 0;
+
+      return comps.some((c) =>
+        (c.identifier || "").toLowerCase().includes(search.toLowerCase())
       );
-    }
-    const comps = (car.components || []).filter((c: any) => c.type === searchBy);
-    if (!search.trim()) return comps.length > 0;
-    return comps.some((c: any) =>
-      (c.identifier || "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+    });
+  }, [cars, search, searchBy]);
 
-  // montaggio con smontaggio automatico
   const mountComponent = async (carId: string, compId: string) => {
     if (!carId || !compId) return;
 
@@ -205,71 +312,59 @@ export default function CarsPage() {
 
     if (compErr || !selectedComp) return;
 
-    // se montato su altra auto -> smonta
     if (selectedComp.car_id && selectedComp.car_id !== carId) {
-      await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("id", selectedComp.id);
+      await supabase.from("components").update({ car_id: null }).eq("id", selectedComp.id);
     }
 
-    // smonta eventuale componente dello stesso tipo già presente su quest'auto
     const { data: existingComp } = await supabase
       .from("components")
       .select("id")
       .eq("car_id", carId)
       .eq("type", selectedComp.type)
       .single();
+
     if (existingComp) {
-      await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("id", existingComp.id);
+      await supabase.from("components").update({ car_id: null }).eq("id", existingComp.id);
     }
 
-    // monta
     await supabase.from("components").update({ car_id: carId }).eq("id", compId);
   };
 
-  // salva nuova auto — supporta select (esistenti) o nuovo
   const onSaveCar = async () => {
     if (!name.trim() || !chassis.trim()) return;
     setSaving(true);
+
     try {
       const { data: newCar, error: carErr } = await supabase
         .from("cars")
         .insert([{ name, chassis_number: chassis }])
         .select()
         .single();
+
       if (carErr) throw carErr;
 
-      // BASE: motore, cambio, differenziale
       const baseTypes: ComponentType[] = ["motore", "cambio", "differenziale"];
       for (const type of baseTypes) {
         const choice = editChoice[type];
         if (choice?.selection && choice.selection !== "__new__") {
-          // monta componente esistente (smontaggio automatico)
           await mountComponent(newCar.id, choice.selection);
         } else {
-          // crea nuovo e monta
           const identifier =
             choice?.newIdentifier ||
             baseComponents.find((b) => b.type === type)?.identifier ||
             `${name} - ${defaultLabel[type]}`;
-          await supabase
-            .from("components")
-            .insert([
-              {
-                type,
-                identifier,
-                car_id: newCar.id,
-                is_active: true,
-              },
-            ]);
+
+          await supabase.from("components").insert([
+            {
+              type,
+              identifier,
+              car_id: newCar.id,
+              is_active: true,
+            },
+          ]);
         }
       }
 
-      // EXPIRE: altri componenti con scadenza
       const expireTypes: ComponentType[] = [
         "cinture",
         "cavi",
@@ -277,29 +372,26 @@ export default function CarsPage() {
         "serbatoio",
         "passaporto",
       ];
+
       for (const type of expireTypes) {
         const choice = editChoice[type];
         if (choice?.selection && choice.selection !== "__new__") {
           await mountComponent(newCar.id, choice.selection);
         } else {
           const e = expiringComponents.find((x) => x.type === type);
-          const identifier =
-            choice?.newIdentifier ||
-            e?.identifier ||
-            defaultLabel[type];
+          const identifier = choice?.newIdentifier || e?.identifier || defaultLabel[type];
           const years = EXP_RULES[type as keyof typeof EXP_RULES] ?? 2;
           const expiry = e?.expiry || addYearsYYYYMMDD(years);
-          await supabase
-            .from("components")
-            .insert([
-              {
-                type,
-                identifier,
-                car_id: newCar.id,
-                expiry_date: expiry,
-                is_active: true,
-              },
-            ]);
+
+          await supabase.from("components").insert([
+            {
+              type,
+              identifier,
+              car_id: newCar.id,
+              expiry_date: expiry,
+              is_active: true,
+            },
+          ]);
         }
       }
 
@@ -315,32 +407,34 @@ export default function CarsPage() {
     }
   };
 
-  // aggiorna auto esistente — applica eventuali scelte di select
   const onUpdateCar = async () => {
     if (!selectedCar) return;
     setSaving(true);
+
     try {
-      // 1) aggiorna dati auto
       const { error: carErr } = await supabase
         .from("cars")
         .update({ name, chassis_number: chassis })
         .eq("id", selectedCar.id);
+
       if (carErr) throw carErr;
 
-      // 2) gestisci BASE
       for (const type of ["motore", "cambio", "differenziale"] as ComponentType[]) {
         const choice = editChoice[type];
+
         if (choice?.selection) {
           if (choice.selection === "__new__") {
             const identifier =
               choice.newIdentifier ||
               baseComponents.find((b) => b.type === type)?.identifier ||
               `${name} - ${defaultLabel[type]}`;
+
             const { data: created, error: insErr } = await supabase
               .from("components")
               .insert([{ type, identifier, is_active: true }])
               .select("id")
               .single();
+
             if (!insErr && created?.id) {
               await mountComponent(selectedCar.id, created.id);
             }
@@ -348,7 +442,6 @@ export default function CarsPage() {
             await mountComponent(selectedCar.id, choice.selection);
           }
         } else {
-          // nessuna scelta: aggiorno solo identificativo esistente su quest’auto
           const curr = baseComponents.find((b) => b.type === type);
           if (curr?.identifier) {
             await supabase
@@ -360,20 +453,28 @@ export default function CarsPage() {
         }
       }
 
-      // 3) gestisci EXPIRE
-      for (const type of ["cinture", "cavi", "estintore", "serbatoio", "passaporto"] as ComponentType[]) {
+      for (const type of [
+        "cinture",
+        "cavi",
+        "estintore",
+        "serbatoio",
+        "passaporto",
+      ] as ComponentType[]) {
         const choice = editChoice[type];
+
         if (choice?.selection) {
           if (choice.selection === "__new__") {
             const e = expiringComponents.find((x) => x.type === type);
             const years = EXP_RULES[type as keyof typeof EXP_RULES] ?? 2;
             const expiry = e?.expiry || addYearsYYYYMMDD(years);
             const identifier = choice.newIdentifier || e?.identifier || defaultLabel[type];
+
             const { data: created, error: insErr } = await supabase
               .from("components")
               .insert([{ type, identifier, expiry_date: expiry, is_active: true }])
               .select("id")
               .single();
+
             if (!insErr && created?.id) {
               await mountComponent(selectedCar.id, created.id);
             }
@@ -381,7 +482,6 @@ export default function CarsPage() {
             await mountComponent(selectedCar.id, choice.selection);
           }
         } else {
-          // nessuna scelta: aggiorno i campi del componente attuale su quest’auto
           const e = expiringComponents.find((x) => x.type === type);
           if (e) {
             await supabase
@@ -405,7 +505,6 @@ export default function CarsPage() {
     }
   };
 
-  // apri modali
   const openAdd = async () => {
     resetForm();
     await fetchAllComponents();
@@ -413,34 +512,29 @@ export default function CarsPage() {
     setOpenModal(true);
   };
 
-  const openEdit = async (car: any) => {
+  const openEdit = async (car: CarRow) => {
     setSelectedCar(car);
     setName(car.name);
-    setChassis(car.chassis_number);
+    setChassis(car.chassis_number || "");
 
     setBaseComponents(
       (car.components || [])
-        .filter((c: any) =>
-          ["motore", "cambio", "differenziale"].includes(c.type)
-        )
-        .map((c: any) => ({ type: c.type, identifier: c.identifier }))
+        .filter((c) => ["motore", "cambio", "differenziale"].includes(c.type))
+        .map((c) => ({ type: c.type, identifier: c.identifier }))
     );
 
     setExpiringComponents(
       (car.components || [])
-        .filter(
-          (c: any) => !["motore", "cambio", "differenziale"].includes(c.type)
-        )
-        .map((c: any) => ({
+        .filter((c) => !["motore", "cambio", "differenziale"].includes(c.type))
+        .map((c) => ({
           type: c.type,
           identifier: c.identifier,
           expiry: c.expiry_date || "",
         }))
     );
 
-    // default editChoice = componente attuale per ciascun tipo
     const nextChoice: Record<string, { selection: string; newIdentifier: string }> = {};
-    (car.components || []).forEach((c: any) => {
+    (car.components || []).forEach((c) => {
       nextChoice[c.type] = { selection: c.id, newIdentifier: "" };
     });
     setEditChoice(nextChoice);
@@ -450,12 +544,11 @@ export default function CarsPage() {
     setOpenModal(true);
   };
 
-  const openView = async (car: any) => {
+  const openView = async (car: CarRow) => {
     await openEdit(car);
     setMode("view");
   };
 
-  // opzioni select per tipo
   const optionsForType = (type: string) => {
     const items = allComponents.filter((c) => c.type === type);
     const unassigned = items.filter((c) => !c.car_id);
@@ -463,9 +556,7 @@ export default function CarsPage() {
     return { unassigned, assigned };
   };
 
-  // gestione cambio select
   const handleSelectChange = (type: string, value: string) => {
-    // in add/edit memorizza scelta; se il comp è montato altrove -> popup
     if (currentMode === "view") return;
 
     if (value === "__new__") {
@@ -475,6 +566,7 @@ export default function CarsPage() {
       }));
       return;
     }
+
     if (!value) {
       setEditChoice((prev) => ({
         ...prev,
@@ -486,31 +578,29 @@ export default function CarsPage() {
     const comp = allComponents.find((c) => c.id === value);
     if (!comp) return;
 
-    // Se montato su un’altra auto -> popup
-    if (comp.car_id && comp.car?.name) {
+    const fromAuto = normalizeCarName(comp.car);
+
+    if (comp.car_id && fromAuto) {
       setConfirmData({
         show: true,
         compId: comp.id,
         compIdentifier: comp.identifier,
-        fromAuto: comp.car?.name || null,
+        fromAuto,
         toAuto: selectedCar ? selectedCar.name : name,
         carId: selectedCar ? selectedCar.id : "new",
         type,
       });
-      // Non salvo subito la scelta; avverrà al confirm
       return;
     }
 
-    // Se smontato, seleziono direttamente
     setEditChoice((prev) => ({
       ...prev,
       [type]: { selection: value, newIdentifier: "" },
     }));
   };
 
-  // conferma montaggio da popup (per edit: monta subito; per add: memorizza scelta)
   const confirmMountNow = async () => {
-    const { compId, carId, type } = confirmData;
+    const { compId, type } = confirmData;
     if (!compId || !type) {
       setConfirmData({
         show: false,
@@ -524,15 +614,13 @@ export default function CarsPage() {
       return;
     }
 
-    if (currentMode === "edit" && carId && carId !== "new" && selectedCar) {
-      // in edit, montiamo immediatamente
+    if (currentMode === "edit" && selectedCar) {
       await mountComponent(selectedCar.id, compId);
       await fetchAllComponents();
       await fetchCars();
       showToast("✅ Componente montato correttamente");
     }
 
-    // In add, memorizziamo la scelta; il montaggio avverrà in onSaveCar dopo creazione dell’auto
     setEditChoice((prev) => ({
       ...prev,
       [type]: { selection: compId, newIdentifier: "" },
@@ -549,7 +637,6 @@ export default function CarsPage() {
     });
   };
 
-  // --- UI ---
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
       {/* Header */}
@@ -569,7 +656,6 @@ export default function CarsPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-          {/* Ricerca */}
           <div className="flex items-center border rounded-lg px-3 py-2 bg-white shadow-sm">
             <Search className="text-gray-500 mr-2" size={18} />
             <input
@@ -585,7 +671,7 @@ export default function CarsPage() {
             />
             <select
               value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value as any)}
+              onChange={(e) => setSearchBy(e.target.value as "auto" | ComponentType)}
               className="ml-2 text-sm border rounded px-2 py-1"
             >
               <option value="auto">Auto</option>
@@ -597,11 +683,8 @@ export default function CarsPage() {
             </select>
           </div>
 
-          {/* Switch vista */}
           <button
-            onClick={() =>
-              setView(view === "sintetica" ? "dettagliata" : "sintetica")
-            }
+            onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
             className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
           >
             {view === "sintetica" ? (
@@ -615,7 +698,6 @@ export default function CarsPage() {
             )}
           </button>
 
-          {/* Aggiungi Auto */}
           <button
             onClick={openAdd}
             className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
@@ -627,90 +709,161 @@ export default function CarsPage() {
 
       {/* Lista Auto */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCars.map((car) => (
-          <div
-            key={car.id}
-            className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
-          >
-            <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-bold">{car.name}</h2>
-                <span className="text-sm opacity-80">{car.chassis_number}</span>
-              </div>
-              {view === "sintetica" && (
-                <div className="flex gap-2">
+        {filteredCars.map((car) => {
+          const criticalComponents = (car.components || []).filter((component) => {
+            const badge = getThresholdBadge(component);
+            return badge.label !== "OK";
+          }).length;
+
+          return (
+            <div
+              key={car.id}
+              className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+            >
+              <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-start gap-3">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <CarFront size={18} />
+                    {car.name}
+                  </h2>
+                  <span className="text-sm opacity-80">{car.chassis_number || "—"}</span>
+                </div>
+
+                <div className="flex gap-2 flex-wrap justify-end">
                   <button
                     onClick={() => openEdit(car)}
                     className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
                   >
                     <Edit size={16} /> Modifica
                   </button>
-                  <button
-                    onClick={() => openView(car)}
+
+                  <Link
+                    href={`/cars/${car.id}`}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
                   >
-                    <Info size={16} /> Dettagli
-                  </button>
+                    <Info size={16} /> Apri scheda
+                  </Link>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className="p-4">
-              {view === "dettagliata" ? (
-                <>
-                  <div className="flex flex-col gap-2">
-                    {(car.components || []).map((comp: any) => (
-                      <div
-                        key={comp.id}
-                        className="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg"
-                      >
-                        <span>
-                          {comp.type} – {comp.identifier}
-                        </span>
-                        {comp.expiry_date && (
-                          <span
-                            className={`font-medium ${getExpiryColor(
-                              comp.expiry_date
-                            )}`}
-                          >
-                            {new Date(
-                              comp.expiry_date
-                            ).toLocaleDateString("it-IT")}
-                          </span>
-                        )}
+              <div className="p-4 space-y-4">
+                {/* Riepilogo principale */}
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Ore auto</div>
+                    <div className="font-bold text-gray-900">{formatHours(car.hours)}</div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Componenti</div>
+                    <div className="font-bold text-gray-900">{car.components?.length || 0}</div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Da controllare</div>
+                    <div className="font-bold text-gray-900">{criticalComponents}</div>
+                  </div>
+                </div>
+
+                {/* Vista dettagliata */}
+                {view === "dettagliata" ? (
+                  <>
+                    {car.components?.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {car.components.map((comp) => {
+                          const badge = getThresholdBadge(comp);
+
+                          return (
+                            <div
+                              key={comp.id}
+                              className="bg-gray-50 px-3 py-3 rounded-xl border border-gray-200"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-semibold text-sm text-gray-900">
+                                    {comp.type} – {comp.identifier}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Ore attuali: {formatHours(comp.hours)} | Ore vita:{" "}
+                                    {formatHours(comp.life_hours)}
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.className}`}
+                                >
+                                  {badge.label}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
+                                <span>
+                                  Soglia attenzione:{" "}
+                                  {comp.warning_threshold_hours !== null &&
+                                  comp.warning_threshold_hours !== undefined
+                                    ? formatHours(comp.warning_threshold_hours)
+                                    : "—"}
+                                </span>
+                                <span>
+                                  Soglia revisione:{" "}
+                                  {comp.revision_threshold_hours !== null &&
+                                  comp.revision_threshold_hours !== undefined
+                                    ? formatHours(comp.revision_threshold_hours)
+                                    : "—"}
+                                </span>
+                                {comp.expiry_date && (
+                                  <span className={getExpiryColor(comp.expiry_date)}>
+                                    Scadenza:{" "}
+                                    {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Nessun componente montato su questa auto.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <Wrench size={15} className="text-yellow-500" />
+                    <span>
+                      {car.components?.length || 0} componenti montati •{" "}
+                      {criticalComponents} da controllare
+                    </span>
                   </div>
-                  <div className="flex justify-end mt-4 gap-2">
-                    <button
-                      onClick={() => openEdit(car)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
-                    >
-                      <Edit size={16} /> Modifica
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">—</p>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="px-4 pb-4 flex justify-end gap-2">
-              <Link
-                href={`/cars/${car.id}/documents`}
-                className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
-              >
-                <FileText size={16} /> Documenti
-              </Link>
-              <Link
-                href={`/cars/${car.id}/print`}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
-              >
-                <Printer size={16} /> Stampa
-              </Link>
+              <div className="px-4 pb-4 flex justify-end gap-2 flex-wrap">
+                <Link
+                  href={`/cars/${car.id}`}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded-lg flex items-center gap-2 font-semibold"
+                >
+                  <GaugeCircle size={16} /> Scheda completa
+                </Link>
+
+                <Link
+                  href={`/cars/${car.id}/documents`}
+                  className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <FileText size={16} /> Documenti
+                </Link>
+
+                <Link
+                  href={`/cars/${car.id}/print`}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <Printer size={16} /> Stampa
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* MODAL comune per Add/Edit/View */}
@@ -741,18 +894,15 @@ export default function CarsPage() {
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Dati auto */}
                 <div className="space-y-3">
-                  <label className="block text-sm text-gray-700">
-                    Nome auto
-                  </label>
+                  <label className="block text-sm text-gray-700">Nome auto</label>
                   <input
                     className="border rounded-lg p-2 w-full"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={currentMode === "view"}
                   />
-                  <label className="block text-sm text-gray-700 mt-3">
-                    Numero telaio
-                  </label>
+
+                  <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
                   <input
                     className="border rounded-lg p-2 w-full"
                     value={chassis}
@@ -764,207 +914,108 @@ export default function CarsPage() {
                 {/* Componenti base */}
                 <div className="space-y-3">
                   <p className="font-semibold text-gray-800">Componenti base</p>
-                  {(["motore", "cambio", "differenziale"] as ComponentType[]).map(
-                    (type) => {
-                      if (["edit", "add"].includes(currentMode)) {
-                        const { unassigned, assigned } = optionsForType(type);
-                        const currentSel =
-                          editChoice[type]?.selection ??
-                          selectedCar?.components?.find(
-                            (c: any) => c.type === type
-                          )?.id ??
-                          "";
-                        return (
-                          <div key={type} className="space-y-1">
-                            <span className="w-32 text-sm text-gray-600 capitalize block">
-                              {type}
-                            </span>
-                            <select
-                              className="border rounded-lg p-2 w-full"
-                              value={currentSel}
-                              onChange={(e) =>
-                                handleSelectChange(type, e.target.value)
-                              }
-                              disabled={currentMode === "view"}
-                            >
-                              <option value="__new__">
-                                ➕ Aggiungi nuovo componente…
-                              </option>
-                              {unassigned.length > 0 && (
-                                <>
-                                  <option disabled className="font-bold">
-                                    — Smontati —
-                                  </option>
-                                  {unassigned.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.identifier} (smontato)
-                                    </option>
-                                  ))}
-                                </>
-                              )}
-                              {assigned.length > 0 && (
-                                <>
-                                  <option disabled className="font-bold">
-                                    — Montati —
-                                  </option>
-                                  {assigned.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.identifier} – Montato su:{" "}
-                                      {c.car?.name || "—"}
-                                    </option>
-                                  ))}
-                                </>
-                              )}
-                              {!currentSel && (
-                                <option value="">— Seleziona —</option>
-                              )}
-                            </select>
+                  {(["motore", "cambio", "differenziale"] as ComponentType[]).map((type) => {
+                    if (["edit", "add"].includes(currentMode)) {
+                      const { unassigned, assigned } = optionsForType(type);
+                      const currentSel =
+                        editChoice[type]?.selection ??
+                        selectedCar?.components?.find((c) => c.type === type)?.id ??
+                        "";
 
-                            {editChoice[type]?.selection === "__new__" && (
-                              <input
-                                className="border rounded-lg p-2 w-full mt-1"
-                                placeholder={`Identificativo nuovo ${defaultLabel[type as ComponentType]}`}
-                                value={editChoice[type]?.newIdentifier || ""}
-                                onChange={(e) =>
-                                  setEditChoice((prev) => ({
-                                    ...prev,
-                                    [type]: {
-                                      selection: "__new__",
-                                      newIdentifier: e.target.value,
-                                    },
-                                  }))
-                                }
-                                disabled={currentMode === "view"}
-                              />
-                            )}
-                          </div>
-                        );
-                      }
-
-                      // Solo vista
-                      const curr = baseComponents.find((b) => b.type === type);
                       return (
-                        <div key={type} className="flex items-center gap-2">
-                          <span className="w-32 text-sm text-gray-600 capitalize">
+                        <div key={type} className="space-y-1">
+                          <span className="w-32 text-sm text-gray-600 capitalize block">
                             {type}
                           </span>
-                          <input
+
+                          <select
                             className="border rounded-lg p-2 w-full"
-                            value={curr?.identifier || ""}
-                            disabled
-                          />
+                            value={currentSel}
+                            onChange={(e) => handleSelectChange(type, e.target.value)}
+                            disabled={currentMode === "view"}
+                          >
+                            <option value="__new__">➕ Aggiungi nuovo componente…</option>
+
+                            {unassigned.length > 0 && (
+                              <>
+                                <option disabled className="font-bold">
+                                  — Smontati —
+                                </option>
+                                {unassigned.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.identifier} (smontato)
+                                  </option>
+                                ))}
+                              </>
+                            )}
+
+                            {assigned.length > 0 && (
+                              <>
+                                <option disabled className="font-bold">
+                                  — Montati —
+                                </option>
+                                {assigned.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
+                                  </option>
+                                ))}
+                              </>
+                            )}
+
+                            {!currentSel && <option value="">— Seleziona —</option>}
+                          </select>
+
+                          {editChoice[type]?.selection === "__new__" && (
+                            <input
+                              className="border rounded-lg p-2 w-full mt-1"
+                              placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
+                              value={editChoice[type]?.newIdentifier || ""}
+                              onChange={(e) =>
+                                setEditChoice((prev) => ({
+                                  ...prev,
+                                  [type]: {
+                                    selection: "__new__",
+                                    newIdentifier: e.target.value,
+                                  },
+                                }))
+                              }
+                              disabled={currentMode === "view"}
+                            />
+                          )}
                         </div>
                       );
                     }
-                  )}
+
+                    const curr = baseComponents.find((b) => b.type === type);
+                    return (
+                      <div key={type} className="flex items-center gap-2">
+                        <span className="w-32 text-sm text-gray-600 capitalize">{type}</span>
+                        <input
+                          className="border rounded-lg p-2 w-full"
+                          value={curr?.identifier || ""}
+                          disabled
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Componenti con scadenza */}
                 <div className="md:col-span-2">
-                  <p className="font-semibold text-gray-800 mb-2">
-                    Componenti con scadenza
-                  </p>
+                  <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {(["cinture", "cavi", "estintore", "serbatoio", "passaporto"] as ComponentType[]).map(
-                      (type) => {
-                        const e = expiringComponents.find((x) => x.type === type);
-                        if (["edit", "add"].includes(currentMode)) {
-                          const { unassigned, assigned } = optionsForType(type);
-                          const currentSel =
-                            editChoice[type]?.selection ??
-                            selectedCar?.components?.find(
-                              (c: any) => c.type === type
-                            )?.id ??
-                            "";
-                          return (
-                            <div
-                              key={type}
-                              className="grid grid-cols-5 gap-2 items-center"
-                            >
-                              <span className="col-span-1 text-sm text-gray-600 capitalize">
-                                {type}
-                              </span>
-                              <div className="col-span-2">
-                                <select
-                                  className="border rounded-lg p-2 w-full"
-                                  value={currentSel}
-                                  onChange={(ev) =>
-                                    handleSelectChange(type, ev.target.value)
-                                  }
-                                  disabled={currentMode === "view"}
-                                >
-                                  <option value="__new__">
-                                    ➕ Aggiungi nuovo componente…
-                                  </option>
-                                  {unassigned.length > 0 && (
-                                    <>
-                                      <option disabled className="font-bold">
-                                        — Smontati —
-                                      </option>
-                                      {unassigned.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                          {c.identifier} (smontato)
-                                        </option>
-                                      ))}
-                                    </>
-                                  )}
-                                  {assigned.length > 0 && (
-                                    <>
-                                      <option disabled className="font-bold">
-                                        — Montati —
-                                      </option>
-                                      {assigned.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                          {c.identifier} – Montato su:{" "}
-                                          {c.car?.name || "—"}
-                                        </option>
-                                      ))}
-                                    </>
-                                  )}
-                                  {!currentSel && (
-                                    <option value="">— Seleziona —</option>
-                                  )}
-                                </select>
+                    {(
+                      ["cinture", "cavi", "estintore", "serbatoio", "passaporto"] as ComponentType[]
+                    ).map((type) => {
+                      const e = expiringComponents.find((x) => x.type === type);
 
-                                {editChoice[type]?.selection === "__new__" && (
-                                  <input
-                                    className="border rounded-lg p-2 w-full mt-1"
-                                    placeholder={`Identificativo nuovo ${defaultLabel[type as ComponentType]}`}
-                                    value={editChoice[type]?.newIdentifier || ""}
-                                    onChange={(ev) =>
-                                      setEditChoice((prev) => ({
-                                        ...prev,
-                                        [type]: {
-                                          selection: "__new__",
-                                          newIdentifier: ev.target.value,
-                                        },
-                                      }))
-                                    }
-                                    disabled={currentMode === "view"}
-                                  />
-                                )}
-                              </div>
+                      if (["edit", "add"].includes(currentMode)) {
+                        const { unassigned, assigned } = optionsForType(type);
+                        const currentSel =
+                          editChoice[type]?.selection ??
+                          selectedCar?.components?.find((c) => c.type === type)?.id ??
+                          "";
 
-                              {/* Campo scadenza */}
-                              <input
-                                type="date"
-                                className="col-span-2 border rounded-lg p-2"
-                                value={e?.expiry || ""}
-                                onChange={(ev) => {
-                                  const v = ev.target.value;
-                                  setExpiringComponents((prev) =>
-                                    prev.map((x) =>
-                                      x.type === type ? { ...x, expiry: v } : x
-                                    )
-                                  );
-                                }}
-                                disabled={currentMode === "view"}
-                              />
-                            </div>
-                          );
-                        }
-
-                        // View only
                         return (
                           <div
                             key={type}
@@ -973,26 +1024,105 @@ export default function CarsPage() {
                             <span className="col-span-1 text-sm text-gray-600 capitalize">
                               {type}
                             </span>
-                            <input
-                              className="col-span-2 border rounded-lg p-2"
-                              value={e?.identifier || ""}
-                              disabled
-                            />
+
+                            <div className="col-span-2">
+                              <select
+                                className="border rounded-lg p-2 w-full"
+                                value={currentSel}
+                                onChange={(ev) => handleSelectChange(type, ev.target.value)}
+                                disabled={currentMode === "view"}
+                              >
+                                <option value="__new__">➕ Aggiungi nuovo componente…</option>
+
+                                {unassigned.length > 0 && (
+                                  <>
+                                    <option disabled className="font-bold">
+                                      — Smontati —
+                                    </option>
+                                    {unassigned.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.identifier} (smontato)
+                                      </option>
+                                    ))}
+                                  </>
+                                )}
+
+                                {assigned.length > 0 && (
+                                  <>
+                                    <option disabled className="font-bold">
+                                      — Montati —
+                                    </option>
+                                    {assigned.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
+                                      </option>
+                                    ))}
+                                  </>
+                                )}
+
+                                {!currentSel && <option value="">— Seleziona —</option>}
+                              </select>
+
+                              {editChoice[type]?.selection === "__new__" && (
+                                <input
+                                  className="border rounded-lg p-2 w-full mt-1"
+                                  placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
+                                  value={editChoice[type]?.newIdentifier || ""}
+                                  onChange={(ev) =>
+                                    setEditChoice((prev) => ({
+                                      ...prev,
+                                      [type]: {
+                                        selection: "__new__",
+                                        newIdentifier: ev.target.value,
+                                      },
+                                    }))
+                                  }
+                                  disabled={currentMode === "view"}
+                                />
+                              )}
+                            </div>
+
                             <input
                               type="date"
                               className="col-span-2 border rounded-lg p-2"
                               value={e?.expiry || ""}
-                              disabled
+                              onChange={(ev) => {
+                                const v = ev.target.value;
+                                setExpiringComponents((prev) =>
+                                  prev.map((x) =>
+                                    x.type === type ? { ...x, expiry: v } : x
+                                  )
+                                );
+                              }}
+                              disabled={currentMode === "view"}
                             />
                           </div>
                         );
                       }
-                    )}
+
+                      return (
+                        <div key={type} className="grid grid-cols-5 gap-2 items-center">
+                          <span className="col-span-1 text-sm text-gray-600 capitalize">
+                            {type}
+                          </span>
+                          <input
+                            className="col-span-2 border rounded-lg p-2"
+                            value={e?.identifier || ""}
+                            disabled
+                          />
+                          <input
+                            type="date"
+                            className="col-span-2 border rounded-lg p-2"
+                            value={e?.expiry || ""}
+                            disabled
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
-              {/* Footer della modale */}
               {currentMode !== "view" && (
                 <div className="flex justify-end gap-3 px-6 py-4 border-t">
                   <button
@@ -1029,14 +1159,11 @@ export default function CarsPage() {
             </h3>
             <p className="text-gray-700 mb-6">
               Vuoi smontare{" "}
-              <span className="font-semibold">
-                {confirmData.compIdentifier}
-              </span>{" "}
-              da{" "}
-              <span className="font-semibold">{confirmData.fromAuto}</span> e
-              montarlo su{" "}
+              <span className="font-semibold">{confirmData.compIdentifier}</span>{" "}
+              da <span className="font-semibold">{confirmData.fromAuto}</span> e montarlo su{" "}
               <span className="font-semibold">{confirmData.toAuto}</span>?
             </p>
+
             <div className="flex justify-end gap-3">
               <button
                 onClick={() =>
@@ -1065,7 +1192,7 @@ export default function CarsPage() {
         </div>
       )}
 
-      {/* Toast conferma */}
+      {/* Toast */}
       {toast.show && (
         <div className="fixed top-6 right-6 z-[70] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-lg shadow-lg">
           {toast.message}
