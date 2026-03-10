@@ -5,29 +5,51 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2, Save, CheckCircle2, RotateCcw } from "lucide-react";
 
-// Struttura dati per i salvataggi
 type DataRow = {
   id: string;
   event_car_id: string;
   section: "setup";
-  data: any;
+  data: Record<string, string | number | null>;
   created_at: string;
 };
 
-// ===============================
-// COMPONENTE PRINCIPALE
-// ===============================
+type SetupValue = string | number | null;
+
+type SetupState = Record<string, SetupValue>;
+
+type ToastState = {
+  show: boolean;
+  message: string;
+  type: "success" | "error";
+};
+
+type FieldConfig = {
+  name: string;
+  label: string;
+  unit?: string;
+};
+
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
-  const [setup, setSetup] = useState<any>({});
+  const [setup, setSetup] = useState<SetupState>({});
   const [saving, setSaving] = useState(false);
   const [setupHistory, setSetupHistory] = useState<DataRow[]>([]);
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
   const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
   const [setupTick, setSetupTick] = useState(0);
 
-  // -------------------------------
-  // Carica storico (ultimi 3)
-  // -------------------------------
+  const [toast, setToast] = useState<ToastState>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    window.setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 2500);
+  };
+
   useEffect(() => {
     loadHistory();
   }, [eventCarId]);
@@ -42,85 +64,72 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       .limit(3);
 
     if (error) {
-      console.error("Errore caricamento storico setup:", error.message);
+      showToast(`Errore caricamento storico setup: ${error.message}`, "error");
       return;
     }
 
-    setSetupHistory(data || []);
+    setSetupHistory((data as DataRow[]) || []);
   }
 
-  // -------------------------------
-  // Salvataggio setup
-  // -------------------------------
   async function handleSave() {
     try {
       setSaving(true);
-      const payload = { event_car_id: eventCarId, section: "setup", data: setup };
+
+      const payload = {
+        event_car_id: eventCarId,
+        section: "setup" as const,
+        data: setup,
+      };
+
       const { error } = await supabase.from("event_car_data").insert([payload]);
       if (error) throw new Error(error.message);
 
       await loadHistory();
       setSetupTick((t) => t + 1);
       setLastSetupTime(new Date().toLocaleString());
-
-      const toast = document.createElement("div");
-      toast.textContent = "💾 Setup salvato con successo";
-      Object.assign(toast.style, {
-        position: "fixed",
-        top: "20px",
-        right: "20px",
-        background: "#facc15",
-        padding: "8px 14px",
-        borderRadius: "8px",
-        fontWeight: "600",
-        color: "#222",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-        zIndex: "9999",
-      } as CSSStyleDeclaration);
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
+      showToast("💾 Setup salvato con successo");
     } catch (error: any) {
-      alert("Errore durante il salvataggio: " + error.message);
+      showToast(`Errore durante il salvataggio: ${error.message}`, "error");
     } finally {
       setSaving(false);
     }
   }
 
-  // -------------------------------
-  // Carica un setup precedente
-  // -------------------------------
   function handleLoadSetup(row: DataRow) {
     if (!row?.data) return;
     setSetup(row.data);
     setActiveSetupId(row.id);
     setLastSetupTime(new Date(row.created_at).toLocaleString());
+    showToast("🔄 Setup caricato");
   }
 
-  // -------------------------------
-  // Gestione input
-  // -------------------------------
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setSetup((prev: any) => ({ ...prev, [name]: value }));
+    setSetup((prev) => ({ ...prev, [name]: value }));
   };
 
-  // -------------------------------
-  // RENDER
-  // -------------------------------
   return (
     <div className="p-4 flex flex-col items-center gap-8 bg-white text-gray-800">
-      <h1 className="text-2xl font-bold text-center uppercase">Setup Griiip G1 — Scheda Tecnica</h1>
+      <h1 className="text-2xl font-bold text-center uppercase">
+        Setup Griiip G1 — Scheda Tecnica
+      </h1>
 
-      {/* --- GRIGLIA PRINCIPALE --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-
-        {/* ---------- ZONA 2: ANTERIORE SX ---------- */}
+        {/* ZONA 2: ANTERIORE SX */}
         <div className="flex flex-col items-center gap-3">
           <div className="border rounded-lg p-2 w-full text-sm bg-gray-50 mb-2">
             <h3 className="font-semibold text-center mb-1">Info Generali</h3>
             <div className="flex flex-col gap-1">
               <InputShort label="Data" name="data" handleChange={handleChange} setup={setup} wide />
-              <InputShort label="Autodromo" name="autodromo" handleChange={handleChange} setup={setup} wide />
+              <InputShort
+                label="Autodromo"
+                name="autodromo"
+                handleChange={handleChange}
+                setup={setup}
+                wide
+              />
               <InputShort label="Telaio" name="telaio" handleChange={handleChange} setup={setup} wide />
             </div>
           </div>
@@ -142,7 +151,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-        {/* ---------- ZONA 1: ALA ANTERIORE ---------- */}
+        {/* ZONA 1: ALA ANTERIORE */}
         <div className="flex flex-col items-center gap-3">
           <Image src="/in-alto-al-centro.png" alt="in alto centro" width={360} height={160} />
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center">
@@ -155,7 +164,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
                     <input
                       type="text"
                       name="alaAntPosizione"
-                      value={setup.alaAntPosizione || ""}
+                      value={String(setup.alaAntPosizione ?? "")}
                       onChange={handleChange}
                       className="w-20 border rounded px-1"
                     />
@@ -164,7 +173,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
                     <input
                       type="text"
                       name="alaAntGradi"
-                      value={setup.alaAntGradi || ""}
+                      value={String(setup.alaAntGradi ?? "")}
                       onChange={handleChange}
                       className="w-20 border rounded px-1"
                     />
@@ -175,7 +184,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           </div>
         </div>
 
-        {/* ---------- ZONA 3: ANTERIORE DX ---------- */}
+        {/* ZONA 3: ANTERIORE DX */}
         <div className="flex flex-col items-center gap-3">
           <Image src="/in-alto-a-destra.png" alt="in alto destra" width={220} height={100} />
           <ZoneBox
@@ -193,7 +202,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           />
         </div>
 
-   {/* ---------- ZONA 4: POSTERIORE SX + immagine + Rake ---------- */}
+        {/* ZONA 4: POSTERIORE SX */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore SX"
@@ -215,21 +224,42 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             handleChange={handleChange}
             setup={setup}
           />
+
           <Image src="/in-basso-a-sinistra.png" alt="in basso sinistra" width={220} height={100} />
+
           <div className="border rounded-lg p-2 mt-1 w-full text-sm bg-gray-50">
             <h3 className="font-semibold text-center mb-2">Ripartizione e Rake</h3>
             <div className="flex flex-col gap-2 items-center">
-              <InputShort label="Ripartitore" name="ripartitore" unit="%" handleChange={handleChange} setup={setup} />
-              <InputShort label="Rake" name="rake" unit="°" handleChange={handleChange} setup={setup} />
+              <InputShort
+                label="Ripartitore"
+                name="ripartitore"
+                unit="%"
+                handleChange={handleChange}
+                setup={setup}
+              />
+              <InputShort
+                label="Rake"
+                name="rake"
+                unit="°"
+                handleChange={handleChange}
+                setup={setup}
+              />
             </div>
           </div>
         </div>
 
-        {/* ---------- ZONA 5: ALA POSTERIORE + macchina ---------- */}
+        {/* ZONA 5: ALA POSTERIORE + macchina */}
         <div className="flex flex-col items-center gap-3 relative">
           <div className="relative -translate-y-[25%]">
-            <Image src="/macchina-al-centro.png" alt="macchina" width={460} height={460} className="mx-auto" />
+            <Image
+              src="/macchina-al-centro.png"
+              alt="macchina"
+              width={460}
+              height={460}
+              className="mx-auto"
+            />
           </div>
+
           <div className="border rounded-lg p-3 w-full text-sm bg-gray-50 text-center -mt-8">
             <h3 className="font-semibold mb-2">Ala Posteriore</h3>
             <table className="w-full text-xs border-collapse">
@@ -244,19 +274,43 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
                 <tr>
                   <td className="border px-2 py-1 text-left">Beam</td>
                   <td className="border px-2 py-1">
-                    <input type="text" name="beamPosizione" value={setup.beamPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                    <input
+                      type="text"
+                      name="beamPosizione"
+                      value={String(setup.beamPosizione ?? "")}
+                      onChange={handleChange}
+                      className="w-20 border rounded px-1"
+                    />
                   </td>
                   <td className="border px-2 py-1">
-                    <input type="text" name="beamGradi" value={setup.beamGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                    <input
+                      type="text"
+                      name="beamGradi"
+                      value={String(setup.beamGradi ?? "")}
+                      onChange={handleChange}
+                      className="w-20 border rounded px-1"
+                    />
                   </td>
                 </tr>
                 <tr>
                   <td className="border px-2 py-1 text-left">Main</td>
                   <td className="border px-2 py-1">
-                    <input type="text" name="mainPosizione" value={setup.mainPosizione || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                    <input
+                      type="text"
+                      name="mainPosizione"
+                      value={String(setup.mainPosizione ?? "")}
+                      onChange={handleChange}
+                      className="w-20 border rounded px-1"
+                    />
                   </td>
                   <td className="border px-2 py-1">
-                    <input type="text" name="mainGradi" value={setup.mainGradi || ""} onChange={handleChange} className="w-20 border rounded px-1" />
+                    <input
+                      type="text"
+                      name="mainGradi"
+                      value={String(setup.mainGradi ?? "")}
+                      onChange={handleChange}
+                      className="w-20 border rounded px-1"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -264,7 +318,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
           </div>
         </div>
 
-        {/* ---------- ZONA 6: POSTERIORE DX ---------- */}
+        {/* ZONA 6: POSTERIORE DX */}
         <div className="flex flex-col items-center gap-3">
           <ZoneBox
             title="Posteriore DX"
@@ -286,16 +340,17 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
             handleChange={handleChange}
             setup={setup}
           />
+
           <Image src="/in-basso-a-destra.png" alt="in basso destra" width={300} height={130} />
         </div>
       </div>
 
-      {/* ---------- NOTE + SALVA ---------- */}
+      {/* NOTE + SALVA */}
       <div className="border rounded-lg p-4 w-full max-w-6xl bg-gray-50">
         <h3 className="font-semibold mb-2">Note</h3>
         <textarea
           name="note"
-          value={setup.note || ""}
+          value={String(setup.note ?? "")}
           onChange={handleChange}
           rows={3}
           className="w-full border rounded p-2 text-sm"
@@ -303,7 +358,6 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         />
       </div>
 
-      {/* Pulsante Salva */}
       <div className="flex justify-center mt-2">
         <button
           onClick={handleSave}
@@ -312,33 +366,67 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         >
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           Salva Setup
-          <CheckCircle2 size={18} className={`transition-opacity ${setupTick ? "opacity-100 text-green-700" : "opacity-0"}`} />
+          <CheckCircle2
+            size={18}
+            className={`transition-opacity ${
+              setupTick ? "opacity-100 text-green-700" : "opacity-0"
+            }`}
+          />
         </button>
       </div>
 
-      {lastSetupTime && <p className="text-xs text-gray-500 text-center mb-4">Ultimo salvataggio: {lastSetupTime}</p>}
+      {lastSetupTime && (
+        <p className="text-xs text-gray-500 text-center mb-4">
+          Ultimo salvataggio: {lastSetupTime}
+        </p>
+      )}
 
-      {/* Storico ultimi 3 salvataggi */}
-      <HistoryBar title="Ultimi 3 salvataggi Setup" rows={setupHistory} onOpen={handleLoadSetup} activeId={activeSetupId} />
+      <HistoryBar
+        title="Ultimi 3 salvataggi Setup"
+        rows={setupHistory}
+        onOpen={handleLoadSetup}
+        activeId={activeSetupId}
+      />
+
+      {toast.show && (
+        <div
+          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-lg shadow-lg font-semibold ${
+            toast.type === "success"
+              ? "bg-yellow-400 text-black"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
 
-// ===============================
-// COMPONENTI INTERNI
-// ===============================
-function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: any) {
+function ZoneBox({
+  title,
+  fields,
+  handleChange,
+  setup,
+  singleColumn = false,
+}: {
+  title: string;
+  fields: FieldConfig[];
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  setup: SetupState;
+  singleColumn?: boolean;
+}) {
   return (
     <div className="border rounded-lg p-2 w-full text-sm bg-gray-50">
       <h3 className="font-semibold text-center mb-2">{title}</h3>
       <div className={singleColumn ? "flex flex-col gap-1" : "grid grid-cols-2 gap-1"}>
-        {fields.map((f: any) => (
+        {fields.map((f) => (
           <div key={f.name} className="flex items-center gap-2">
             <label className="text-xs text-gray-600 w-28">{f.label}</label>
             <input
               type="text"
               name={f.name}
-              value={setup[f.name] || ""}
+              value={String(setup[f.name] ?? "")}
               onChange={handleChange}
               className="border rounded px-1 py-0.5 text-sm w-20"
             />
@@ -350,14 +438,28 @@ function ZoneBox({ title, fields, handleChange, setup, singleColumn = false }: a
   );
 }
 
-function InputShort({ label, name, unit, handleChange, setup, wide = false }: any) {
+function InputShort({
+  label,
+  name,
+  unit,
+  handleChange,
+  setup,
+  wide = false,
+}: {
+  label: string;
+  name: string;
+  unit?: string;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  setup: SetupState;
+  wide?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-xs text-gray-600 w-24">{label}</label>
       <input
         type="text"
         name={name}
-        value={setup[name] || ""}
+        value={String(setup[name] ?? "")}
         onChange={handleChange}
         className={`border rounded px-1 py-0.5 text-sm ${wide ? "w-64" : "w-20"}`}
       />
@@ -366,9 +468,6 @@ function InputShort({ label, name, unit, handleChange, setup, wide = false }: an
   );
 }
 
-// ===============================
-// HISTORY BAR (uguale alle altre sezioni)
-// ===============================
 function HistoryBar({
   title,
   rows,
@@ -388,6 +487,7 @@ function HistoryBar({
           <RotateCcw size={14} /> Storico
         </div>
       </div>
+
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
       ) : (
