@@ -68,7 +68,7 @@ type ToastState = {
   type: "success" | "error";
 };
 
-function normalizeCarRelation(value: EventCarRow["car_id"]): CarRow | null {
+function normalizeCarRelation(value: CarRow | CarRow[] | null): CarRow | null {
   if (!value) return null;
   if (Array.isArray(value)) return value[0] ?? null;
   return value;
@@ -219,7 +219,7 @@ export default function EventCarPage() {
       if (eventCarError) throw eventCarError;
 
       setEvent(eventData as EventRow);
-      setCar(normalizeCarRelation(carData as EventCarRow));
+      setCar(normalizeCarRelation((carData as EventCarRow)?.car_id ?? null));
 
       const [
         { data: setupLast },
@@ -612,7 +612,6 @@ export default function EventCarPage() {
 
   return (
     <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">
@@ -646,7 +645,6 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      {/* Setup */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -811,7 +809,6 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      {/* Check-up */}
       <section id="checkup-section" className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -955,7 +952,6 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      {/* Turni */}
       <section className="bg-white border rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -1064,7 +1060,6 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      {/* Fuel */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -1164,7 +1159,6 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      {/* Notes */}
       <section className="bg-white border rounded-xl shadow-sm p-5 relative">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
