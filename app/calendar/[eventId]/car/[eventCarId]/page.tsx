@@ -20,7 +20,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import SetupPanel from "./setup";
 import SetupScheda from "./setup-scheda";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
