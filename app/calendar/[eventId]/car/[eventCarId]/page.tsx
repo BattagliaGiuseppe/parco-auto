@@ -653,7 +653,7 @@ export default function EventCarPage() {
           <p className="text-gray-600 text-sm">Gestione tecnica evento</p>
           <div className="mt-1 flex flex-col gap-1">
             <div className="text-sm text-gray-700 font-semibold">
-              Ore auto attuali: <span className="text-yellow-700">{formatHours(car.hours)} h</span>
+              Ore auto attuali: <span className="text-yellow-700">{formatHours(car.hours)}</span>
             </div>
 
             {overallStatus === "OK" && (
