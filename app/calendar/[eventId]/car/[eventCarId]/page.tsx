@@ -120,6 +120,7 @@ export default function EventCarPage() {
     giri: "",
     note: "",
   });
+  const [editingTurn, setEditingTurn] = useState<TurnRow | null>(null);
   const [turnsSaving, setTurnsSaving] = useState(false);
 
   const [fuelStart, setFuelStart] = useState<number>(0);
@@ -151,6 +152,11 @@ export default function EventCarPage() {
       setToast({ show: false, message: "", type: "success" });
     }, 3000);
   };
+
+  function resetTurnForm() {
+    setNewTurn({ durata: "", giri: "", note: "" });
+    setEditingTurn(null);
+  }
 
   const overallStatus = useMemo(() => {
     const values = Object.values(checkup);
@@ -459,7 +465,7 @@ export default function EventCarPage() {
     setLastCheckupTime(new Date(row.created_at).toLocaleString());
   }
 
-  async function addTurn() {
+  async function saveTurn() {
     if (!newTurn.durata) {
       showToast("Inserisci la durata del turno", "error");
       return;
@@ -468,6 +474,7 @@ export default function EventCarPage() {
     const minutes = Number(newTurn.durata);
     const laps = Number(newTurn.giri) || 0;
     const noteText = newTurn.note || "";
+    const isEditing = Boolean(editingTurn);
 
     if (!Number.isFinite(minutes) || minutes <= 0) {
       showToast("La durata deve essere maggiore di zero", "error");
@@ -477,27 +484,48 @@ export default function EventCarPage() {
     try {
       setTurnsSaving(true);
 
-      const { data: inserted, error } = await supabase
-        .from("event_car_turns")
-        .insert([
-          {
-            event_car_id: eventCarId,
+      if (isEditing && editingTurn) {
+        const { data, error } = await supabase
+          .from("event_car_turns")
+          .update({
             minutes,
             laps,
             notes: noteText,
-          },
-        ])
-        .select()
-        .single();
+          })
+          .eq("id", editingTurn.id)
+          .eq("event_car_id", eventCarId)
+          .select("id")
+          .maybeSingle();
 
-      if (error) throw new Error(error.message);
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error("Nessun turno aggiornato");
 
-      setTurns((prev) => [...prev, inserted as TurnRow]);
-      setNewTurn({ durata: "", giri: "", note: "" });
+        showToast("✅ Turno aggiornato");
+      } else {
+        const { data, error } = await supabase
+          .from("event_car_turns")
+          .insert([
+            {
+              event_car_id: eventCarId,
+              minutes,
+              laps,
+              notes: noteText,
+            },
+          ])
+          .select("id")
+          .single();
 
-      showToast("✅ Turno aggiunto");
+        if (error || !data) {
+          throw new Error(error?.message || "Errore salvataggio turno");
+        }
 
-      if (confirm("Vuoi eseguire subito il check-up post turno?")) {
+        showToast("✅ Turno aggiunto");
+      }
+
+      resetTurnForm();
+      await loadAllData();
+
+      if (!isEditing && confirm("Vuoi eseguire subito il check-up post turno?")) {
         const el = document.getElementById("checkup-section");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -511,19 +539,34 @@ export default function EventCarPage() {
   async function deleteTurn(turnId: string) {
     if (!confirm("Vuoi eliminare questo turno?")) return;
 
-    const { error } = await supabase
-      .from("event_car_turns")
-      .delete()
-      .eq("id", turnId)
-      .eq("event_car_id", eventCarId);
+    try {
+      const { data, error } = await supabase
+        .from("event_car_turns")
+        .delete()
+        .eq("id", turnId)
+        .eq("event_car_id", eventCarId)
+        .select("id")
+        .maybeSingle();
 
-    if (error) {
-      showToast(`Errore eliminazione turno: ${error.message}`, "error");
-      return;
+      if (error) {
+        showToast(`Errore eliminazione turno: ${error.message}`, "error");
+        return;
+      }
+
+      if (!data) {
+        showToast("Nessun turno eliminato: verifica che il record esista davvero", "error");
+        return;
+      }
+
+      if (editingTurn?.id === turnId) {
+        resetTurnForm();
+      }
+
+      await loadAllData();
+      showToast("🗑️ Turno eliminato");
+    } catch (e: any) {
+      showToast(`Errore eliminazione turno: ${e.message}`, "error");
     }
-
-    setTurns((prev) => prev.filter((t) => t.id !== turnId));
-    showToast("🗑️ Turno eliminato");
   }
 
   async function onSaveFuel() {
@@ -978,6 +1021,12 @@ export default function EventCarPage() {
               </span>
             </div>
 
+            {editingTurn && (
+              <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 font-semibold">
+                Stai modificando un turno esistente.
+              </div>
+            )}
+
             <table className="w-full text-sm border-collapse mb-4">
               <thead>
                 <tr className="bg-gray-50">
@@ -1003,13 +1052,30 @@ export default function EventCarPage() {
                       <td className="border p-2 text-center">{t.laps}</td>
                       <td className="border p-2">{t.notes}</td>
                       <td className="border p-2 text-center">
-                        <button
-                          onClick={() => deleteTurn(t.id)}
-                          className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
-                          title="Elimina turno"
-                        >
-                          <Trash2 size={14} /> Elimina
-                        </button>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => {
+                              setEditingTurn(t);
+                              setNewTurn({
+                                durata: String(t.minutes ?? ""),
+                                giri: String(t.laps ?? ""),
+                                note: t.notes || "",
+                              });
+                            }}
+                            className="text-yellow-700 hover:text-yellow-900 text-xs font-semibold inline-flex items-center gap-1"
+                            title="Modifica turno"
+                          >
+                            ✏️ Modifica
+                          </button>
+
+                          <button
+                            onClick={() => deleteTurn(t.id)}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                            title="Elimina turno"
+                          >
+                            <Trash2 size={14} /> Elimina
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1041,14 +1107,26 @@ export default function EventCarPage() {
               />
             </div>
 
-            <button
-              onClick={addTurn}
-              disabled={turnsSaving}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
-            >
-              {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
-              Aggiungi Turno
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={saveTurn}
+                disabled={turnsSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
+              >
+                {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : editingTurn ? "💾" : "➕"}
+                {editingTurn ? "Salva modifica" : "Aggiungi Turno"}
+              </button>
+
+              {editingTurn && (
+                <button
+                  onClick={resetTurnForm}
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm"
+                >
+                  Annulla modifica
+                </button>
+              )}
+            </div>
           </>
         ) : (
           <div className="text-sm text-gray-500">
