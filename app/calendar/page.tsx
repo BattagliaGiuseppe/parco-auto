@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { PlusCircle, CalendarDays, Edit, Wrench, Trash2, X } from "lucide-react";
+import {
+  PlusCircle,
+  CalendarDays,
+  Edit,
+  Wrench,
+  Trash2,
+  X,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { Audiowide } from "next/font/google";
 
@@ -10,46 +19,114 @@ const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type Car = { id: string; name: string };
 type Circuit = { id: string; name: string };
+type CircuitRelation = { id: string; name: string } | { id: string; name: string }[] | null;
+type CarRelation = { id: string; name: string } | { id: string; name: string }[] | null;
+
+type EventRow = {
+  id: string;
+  date: string | null;
+  name: string;
+  notes: string | null;
+  circuit_id: { id: string; name: string } | null;
+};
+
+type EventCarRow = {
+  id: string;
+  car_id: { id: string; name: string } | null;
+  status: string | null;
+};
+
+type ToastState = {
+  show: boolean;
+  message: string;
+  type: "success" | "error";
+};
+
+function normalizeCircuit(value: CircuitRelation): { id: string; name: string } | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
+function normalizeCar(value: CarRelation): { id: string; name: string } | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
-  const [eventCars, setEventCars] = useState<any[]>([]);
+  const [eventCars, setEventCars] = useState<EventCarRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // gestione modali
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
   const [confirmMessage, setConfirmMessage] = useState("");
 
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<EventRow | null>(null);
 
-  // gestione autodromi
   const [circuitModalOpen, setCircuitModalOpen] = useState(false);
   const [newCircuitName, setNewCircuitName] = useState("");
+  const [savingCircuit, setSavingCircuit] = useState(false);
 
-  // form evento
   const [formDate, setFormDate] = useState("");
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formCircuitId, setFormCircuitId] = useState<string>("");
 
-  // aggiunta auto
   const [selectedCarId, setSelectedCarId] = useState("");
+  const [savingEvent, setSavingEvent] = useState(false);
 
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<ToastState>({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
-  // ==================== FETCH DATI ====================
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    window.setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
+
+  const resetEventForm = () => {
+    setFormDate("");
+    setFormName("");
+    setFormNotes("");
+    setFormCircuitId("");
+    setSelectedCarId("");
+    setEditing(null);
+    setEventCars([]);
+  };
+
+  const closeEventModal = () => {
+    setModalOpen(false);
+    resetEventForm();
+  };
+
   const fetchEvents = async () => {
     setLoading(true);
+
     const { data, error } = await supabase
       .from("events")
       .select("id, date, name, notes, circuit_id (id, name)")
       .order("date", { ascending: false });
 
-    if (!error) setEvents(data || []);
+    if (!error) {
+      const normalized: EventRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        date: row.date,
+        name: row.name,
+        notes: row.notes,
+        circuit_id: normalizeCircuit(row.circuit_id),
+      }));
+      setEvents(normalized);
+    }
+
     setLoading(false);
   };
 
@@ -70,7 +147,14 @@ export default function CalendarPage() {
       .eq("event_id", eventId)
       .order("created_at", { ascending: true });
 
-    if (!error) setEventCars(data || []);
+    if (!error) {
+      const normalized: EventCarRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        car_id: normalizeCar(row.car_id),
+        status: row.status,
+      }));
+      setEventCars(normalized);
+    }
   };
 
   useEffect(() => {
@@ -79,56 +163,124 @@ export default function CalendarPage() {
     fetchCircuits();
   }, []);
 
-  // ==================== MODALE EVENTO ====================
-  const openModal = (ev: any | null = null) => {
+  const openModal = async (ev: EventRow | null = null) => {
+    if (!ev) {
+      resetEventForm();
+      setModalOpen(true);
+      return;
+    }
+
     setEditing(ev);
-    setFormDate(ev?.date?.split("T")[0] || "");
-    setFormName(ev?.name || "");
-    setFormNotes(ev?.notes || "");
-    setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
+    setFormDate(ev.date ? ev.date.split("T")[0] : "");
+    setFormName(ev.name || "");
+    setFormNotes(ev.notes || "");
+    setFormCircuitId(ev.circuit_id?.id || "");
     setModalOpen(true);
-    if (ev?.id) fetchEventCars(ev.id);
-    else setEventCars([]);
+    await fetchEventCars(ev.id);
   };
 
   const handleSubmit = async () => {
-    const payload: any = {
-      date: formDate,
-      name: formName,
-      notes: formNotes || null,
-      circuit_id: formCircuitId || null,
-    };
-
-    if (editing) {
-      const { error } = await supabase.from("events").update(payload).eq("id", editing.id);
-      if (error) {
-        alert("Errore aggiornamento evento: " + error.message);
-        return;
-      }
-    } else {
-      const { data, error } = await supabase.from("events").insert([payload]).select("id").single();
-      if (error) {
-        alert("Errore creazione evento: " + error.message);
-        return;
-      }
-      setEditing({ id: data.id, ...payload });
+    if (!formDate || !formName.trim()) {
+      showToast("Compila almeno data e nome evento", "error");
+      return;
     }
 
-    await fetchEvents();
-    setToast("Evento salvato con successo ✅");
-    setTimeout(() => setToast(""), 2500);
-    setModalOpen(false);
+    setSavingEvent(true);
+
+    try {
+      const payload = {
+        date: formDate,
+        name: formName.trim(),
+        notes: formNotes.trim() || null,
+        circuit_id: formCircuitId || null,
+      };
+
+      if (editing) {
+        const { error } = await supabase
+          .from("events")
+          .update(payload)
+          .eq("id", editing.id);
+
+        if (error) throw error;
+
+        const updatedEvent: EventRow = {
+          id: editing.id,
+          date: payload.date,
+          name: payload.name,
+          notes: payload.notes,
+          circuit_id: circuits.find((c) => c.id === payload.circuit_id) || null,
+        };
+
+        setEditing(updatedEvent);
+        await fetchEvents();
+        showToast("Evento aggiornato con successo ✅");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("events")
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (error || !data?.id) throw error || new Error("Errore creazione evento");
+
+      const createdEvent: EventRow = {
+        id: data.id,
+        date: payload.date,
+        name: payload.name,
+        notes: payload.notes,
+        circuit_id: circuits.find((c) => c.id === payload.circuit_id) || null,
+      };
+
+      setEditing(createdEvent);
+      setEventCars([]);
+      await fetchEvents();
+      showToast("Evento creato. Ora puoi aggiungere le auto ✅");
+    } catch (error: any) {
+      showToast(`Errore salvataggio evento: ${error.message}`, "error");
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
-  // ==================== GESTIONE AUTO ====================
+  const handleAddCircuit = async () => {
+    if (!newCircuitName.trim()) {
+      showToast("Inserisci il nome dell'autodromo", "error");
+      return;
+    }
+
+    setSavingCircuit(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("circuits")
+        .insert([{ name: newCircuitName.trim() }])
+        .select("id, name")
+        .single();
+
+      if (error || !data) throw error || new Error("Errore creazione autodromo");
+
+      await fetchCircuits();
+      setFormCircuitId(data.id);
+      setNewCircuitName("");
+      setCircuitModalOpen(false);
+      showToast("Autodromo aggiunto ✅");
+    } catch (error: any) {
+      showToast(`Errore salvataggio autodromo: ${error.message}`, "error");
+    } finally {
+      setSavingCircuit(false);
+    }
+  };
+
   const handleAddCarToEvent = async () => {
     if (!editing?.id) {
-      alert("Salva prima l'evento prima di aggiungere un'auto.");
+      showToast("Salva prima l'evento", "error");
       return;
     }
 
     if (!selectedCarId) {
-      alert("Seleziona un’auto prima di aggiungerla.");
+      showToast("Seleziona un'auto prima di aggiungerla", "error");
       return;
     }
 
@@ -140,7 +292,7 @@ export default function CalendarPage() {
       .maybeSingle();
 
     if (existing) {
-      alert("⚠️ Quest’auto è già associata a questo evento.");
+      showToast("Quest’auto è già associata a questo evento", "error");
       return;
     }
 
@@ -148,43 +300,116 @@ export default function CalendarPage() {
       .from("event_cars")
       .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
 
-    if (error) alert("Errore durante l’aggiunta: " + error.message);
-    else {
-      await fetchEventCars(editing.id);
-      setSelectedCarId("");
+    if (error) {
+      showToast(`Errore aggiunta auto: ${error.message}`, "error");
+      return;
     }
+
+    await fetchEventCars(editing.id);
+    setSelectedCarId("");
+    showToast("Auto aggiunta all’evento ✅");
   };
 
-  const handleRemoveCarFromEvent = async (id: string) => {
+  const handleRemoveCarFromEvent = async (eventCarId: string) => {
     setConfirmMessage("Vuoi davvero rimuovere questa auto dall’evento?");
     setConfirmAction(() => async () => {
-      const { error } = await supabase.from("event_cars").delete().eq("id", id);
-      if (!error) await fetchEventCars(editing.id);
+      const { error: turnsError } = await supabase
+        .from("event_car_turns")
+        .delete()
+        .eq("event_car_id", eventCarId);
+
+      if (turnsError) throw turnsError;
+
+      const { error: dataError } = await supabase
+        .from("event_car_data")
+        .delete()
+        .eq("event_car_id", eventCarId);
+
+      if (dataError) throw dataError;
+
+      const { error: eventCarError } = await supabase
+        .from("event_cars")
+        .delete()
+        .eq("id", eventCarId);
+
+      if (eventCarError) throw eventCarError;
+
+      if (editing?.id) {
+        await fetchEventCars(editing.id);
+      }
+
+      showToast("Auto rimossa dall’evento ✅");
     });
     setConfirmOpen(true);
   };
 
-  // ==================== ELIMINA EVENTO ====================
-  const handleDeleteEvent = async (id: string) => {
+  const handleDeleteEvent = async (eventId: string) => {
     setConfirmMessage("Vuoi davvero eliminare questo evento e tutti i dati collegati?");
     setConfirmAction(() => async () => {
-      const { error } = await supabase.from("events").delete().eq("id", id);
-      if (!error) await fetchEvents();
+      const { data: eventCarsRows, error: eventCarsReadError } = await supabase
+        .from("event_cars")
+        .select("id")
+        .eq("event_id", eventId);
+
+      if (eventCarsReadError) throw eventCarsReadError;
+
+      const eventCarIds = (eventCarsRows || []).map((row: any) => row.id);
+
+      if (eventCarIds.length > 0) {
+        const { error: turnsError } = await supabase
+          .from("event_car_turns")
+          .delete()
+          .in("event_car_id", eventCarIds);
+
+        if (turnsError) throw turnsError;
+
+        const { error: dataError } = await supabase
+          .from("event_car_data")
+          .delete()
+          .in("event_car_id", eventCarIds);
+
+        if (dataError) throw dataError;
+
+        const { error: eventCarsDeleteError } = await supabase
+          .from("event_cars")
+          .delete()
+          .eq("event_id", eventId);
+
+        if (eventCarsDeleteError) throw eventCarsDeleteError;
+      }
+
+      const { error: eventDeleteError } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", eventId);
+
+      if (eventDeleteError) throw eventDeleteError;
+
+      await fetchEvents();
+
+      if (editing?.id === eventId) {
+        closeEventModal();
+      }
+
+      showToast("Evento eliminato ✅");
     });
     setConfirmOpen(true);
   };
 
-  // ==================== RENDER ====================
   return (
     <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-md z-50">
-          {toast}
+      {toast.show && (
+        <div
+          className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-md z-50 ${
+            toast.type === "success"
+              ? "bg-white border border-gray-300 text-gray-700"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
         </div>
       )}
 
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <CalendarDays size={32} className="text-yellow-500" /> Calendario Eventi
@@ -197,7 +422,6 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {/* Lista eventi */}
       {loading ? (
         <p>Caricamento...</p>
       ) : events.length === 0 ? (
@@ -216,7 +440,9 @@ export default function CalendarPage() {
             <tbody>
               {events.map((ev) => (
                 <tr key={ev.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3">{ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}</td>
+                  <td className="p-3">
+                    {ev.date ? new Date(ev.date).toLocaleDateString("it-IT") : "—"}
+                  </td>
                   <td className="p-3">{ev.name}</td>
                   <td className="p-3">{ev.circuit_id?.name || "—"}</td>
                   <td className="p-3 text-right flex gap-2 justify-end">
@@ -248,20 +474,20 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ==================== MODALE EVENTO ==================== */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh] relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => setModalOpen(false)}
+              onClick={closeEventModal}
             >
               <X size={20} />
             </button>
 
-            <h2 className="text-xl font-bold mb-4">{editing ? "Modifica evento" : "Aggiungi evento"}</h2>
+            <h2 className="text-xl font-bold mb-4">
+              {editing ? "Modifica evento" : "Aggiungi evento"}
+            </h2>
 
-            {/* Form evento */}
             <div className="flex flex-col gap-4">
               <input
                 type="date"
@@ -269,6 +495,7 @@ export default function CalendarPage() {
                 onChange={(e) => setFormDate(e.target.value)}
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
+
               <input
                 type="text"
                 value={formName}
@@ -276,6 +503,7 @@ export default function CalendarPage() {
                 placeholder="Nome evento"
                 className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400"
               />
+
               <div className="flex items-center gap-2">
                 <select
                   value={formCircuitId}
@@ -289,6 +517,7 @@ export default function CalendarPage() {
                     </option>
                   ))}
                 </select>
+
                 <button
                   type="button"
                   onClick={() => setCircuitModalOpen(true)}
@@ -297,6 +526,7 @@ export default function CalendarPage() {
                   ➕
                 </button>
               </div>
+
               <textarea
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
@@ -305,10 +535,10 @@ export default function CalendarPage() {
               />
             </div>
 
-            {/* Auto associate */}
             {editing && (
               <div className="mt-6">
                 <h3 className="text-lg font-bold mb-3">Auto associate</h3>
+
                 <div className="flex items-center gap-2 mb-3">
                   <select
                     value={selectedCarId}
@@ -322,6 +552,7 @@ export default function CalendarPage() {
                       </option>
                     ))}
                   </select>
+
                   <button
                     onClick={handleAddCarToEvent}
                     type="button"
@@ -352,42 +583,87 @@ export default function CalendarPage() {
               </div>
             )}
 
-            {/* Bottoni */}
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setModalOpen(false)}
+                onClick={closeEventModal}
                 className="px-4 py-2 rounded-lg border text-gray-700"
               >
-                Annulla
+                Chiudi
               </button>
               <button
                 onClick={handleSubmit}
+                disabled={savingEvent}
                 className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
               >
-                Salva evento
+                {savingEvent ? "Salvataggio..." : "Salva evento"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ==================== MODALE CONFERMA ==================== */}
+      {circuitModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold mb-4">Nuovo autodromo</h3>
+
+            <input
+              type="text"
+              value={newCircuitName}
+              onChange={(e) => setNewCircuitName(e.target.value)}
+              placeholder="Nome autodromo"
+              className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-yellow-400"
+            />
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => {
+                  setCircuitModalOpen(false);
+                  setNewCircuitName("");
+                }}
+                className="px-4 py-2 rounded-lg border text-gray-700"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleAddCircuit}
+                disabled={savingCircuit}
+                className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
+              >
+                {savingCircuit ? "Salvataggio..." : "Salva autodromo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70]">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
             <p className="text-gray-800 mb-6 text-center">{confirmMessage}</p>
             <div className="flex justify-center gap-4">
               <button
-                onClick={() => {
-                  setConfirmOpen(false);
-                  confirmAction();
+                onClick={async () => {
+                  try {
+                    if (confirmAction) {
+                      await confirmAction();
+                    }
+                  } catch (error: any) {
+                    showToast(error.message || "Errore operazione", "error");
+                  } finally {
+                    setConfirmOpen(false);
+                    setConfirmAction(null);
+                  }
                 }}
                 className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
               >
                 Conferma
               </button>
               <button
-                onClick={() => setConfirmOpen(false)}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  setConfirmAction(null);
+                }}
                 className="px-4 py-2 rounded-lg border text-gray-700"
               >
                 Annulla
