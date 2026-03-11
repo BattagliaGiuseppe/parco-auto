@@ -12,7 +12,6 @@ import {
   FileText,
   Printer,
   CarFront,
-  GaugeCircle,
   Wrench,
   Info,
 } from "lucide-react";
@@ -62,6 +61,12 @@ type GlobalComponent = {
 
 type ComponentBase = { type: string; identifier: string };
 type ComponentExp = { type: string; identifier: string; expiry: string };
+
+type ToastState = {
+  show: boolean;
+  message: string;
+  type: "success" | "error";
+};
 
 const COMPONENT_TYPES: ComponentType[] = [
   "motore",
@@ -193,14 +198,41 @@ export default function CarsPage() {
     type: "",
   });
 
-  const [toast, setToast] = useState<{ show: boolean; message: string }>({
+  const [toast, setToast] = useState<ToastState>({
     show: false,
     message: "",
+    type: "success",
   });
 
-  const showToast = (message: string) => {
-    setToast({ show: true, message });
-    setTimeout(() => setToast({ show: false, message: "" }), 2000);
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    window.setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 2500);
+  };
+
+  const resetForm = () => {
+    setName("");
+    setChassis("");
+    setBaseComponents([
+      { type: "motore", identifier: "" },
+      { type: "cambio", identifier: "" },
+      { type: "differenziale", identifier: "" },
+    ]);
+    setExpiringComponents([
+      { type: "cinture", identifier: "", expiry: "" },
+      { type: "cavi", identifier: "", expiry: "" },
+      { type: "estintore", identifier: "", expiry: "" },
+      { type: "serbatoio", identifier: "", expiry: "" },
+      { type: "passaporto", identifier: "", expiry: "" },
+    ]);
+    setEditChoice({});
+  };
+
+  const closeModal = () => {
+    setOpenModal(false);
+    setSelectedCar(null);
+    resetForm();
   };
 
   const fetchCars = async () => {
@@ -224,7 +256,7 @@ export default function CarsPage() {
           last_maintenance_date
         )
       `)
-      .order("id", { ascending: true });
+      .order("name", { ascending: true });
 
     if (!error) {
       const normalized: CarRow[] = (data || []).map((row: any) => ({
@@ -242,7 +274,7 @@ export default function CarsPage() {
     const { data, error } = await supabase
       .from("components")
       .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
-      .order("id", { ascending: true });
+      .order("identifier", { ascending: true });
 
     if (!error) {
       const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
@@ -261,24 +293,6 @@ export default function CarsPage() {
     fetchCars();
     fetchAllComponents();
   }, []);
-
-  const resetForm = () => {
-    setName("");
-    setChassis("");
-    setBaseComponents([
-      { type: "motore", identifier: "" },
-      { type: "cambio", identifier: "" },
-      { type: "differenziale", identifier: "" },
-    ]);
-    setExpiringComponents([
-      { type: "cinture", identifier: "", expiry: "" },
-      { type: "cavi", identifier: "", expiry: "" },
-      { type: "estintore", identifier: "", expiry: "" },
-      { type: "serbatoio", identifier: "", expiry: "" },
-      { type: "passaporto", identifier: "", expiry: "" },
-    ]);
-    setEditChoice({});
-  };
 
   const filteredCars = useMemo(() => {
     return cars.filter((car) => {
@@ -302,30 +316,39 @@ export default function CarsPage() {
   const mountComponent = async (carId: string, compId: string) => {
     if (!carId || !compId) return;
 
-    const { data: selectedComp, error: compErr } = await supabase
-      .from("components")
-      .select("id, type, car_id")
-      .eq("id", compId)
-      .single();
+    const { error } = await supabase.rpc("mount_component", {
+      p_car_id: carId,
+      p_component_id: compId,
+    });
 
-    if (compErr || !selectedComp) return;
-
-    if (selectedComp.car_id && selectedComp.car_id !== carId) {
-      await supabase.from("components").update({ car_id: null }).eq("id", selectedComp.id);
+    if (error) {
+      throw new Error(error.message);
     }
+  };
 
-    const { data: existingComp } = await supabase
+  const createComponent = async (
+    type: ComponentType,
+    identifier: string,
+    expiryDate?: string
+  ) => {
+    const { data, error } = await supabase
       .from("components")
+      .insert([
+        {
+          type,
+          identifier,
+          expiry_date: expiryDate || null,
+          is_active: true,
+        },
+      ])
       .select("id")
-      .eq("car_id", carId)
-      .eq("type", selectedComp.type)
       .single();
 
-    if (existingComp) {
-      await supabase.from("components").update({ car_id: null }).eq("id", existingComp.id);
+    if (error || !data?.id) {
+      throw new Error(error?.message || "Errore creazione componente");
     }
 
-    await supabase.from("components").update({ car_id: carId }).eq("id", compId);
+    return data.id as string;
   };
 
   const onSaveCar = async () => {
@@ -339,11 +362,12 @@ export default function CarsPage() {
         .select()
         .single();
 
-      if (carErr) throw carErr;
+      if (carErr || !newCar?.id) throw carErr || new Error("Errore creazione auto");
 
       const baseTypes: ComponentType[] = ["motore", "cambio", "differenziale"];
       for (const type of baseTypes) {
         const choice = editChoice[type];
+
         if (choice?.selection && choice.selection !== "__new__") {
           await mountComponent(newCar.id, choice.selection);
         } else {
@@ -352,14 +376,8 @@ export default function CarsPage() {
             baseComponents.find((b) => b.type === type)?.identifier ||
             `${name} - ${defaultLabel[type]}`;
 
-          await supabase.from("components").insert([
-            {
-              type,
-              identifier,
-              car_id: newCar.id,
-              is_active: true,
-            },
-          ]);
+          const newComponentId = await createComponent(type, identifier);
+          await mountComponent(newCar.id, newComponentId);
         }
       }
 
@@ -373,6 +391,7 @@ export default function CarsPage() {
 
       for (const type of expireTypes) {
         const choice = editChoice[type];
+
         if (choice?.selection && choice.selection !== "__new__") {
           await mountComponent(newCar.id, choice.selection);
         } else {
@@ -381,25 +400,18 @@ export default function CarsPage() {
           const years = EXP_RULES[type as keyof typeof EXP_RULES] ?? 2;
           const expiry = e?.expiry || addYearsYYYYMMDD(years);
 
-          await supabase.from("components").insert([
-            {
-              type,
-              identifier,
-              car_id: newCar.id,
-              expiry_date: expiry,
-              is_active: true,
-            },
-          ]);
+          const newComponentId = await createComponent(type, identifier, expiry);
+          await mountComponent(newCar.id, newComponentId);
         }
       }
 
-      setOpenModal(false);
-      resetForm();
+      showToast("✅ Auto creata correttamente");
+      closeModal();
       await fetchAllComponents();
       await fetchCars();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Errore salvataggio auto:", e);
-      alert("Errore nel salvataggio. Controlla la console.");
+      showToast(`Errore salvataggio auto: ${e.message || "sconosciuto"}`, "error");
     } finally {
       setSaving(false);
     }
@@ -419,6 +431,7 @@ export default function CarsPage() {
 
       for (const type of ["motore", "cambio", "differenziale"] as ComponentType[]) {
         const choice = editChoice[type];
+        const currentComponent = selectedCar.components?.find((c) => c.type === type);
 
         if (choice?.selection) {
           if (choice.selection === "__new__") {
@@ -427,26 +440,18 @@ export default function CarsPage() {
               baseComponents.find((b) => b.type === type)?.identifier ||
               `${name} - ${defaultLabel[type]}`;
 
-            const { data: created, error: insErr } = await supabase
-              .from("components")
-              .insert([{ type, identifier, is_active: true }])
-              .select("id")
-              .single();
-
-            if (!insErr && created?.id) {
-              await mountComponent(selectedCar.id, created.id);
-            }
-          } else {
+            const createdId = await createComponent(type, identifier);
+            await mountComponent(selectedCar.id, createdId);
+          } else if (choice.selection !== currentComponent?.id) {
             await mountComponent(selectedCar.id, choice.selection);
           }
         } else {
           const curr = baseComponents.find((b) => b.type === type);
-          if (curr?.identifier) {
+          if (curr?.identifier && currentComponent?.id) {
             await supabase
               .from("components")
               .update({ identifier: curr.identifier })
-              .eq("car_id", selectedCar.id)
-              .eq("type", type);
+              .eq("id", currentComponent.id);
           }
         }
       }
@@ -459,6 +464,7 @@ export default function CarsPage() {
         "passaporto",
       ] as ComponentType[]) {
         const choice = editChoice[type];
+        const currentComponent = selectedCar.components?.find((c) => c.type === type);
 
         if (choice?.selection) {
           if (choice.selection === "__new__") {
@@ -467,37 +473,29 @@ export default function CarsPage() {
             const expiry = e?.expiry || addYearsYYYYMMDD(years);
             const identifier = choice.newIdentifier || e?.identifier || defaultLabel[type];
 
-            const { data: created, error: insErr } = await supabase
-              .from("components")
-              .insert([{ type, identifier, expiry_date: expiry, is_active: true }])
-              .select("id")
-              .single();
-
-            if (!insErr && created?.id) {
-              await mountComponent(selectedCar.id, created.id);
-            }
-          } else {
+            const createdId = await createComponent(type, identifier, expiry);
+            await mountComponent(selectedCar.id, createdId);
+          } else if (choice.selection !== currentComponent?.id) {
             await mountComponent(selectedCar.id, choice.selection);
           }
         } else {
           const e = expiringComponents.find((x) => x.type === type);
-          if (e) {
+          if (e && currentComponent?.id) {
             await supabase
               .from("components")
-              .update({ identifier: e.identifier, expiry_date: e.expiry })
-              .eq("car_id", selectedCar.id)
-              .eq("type", type);
+              .update({ identifier: e.identifier, expiry_date: e.expiry || null })
+              .eq("id", currentComponent.id);
           }
         }
       }
 
-      setOpenModal(false);
-      resetForm();
+      showToast("✅ Auto aggiornata correttamente");
+      closeModal();
       await fetchAllComponents();
       await fetchCars();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Errore aggiornamento auto:", e);
-      alert("Errore nell'aggiornamento.");
+      showToast(`Errore aggiornamento auto: ${e.message || "sconosciuto"}`, "error");
     } finally {
       setSaving(false);
     }
@@ -591,6 +589,7 @@ export default function CarsPage() {
 
   const confirmMountNow = async () => {
     const { compId, type } = confirmData;
+
     if (!compId || !type) {
       setConfirmData({
         show: false,
@@ -605,10 +604,14 @@ export default function CarsPage() {
     }
 
     if (selectedCar) {
-      await mountComponent(selectedCar.id, compId);
-      await fetchAllComponents();
-      await fetchCars();
-      showToast("✅ Componente montato correttamente");
+      try {
+        await mountComponent(selectedCar.id, compId);
+        await fetchAllComponents();
+        await fetchCars();
+        showToast("✅ Componente montato correttamente");
+      } catch (e: any) {
+        showToast(`Errore montaggio componente: ${e.message}`, "error");
+      }
     }
 
     setEditChoice((prev) => ({
@@ -851,7 +854,7 @@ export default function CarsPage() {
         <>
           <div
             className="fixed inset-0 z-40 bg-black/50"
-            onClick={() => !saving && setOpenModal(false)}
+            onClick={() => !saving && closeModal()}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden">
@@ -860,7 +863,7 @@ export default function CarsPage() {
                   {selectedCar ? "Modifica Auto" : "Aggiungi Auto"}
                 </h3>
                 <button
-                  onClick={() => !saving && setOpenModal(false)}
+                  onClick={() => !saving && closeModal()}
                   className="p-2 rounded hover:bg-gray-100"
                 >
                   ✕
@@ -1050,7 +1053,7 @@ export default function CarsPage() {
 
               <div className="flex justify-end gap-3 px-6 py-4 border-t">
                 <button
-                  onClick={() => setOpenModal(false)}
+                  onClick={closeModal}
                   disabled={saving}
                   className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
                 >
@@ -1111,7 +1114,13 @@ export default function CarsPage() {
       )}
 
       {toast.show && (
-        <div className="fixed top-6 right-6 z-[70] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-lg shadow-lg">
+        <div
+          className={`fixed top-6 right-6 z-[70] font-semibold px-4 py-3 rounded-lg shadow-lg ${
+            toast.type === "success"
+              ? "bg-yellow-400 text-black"
+              : "bg-red-600 text-white"
+          }`}
+        >
           {toast.message}
         </div>
       )}
