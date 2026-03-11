@@ -73,8 +73,11 @@ function normalizeCarRelation(value: CarRow | CarRow[] | null): CarRow | null {
   return value;
 }
 
-function formatHours(value: number | null | undefined) {
-  return Number(value ?? 0).toFixed(2);
+ function formatHours(value: number | null | undefined) {
+  const totalMinutes = Math.round(Number(value ?? 0) * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
 }
 
 export default function EventCarPage() {
