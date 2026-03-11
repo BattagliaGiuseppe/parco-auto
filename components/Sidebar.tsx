@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Settings,
   Menu,
+  ClipboardList,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -24,7 +25,7 @@ export default function Sidebar() {
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { href: "/cars", label: "Auto", icon: Car },
     { href: "/components", label: "Componenti", icon: Wrench },
-    { href: "/maintenances", label: "Manutenzioni", icon: BarChart3 },
+    { href: "/maintenances", label: "Manutenzioni", icon: ClipboardList },
     { href: "/calendar", label: "Calendario", icon: CalendarDays },
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
@@ -40,7 +41,6 @@ export default function Sidebar() {
 
   return (
     <div className={audiowide.className}>
-      {/* Pulsante hamburger (solo mobile) */}
       <button
         onClick={() => setOpen((o) => !o)}
         className="md:hidden fixed top-4 left-4 z-50 bg-black text-yellow-500 p-2 rounded-lg shadow-lg"
@@ -49,7 +49,6 @@ export default function Sidebar() {
         <Menu />
       </button>
 
-      {/* Overlay mobile */}
       {open && (
         <div
           className="md:hidden fixed inset-0 bg-black/50 z-40"
@@ -57,12 +56,11 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <aside
-        className={`z-50 lg:static fixed top-0 left-0 h-full w-64 bg-black text-yellow-500 flex flex-col shadow-2xl transform transition-transform
-  ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`z-50 lg:static fixed top-0 left-0 h-full w-64 bg-black text-yellow-500 flex flex-col shadow-2xl transform transition-transform ${
+          open ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0`}
       >
-        {/* Logo */}
         <div className="flex flex-col items-center justify-center p-6 border-b border-yellow-500">
           <Image
             src="/logo.png"
@@ -77,14 +75,13 @@ export default function Sidebar() {
           </h2>
         </div>
 
-        {/* Menu */}
         <nav className="flex-1 mt-6 space-y-2 px-4">
           {links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               className={itemClass(href)}
-              onClick={() => setOpen(false)} // chiudi sidebar al click (mobile)
+              onClick={() => setOpen(false)}
             >
               <Icon size={20} />
               <span>{label}</span>
@@ -92,9 +89,8 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* Footer racing */}
         <div className="p-4 border-t border-yellow-500 text-xs text-center text-yellow-400">
-          © 2025 Battaglia Racing Car
+          © 2026 Battaglia Racing Car
         </div>
       </aside>
     </div>
