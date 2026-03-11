@@ -107,7 +107,9 @@ export default function EventCarPage() {
     []
   );
 
-  const [checkup, setCheckup] = useState<Record<string, "OK" | "Da controllare" | "Problema">>({});
+  const [checkup, setCheckup] = useState<Record<string, "OK" | "Da controllare" | "Problema">>(
+    {}
+  );
   const [checkupSaving, setCheckupSaving] = useState(false);
   const [checkupTick, setCheckupTick] = useState(0);
   const [checkupHistory, setCheckupHistory] = useState<DataRow[]>([]);
@@ -208,11 +210,7 @@ export default function EventCarPage() {
 
       const [{ data: eventData, error: eventError }, { data: carData, error: eventCarError }] =
         await Promise.all([
-          supabase
-            .from("events")
-            .select("id, name, date")
-            .eq("id", eventId)
-            .single(),
+          supabase.from("events").select("id, name, date").eq("id", eventId).single(),
           supabase
             .from("event_cars")
             .select("id, car_id (id, name, hours), notes")
@@ -466,97 +464,98 @@ export default function EventCarPage() {
   }
 
   async function saveTurn() {
-  if (!newTurn.durata) {
-    showToast("Inserisci la durata del turno", "error");
-    return;
-  }
-
-  const minutes = Number(newTurn.durata);
-  const laps = Number(newTurn.giri) || 0;
-  const noteText = newTurn.note || "";
-  const isEditing = Boolean(editingTurn);
-
-  if (!Number.isFinite(minutes) || minutes <= 0) {
-    showToast("La durata deve essere maggiore di zero", "error");
-    return;
-  }
-
-  try {
-    setTurnsSaving(true);
-
-    if (isEditing && editingTurn) {
-      const { data, error } = await supabase
-        .from("event_car_turns")
-        .update({
-          minutes,
-          laps,
-          notes: noteText,
-        })
-        .eq("id", editingTurn.id)
-        .eq("event_car_id", eventCarId)
-        .select("id")
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
-      if (!data) throw new Error("Nessun turno aggiornato");
-
-      showToast("✅ Turno aggiornato");
-    } else {
-      const { data, error } = await supabase
-        .from("event_car_turns")
-        .insert([
-          {
-            event_car_id: eventCarId,
-            minutes,
-            laps,
-            notes: noteText,
-          },
-        ])
-        .select("id")
-        .single();
-
-      if (error || !data) {
-        throw new Error(error?.message || "Errore salvataggio turno");
-      }
-    }
-
-    resetTurnForm();
-    await loadAllData();
-
-    if (!isEditing) {
-      showToast("✅ Turno aggiunto. Puoi eseguire il check-up quando vuoi.");
-    }
-  } catch (e: any) {
-    showToast(`Errore salvataggio turno: ${e.message}`, "error");
-  } finally {
-    setTurnsSaving(false);
-  }
-}
- async function deleteTurn(turnId: string) {
-  if (!confirm("Vuoi eliminare questo turno?")) return;
-
-  try {
-    const { error } = await supabase
-      .from("event_car_turns")
-      .delete()
-      .eq("id", turnId)
-      .eq("event_car_id", eventCarId);
-
-    if (error) {
-      showToast(`Errore eliminazione turno: ${error.message}`, "error");
+    if (!newTurn.durata) {
+      showToast("Inserisci la durata del turno", "error");
       return;
     }
 
-    if (editingTurn?.id === turnId) {
-      resetTurnForm();
+    const minutes = Number(newTurn.durata);
+    const laps = Number(newTurn.giri) || 0;
+    const noteText = newTurn.note || "";
+    const isEditing = Boolean(editingTurn);
+
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      showToast("La durata deve essere maggiore di zero", "error");
+      return;
     }
 
-    await loadAllData();
-    showToast("🗑️ Turno eliminato");
-  } catch (e: any) {
-    showToast(`Errore eliminazione turno: ${e.message}`, "error");
+    try {
+      setTurnsSaving(true);
+
+      if (isEditing && editingTurn) {
+        const { data, error } = await supabase
+          .from("event_car_turns")
+          .update({
+            minutes,
+            laps,
+            notes: noteText,
+          })
+          .eq("id", editingTurn.id)
+          .eq("event_car_id", eventCarId)
+          .select("id")
+          .maybeSingle();
+
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error("Nessun turno aggiornato");
+
+        showToast("✅ Turno aggiornato");
+      } else {
+        const { data, error } = await supabase
+          .from("event_car_turns")
+          .insert([
+            {
+              event_car_id: eventCarId,
+              minutes,
+              laps,
+              notes: noteText,
+            },
+          ])
+          .select("id")
+          .single();
+
+        if (error || !data) {
+          throw new Error(error?.message || "Errore salvataggio turno");
+        }
+      }
+
+      resetTurnForm();
+      await loadAllData();
+
+      if (!isEditing) {
+        showToast("✅ Turno aggiunto. Puoi eseguire il check-up quando vuoi.");
+      }
+    } catch (e: any) {
+      showToast(`Errore salvataggio turno: ${e.message}`, "error");
+    } finally {
+      setTurnsSaving(false);
+    }
   }
-}
+
+  async function deleteTurn(turnId: string) {
+    if (!confirm("Vuoi eliminare questo turno?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("event_car_turns")
+        .delete()
+        .eq("id", turnId)
+        .eq("event_car_id", eventCarId);
+
+      if (error) {
+        showToast(`Errore eliminazione turno: ${error.message}`, "error");
+        return;
+      }
+
+      if (editingTurn?.id === turnId) {
+        resetTurnForm();
+      }
+
+      await loadAllData();
+      showToast("🗑️ Turno eliminato");
+    } catch (e: any) {
+      showToast(`Errore eliminazione turno: ${e.message}`, "error");
+    }
+  }
 
   async function onSaveFuel() {
     try {
