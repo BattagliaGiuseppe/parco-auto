@@ -1395,4 +1395,396 @@ export default function EventCarPage() {
               </div>
             )}
 
-            <div
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
+              <h3 className="text-base font-bold text-gray-800 mb-4">
+                Dati sessione e previsione
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
+                <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
+                <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
+                <NumberCard
+                  label="Giri previsti prossimo turno"
+                  value={lapsPlanned}
+                  setValue={setLapsPlanned}
+                  integer
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <ReadOnlyCard
+                  label="Carburante consumato"
+                  value={fuelUsed !== null ? formatLiters(fuelUsed, 1) : "—"}
+                />
+                <ReadOnlyCard
+                  label="Consumo medio a giro"
+                  value={fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
+                />
+                <ReadOnlyCard
+                  label="Autonomia residua"
+                  value={estimatedLapsRemaining > 0 ? `${estimatedLapsRemaining.toFixed(1)} giri` : "—"}
+                />
+                <HighlightCard
+                  label="Carburante da aggiungere"
+                  value={fuelToAdd > 0 ? formatLiters(fuelToAdd, 1) : "—"}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-center mb-2">
+              <button
+                onClick={onSaveFuel}
+                disabled={fuelSaving}
+                className="btn-primary"
+              >
+                {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva carburante
+                <CheckCircle2
+                  size={18}
+                  className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
+                />
+              </button>
+            </div>
+
+            <HistoryBar
+              title="Ultimi 3 salvataggi Carburante"
+              rows={fuelHistory}
+              onOpen={loadFuel}
+              onDelete={async (row) => {
+                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                try {
+                  await deleteSectionRow(row.id, "fuel");
+                  if (activeFuelId === row.id) setActiveFuelId(null);
+                } catch (e: any) {
+                  showToast(`Errore eliminazione: ${e.message}`, "error");
+                }
+              }}
+              activeId={activeFuelId}
+            />
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">
+            {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "Consumo non calcolabile"} •{" "}
+            {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L da aggiungere` : "nessun rabbocco stimato"}
+          </div>
+        )}
+      </section>
+
+      <section className="card-base p-5 md:p-6">
+        <SectionHeader
+          title="Note e osservazioni"
+          subtitle="Annotazioni pilota, problemi emersi, modifiche da ricordare e feedback pista"
+          icon={<StickyNote className="text-yellow-500" />}
+          expanded={notesExpanded}
+          onToggle={() => setNotesExpanded((v) => !v)}
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <SummaryCard
+            icon={<FileText size={18} className="text-yellow-600" />}
+            label="Lunghezza note"
+            value={`${notesLength} caratteri`}
+          />
+          <SummaryCard
+            icon={<StickyNote size={18} className="text-yellow-600" />}
+            label="Stato contenuto"
+            value={notesLength > 0 ? "Compilate" : "Vuote"}
+            valueClassName={notesLength > 0 ? "text-green-700" : "text-yellow-700"}
+          />
+          <SummaryCard
+            icon={<Clock3 size={18} className="text-yellow-600" />}
+            label="Ultimo salvataggio"
+            value={lastNotesTime || "—"}
+            valueClassName="text-gray-900 text-sm"
+          />
+        </div>
+
+        {notesExpanded ? (
+          <>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-gray-800">Taccuino evento</h3>
+                <span className="text-xs text-gray-500">{notesLength} caratteri</span>
+              </div>
+
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Annota eventuali problemi, sensazioni del pilota, modifiche da fare, condizioni pista, meteo, comportamento vettura..."
+                className="border rounded-xl p-4 w-full bg-white min-h-[180px]"
+                rows={7}
+              />
+
+              <div className="mt-3 text-xs text-gray-500">
+                Suggerimento: usa le note per segnare comportamento vettura, consumo gomme, correzioni assetto e lavori da fare prima del prossimo turno.
+              </div>
+            </div>
+
+            <div className="flex justify-center mb-2">
+              <button
+                onClick={onSaveNotes}
+                disabled={notesSaving}
+                className="btn-primary"
+              >
+                {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva Note
+                <CheckCircle2
+                  size={18}
+                  className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
+                />
+              </button>
+            </div>
+
+            <HistoryBar
+              title="Ultimi 3 salvataggi Note"
+              rows={notesHistory}
+              onOpen={loadNotes}
+              onDelete={async (row) => {
+                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
+                try {
+                  await deleteSectionRow(row.id, "notes");
+                  if (activeNotesId === row.id) setActiveNotesId(null);
+                } catch (e: any) {
+                  showToast(`Errore eliminazione: ${e.message}`, "error");
+                }
+              }}
+              activeId={activeNotesId}
+            />
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">
+            {notesLength > 0 ? `${notesLength} caratteri salvati nelle note evento` : "Nessuna annotazione presente"}
+          </div>
+        )}
+      </section>
+
+      {toast.show && (
+        <div
+          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-lg font-semibold ${
+            toast.type === "success"
+              ? "bg-yellow-400 text-black"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- UI SUBCOMPONENTS ---------------- */
+
+function SectionHeader({
+  title,
+  subtitle,
+  icon,
+  expanded,
+  onToggle,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
+      <div>
+        <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+          {icon} {title}
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+      </div>
+
+      <button
+        onClick={onToggle}
+        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+      >
+        {expanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+      </button>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  valueClassName = "text-gray-900",
+  cardClassName = "bg-gray-50 border-neutral-200",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  valueClassName?: string;
+  cardClassName?: string;
+}) {
+  return (
+    <div className={`rounded-xl border p-4 ${cardClassName}`}>
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className={`text-xl font-bold mt-2 ${valueClassName}`}>{value}</div>
+    </div>
+  );
+}
+
+function StatusSummaryCard({
+  title,
+  value,
+  tone,
+}: {
+  title: string;
+  value: number;
+  tone: "green" | "yellow" | "red";
+}) {
+  const classes =
+    tone === "green"
+      ? {
+          box: "bg-green-50 border-green-200",
+          title: "text-green-700",
+          value: "text-green-800",
+        }
+      : tone === "red"
+      ? {
+          box: "bg-red-50 border-red-200",
+          title: "text-red-700",
+          value: "text-red-800",
+        }
+      : {
+          box: "bg-yellow-50 border-yellow-200",
+          title: "text-yellow-700",
+          value: "text-yellow-800",
+        };
+
+  return (
+    <div className={`rounded-xl border p-4 ${classes.box}`}>
+      <div className={`text-xs uppercase tracking-wide ${classes.title}`}>{title}</div>
+      <div className={`text-2xl font-bold mt-1 ${classes.value}`}>{value}</div>
+    </div>
+  );
+}
+
+function HistoryBar({
+  title,
+  rows,
+  onOpen,
+  onDelete,
+  activeId,
+}: {
+  title: string;
+  rows: DataRow[];
+  onOpen: (row: DataRow) => void;
+  onDelete?: (row: DataRow) => void;
+  activeId?: string | null;
+}) {
+  return (
+    <div className="mt-4 border-t pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
+        <div className="text-xs text-gray-500 flex items-center gap-1">
+          <RotateCcw size={14} /> Storico
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {rows.map((r) => {
+            const isActive = activeId && r.id === activeId;
+            return (
+              <li
+                key={r.id}
+                className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
+                  isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
+                }`}
+              >
+                <button
+                  onClick={() => onOpen(r)}
+                  className="flex-1 text-left"
+                  title="Apri questo salvataggio"
+                >
+                  {new Date(r.created_at).toLocaleString()}
+                </button>
+
+                <div className="flex items-center gap-3">
+                  {isActive ? (
+                    <span className="text-green-700 font-semibold">✅ Aperto</span>
+                  ) : (
+                    <button onClick={() => onOpen(r)} className="text-yellow-600 font-semibold">
+                      🔄 Apri
+                    </button>
+                  )}
+
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(r)}
+                      className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                      title="Elimina salvataggio"
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function NumberCard({
+  label,
+  value,
+  setValue,
+  integer = false,
+}: {
+  label: string;
+  value: number;
+  setValue: (n: number) => void;
+  integer?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <input
+        type="number"
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) =>
+          setValue(
+            integer
+              ? parseInt(e.target.value || "0", 10)
+              : parseFloat(e.target.value || "0")
+          )
+        }
+        className="border rounded-xl p-3 w-full text-center bg-white"
+      />
+    </div>
+  );
+}
+
+function ReadOnlyCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="border rounded-xl p-3 bg-white text-center font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function HighlightCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="rounded-xl p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
+        {value}
+      </div>
+    </div>
+  );
+}
