@@ -9,7 +9,6 @@ import {
   Wrench,
   CalendarClock,
   CarFront,
-  Package,
   FileText,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
@@ -21,8 +20,14 @@ type MaintenanceRow = {
   date: string;
   type: string;
   notes: string | null;
-  car_id: { id: string; name: string } | null;
-  component_id: { id: string; identifier: string } | null;
+  car_id:
+    | { id: string; name: string }
+    | { id: string; name: string }[]
+    | null;
+  component_id:
+    | { id: string; identifier: string }
+    | { id: string; identifier: string }[]
+    | null;
 };
 
 type CarOption = {
@@ -38,6 +43,11 @@ type ComponentOption = {
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("it-IT");
+}
+
+function normalizeRelation<T>(value: T | T[] | null): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
 }
 
 export default function MaintenancesPage() {
@@ -66,7 +76,16 @@ export default function MaintenancesPage() {
       .order("date", { ascending: false });
 
     if (!error) {
-      setMaintenances((data as MaintenanceRow[]) || []);
+      const normalized: MaintenanceRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        date: row.date,
+        type: row.type,
+        notes: row.notes,
+        car_id: row.car_id,
+        component_id: row.component_id,
+      }));
+
+      setMaintenances(normalized);
     }
 
     setLoading(false);
@@ -97,7 +116,9 @@ export default function MaintenancesPage() {
 
   const distinctCars = useMemo(() => {
     const ids = new Set(
-      maintenances.map((m) => m.car_id?.id).filter((id): id is string => Boolean(id))
+      maintenances
+        .map((m) => normalizeRelation(m.car_id)?.id)
+        .filter((id): id is string => Boolean(id))
     );
     return ids.size;
   }, [maintenances]);
@@ -123,8 +144,8 @@ export default function MaintenancesPage() {
 
   const openForEdit = (m: MaintenanceRow) => {
     setEditId(Number(m.id));
-    setCarId(m.car_id?.id || "");
-    setComponentId(m.component_id?.id || "");
+    setCarId(normalizeRelation(m.car_id)?.id || "");
+    setComponentId(normalizeRelation(m.component_id)?.id || "");
     setDate(m.date || "");
     setType(m.type || "");
     setNotes(m.notes || "");
@@ -249,12 +270,12 @@ export default function MaintenancesPage() {
                   <div className="flex items-center gap-2">
                     <CarFront size={18} />
                     <h2 className="text-lg font-bold truncate">
-                      {m.car_id?.name || "Auto sconosciuta"}
+                      {normalizeRelation(m.car_id)?.name || "Auto sconosciuta"}
                     </h2>
                   </div>
 
                   <div className="mt-1 text-sm text-yellow-100/80 truncate">
-                    {m.component_id?.identifier || "Componente non specificato"}
+                    {normalizeRelation(m.component_id)?.identifier || "Componente non specificato"}
                   </div>
                 </div>
 
