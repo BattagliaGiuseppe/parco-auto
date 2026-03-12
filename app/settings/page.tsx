@@ -21,6 +21,7 @@ import {
   ToggleLeft,
   Loader2,
   CheckCircle2,
+  TriangleAlert,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -110,6 +111,7 @@ export default function SettingsPage() {
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [missingSettings, setMissingSettings] = useState(false);
 
   const [teamName, setTeamName] = useState(DEFAULT_SETTINGS.team_name);
   const [teamSubtitle, setTeamSubtitle] = useState(DEFAULT_SETTINGS.team_subtitle || "");
@@ -179,6 +181,7 @@ export default function SettingsPage() {
 
   function applySettings(row: AppSettingsRow) {
     setSettingsId(row.id);
+    setMissingSettings(false);
 
     setTeamName(row.team_name || DEFAULT_SETTINGS.team_name);
     setTeamSubtitle(row.team_subtitle || "");
@@ -217,36 +220,24 @@ export default function SettingsPage() {
     setWeeklySummary(row.weekly_summary ?? DEFAULT_SETTINGS.weekly_summary);
   }
 
-  async function ensureSettingsRow() {
-    const { data: existing, error: selectError } = await supabase
-      .from("app_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-
-    if (selectError) throw new Error(selectError.message);
-
-    if (existing) {
-      applySettings(existing as AppSettingsRow);
-      return;
-    }
-
-    const { data: inserted, error: insertError } = await supabase
-      .from("app_settings")
-      .insert([DEFAULT_SETTINGS])
-      .select("*")
-      .single();
-
-    if (insertError) throw new Error(insertError.message);
-
-    applySettings(inserted as AppSettingsRow);
-  }
-
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        await ensureSettingsRow();
+
+        const { data, error } = await supabase
+          .from("app_settings")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw new Error(error.message);
+
+        if (!data) {
+          setMissingSettings(true);
+        } else {
+          applySettings(data as AppSettingsRow);
+        }
       } catch (error: any) {
         showToast(`Errore caricamento impostazioni: ${error.message}`, "error");
       } finally {
@@ -258,6 +249,14 @@ export default function SettingsPage() {
   }, []);
 
   async function handleSave() {
+    if (!settingsId) {
+      showToast(
+        "Configurazione iniziale mancante. Crea prima una riga in app_settings su Supabase.",
+        "error"
+      );
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -271,7 +270,7 @@ export default function SettingsPage() {
         secondary_color: secondaryColor,
         accent_color: accentColor,
 
-        language: language,
+        language,
         date_format: dateFormat,
         theme_mode: themeMode,
         density_mode: densityMode,
@@ -293,27 +292,16 @@ export default function SettingsPage() {
         weekly_summary: weeklySummary,
       };
 
-      if (!settingsId) {
-        const { data, error } = await supabase
-          .from("app_settings")
-          .insert([payload])
-          .select("*")
-          .single();
+      const { data, error } = await supabase
+        .from("app_settings")
+        .update(payload)
+        .eq("id", settingsId)
+        .select("*")
+        .single();
 
-        if (error) throw new Error(error.message);
-        applySettings(data as AppSettingsRow);
-      } else {
-        const { data, error } = await supabase
-          .from("app_settings")
-          .update(payload)
-          .eq("id", settingsId)
-          .select("*")
-          .single();
+      if (error) throw new Error(error.message);
 
-        if (error) throw new Error(error.message);
-        applySettings(data as AppSettingsRow);
-      }
-
+      applySettings(data as AppSettingsRow);
       showToast("Impostazioni salvate correttamente");
     } catch (error: any) {
       showToast(`Errore salvataggio impostazioni: ${error.message}`, "error");
@@ -354,7 +342,7 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <button onClick={handleSave} disabled={saving} className="btn-primary">
+            <button onClick={handleSave} disabled={saving || !settingsId} className="btn-primary">
               {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               {saving ? "Salvataggio..." : "Salva impostazioni"}
             </button>
@@ -362,6 +350,22 @@ export default function SettingsPage() {
         </div>
 
         <div className="p-5 md:p-6">
+          {missingSettings && (
+            <div className="mb-5 rounded-2xl border border-yellow-300 bg-yellow-50 p-4">
+              <div className="flex items-start gap-3">
+                <TriangleAlert className="text-yellow-700 mt-0.5" size={18} />
+                <div>
+                  <div className="font-bold text-yellow-800">Configurazione iniziale mancante</div>
+                  <div className="text-sm text-yellow-700 mt-1 leading-relaxed">
+                    La tabella <span className="font-semibold">app_settings</span> non contiene
+                    ancora nessuna riga. Inserisci una riga iniziale da Supabase e poi ricarica
+                    questa pagina.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <SummaryCard
               icon={<Building2 size={18} className="text-yellow-600" />}
@@ -440,21 +444,13 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-            <ColorField
-              label="Colore primario"
-              value={primaryColor}
-              onChange={setPrimaryColor}
-            />
+            <ColorField label="Colore primario" value={primaryColor} onChange={setPrimaryColor} />
             <ColorField
               label="Colore secondario"
               value={secondaryColor}
               onChange={setSecondaryColor}
             />
-            <ColorField
-              label="Colore accento"
-              value={accentColor}
-              onChange={setAccentColor}
-            />
+            <ColorField label="Colore accento" value={accentColor} onChange={setAccentColor} />
           </div>
 
           <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
