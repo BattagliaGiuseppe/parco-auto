@@ -10,6 +10,9 @@ import {
   GaugeCircle,
   CarFront,
   Wrench,
+  Flag,
+  Clock3,
+  TriangleAlert,
 } from "lucide-react";
 import {
   BarChart,
@@ -54,6 +57,11 @@ function formatHours(value: number | null | undefined) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("it-IT");
 }
 
 function getExpiryStatus(expiryDate: string | null) {
@@ -148,17 +156,9 @@ export default function Dashboard() {
           .order("date", { ascending: true }),
       ]);
 
-      if (!carsError) {
-        setCars((carsData || []) as CarRow[]);
-      }
-
-      if (!compsError) {
-        setComponents((compsData || []) as ComponentRow[]);
-      }
-
-      if (!eventsError) {
-        setEvents((eventsData || []) as EventRow[]);
-      }
+      if (!carsError) setCars((carsData || []) as CarRow[]);
+      if (!compsError) setComponents((compsData || []) as ComponentRow[]);
+      if (!eventsError) setEvents((eventsData || []) as EventRow[]);
 
       setLoading(false);
     };
@@ -238,107 +238,164 @@ export default function Dashboard() {
     }));
   }, [cars]);
 
+  const totalCars = cars.length;
+  const totalComponents = components.length;
+  const nextEvent = upcomingEvents[0] || null;
+
   if (loading) {
     return (
-      <div className={`p-6 ${audiowide.className}`}>
-        <p>Caricamento dashboard...</p>
+      <div className={`card-base p-10 text-center text-neutral-500 ${audiowide.className}`}>
+        Caricamento dashboard...
       </div>
     );
   }
 
   return (
-    <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">🏁 Dashboard</h1>
+    <div className={`flex flex-col gap-6 ${audiowide.className}`}>
+      <section className="card-base overflow-hidden">
+        <div className="bg-black text-yellow-500 px-5 py-5 md:px-6 md:py-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                <Flag size={14} />
+                Panoramica operativa
+              </div>
 
-      {/* Cards principali */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
-            Auto pronte
-          </div>
-          <div className="flex items-center gap-3 p-6">
-            <CheckCircle className="text-green-500" size={36} />
-            <span className="text-2xl font-bold">{carsReady}</span>
+              <h1 className="mt-3 text-2xl md:text-3xl font-bold text-yellow-400">
+                Dashboard parco auto
+              </h1>
+
+              <p className="mt-2 max-w-3xl text-sm text-yellow-100/75 leading-relaxed">
+                Controlla in un colpo d’occhio stato auto, componenti critici, scadenze ed eventi
+                imminenti.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
-            Componenti in attenzione
+        <div className="p-5 md:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <SummaryCard
+              icon={<CheckCircle size={18} className="text-yellow-600" />}
+              label="Auto pronte"
+              value={String(carsReady)}
+              valueClassName="text-green-700"
+            />
+            <SummaryCard
+              icon={<AlertTriangle size={18} className="text-yellow-600" />}
+              label="Componenti in attenzione"
+              value={String(componentsInWarning)}
+              valueClassName={componentsInWarning > 0 ? "text-yellow-700" : "text-green-700"}
+            />
+            <SummaryCard
+              icon={<XCircle size={18} className="text-yellow-600" />}
+              label="Urgenze"
+              value={String(urgentComponents)}
+              valueClassName={urgentComponents > 0 ? "text-red-700" : "text-green-700"}
+            />
+            <SummaryCard
+              icon={<Calendar size={18} className="text-yellow-600" />}
+              label="Eventi programmati"
+              value={String(upcomingEvents.length)}
+            />
           </div>
-          <div className="flex items-center gap-3 p-6">
-            <AlertTriangle className="text-yellow-500" size={36} />
-            <span className="text-2xl font-bold">{componentsInWarning}</span>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="card-base p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <CarFront className="text-yellow-500" size={18} />
+            <h2 className="text-lg font-bold text-neutral-800">Parco auto</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <MiniInfoCard label="Auto totali" value={String(totalCars)} />
+            <MiniInfoCard label="Componenti totali" value={String(totalComponents)} />
           </div>
         </div>
 
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
-            Urgenze
+        <div className="card-base p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <TriangleAlert className="text-yellow-500" size={18} />
+            <h2 className="text-lg font-bold text-neutral-800">Attenzione immediata</h2>
           </div>
-          <div className="flex items-center gap-3 p-6">
-            <XCircle className="text-red-500" size={36} />
-            <span className="text-2xl font-bold">{urgentComponents}</span>
+
+          <div className="space-y-3 text-sm">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+              <div className="text-red-700 font-semibold">Urgenze</div>
+              <div className="text-red-800 text-lg font-bold mt-1">{urgentComponents}</div>
+            </div>
+
+            <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3">
+              <div className="text-yellow-700 font-semibold">Da controllare</div>
+              <div className="text-yellow-800 text-lg font-bold mt-1">{componentsInWarning}</div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
-            Eventi programmati
+        <div className="card-base p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock3 className="text-yellow-500" size={18} />
+            <h2 className="text-lg font-bold text-neutral-800">Prossimo evento</h2>
           </div>
-          <div className="flex items-center gap-3 p-6">
-            <Calendar className="text-yellow-500" size={36} />
-            <span className="text-2xl font-bold">{upcomingEvents.length}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Grafico ore auto */}
-      <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+          {nextEvent ? (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+              <div className="font-bold text-neutral-900">{nextEvent.name}</div>
+              <div className="text-sm text-neutral-500 mt-1">{formatDate(nextEvent.date)}</div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500">
+              Nessun evento futuro programmato.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="card-base overflow-hidden">
+        <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg">
           Ore vettura
         </div>
-        <div className="h-72 p-4">
+        <div className="h-80 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)} h`} />
-              <Bar dataKey="ore" fill="#facc15" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="ore" fill="#facc15" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </section>
 
-      {/* Liste */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Componenti critici */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="card-base overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
             <Wrench size={20} /> Componenti critici
           </div>
           <ul className="space-y-3 p-4">
             {criticalComponents.length === 0 ? (
-              <li className="text-gray-500">Nessuna criticità rilevata.</li>
+              <li className="text-neutral-500">Nessuna criticità rilevata.</li>
             ) : (
               criticalComponents.map((component) => (
                 <li
                   key={component.id}
-                  className="flex items-center justify-between gap-3 border-b pb-2"
+                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
                 >
-                  <div>
-                    <div className="text-gray-800 font-semibold">
+                  <div className="min-w-0">
+                    <div className="text-neutral-800 font-semibold truncate">
                       {component.type} – {component.identifier}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-neutral-500 mt-1">
                       Ore attuali: {formatHours(component.hours)} • Vita:{" "}
                       {formatHours(component.life_hours)}
                     </div>
                   </div>
 
                   <span
-                    className={`text-sm px-3 py-1 rounded-full font-semibold ${component.status.className}`}
+                    className={`text-sm px-3 py-1 rounded-full font-semibold whitespace-nowrap ${component.status.className}`}
                   >
                     {component.status.label}
                   </span>
@@ -348,22 +405,24 @@ export default function Dashboard() {
           </ul>
         </div>
 
-        {/* Prossime scadenze */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
-            Prossime Scadenze
+        <div className="card-base overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg">
+            Prossime scadenze
           </div>
           <ul className="space-y-3 p-4">
             {expiringComponents.length === 0 ? (
-              <li className="text-gray-500">Nessuna scadenza registrata.</li>
+              <li className="text-neutral-500">Nessuna scadenza registrata.</li>
             ) : (
               expiringComponents.map((component) => (
-                <li key={component.id} className="flex items-center justify-between gap-3">
-                  <span className="text-gray-700">
+                <li
+                  key={component.id}
+                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
+                >
+                  <span className="text-neutral-700 font-medium">
                     {component.type} – {component.identifier}
                   </span>
                   <span
-                    className={`text-sm px-3 py-1 rounded-full ${
+                    className={`text-sm px-3 py-1 rounded-full font-semibold whitespace-nowrap ${
                       getExpiryStatus(component.expiry_date) === "expired"
                         ? "bg-red-100 text-red-700"
                         : getExpiryStatus(component.expiry_date) === "expiring"
@@ -371,9 +430,7 @@ export default function Dashboard() {
                         : "bg-green-100 text-green-700"
                     }`}
                   >
-                    {component.expiry_date
-                      ? new Date(component.expiry_date).toLocaleDateString("it-IT")
-                      : "—"}
+                    {component.expiry_date ? formatDate(component.expiry_date) : "—"}
                   </span>
                 </li>
               ))
@@ -381,23 +438,27 @@ export default function Dashboard() {
           </ul>
         </div>
 
-        {/* Auto con più ore */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
+        <div className="card-base overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
             <CarFront size={20} /> Auto con più ore
           </div>
           <ul className="space-y-3 p-4">
             {topCarsByHours.length === 0 ? (
-              <li className="text-gray-500">Nessuna auto disponibile.</li>
+              <li className="text-neutral-500">Nessuna auto disponibile.</li>
             ) : (
               topCarsByHours.map((car) => (
-                <li key={car.id} className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-gray-800">{car.name}</div>
-                    <div className="text-xs text-gray-500">{car.chassis_number || "—"}</div>
+                <li
+                  key={car.id}
+                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-neutral-800">{car.name}</div>
+                    <div className="text-xs text-neutral-500 mt-1">
+                      {car.chassis_number || "—"}
+                    </div>
                   </div>
-                  <span className="text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
-                    {formatHours(car.hours)} h
+                  <span className="text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold whitespace-nowrap">
+                    {formatHours(car.hours)}
                   </span>
                 </li>
               ))
@@ -405,29 +466,60 @@ export default function Dashboard() {
           </ul>
         </div>
 
-        {/* Prossimi eventi */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
+        <div className="card-base overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
             <GaugeCircle size={20} /> Prossimi eventi
           </div>
           <ul className="space-y-3 p-4">
             {upcomingEvents.length === 0 ? (
-              <li className="text-gray-500">Nessun evento futuro programmato.</li>
+              <li className="text-neutral-500">Nessun evento futuro programmato.</li>
             ) : (
               upcomingEvents.map((event) => (
-                <li key={event.id} className="flex items-center justify-between gap-3">
-                  <span className="text-gray-700 font-semibold">{event.name}</span>
-                  <span className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                    {event.date
-                      ? new Date(event.date).toLocaleDateString("it-IT")
-                      : "—"}
+                <li
+                  key={event.id}
+                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
+                >
+                  <span className="text-neutral-700 font-semibold">{event.name}</span>
+                  <span className="text-sm bg-neutral-100 text-neutral-700 px-3 py-1 rounded-full whitespace-nowrap">
+                    {formatDate(event.date)}
                   </span>
                 </li>
               ))
             )}
           </ul>
         </div>
+      </section>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  valueClassName = "text-neutral-900",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-neutral-50 p-4">
+      <div className="flex items-center gap-2 text-sm text-neutral-600">
+        {icon}
+        <span>{label}</span>
       </div>
+      <div className={`mt-2 text-xl font-bold ${valueClassName}`}>{value}</div>
+    </div>
+  );
+}
+
+function MiniInfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3">
+      <div className="text-xs text-neutral-500">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-neutral-900">{value}</div>
     </div>
   );
 }
