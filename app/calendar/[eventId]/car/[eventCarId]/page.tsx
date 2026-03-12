@@ -158,11 +158,6 @@ export default function EventCarPage() {
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
   const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
 
-  const defaultCheckupItems = useMemo(
-    () => ["Serraggi", "Freni", "Liquidi", "Sospensioni", "Elettronica", "Ruote", "Cambio"],
-    []
-  );
-
   const checkupGroups = useMemo<CheckupGroup[]>(
     () => [
       {
@@ -722,27 +717,30 @@ export default function EventCarPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center gap-2 text-gray-600">
-        <Loader2 className="animate-spin" /> Caricamento dati...
+      <div className="card-base p-10 text-center text-neutral-500">
+        <div className="inline-flex items-center gap-2">
+          <Loader2 className="animate-spin" />
+          Caricamento dati...
+        </div>
       </div>
     );
   }
 
   if (!event || !car) {
     return (
-      <div className="p-6 text-center text-red-500 font-semibold">
+      <div className="card-base p-10 text-center text-red-600 font-semibold">
         ❌ Errore: dati non trovati.
       </div>
     );
   }
 
   return (
-    <div className={`p-4 md:p-6 flex flex-col gap-6 ${audiowide.className}`}>
-      <section className="bg-white border rounded-2xl shadow-sm overflow-hidden">
+    <div className={`flex flex-col gap-6 ${audiowide.className}`}>
+      <section className="card-base overflow-hidden">
         <div className="bg-black text-yellow-500 px-5 py-5 md:px-6 md:py-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm opacity-90 mb-2">
+              <div className="flex items-center gap-2 text-sm text-yellow-200/90 mb-2">
                 <Flag size={15} />
                 <span>{formatEventDate(event.date)}</span>
               </div>
@@ -779,7 +777,7 @@ export default function EventCarPage() {
 
             <Link
               href={`/calendar/${eventId}`}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold self-start"
+              className="btn-secondary self-start"
             >
               <ArrowLeft size={16} /> Torna all’evento
             </Link>
@@ -792,13 +790,11 @@ export default function EventCarPage() {
               icon={<Clock3 size={18} className="text-yellow-600" />}
               label="Ore auto attuali"
               value={formatHours(car.hours)}
-              valueClassName="text-gray-900"
             />
             <SummaryCard
               icon={<Flag size={18} className="text-yellow-600" />}
               label="Turni evento"
               value={String(totalTurns)}
-              valueClassName="text-gray-900"
             />
             <SummaryCard
               icon={<ClipboardCheck size={18} className="text-yellow-600" />}
@@ -822,25 +818,21 @@ export default function EventCarPage() {
         </div>
       </section>
 
-      <section className="bg-white border rounded-xl shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Gauge className="text-yellow-500" /> Assetto
-          </h2>
-          <button
-            onClick={() => setSetupExpanded((v) => !v)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-          >
-            {setupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
-          </button>
-        </div>
+      <section className="card-base p-5 md:p-6">
+        <SectionHeader
+          title="Assetto"
+          subtitle="Scheda tecnica e modifica rapida setup"
+          icon={<Gauge className="text-yellow-500" />}
+          expanded={setupExpanded}
+          onToggle={() => setSetupExpanded((v) => !v)}
+        />
 
         {setupExpanded ? (
           <>
             <div className="flex flex-wrap gap-3 mb-4">
               <button
                 onClick={() => setTab("scheda")}
-                className={`px-4 py-2 rounded-lg font-semibold ${
+                className={`px-4 py-2 rounded-xl font-semibold ${
                   tab === "scheda"
                     ? "bg-yellow-400 text-black"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -850,7 +842,7 @@ export default function EventCarPage() {
               </button>
               <button
                 onClick={() => setTab("touch")}
-                className={`px-4 py-2 rounded-lg font-semibold ${
+                className={`px-4 py-2 rounded-xl font-semibold ${
                   tab === "touch"
                     ? "bg-yellow-400 text-black"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -860,33 +852,34 @@ export default function EventCarPage() {
               </button>
             </div>
 
-            <div className="transition-all duration-300">
-              {tab === "scheda" && (
-                <div className="flex flex-col gap-3">
-                  <SetupScheda eventCarId={eventCarId} />
+            {tab === "scheda" && (
+              <div className="flex flex-col gap-4">
+                <SetupScheda eventCarId={eventCarId} />
 
-                  <HistoryBar
-                    title="Ultimi 3 salvataggi Setup"
-                    rows={setupHistory}
-                    onOpen={loadSetup}
-                    onDelete={async (row) => {
-                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
-                      try {
-                        await deleteSectionRow(row.id, "setup");
-                        if (activeSetupId === row.id) setActiveSetupId(null);
-                      } catch (e: any) {
-                        showToast(`Errore eliminazione: ${e.message}`, "error");
-                      }
-                    }}
-                    activeId={activeSetupId}
-                  />
-                </div>
-              )}
+                <HistoryBar
+                  title="Ultimi 3 salvataggi Setup"
+                  rows={setupHistory}
+                  onOpen={loadSetup}
+                  onDelete={async (row) => {
+                    if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                    try {
+                      await deleteSectionRow(row.id, "setup");
+                      if (activeSetupId === row.id) setActiveSetupId(null);
+                    } catch (e: any) {
+                      showToast(`Errore eliminazione: ${e.message}`, "error");
+                    }
+                  }}
+                  activeId={activeSetupId}
+                />
+              </div>
+            )}
 
-              {tab === "touch" && (
-                <div className="flex flex-col gap-4">
+            {tab === "touch" && (
+              <div className="flex flex-col gap-4">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   {"imageUrl" in setupData && setupData.imageUrl ? (
-                    <div className="w-full flex justify-center">
+                    <div className="w-full flex justify-center mb-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={setupData.imageUrl}
                         alt="Auto centrale"
@@ -894,131 +887,114 @@ export default function EventCarPage() {
                       />
                     </div>
                   ) : (
-                    <div className="text-center text-xs text-gray-500">
+                    <div className="text-center text-xs text-gray-500 mb-4">
                       Immagine auto centrale non impostata
                     </div>
                   )}
 
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border p-2 text-left">Parametro</th>
-                        <th className="border p-2 text-left">Valore</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.keys(setupData || {}).length === 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="table-clean">
+                      <thead>
                         <tr>
-                          <td colSpan={2} className="p-3 text-center text-gray-400">
-                            Nessun parametro disponibile. Salva prima dalla scheda tecnica, poi modifica qui.
-                          </td>
+                          <th>Parametro</th>
+                          <th>Valore</th>
                         </tr>
-                      )}
-
-                      {Object.entries(setupData || {}).map(([key, value]) => {
-                        if (key === "imageUrl") return null;
-                        return (
-                          <tr key={key}>
-                            <td className="border p-2">{key}</td>
-                            <td className="border p-2">
-                              <input
-                                className="border rounded-lg p-1 w-full"
-                                value={String(value ?? "")}
-                                onChange={(e) =>
-                                  setSetupData((s) => ({
-                                    ...s,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                              />
+                      </thead>
+                      <tbody>
+                        {Object.keys(setupData || {}).length === 0 && (
+                          <tr>
+                            <td colSpan={2} className="p-3 text-center text-gray-400">
+                              Nessun parametro disponibile. Salva prima dalla scheda tecnica, poi modifica qui.
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        )}
 
-                  <div className="flex justify-center mt-2 mb-2">
-                    <button
-                      onClick={onSaveSetup}
-                      disabled={setupSaving}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
-                    >
-                      {setupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                      Salva Setup
-                      <CheckCircle2
-                        size={18}
-                        className={`transition-opacity ${setupTick ? "opacity-100" : "opacity-0"}`}
-                      />
-                    </button>
+                        {Object.entries(setupData || {}).map(([key, value]) => {
+                          if (key === "imageUrl") return null;
+                          return (
+                            <tr key={key}>
+                              <td>{key}</td>
+                              <td>
+                                <input
+                                  className="border rounded-xl p-2 w-full bg-white"
+                                  value={String(value ?? "")}
+                                  onChange={(e) =>
+                                    setSetupData((s) => ({
+                                      ...s,
+                                      [key]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-
-                  {lastSetupTime && (
-                    <p className="text-xs text-gray-500 text-center -mt-2">
-                      Ultimo salvataggio: {lastSetupTime}
-                    </p>
-                  )}
-
-                  <HistoryBar
-                    title="Ultimi 3 salvataggi Setup"
-                    rows={setupHistory}
-                    onOpen={loadSetup}
-                    onDelete={async (row) => {
-                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
-                      try {
-                        await deleteSectionRow(row.id, "setup");
-                        if (activeSetupId === row.id) setActiveSetupId(null);
-                      } catch (e: any) {
-                        showToast(`Errore eliminazione: ${e.message}`, "error");
-                      }
-                    }}
-                    activeId={activeSetupId}
-                  />
                 </div>
-              )}
-            </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={onSaveSetup}
+                    disabled={setupSaving}
+                    className="btn-primary"
+                  >
+                    {setupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                    Salva Setup
+                    <CheckCircle2
+                      size={18}
+                      className={`transition-opacity ${setupTick ? "opacity-100" : "opacity-0"}`}
+                    />
+                  </button>
+                </div>
+
+                {lastSetupTime && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Ultimo salvataggio: {lastSetupTime}
+                  </p>
+                )}
+
+                <HistoryBar
+                  title="Ultimi 3 salvataggi Setup"
+                  rows={setupHistory}
+                  onOpen={loadSetup}
+                  onDelete={async (row) => {
+                    if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                    try {
+                      await deleteSectionRow(row.id, "setup");
+                      if (activeSetupId === row.id) setActiveSetupId(null);
+                    } catch (e: any) {
+                      showToast(`Errore eliminazione: ${e.message}`, "error");
+                    }
+                  }}
+                  activeId={activeSetupId}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className="text-sm text-gray-500">Vista sintetica</div>
         )}
       </section>
 
-      <section id="checkup-section" className="bg-white border rounded-2xl shadow-sm p-5 md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-              <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Controlli divisi per area per leggere tutto più velocemente in pista
-            </p>
-          </div>
-
-          <button
-            onClick={() => setCheckupExpanded((v) => !v)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-          >
-            {checkupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
-          </button>
-        </div>
+      <section id="checkup-section" className="card-base p-5 md:p-6">
+        <SectionHeader
+          title="Check-up tecnico"
+          subtitle="Controlli divisi per area per leggere tutto più velocemente in pista"
+          icon={<ClipboardCheck className="text-yellow-500" />}
+          expanded={checkupExpanded}
+          onToggle={() => setCheckupExpanded((v) => !v)}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <div className="rounded-xl border bg-green-50 border-green-200 p-4">
-            <div className="text-xs uppercase tracking-wide text-green-700">Controlli OK</div>
-            <div className="text-2xl font-bold text-green-800 mt-1">{statusCounts.OK}</div>
-          </div>
-
-          <div className="rounded-xl border bg-yellow-50 border-yellow-200 p-4">
-            <div className="text-xs uppercase tracking-wide text-yellow-700">Da controllare</div>
-            <div className="text-2xl font-bold text-yellow-800 mt-1">
-              {statusCounts["Da controllare"]}
-            </div>
-          </div>
-
-          <div className="rounded-xl border bg-red-50 border-red-200 p-4">
-            <div className="text-xs uppercase tracking-wide text-red-700">Problemi</div>
-            <div className="text-2xl font-bold text-red-800 mt-1">{statusCounts.Problema}</div>
-          </div>
+          <StatusSummaryCard title="Controlli OK" value={statusCounts.OK} tone="green" />
+          <StatusSummaryCard
+            title="Da controllare"
+            value={statusCounts["Da controllare"]}
+            tone="yellow"
+          />
+          <StatusSummaryCard title="Problemi" value={statusCounts.Problema} tone="red" />
         </div>
 
         {checkupExpanded ? (
@@ -1098,7 +1074,7 @@ export default function EventCarPage() {
                                 onClick={() =>
                                   showToast(`Segnalazione manutenzione per: ${item} (funzione da collegare)`)
                                 }
-                                className="sm:w-auto px-4 py-3 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold"
+                                className="px-4 py-3 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold"
                               >
                                 Crea manutenzione
                               </button>
@@ -1112,11 +1088,11 @@ export default function EventCarPage() {
               ))}
             </div>
 
-            <div className="flex justify-center mt-4 mb-2">
+            <div className="flex justify-center mb-2">
               <button
                 onClick={onSaveCheckup}
                 disabled={checkupSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+                className="btn-primary"
               >
                 {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                 Salva Check-up
@@ -1152,40 +1128,33 @@ export default function EventCarPage() {
         )}
       </section>
 
-      <section className="bg-white border rounded-2xl shadow-sm p-5 md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Clock3 className="text-yellow-500" /> Turni Svolti
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Gestione turni, modifiche rapide e riepilogo ore evento
-            </p>
-          </div>
-
-          <button
-            onClick={() => setTurnsExpanded((v) => !v)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-          >
-            {turnsExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
-          </button>
-        </div>
+      <section className="card-base p-5 md:p-6">
+        <SectionHeader
+          title="Turni svolti"
+          subtitle="Gestione turni, modifiche rapide e riepilogo ore evento"
+          icon={<Clock3 className="text-yellow-500" />}
+          expanded={turnsExpanded}
+          onToggle={() => setTurnsExpanded((v) => !v)}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <div className="rounded-xl border bg-gray-50 p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Turni totali</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">{totalTurns}</div>
-          </div>
-
-          <div className="rounded-xl border bg-gray-50 p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Minuti totali</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">{totalMinutes}</div>
-          </div>
-
-          <div className="rounded-xl border bg-yellow-50 border-yellow-300 p-4">
-            <div className="text-xs uppercase tracking-wide text-yellow-700">Ore evento</div>
-            <div className="text-2xl font-bold text-yellow-800 mt-1">{totalHours.toFixed(2)} h</div>
-          </div>
+          <SummaryCard
+            icon={<Flag size={18} className="text-yellow-600" />}
+            label="Turni totali"
+            value={String(totalTurns)}
+          />
+          <SummaryCard
+            icon={<Clock3 size={18} className="text-yellow-600" />}
+            label="Minuti totali"
+            value={String(totalMinutes)}
+          />
+          <SummaryCard
+            icon={<Clock3 size={18} className="text-yellow-600" />}
+            label="Ore evento"
+            value={`${totalHours.toFixed(2)} h`}
+            valueClassName="text-yellow-800"
+            cardClassName="bg-yellow-50 border-yellow-300"
+          />
         </div>
 
         {turnsExpanded ? (
@@ -1302,7 +1271,7 @@ export default function EventCarPage() {
                     placeholder="Es. 20"
                     value={newTurn.durata}
                     onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                    className="border rounded-xl p-3 text-sm w-full bg-white"
                   />
                 </div>
 
@@ -1315,7 +1284,7 @@ export default function EventCarPage() {
                     placeholder="Es. 12"
                     value={newTurn.giri}
                     onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                    className="border rounded-xl p-3 text-sm w-full bg-white"
                   />
                 </div>
 
@@ -1328,7 +1297,7 @@ export default function EventCarPage() {
                     placeholder="Annotazioni turno"
                     value={newTurn.note}
                     onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                    className="border rounded-xl p-3 text-sm w-full bg-white"
                   />
                 </div>
               </div>
@@ -1337,7 +1306,7 @@ export default function EventCarPage() {
                 <button
                   onClick={saveTurn}
                   disabled={turnsSaving}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-xl shadow-sm"
+                  className="btn-primary"
                 >
                   {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : editingTurn ? "💾" : "➕"}
                   {editingTurn ? "Salva modifica" : "Aggiungi turno"}
@@ -1347,7 +1316,7 @@ export default function EventCarPage() {
                   <button
                     onClick={resetTurnForm}
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold rounded-xl shadow-sm"
+                    className="btn-secondary"
                   >
                     Annulla modifica
                   </button>
@@ -1362,43 +1331,30 @@ export default function EventCarPage() {
         )}
       </section>
 
-      <section className="bg-white border rounded-2xl shadow-sm p-5 md:p-6 relative">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Fuel className="text-yellow-500" /> Gestione carburante
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Analisi consumo, autonomia residua e carburante da aggiungere
-            </p>
-          </div>
-
-          <button
-            onClick={() => setFuelExpanded((v) => !v)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-          >
-            {fuelExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
-          </button>
-        </div>
+      <section className="card-base p-5 md:p-6">
+        <SectionHeader
+          title="Gestione carburante"
+          subtitle="Analisi consumo, autonomia residua e carburante da aggiungere"
+          icon={<Fuel className="text-yellow-500" />}
+          expanded={fuelExpanded}
+          onToggle={() => setFuelExpanded((v) => !v)}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
           <SummaryCard
             icon={<Droplets size={18} className="text-yellow-600" />}
             label="Consumato"
             value={fuelUsed !== null ? formatLiters(fuelUsed, 1) : "—"}
-            valueClassName="text-gray-900"
           />
           <SummaryCard
             icon={<Fuel size={18} className="text-yellow-600" />}
             label="Consumo medio/giro"
             value={fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L` : "—"}
-            valueClassName="text-gray-900"
           />
           <SummaryCard
             icon={<Flag size={18} className="text-yellow-600" />}
             label="Autonomia residua"
             value={estimatedLapsRemaining > 0 ? `${estimatedLapsRemaining.toFixed(1)} giri` : "—"}
-            valueClassName="text-gray-900"
           />
           <SummaryCard
             icon={<TriangleAlert size={18} className="text-yellow-600" />}
@@ -1439,337 +1395,4 @@ export default function EventCarPage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
-              <h3 className="text-base font-bold text-gray-800 mb-4">
-                Dati sessione e previsione
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-                <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
-                <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
-                <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
-                <NumberCard
-                  label="Giri previsti prossimo turno"
-                  value={lapsPlanned}
-                  setValue={setLapsPlanned}
-                  integer
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <ReadOnlyCard
-                  label="Carburante consumato"
-                  value={fuelUsed !== null ? formatLiters(fuelUsed, 1) : "—"}
-                />
-                <ReadOnlyCard
-                  label="Consumo medio a giro"
-                  value={fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
-                />
-                <ReadOnlyCard
-                  label="Autonomia residua"
-                  value={estimatedLapsRemaining > 0 ? `${estimatedLapsRemaining.toFixed(1)} giri` : "—"}
-                />
-                <HighlightCard
-                  label="Carburante da aggiungere"
-                  value={fuelToAdd > 0 ? formatLiters(fuelToAdd, 1) : "—"}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-center mt-5 mb-2">
-              <button
-                onClick={onSaveFuel}
-                disabled={fuelSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
-              >
-                {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                Salva carburante
-                <CheckCircle2
-                  size={18}
-                  className={`transition-opacity ${fuelTick ? "opacity-100" : "opacity-0"}`}
-                />
-              </button>
-            </div>
-
-            <HistoryBar
-              title="Ultimi 3 salvataggi Carburante"
-              rows={fuelHistory}
-              onOpen={loadFuel}
-              onDelete={async (row) => {
-                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
-                try {
-                  await deleteSectionRow(row.id, "fuel");
-                  if (activeFuelId === row.id) setActiveFuelId(null);
-                } catch (e: any) {
-                  showToast(`Errore eliminazione: ${e.message}`, "error");
-                }
-              }}
-              activeId={activeFuelId}
-            />
-          </>
-        ) : (
-          <div className="text-sm text-gray-500">
-            {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "Consumo non calcolabile"} •{" "}
-            {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L da aggiungere` : "nessun rabbocco stimato"}
-          </div>
-        )}
-      </section>
-
-      <section className="bg-white border rounded-2xl shadow-sm p-5 md:p-6 relative">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-              <StickyNote className="text-yellow-500" /> Note e osservazioni
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Annotazioni pilota, problemi emersi, modifiche da ricordare e feedback pista
-            </p>
-          </div>
-
-          <button
-            onClick={() => setNotesExpanded((v) => !v)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-          >
-            {notesExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <SummaryCard
-            icon={<FileText size={18} className="text-yellow-600" />}
-            label="Lunghezza note"
-            value={`${notesLength} caratteri`}
-            valueClassName="text-gray-900"
-          />
-          <SummaryCard
-            icon={<StickyNote size={18} className="text-yellow-600" />}
-            label="Stato contenuto"
-            value={notesLength > 0 ? "Compilate" : "Vuote"}
-            valueClassName={notesLength > 0 ? "text-green-700" : "text-yellow-700"}
-          />
-          <SummaryCard
-            icon={<Clock3 size={18} className="text-yellow-600" />}
-            label="Ultimo salvataggio"
-            value={lastNotesTime || "—"}
-            valueClassName="text-gray-900 text-sm"
-          />
-        </div>
-
-        {notesExpanded ? (
-          <>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-bold text-gray-800">Taccuino evento</h3>
-                <span className="text-xs text-gray-500">{notesLength} caratteri</span>
-              </div>
-
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Annota eventuali problemi, sensazioni del pilota, modifiche da fare, condizioni pista, meteo, comportamento vettura..."
-                className="border rounded-xl p-4 w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none min-h-[180px]"
-                rows={7}
-              />
-
-              <div className="mt-3 text-xs text-gray-500">
-                Suggerimento: usa le note per segnare comportamento vettura, consumo gomme, correzioni assetto e lavori da fare prima del prossimo turno.
-              </div>
-            </div>
-
-            <div className="flex justify-center mt-4 mb-2">
-              <button
-                onClick={onSaveNotes}
-                disabled={notesSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
-              >
-                {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                Salva Note
-                <CheckCircle2
-                  size={18}
-                  className={`transition-opacity ${notesTick ? "opacity-100" : "opacity-0"}`}
-                />
-              </button>
-            </div>
-
-            <HistoryBar
-              title="Ultimi 3 salvataggi Note"
-              rows={notesHistory}
-              onOpen={loadNotes}
-              onDelete={async (row) => {
-                if (!confirm("Vuoi davvero eliminare questo salvataggio?")) return;
-                try {
-                  await deleteSectionRow(row.id, "notes");
-                  if (activeNotesId === row.id) setActiveNotesId(null);
-                } catch (e: any) {
-                  showToast(`Errore eliminazione: ${e.message}`, "error");
-                }
-              }}
-              activeId={activeNotesId}
-            />
-          </>
-        ) : (
-          <div className="text-sm text-gray-500">
-            {notesLength > 0 ? `${notesLength} caratteri salvati nelle note evento` : "Nessuna annotazione presente"}
-          </div>
-        )}
-      </section>
-
-      {toast.show && (
-        <div
-          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-lg shadow-lg font-semibold ${
-            toast.type === "success"
-              ? "bg-yellow-400 text-black"
-              : "bg-red-600 text-white"
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ---------------- UI SUBCOMPONENTS ---------------- */
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  valueClassName = "text-gray-900",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-gray-50 p-4">
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`text-xl font-bold mt-2 ${valueClassName}`}>{value}</div>
-    </div>
-  );
-}
-
-function HistoryBar({
-  title,
-  rows,
-  onOpen,
-  onDelete,
-  activeId,
-}: {
-  title: string;
-  rows: DataRow[];
-  onOpen: (row: DataRow) => void;
-  onDelete?: (row: DataRow) => void;
-  activeId?: string | null;
-}) {
-  return (
-    <div className="mt-4 border-t pt-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
-        <div className="text-xs text-gray-500 flex items-center gap-1">
-          <RotateCcw size={14} /> Storico
-        </div>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="text-sm text-gray-500">Nessun salvataggio disponibile.</p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {rows.map((r) => {
-            const isActive = activeId && r.id === activeId;
-            return (
-              <li
-                key={r.id}
-                className={`flex items-center justify-between border rounded px-3 py-2 text-sm transition-all ${
-                  isActive ? "bg-yellow-100 border-yellow-400 shadow-inner" : "hover:bg-gray-50"
-                }`}
-              >
-                <button
-                  onClick={() => onOpen(r)}
-                  className="flex-1 text-left"
-                  title="Apri questo salvataggio"
-                >
-                  {new Date(r.created_at).toLocaleString()}
-                </button>
-
-                <div className="flex items-center gap-3">
-                  {isActive ? (
-                    <span className="text-green-700 font-semibold">✅ Aperto</span>
-                  ) : (
-                    <button onClick={() => onOpen(r)} className="text-yellow-600 font-semibold">
-                      🔄 Apri
-                    </button>
-                  )}
-
-                  {onDelete && (
-                    <button
-                      onClick={() => onDelete(r)}
-                      className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
-                      title="Elimina salvataggio"
-                    >
-                      <Trash2 size={14} /> Elimina
-                    </button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function NumberCard({
-  label,
-  value,
-  setValue,
-  integer = false,
-}: {
-  label: string;
-  value: number;
-  setValue: (n: number) => void;
-  integer?: boolean;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <input
-        type="number"
-        value={Number.isFinite(value) ? value : 0}
-        onChange={(e) =>
-          setValue(
-            integer
-              ? parseInt(e.target.value || "0", 10)
-              : parseFloat(e.target.value || "0")
-          )
-        }
-        className="border rounded-lg p-2 w-full text-center focus:ring-2 focus:ring-yellow-300 outline-none"
-      />
-    </div>
-  );
-}
-
-function ReadOnlyCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <div className="border rounded-lg p-2 bg-gray-50 text-center font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function HighlightCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <div className="rounded-lg p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
-        {value}
-      </div>
-    </div>
-  );
-}
+            <div
