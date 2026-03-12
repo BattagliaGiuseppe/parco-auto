@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LayoutDashboard,
   Wrench,
+  Calendar,
   CalendarDays,
   Fuel,
   NotebookPen,
