@@ -330,12 +330,12 @@ export default function ComponentsPage() {
             </div>
 
             <button
-  type="button"
-  className="btn-primary opacity-70 cursor-not-allowed"
-  title="Creazione guidata componente da attivare"
->
-  <PlusCircle size={18} /> Nuovo componente
-</button>
+              type="button"
+              className="btn-primary opacity-70 cursor-not-allowed"
+              title="Creazione guidata componente da attivare"
+            >
+              <PlusCircle size={18} /> Nuovo componente
+            </button>
           </div>
         </div>
 
@@ -599,23 +599,23 @@ function ComponentCard({
         </div>
       </div>
 
-    <div className="mt-5 flex flex-col sm:flex-row gap-3">
-  <Link
-    href={`/maintenances`}
-    className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2"
-  >
-    <Wrench size={16} />
-    Crea manutenzione
-  </Link>
+      <div className="mt-5 flex flex-col sm:flex-row gap-3">
+        <Link
+          href={`/maintenances`}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2"
+        >
+          <Wrench size={16} />
+          Crea manutenzione
+        </Link>
 
-  <button
-    type="button"
-    className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-500 font-semibold px-4 py-2 opacity-70 cursor-not-allowed"
-    title="Dettaglio componente da attivare"
-  >
-    Apri dettaglio <ArrowRight size={16} />
-  </button>
-</div>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-500 font-semibold px-4 py-2 opacity-70 cursor-not-allowed"
+          title="Dettaglio componente da attivare"
+        >
+          Apri dettaglio <ArrowRight size={16} />
+        </button>
+      </div>
     </article>
   );
 }
@@ -673,30 +673,5 @@ function InfoBox({
       <div className="mt-2 font-bold text-neutral-900">{value}</div>
       {subvalue && <div className="text-xs text-neutral-500 mt-1">{subvalue}</div>}
     </div>
-  );
-}
-
-function QuickActionCard({
-  href,
-  icon,
-  title,
-  subtitle,
-}: {
-  href: string;
-  icon: ReactNode;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 hover:bg-yellow-50 hover:border-yellow-300 transition-colors"
-    >
-      <div className="flex items-center gap-2 text-neutral-800 font-semibold">
-        <span className="text-yellow-600">{icon}</span>
-        <span>{title}</span>
-      </div>
-      <div className="mt-2 text-sm text-neutral-500">{subtitle}</div>
-    </Link>
   );
 }
