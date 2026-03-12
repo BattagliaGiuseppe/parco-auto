@@ -1,4 +1,4 @@
-"use client";
+""use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -27,14 +27,19 @@ type EventRow = {
   date: string | null;
   name: string;
   notes: string | null;
-  circuit_id: { id: string; name: string } | null;
+  circuit_id: { id: string; name: string } | { id: string; name: string }[] | null;
 };
 
 type EventCarRow = {
   id: string;
-  car_id: { id: string; name: string } | null;
+  car_id: { id: string; name: string } | { id: string; name: string }[] | null;
   status: string | null;
 };
+
+function normalizeRelation<T>(value: T | T[] | null): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -68,12 +73,24 @@ export default function CalendarPage() {
 
   const fetchEvents = async () => {
     setLoading(true);
+
     const { data, error } = await supabase
       .from("events")
       .select("id, date, name, notes, circuit_id (id, name)")
       .order("date", { ascending: false });
 
-    if (!error) setEvents((data as EventRow[]) || []);
+    if (!error) {
+      const normalized: EventRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        date: row.date,
+        name: row.name,
+        notes: row.notes,
+        circuit_id: row.circuit_id,
+      }));
+
+      setEvents(normalized);
+    }
+
     setLoading(false);
   };
 
@@ -94,7 +111,15 @@ export default function CalendarPage() {
       .eq("event_id", eventId)
       .order("created_at", { ascending: true });
 
-    if (!error) setEventCars((data as EventCarRow[]) || []);
+    if (!error) {
+      const normalized: EventCarRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        car_id: row.car_id,
+        status: row.status,
+      }));
+
+      setEventCars(normalized);
+    }
   };
 
   useEffect(() => {
@@ -105,7 +130,7 @@ export default function CalendarPage() {
 
   const totalEvents = events.length;
   const eventsWithCircuit = useMemo(
-    () => events.filter((ev) => Boolean(ev.circuit_id?.id)).length,
+    () => events.filter((ev) => Boolean(normalizeRelation(ev.circuit_id)?.id)).length,
     [events]
   );
   const eventsWithNotes = useMemo(
@@ -122,11 +147,13 @@ export default function CalendarPage() {
   }, [events]);
 
   const openModal = (ev: EventRow | null = null) => {
+    const normalizedCircuit = normalizeRelation(ev?.circuit_id ?? null);
+
     setEditing(ev);
     setFormDate(ev?.date?.split("T")[0] || "");
     setFormName(ev?.name || "");
     setFormNotes(ev?.notes || "");
-    setFormCircuitId(ev?.circuit_id?.id?.toString?.() || "");
+    setFormCircuitId(normalizedCircuit?.id?.toString?.() || "");
     setModalOpen(true);
 
     if (ev?.id) fetchEventCars(ev.id);
@@ -331,78 +358,86 @@ export default function CalendarPage() {
                 </tr>
               </thead>
               <tbody>
-                {events.map((ev) => (
-                  <tr key={ev.id}>
-                    <td>{formatDate(ev.date)}</td>
-                    <td>{ev.name}</td>
-                    <td>{ev.circuit_id?.name || "—"}</td>
-                    <td>
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => openModal(ev)}
-                          className="btn-primary !px-3 !py-2 !rounded-lg"
-                        >
-                          <Edit size={14} /> Modifica
-                        </button>
+                {events.map((ev) => {
+                  const circuit = normalizeRelation(ev.circuit_id);
 
-                        <Link
-                          href={`/calendar/${ev.id}`}
-                          className="btn-dark !px-3 !py-2 !rounded-lg"
-                        >
-                          <Wrench size={14} /> Gestisci
-                        </Link>
+                  return (
+                    <tr key={ev.id}>
+                      <td>{formatDate(ev.date)}</td>
+                      <td>{ev.name}</td>
+                      <td>{circuit?.name || "—"}</td>
+                      <td>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => openModal(ev)}
+                            className="btn-primary !px-3 !py-2 !rounded-lg"
+                          >
+                            <Edit size={14} /> Modifica
+                          </button>
 
-                        <button
-                          onClick={() => handleDeleteEvent(ev.id)}
-                          className="btn-danger !px-3 !py-2 !rounded-lg"
-                        >
-                          <Trash2 size={14} /> Elimina
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <Link
+                            href={`/calendar/${ev.id}`}
+                            className="btn-dark !px-3 !py-2 !rounded-lg"
+                          >
+                            <Wrench size={14} /> Gestisci
+                          </Link>
+
+                          <button
+                            onClick={() => handleDeleteEvent(ev.id)}
+                            className="btn-danger !px-3 !py-2 !rounded-lg"
+                          >
+                            <Trash2 size={14} /> Elimina
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:hidden">
-            {events.map((ev) => (
-              <article key={ev.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-neutral-900">{ev.name}</h3>
-                    <div className="mt-1 text-sm text-neutral-600">{formatDate(ev.date)}</div>
-                    <div className="mt-1 text-sm text-neutral-500">
-                      {ev.circuit_id?.name || "Autodromo non specificato"}
+            {events.map((ev) => {
+              const circuit = normalizeRelation(ev.circuit_id);
+
+              return (
+                <article key={ev.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-neutral-900">{ev.name}</h3>
+                      <div className="mt-1 text-sm text-neutral-600">{formatDate(ev.date)}</div>
+                      <div className="mt-1 text-sm text-neutral-500">
+                        {circuit?.name || "Autodromo non specificato"}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={() => openModal(ev)}
-                    className="btn-primary !px-3 !py-2 !rounded-lg flex-1"
-                  >
-                    <Edit size={14} /> Modifica
-                  </button>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => openModal(ev)}
+                      className="btn-primary !px-3 !py-2 !rounded-lg flex-1"
+                    >
+                      <Edit size={14} /> Modifica
+                    </button>
 
-                  <Link
-                    href={`/calendar/${ev.id}`}
-                    className="btn-dark !px-3 !py-2 !rounded-lg flex-1 text-center"
-                  >
-                    <Wrench size={14} /> Gestisci
-                  </Link>
+                    <Link
+                      href={`/calendar/${ev.id}`}
+                      className="btn-dark !px-3 !py-2 !rounded-lg flex-1 text-center"
+                    >
+                      <Wrench size={14} /> Gestisci
+                    </Link>
 
-                  <button
-                    onClick={() => handleDeleteEvent(ev.id)}
-                    className="btn-danger !px-3 !py-2 !rounded-lg flex-1"
-                  >
-                    <Trash2 size={14} /> Elimina
-                  </button>
-                </div>
-              </article>
-            ))}
+                    <button
+                      onClick={() => handleDeleteEvent(ev.id)}
+                      className="btn-danger !px-3 !py-2 !rounded-lg flex-1"
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
@@ -513,28 +548,32 @@ export default function CalendarPage() {
                     <p className="text-neutral-500 text-sm">Nessuna auto collegata</p>
                   ) : (
                     <div className="flex flex-col gap-3">
-                      {eventCars.map((ec) => (
-                        <div
-                          key={ec.id}
-                          className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between gap-3"
-                        >
-                          <div>
-                            <div className="font-semibold text-neutral-900">
-                              {ec.car_id?.name || "Auto non trovata"}
-                            </div>
-                            <div className="text-sm text-neutral-500 capitalize">
-                              {ec.status || "in corso"}
-                            </div>
-                          </div>
+                      {eventCars.map((ec) => {
+                        const car = normalizeRelation(ec.car_id);
 
-                          <button
-                            onClick={() => handleRemoveCarFromEvent(ec.id)}
-                            className="text-red-600 hover:text-red-800 text-sm font-semibold inline-flex items-center gap-1"
+                        return (
+                          <div
+                            key={ec.id}
+                            className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between gap-3"
                           >
-                            <Trash2 size={14} /> Rimuovi
-                          </button>
-                        </div>
-                      ))}
+                            <div>
+                              <div className="font-semibold text-neutral-900">
+                                {car?.name || "Auto non trovata"}
+                              </div>
+                              <div className="text-sm text-neutral-500 capitalize">
+                                {ec.status || "in corso"}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleRemoveCarFromEvent(ec.id)}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold inline-flex items-center gap-1"
+                            >
+                              <Trash2 size={14} /> Rimuovi
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
