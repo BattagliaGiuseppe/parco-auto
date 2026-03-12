@@ -329,9 +329,13 @@ export default function ComponentsPage() {
               </p>
             </div>
 
-            <Link href="/components/new" className="btn-primary">
-              <PlusCircle size={18} /> Nuovo componente
-            </Link>
+            <button
+  type="button"
+  className="btn-primary opacity-70 cursor-not-allowed"
+  title="Creazione guidata componente da attivare"
+>
+  <PlusCircle size={18} /> Nuovo componente
+</button>
           </div>
         </div>
 
@@ -595,22 +599,23 @@ function ComponentCard({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col sm:flex-row gap-3">
-        <Link
-          href={`/maintenances`}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2"
-        >
-          <Wrench size={16} />
-          Crea manutenzione
-        </Link>
+    <div className="mt-5 flex flex-col sm:flex-row gap-3">
+  <Link
+    href={`/maintenances`}
+    className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2"
+  >
+    <Wrench size={16} />
+    Crea manutenzione
+  </Link>
 
-        <Link
-          href={`/components/${component.id}`}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-800 font-semibold px-4 py-2"
-        >
-          Apri dettaglio <ArrowRight size={16} />
-        </Link>
-      </div>
+  <button
+    type="button"
+    className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-500 font-semibold px-4 py-2 opacity-70 cursor-not-allowed"
+    title="Dettaglio componente da attivare"
+  >
+    Apri dettaglio <ArrowRight size={16} />
+  </button>
+</div>
     </article>
   );
 }
