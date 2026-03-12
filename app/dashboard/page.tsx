@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -13,6 +14,9 @@ import {
   Flag,
   Clock3,
   TriangleAlert,
+  PlusCircle,
+  CalendarDays,
+  Cog,
 } from "lucide-react";
 import {
   BarChart,
@@ -302,6 +306,40 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section className="card-base p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <PlusCircle className="text-yellow-500" size={18} />
+          <h2 className="text-lg font-bold text-neutral-800">Azioni rapide</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <QuickActionCard
+            href="/cars"
+            icon={<CarFront size={18} />}
+            title="Gestione auto"
+            subtitle="Aggiungi o modifica auto"
+          />
+          <QuickActionCard
+            href="/components"
+            icon={<Cog size={18} />}
+            title="Componenti"
+            subtitle="Controlla componenti e scadenze"
+          />
+          <QuickActionCard
+            href="/maintenances"
+            icon={<Wrench size={18} />}
+            title="Manutenzioni"
+            subtitle="Registra nuovi interventi"
+          />
+          <QuickActionCard
+            href="/calendar"
+            icon={<CalendarDays size={18} />}
+            title="Eventi"
+            subtitle="Gestisci calendario e gare"
+          />
+        </div>
+      </section>
+
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card-base p-5">
           <div className="flex items-center gap-2 mb-3">
@@ -521,5 +559,30 @@ function MiniInfoCard({ label, value }: { label: string; value: string }) {
       <div className="text-xs text-neutral-500">{label}</div>
       <div className="mt-1 text-sm font-semibold text-neutral-900">{value}</div>
     </div>
+  );
+}
+
+function QuickActionCard({
+  href,
+  icon,
+  title,
+  subtitle,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 hover:bg-yellow-50 hover:border-yellow-300 transition-colors"
+    >
+      <div className="flex items-center gap-2 text-neutral-800 font-semibold">
+        <span className="text-yellow-600">{icon}</span>
+        <span>{title}</span>
+      </div>
+      <div className="mt-2 text-sm text-neutral-500">{subtitle}</div>
+    </Link>
   );
 }
