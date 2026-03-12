@@ -73,7 +73,7 @@ function normalizeCarRelation(value: CarRow | CarRow[] | null): CarRow | null {
   return value;
 }
 
- function formatHours(value: number | null | undefined) {
+function formatHours(value: number | null | undefined) {
   const totalMinutes = Math.round(Number(value ?? 0) * 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -743,7 +743,6 @@ export default function EventCarPage() {
                 <div className="flex flex-col gap-4">
                   {"imageUrl" in setupData && setupData.imageUrl ? (
                     <div className="w-full flex justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={setupData.imageUrl}
                         alt="Auto centrale"
@@ -985,65 +984,113 @@ export default function EventCarPage() {
 
       <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-      <section className="bg-white border rounded-xl shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Clock3 className="text-yellow-500" /> Turni Svolti{" "}
-            <span className="ml-1 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-gray-800">
-              {totalTurns}
-            </span>
-          </h2>
+      <section className="bg-white border rounded-2xl shadow-sm p-5 md:p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
+          <div>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Clock3 className="text-yellow-500" /> Turni Svolti
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Gestione turni, modifiche rapide e riepilogo ore evento
+            </p>
+          </div>
+
           <button
             onClick={() => setTurnsExpanded((v) => !v)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
           >
             {turnsExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
           </button>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Turni totali</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{totalTurns}</div>
+          </div>
+
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Minuti totali</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{totalMinutes}</div>
+          </div>
+
+          <div className="rounded-xl border bg-yellow-50 border-yellow-300 p-4">
+            <div className="text-xs uppercase tracking-wide text-yellow-700">Ore evento</div>
+            <div className="text-2xl font-bold text-yellow-800 mt-1">{totalHours.toFixed(2)} h</div>
+          </div>
+        </div>
+
         {turnsExpanded ? (
           <>
-            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex items-center justify-between">
-              <span className="font-semibold text-gray-700">
-                Turni totali: <span className="text-gray-900">{totalTurns}</span>
-              </span>
-              <span className="font-semibold text-gray-700">
-                Ore totali evento: <span className="text-yellow-700">{totalHours.toFixed(2)} h</span>
-              </span>
-            </div>
-
             {editingTurn && (
-              <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 font-semibold">
-                Stai modificando un turno esistente.
+              <div className="mb-4 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 font-semibold">
+                Stai modificando un turno esistente. Salva le modifiche oppure annulla.
               </div>
             )}
 
-            <table className="w-full text-sm border-collapse mb-4">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border p-2">#</th>
-                  <th className="border p-2">Durata (min)</th>
-                  <th className="border p-2">Giri</th>
-                  <th className="border p-2">Note</th>
-                  <th className="border p-2 text-center">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {turns.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center text-gray-400 p-3">
-                      Nessun turno registrato
-                    </td>
-                  </tr>
-                ) : (
-                  turns.map((t, i) => (
-                    <tr key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="border p-2 text-center">{i + 1}</td>
-                      <td className="border p-2 text-center">{t.minutes}</td>
-                      <td className="border p-2 text-center">{t.laps}</td>
-                      <td className="border p-2">{t.notes}</td>
-                      <td className="border p-2 text-center">
-                        <div className="flex items-center justify-center gap-3">
+            <div className="rounded-2xl border border-gray-200 overflow-hidden mb-5">
+              <div className="hidden md:grid grid-cols-12 bg-gray-100 text-gray-700 text-sm font-semibold">
+                <div className="col-span-1 p-3 text-center">#</div>
+                <div className="col-span-2 p-3 text-center">Durata</div>
+                <div className="col-span-2 p-3 text-center">Giri</div>
+                <div className="col-span-4 p-3">Note</div>
+                <div className="col-span-3 p-3 text-center">Azioni</div>
+              </div>
+
+              {turns.length === 0 ? (
+                <div className="p-6 text-center text-gray-400">Nessun turno registrato</div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {turns.map((t, i) => (
+                    <div key={t.id}>
+                      <div className="hidden md:grid grid-cols-12 items-center text-sm bg-white">
+                        <div className="col-span-1 p-3 text-center font-semibold text-gray-700">
+                          {i + 1}
+                        </div>
+                        <div className="col-span-2 p-3 text-center">{t.minutes} min</div>
+                        <div className="col-span-2 p-3 text-center">{t.laps}</div>
+                        <div className="col-span-4 p-3 text-gray-700">{t.notes || "—"}</div>
+                        <div className="col-span-3 p-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingTurn(t);
+                                setNewTurn({
+                                  durata: String(t.minutes ?? ""),
+                                  giri: String(t.laps ?? ""),
+                                  note: t.notes || "",
+                                });
+                              }}
+                              className="px-3 py-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-semibold"
+                            >
+                              ✏️ Modifica
+                            </button>
+
+                            <button
+                              onClick={() => deleteTurn(t.id)}
+                              className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold"
+                            >
+                              Elimina
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="md:hidden p-4 bg-white">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">Turno #{i + 1}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {t.minutes} min • {t.laps} giri
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 text-sm text-gray-700">
+                          <span className="font-semibold">Note:</span> {t.notes || "—"}
+                        </div>
+
+                        <div className="mt-4 flex flex-col sm:flex-row gap-2">
                           <button
                             onClick={() => {
                               setEditingTurn(t);
@@ -1053,70 +1100,91 @@ export default function EventCarPage() {
                                 note: t.notes || "",
                               });
                             }}
-                            className="text-yellow-700 hover:text-yellow-900 text-xs font-semibold inline-flex items-center gap-1"
-                            title="Modifica turno"
+                            className="flex-1 px-3 py-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-sm font-semibold"
                           >
                             ✏️ Modifica
                           </button>
 
                           <button
                             onClick={() => deleteTurn(t.id)}
-                            className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
-                            title="Elimina turno"
+                            className="flex-1 px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold"
                           >
-                            <Trash2 size={14} /> Elimina
+                            Elimina
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-              <input
-                type="number"
-                placeholder="Durata (minuti)"
-                value={newTurn.durata}
-                onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
-                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-              />
-              <input
-                type="number"
-                placeholder="Giri"
-                value={newTurn.giri}
-                onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
-                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-              />
-              <input
-                type="text"
-                placeholder="Note"
-                value={newTurn.note}
-                onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
-                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
-              />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={saveTurn}
-                disabled={turnsSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
-              >
-                {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : editingTurn ? "💾" : "➕"}
-                {editingTurn ? "Salva modifica" : "Aggiungi Turno"}
-              </button>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5">
+              <h3 className="text-base font-bold text-gray-800 mb-4">
+                {editingTurn ? "Modifica turno" : "Aggiungi nuovo turno"}
+              </h3>
 
-              {editingTurn && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Durata (minuti)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Es. 20"
+                    value={newTurn.durata}
+                    onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
+                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Giri
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Es. 12"
+                    value={newTurn.giri}
+                    onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
+                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Note
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Annotazioni turno"
+                    value={newTurn.note}
+                    onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
+                    className="border rounded-xl p-3 text-sm w-full bg-white focus:ring-2 focus:ring-yellow-300 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={resetTurnForm}
-                  type="button"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm"
+                  onClick={saveTurn}
+                  disabled={turnsSaving}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-xl shadow-sm"
                 >
-                  Annulla modifica
+                  {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : editingTurn ? "💾" : "➕"}
+                  {editingTurn ? "Salva modifica" : "Aggiungi turno"}
                 </button>
-              )}
+
+                {editingTurn && (
+                  <button
+                    onClick={resetTurnForm}
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold rounded-xl shadow-sm"
+                  >
+                    Annulla modifica
+                  </button>
+                )}
+              </div>
             </div>
           </>
         ) : (
