@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   PlusCircle,
   CalendarDays,
@@ -10,7 +11,6 @@ import {
   Trash2,
   X,
   MapPin,
-  CarFront,
   Flag,
   FileText,
 } from "lucide-react";
@@ -74,51 +74,97 @@ export default function CalendarPage() {
   const fetchEvents = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("events")
-      .select("id, date, name, notes, circuit_id (id, name)")
-      .order("date", { ascending: false });
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (!error) {
-      const normalized: EventRow[] = (data || []).map((row: any) => ({
-        id: row.id,
-        date: row.date,
-        name: row.name,
-        notes: row.notes,
-        circuit_id: row.circuit_id,
-      }));
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, date, name, notes, circuit_id (id, name)")
+        .eq("team_id", ctx.teamId)
+        .order("date", { ascending: false });
 
-      setEvents(normalized);
+      if (!error) {
+        const normalized: EventRow[] = (data || []).map((row: any) => ({
+          id: row.id,
+          date: row.date,
+          name: row.name,
+          notes: row.notes,
+          circuit_id: row.circuit_id,
+        }));
+
+        setEvents(normalized);
+      } else {
+        setEvents([]);
+      }
+    } catch (error) {
+      console.error("Errore caricamento eventi:", error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const fetchCars = async () => {
-    const { data, error } = await supabase.from("cars").select("id, name").order("name");
-    if (!error) setCars((data as Car[]) || []);
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const { data, error } = await supabase
+        .from("cars")
+        .select("id, name")
+        .eq("team_id", ctx.teamId)
+        .order("name");
+
+      if (!error) setCars((data as Car[]) || []);
+      else setCars([]);
+    } catch (error) {
+      console.error("Errore caricamento auto:", error);
+      setCars([]);
+    }
   };
 
   const fetchCircuits = async () => {
-    const { data, error } = await supabase.from("circuits").select("id, name").order("name");
-    if (!error) setCircuits((data as Circuit[]) || []);
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const { data, error } = await supabase
+        .from("circuits")
+        .select("id, name")
+        .eq("team_id", ctx.teamId)
+        .order("name");
+
+      if (!error) setCircuits((data as Circuit[]) || []);
+      else setCircuits([]);
+    } catch (error) {
+      console.error("Errore caricamento autodromi:", error);
+      setCircuits([]);
+    }
   };
 
   const fetchEventCars = async (eventId: string) => {
-    const { data, error } = await supabase
-      .from("event_cars")
-      .select("id, car_id (id, name), status")
-      .eq("event_id", eventId)
-      .order("created_at", { ascending: true });
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (!error) {
-      const normalized: EventCarRow[] = (data || []).map((row: any) => ({
-        id: row.id,
-        car_id: row.car_id,
-        status: row.status,
-      }));
+      const { data, error } = await supabase
+        .from("event_cars")
+        .select("id, car_id (id, name), status")
+        .eq("event_id", eventId)
+        .eq("team_id", ctx.teamId)
+        .order("created_at", { ascending: true });
 
-      setEventCars(normalized);
+      if (!error) {
+        const normalized: EventCarRow[] = (data || []).map((row: any) => ({
+          id: row.id,
+          car_id: row.car_id,
+          status: row.status,
+        }));
+
+        setEventCars(normalized);
+      } else {
+        setEventCars([]);
+      }
+    } catch (error) {
+      console.error("Errore caricamento auto evento:", error);
+      setEventCars([]);
     }
   };
 
@@ -172,58 +218,75 @@ export default function CalendarPage() {
   };
 
   const handleSubmit = async () => {
-    const payload: any = {
-      date: formDate,
-      name: formName,
-      notes: formNotes || null,
-      circuit_id: formCircuitId || null,
-    };
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (editing) {
-      const { error } = await supabase.from("events").update(payload).eq("id", editing.id);
-      if (error) {
-        alert("Errore aggiornamento evento: " + error.message);
-        return;
+      const payload: any = {
+        date: formDate,
+        name: formName,
+        notes: formNotes || null,
+        circuit_id: formCircuitId || null,
+      };
+
+      if (editing) {
+        const { error } = await supabase
+          .from("events")
+          .update(payload)
+          .eq("id", editing.id)
+          .eq("team_id", ctx.teamId);
+
+        if (error) {
+          alert("Errore aggiornamento evento: " + error.message);
+          return;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("events")
+          .insert([{ ...payload, team_id: ctx.teamId }])
+          .select("id")
+          .single();
+
+        if (error) {
+          alert("Errore creazione evento: " + error.message);
+          return;
+        }
+
+        setEditing({ id: data.id, ...payload, circuit_id: null });
       }
-    } else {
-      const { data, error } = await supabase
-        .from("events")
-        .insert([payload])
-        .select("id")
-        .single();
 
-      if (error) {
-        alert("Errore creazione evento: " + error.message);
-        return;
-      }
-
-      setEditing({ id: data.id, ...payload, circuit_id: null });
+      await fetchEvents();
+      setToast("Evento salvato con successo ✅");
+      setTimeout(() => setToast(""), 2500);
+      setModalOpen(false);
+    } catch (error: any) {
+      alert("Errore salvataggio evento: " + (error?.message || "Errore sconosciuto"));
     }
-
-    await fetchEvents();
-    setToast("Evento salvato con successo ✅");
-    setTimeout(() => setToast(""), 2500);
-    setModalOpen(false);
   };
 
   const handleAddCircuit = async () => {
     if (!newCircuitName.trim()) return;
 
-    const { data, error } = await supabase
-      .from("circuits")
-      .insert([{ name: newCircuitName.trim() }])
-      .select()
-      .single();
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (error) {
-      alert("Errore creazione autodromo: " + error.message);
-      return;
+      const { data, error } = await supabase
+        .from("circuits")
+        .insert([{ team_id: ctx.teamId, name: newCircuitName.trim() }])
+        .select()
+        .single();
+
+      if (error) {
+        alert("Errore creazione autodromo: " + error.message);
+        return;
+      }
+
+      await fetchCircuits();
+      setFormCircuitId(data.id);
+      setNewCircuitName("");
+      setCircuitModalOpen(false);
+    } catch (error: any) {
+      alert("Errore creazione autodromo: " + (error?.message || "Errore sconosciuto"));
     }
-
-    await fetchCircuits();
-    setFormCircuitId(data.id);
-    setNewCircuitName("");
-    setCircuitModalOpen(false);
   };
 
   const handleAddCarToEvent = async () => {
@@ -237,34 +300,52 @@ export default function CalendarPage() {
       return;
     }
 
-    const { data: existing } = await supabase
-      .from("event_cars")
-      .select("id")
-      .eq("event_id", editing.id)
-      .eq("car_id", selectedCarId)
-      .maybeSingle();
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (existing) {
-      alert("⚠️ Quest’auto è già associata a questo evento.");
-      return;
-    }
+      const { data: existing } = await supabase
+        .from("event_cars")
+        .select("id")
+        .eq("event_id", editing.id)
+        .eq("car_id", selectedCarId)
+        .eq("team_id", ctx.teamId)
+        .maybeSingle();
 
-    const { error } = await supabase
-      .from("event_cars")
-      .insert([{ event_id: editing.id, car_id: selectedCarId, status: "in_corso" }]);
+      if (existing) {
+        alert("⚠️ Quest’auto è già associata a questo evento.");
+        return;
+      }
 
-    if (error) {
-      alert("Errore durante l’aggiunta: " + error.message);
-    } else {
-      await fetchEventCars(editing.id);
-      setSelectedCarId("");
+      const { error } = await supabase.from("event_cars").insert([
+        {
+          team_id: ctx.teamId,
+          event_id: editing.id,
+          car_id: selectedCarId,
+          status: "in_corso",
+        },
+      ]);
+
+      if (error) {
+        alert("Errore durante l’aggiunta: " + error.message);
+      } else {
+        await fetchEventCars(editing.id);
+        setSelectedCarId("");
+      }
+    } catch (error: any) {
+      alert("Errore durante l’aggiunta: " + (error?.message || "Errore sconosciuto"));
     }
   };
 
   const handleRemoveCarFromEvent = async (id: string) => {
     setConfirmMessage("Vuoi davvero rimuovere questa auto dall’evento?");
     setConfirmAction(() => async () => {
-      const { error } = await supabase.from("event_cars").delete().eq("id", id);
+      const ctx = await getCurrentTeamContext();
+      const { error } = await supabase
+        .from("event_cars")
+        .delete()
+        .eq("id", id)
+        .eq("team_id", ctx.teamId);
+
       if (!error && editing?.id) await fetchEventCars(editing.id);
     });
     setConfirmOpen(true);
@@ -273,7 +354,13 @@ export default function CalendarPage() {
   const handleDeleteEvent = async (id: string) => {
     setConfirmMessage("Vuoi davvero eliminare questo evento e tutti i dati collegati?");
     setConfirmAction(() => async () => {
-      const { error } = await supabase.from("events").delete().eq("id", id);
+      const ctx = await getCurrentTeamContext();
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", id)
+        .eq("team_id", ctx.teamId);
+
       if (!error) await fetchEvents();
     });
     setConfirmOpen(true);
