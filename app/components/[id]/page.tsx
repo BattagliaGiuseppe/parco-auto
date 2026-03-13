@@ -396,12 +396,21 @@ export default function ComponentDetailPage() {
               </div>
             </div>
 
-            <Link
-              href="/components"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold"
-            >
-              <ArrowLeft size={16} /> Torna ai componenti
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+  <Link
+    href={`/components/${component.id}/edit`}
+    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+  >
+    Modifica componente
+  </Link>
+
+  <Link
+    href="/components"
+    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold"
+  >
+    <ArrowLeft size={16} /> Torna ai componenti
+  </Link>
+</div>
           </div>
         </div>
 
