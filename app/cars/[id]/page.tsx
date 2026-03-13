@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { CarFront, FileText, Printer, Wrench, GaugeCircle } from "lucide-react";
 
 type CarComponent = {
@@ -95,6 +96,8 @@ export default function CarDetailPage() {
       setLoading(true);
       setError("");
 
+      const ctx = await getCurrentTeamContext();
+
       const { data, error: carError } = await supabase
         .from("cars")
         .select(`
@@ -116,6 +119,7 @@ export default function CarDetailPage() {
           )
         `)
         .eq("id", id)
+        .eq("team_id", ctx.teamId)
         .single();
 
       if (carError) throw carError;
@@ -135,6 +139,7 @@ export default function CarDetailPage() {
         const { data: revisionRows, error: revisionsError } = await supabase
           .from("component_revisions")
           .select("id, component_id, date, description, reset_hours")
+          .eq("team_id", ctx.teamId)
           .in("component_id", componentIds)
           .order("date", { ascending: false });
 
@@ -188,7 +193,6 @@ export default function CarDetailPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="space-y-2">
@@ -197,13 +201,11 @@ export default function CarDetailPage() {
               {car.name}
             </h1>
             <p className="text-gray-600">
-              <span className="font-semibold">Telaio:</span>{" "}
-              {car.chassis_number || "—"}
+              <span className="font-semibold">Telaio:</span> {car.chassis_number || "—"}
             </p>
             <p className="text-gray-600 flex items-center gap-2">
               <GaugeCircle size={18} className="text-yellow-500" />
-              <span className="font-semibold">Ore vettura:</span>{" "}
-              {formatHours(car.hours)}
+              <span className="font-semibold">Ore vettura:</span> {formatHours(car.hours)}
             </p>
           </div>
 
@@ -226,7 +228,6 @@ export default function CarDetailPage() {
         </div>
       </div>
 
-      {/* Riepilogo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <p className="text-sm text-gray-500">Ore auto</p>
@@ -244,7 +245,6 @@ export default function CarDetailPage() {
         </div>
       </div>
 
-      {/* Componenti */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Wrench className="text-yellow-500" size={20} />
