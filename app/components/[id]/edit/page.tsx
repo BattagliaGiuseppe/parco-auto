@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { ArrowLeft, Save, Loader2, Wrench } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -34,73 +35,109 @@ export default function EditComponentPage() {
   const [expiryDate, setExpiryDate] = useState("");
 
   useEffect(() => {
+    if (!id) return;
     loadData();
-  }, []);
+  }, [id]);
 
   const loadData = async () => {
     setLoading(true);
 
-    const { data: component } = await supabase
-      .from("components")
-      .select("*")
-      .eq("id", id)
-      .single();
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    const { data: carsData } = await supabase
-      .from("cars")
-      .select("id,name")
-      .order("name");
+      const [{ data: component, error: componentError }, { data: carsData, error: carsError }] =
+        await Promise.all([
+          supabase
+            .from("components")
+            .select("*")
+            .eq("id", id)
+            .eq("team_id", ctx.teamId)
+            .single(),
+          supabase
+            .from("cars")
+            .select("id, name")
+            .eq("team_id", ctx.teamId)
+            .order("name"),
+        ]);
 
-    if (component) {
-      setType(component.type || "");
-      setIdentifier(component.identifier || "");
-      setCarId(component.car_id || "");
-      setHours(component.hours ?? 0);
-      setLifeHours(component.life_hours ?? "");
-      setWarningHours(component.warning_threshold_hours ?? "");
-      setRevisionHours(component.revision_threshold_hours ?? "");
-      setExpiryDate(component.expiry_date ?? "");
+      if (componentError) throw componentError;
+      if (carsError) throw carsError;
+
+      if (component) {
+        setType(component.type || "");
+        setIdentifier(component.identifier || "");
+        setCarId(component.car_id || "");
+        setHours(String(component.hours ?? 0));
+        setLifeHours(
+          component.life_hours !== null && component.life_hours !== undefined
+            ? String(component.life_hours)
+            : ""
+        );
+        setWarningHours(
+          component.warning_threshold_hours !== null &&
+            component.warning_threshold_hours !== undefined
+            ? String(component.warning_threshold_hours)
+            : ""
+        );
+        setRevisionHours(
+          component.revision_threshold_hours !== null &&
+            component.revision_threshold_hours !== undefined
+            ? String(component.revision_threshold_hours)
+            : ""
+        );
+        setExpiryDate(component.expiry_date ?? "");
+      }
+
+      setCars((carsData as Car[]) || []);
+    } catch (error) {
+      console.error("Errore caricamento componente:", error);
+      alert("Errore caricamento componente");
+      router.push("/components");
+    } finally {
+      setLoading(false);
     }
-
-    setCars((carsData as Car[]) || []);
-    setLoading(false);
   };
 
   const saveComponent = async () => {
-    if (!type || !identifier) {
+    if (!type.trim() || !identifier.trim()) {
       alert("Compila tipo e identificativo");
       return;
     }
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("components")
-      .update({
-        type,
-        identifier,
-        car_id: carId || null,
-        hours: Number(hours || 0),
-        life_hours: lifeHours ? Number(lifeHours) : null,
-        warning_threshold_hours: warningHours ? Number(warningHours) : null,
-        revision_threshold_hours: revisionHours ? Number(revisionHours) : null,
-        expiry_date: expiryDate || null,
-      })
-      .eq("id", id);
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    setSaving(false);
+      const { error } = await supabase
+        .from("components")
+        .update({
+          type: type.trim(),
+          identifier: identifier.trim(),
+          car_id: carId || null,
+          hours: Number(hours || 0),
+          life_hours: lifeHours ? Number(lifeHours) : null,
+          warning_threshold_hours: warningHours ? Number(warningHours) : null,
+          revision_threshold_hours: revisionHours ? Number(revisionHours) : null,
+          expiry_date: expiryDate || null,
+        })
+        .eq("id", id)
+        .eq("team_id", ctx.teamId);
 
-    if (error) {
+      if (error) throw error;
+
+      router.push(`/components/${id}`);
+    } catch (error) {
+      console.error("Errore salvataggio componente:", error);
       alert("Errore salvataggio");
-      return;
+    } finally {
+      setSaving(false);
     }
-
-    router.push(`/components/${id}`);
   };
 
   if (loading) {
     return (
-      <div className="card-base p-10 text-center">
+      <div className={`card-base p-10 text-center ${audiowide.className}`}>
         <Loader2 className="animate-spin inline-block mr-2" />
         Caricamento componente...
       </div>
@@ -110,24 +147,26 @@ export default function EditComponentPage() {
   return (
     <div className={`flex flex-col gap-6 ${audiowide.className}`}>
       <section className="card-base overflow-hidden">
-        <div className="bg-black text-yellow-500 px-6 py-6 flex justify-between items-center">
+        <div className="bg-black text-yellow-500 px-6 py-6 flex justify-between items-center flex-wrap gap-4">
           <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-yellow-300 mb-3">
+              <Wrench size={14} />
+              Modifica componente
+            </div>
+
             <h1 className="text-3xl font-bold">Modifica componente</h1>
-            <p className="text-yellow-200 text-sm">
-              Aggiorna le informazioni del componente
-            </p>
+            <p className="text-yellow-200 text-sm">Aggiorna le informazioni del componente</p>
           </div>
 
           <Link
             href={`/components/${id}`}
-            className="btn-secondary inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold"
           >
             <ArrowLeft size={16} /> Torna al componente
           </Link>
         </div>
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-
           <Field label="Tipo">
             <input
               className="input-base"
@@ -207,16 +246,17 @@ export default function EditComponentPage() {
               onChange={(e) => setExpiryDate(e.target.value)}
             />
           </Field>
-
         </div>
 
         <div className="p-6 flex gap-3">
-          <button
-            onClick={saveComponent}
-            disabled={saving}
-            className="btn-primary"
-          >
-            {saving ? "Salvataggio..." : <><Save size={16}/> Salva</>}
+          <button onClick={saveComponent} disabled={saving} className="btn-primary">
+            {saving ? (
+              "Salvataggio..."
+            ) : (
+              <>
+                <Save size={16} /> Salva
+              </>
+            )}
           </button>
 
           <Link href={`/components/${id}`} className="btn-secondary">
