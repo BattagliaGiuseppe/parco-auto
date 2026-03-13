@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   CheckCircle,
   AlertTriangle,
@@ -19,7 +20,6 @@ import {
   Cog,
   ShieldAlert,
   Activity,
-  Fuel,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -245,51 +245,73 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
 
-      const [
-        { data: carsData, error: carsError },
-        { data: compsData, error: compsError },
-        { data: eventsData, error: eventsError },
-        { data: eventCarDataRows, error: eventCarDataError },
-        { data: eventCarTurnsRows, error: eventCarTurnsError },
-        { data: eventCarsRows, error: eventCarsError },
-      ] = await Promise.all([
-        supabase
-          .from("cars")
-          .select("id, name, chassis_number, hours")
-          .order("name", { ascending: true }),
-        supabase
-          .from("components")
-          .select(
-            "id, type, identifier, expiry_date, hours, life_hours, warning_threshold_hours, revision_threshold_hours, car_id"
-          )
-          .order("identifier", { ascending: true }),
-        supabase
-          .from("events")
-          .select("id, name, date")
-          .order("date", { ascending: true }),
-        supabase
-          .from("event_car_data")
-          .select("id, event_car_id, section, data, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("event_car_turns")
-          .select("id, event_car_id, minutes, laps, notes, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("event_cars")
-          .select("id, event_id, car_id"),
-      ]);
+      try {
+        const ctx = await getCurrentTeamContext();
 
-      if (!carsError) setCars((carsData || []) as CarRow[]);
-      if (!compsError) setComponents((compsData || []) as ComponentRow[]);
-      if (!eventsError) setEvents((eventsData || []) as EventRow[]);
-      if (!eventCarDataError) setEventCarData((eventCarDataRows || []) as EventCarDataRow[]);
-      if (!eventCarTurnsError) setEventCarTurns((eventCarTurnsRows || []) as EventCarTurnRow[]);
-      if (!eventCarsError) setEventCars((eventCarsRows || []) as EventCarRelationRow[]);
+        const [
+          { data: carsData, error: carsError },
+          { data: compsData, error: compsError },
+          { data: eventsData, error: eventsError },
+          { data: eventCarDataRows, error: eventCarDataError },
+          { data: eventCarTurnsRows, error: eventCarTurnsError },
+          { data: eventCarsRows, error: eventCarsError },
+        ] = await Promise.all([
+          supabase
+            .from("cars")
+            .select("id, name, chassis_number, hours")
+            .eq("team_id", ctx.teamId)
+            .order("name", { ascending: true }),
+          supabase
+            .from("components")
+            .select(
+              "id, type, identifier, expiry_date, hours, life_hours, warning_threshold_hours, revision_threshold_hours, car_id"
+            )
+            .eq("team_id", ctx.teamId)
+            .order("identifier", { ascending: true }),
+          supabase
+            .from("events")
+            .select("id, name, date")
+            .eq("team_id", ctx.teamId)
+            .order("date", { ascending: true }),
+          supabase
+            .from("event_car_data")
+            .select("id, event_car_id, section, data, created_at")
+            .eq("team_id", ctx.teamId)
+            .order("created_at", { ascending: false })
+            .limit(50),
+          supabase
+            .from("event_car_turns")
+            .select("id, event_car_id, minutes, laps, notes, created_at")
+            .eq("team_id", ctx.teamId)
+            .order("created_at", { ascending: false })
+            .limit(50),
+          supabase.from("event_cars").select("id, event_id, car_id").eq("team_id", ctx.teamId),
+        ]);
 
-      setLoading(false);
+        if (carsError) throw carsError;
+        if (compsError) throw compsError;
+        if (eventsError) throw eventsError;
+        if (eventCarDataError) throw eventCarDataError;
+        if (eventCarTurnsError) throw eventCarTurnsError;
+        if (eventCarsError) throw eventCarsError;
+
+        setCars((carsData || []) as CarRow[]);
+        setComponents((compsData || []) as ComponentRow[]);
+        setEvents((eventsData || []) as EventRow[]);
+        setEventCarData((eventCarDataRows || []) as EventCarDataRow[]);
+        setEventCarTurns((eventCarTurnsRows || []) as EventCarTurnRow[]);
+        setEventCars((eventCarsRows || []) as EventCarRelationRow[]);
+      } catch (error) {
+        console.error("Errore caricamento dashboard:", error);
+        setCars([]);
+        setComponents([]);
+        setEvents([]);
+        setEventCarData([]);
+        setEventCarTurns([]);
+        setEventCars([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
@@ -326,9 +348,7 @@ export default function Dashboard() {
   }, [components]);
 
   const topCarsByHours = useMemo(() => {
-    return [...cars]
-      .sort((a, b) => Number(b.hours ?? 0) - Number(a.hours ?? 0))
-      .slice(0, 5);
+    return [...cars].sort((a, b) => Number(b.hours ?? 0) - Number(a.hours ?? 0)).slice(0, 5);
   }, [cars]);
 
   const componentsInWarning = useMemo(() => {
@@ -381,12 +401,8 @@ export default function Dashboard() {
     return cars
       .map((car) => {
         const carComponents = components.filter((c) => c.car_id === car.id);
-        const criticalCount = carComponents.filter(
-          (c) => getComponentStatus(c).severity === 3
-        ).length;
-        const warningCount = carComponents.filter(
-          (c) => getComponentStatus(c).severity === 2
-        ).length;
+        const criticalCount = carComponents.filter((c) => getComponentStatus(c).severity === 3).length;
+        const warningCount = carComponents.filter((c) => getComponentStatus(c).severity === 2).length;
 
         const relatedEventCars = eventCars.filter((ec) => ec.car_id === car.id).map((ec) => ec.id);
 
@@ -835,9 +851,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card-base overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg">
-            Ore vettura
-          </div>
+          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg">Ore vettura</div>
           <div className="h-80 p-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
@@ -864,10 +878,7 @@ export default function Dashboard() {
               plannedMaintenances.map((item) => {
                 const styles = getSeverityClasses(item.severity);
                 return (
-                  <li
-                    key={item.id}
-                    className={`rounded-xl border p-4 ${styles.card}`}
-                  >
+                  <li key={item.id} className={`rounded-xl border p-4 ${styles.card}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className={`font-bold ${styles.title}`}>{item.title}</div>
@@ -907,8 +918,7 @@ export default function Dashboard() {
                       {component.type} – {component.identifier}
                     </div>
                     <div className="text-xs text-neutral-500 mt-1">
-                      Ore attuali: {formatHours(component.hours)} • Vita:{" "}
-                      {formatHours(component.life_hours)}
+                      Ore attuali: {formatHours(component.hours)} • Vita: {formatHours(component.life_hours)}
                     </div>
                   </div>
 
@@ -999,9 +1009,7 @@ export default function Dashboard() {
                 >
                   <div className="min-w-0">
                     <div className="font-semibold text-neutral-800">{car.name}</div>
-                    <div className="text-xs text-neutral-500 mt-1">
-                      {car.chassis_number || "—"}
-                    </div>
+                    <div className="text-xs text-neutral-500 mt-1">{car.chassis_number || "—"}</div>
                   </div>
                   <span className="text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold whitespace-nowrap">
                     {formatHoursDecimal(car.hours)}
