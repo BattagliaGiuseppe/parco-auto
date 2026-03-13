@@ -237,64 +237,74 @@ export default function CarsPage() {
   };
 
   const fetchCars = async () => {
-  const ctx = await getCurrentTeamContext();
+    try {
+      const ctx = await getCurrentTeamContext();
 
-  const { data, error } = await supabase
-    .from("cars")
-    .select(`
-      id,
-      name,
-      chassis_number,
-      hours,
-      components (
-        id,
-        type,
-        identifier,
-        expiry_date,
-        is_active,
-        hours,
-        life_hours,
-        warning_threshold_hours,
-        revision_threshold_hours,
-        last_maintenance_date
-      )
-    `)
-    .eq("team_id", ctx.teamId)
-    .order("id", { ascending: true });
+      const { data, error } = await supabase
+        .from("cars")
+        .select(`
+          id,
+          name,
+          chassis_number,
+          hours,
+          components (
+            id,
+            type,
+            identifier,
+            expiry_date,
+            is_active,
+            hours,
+            life_hours,
+            warning_threshold_hours,
+            revision_threshold_hours,
+            last_maintenance_date
+          )
+        `)
+        .eq("team_id", ctx.teamId)
+        .order("id", { ascending: true });
 
-  if (!error) {
-    const normalized: CarRow[] = (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      chassis_number: row.chassis_number,
-      hours: row.hours,
-      components: (row.components || []) as CarComponent[],
-    }));
-    setCars(normalized);
-  }
-};
+      if (!error) {
+        const normalized: CarRow[] = (data || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          chassis_number: row.chassis_number,
+          hours: row.hours,
+          components: (row.components || []) as CarComponent[],
+        }));
+        setCars(normalized);
+      }
+    } catch (error) {
+      console.error("Errore caricamento auto:", error);
+      setCars([]);
+    }
+  };
 
   const fetchAllComponents = async () => {
-  const ctx = await getCurrentTeamContext();
+    try {
+      const ctx = await getCurrentTeamContext();
 
-  const { data, error } = await supabase
-    .from("components")
-    .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
-    .eq("team_id", ctx.teamId)
-    .order("id", { ascending: true });
+      const { data, error } = await supabase
+        .from("components")
+        .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
+        .eq("team_id", ctx.teamId)
+        .order("id", { ascending: true });
 
-  if (!error) {
-    const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
-      id: row.id,
-      type: row.type,
-      identifier: row.identifier,
-      expiry_date: row.expiry_date,
-      car_id: row.car_id,
-      car: row.car,
-    }));
-    setAllComponents(normalized);
-  }
-};
+      if (!error) {
+        const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
+          id: row.id,
+          type: row.type,
+          identifier: row.identifier,
+          expiry_date: row.expiry_date,
+          car_id: row.car_id,
+          car: row.car,
+        }));
+        setAllComponents(normalized);
+      }
+    } catch (error) {
+      console.error("Errore caricamento componenti:", error);
+      setAllComponents([]);
+    }
+  };
 
   useEffect(() => {
     fetchCars();
@@ -356,46 +366,49 @@ export default function CarsPage() {
   );
 
   const mountComponent = async (carId: string, compId: string) => {
-  if (!carId || !compId) return;
+    if (!carId || !compId) return;
 
-  const ctx = await getCurrentTeamContext();
+    const ctx = await getCurrentTeamContext();
 
-  const { data: selectedComp, error: compErr } = await supabase
-    .from("components")
-    .select("id, type, car_id")
-    .eq("id", compId)
-    .eq("team_id", ctx.teamId)
-    .single();
+    const { data: selectedComp, error: compErr } = await supabase
+      .from("components")
+      .select("id, type, car_id")
+      .eq("id", compId)
+      .eq("team_id", ctx.teamId)
+      .single();
 
     if (compErr || !selectedComp) return;
 
     if (selectedComp.car_id && selectedComp.car_id !== carId) {
       await supabase
-  .from("components")
-  .update({ car_id: null })
-  .eq("id", selectedComp.id)
-  .eq("team_id", ctx.teamId);
+        .from("components")
+        .update({ car_id: null })
+        .eq("id", selectedComp.id)
+        .eq("team_id", ctx.teamId);
+    }
 
     const { data: existingComp } = await supabase
-  .from("components")
-  .select("id")
-  .eq("car_id", carId)
-  .eq("type", selectedComp.type)
-  .eq("team_id", ctx.teamId)
-  .single();
+      .from("components")
+      .select("id")
+      .eq("car_id", carId)
+      .eq("type", selectedComp.type)
+      .eq("team_id", ctx.teamId)
+      .single();
 
     if (existingComp) {
       await supabase
-  .from("components")
-  .update({ car_id: null })
-  .eq("id", existingComp.id)
-  .eq("team_id", ctx.teamId);
+        .from("components")
+        .update({ car_id: null })
+        .eq("id", existingComp.id)
+        .eq("team_id", ctx.teamId);
+    }
 
     await supabase
-  .from("components")
-  .update({ car_id: carId })
-  .eq("id", compId)
-  .eq("team_id", ctx.teamId);
+      .from("components")
+      .update({ car_id: carId })
+      .eq("id", compId)
+      .eq("team_id", ctx.teamId);
+  };
 
   const onSaveCar = async () => {
     if (!name.trim() || !chassis.trim()) return;
@@ -404,17 +417,17 @@ export default function CarsPage() {
     try {
       const ctx = await getCurrentTeamContext();
 
-const { data: newCar, error: carErr } = await supabase
-  .from("cars")
-  .insert([
-    {
-      team_id: ctx.teamId,
-      name,
-      chassis_number: chassis,
-    },
-  ])
-  .select()
-  .single();
+      const { data: newCar, error: carErr } = await supabase
+        .from("cars")
+        .insert([
+          {
+            team_id: ctx.teamId,
+            name,
+            chassis_number: chassis,
+          },
+        ])
+        .select()
+        .single();
 
       if (carErr) throw carErr;
 
@@ -430,11 +443,11 @@ const { data: newCar, error: carErr } = await supabase
             `${name} - ${defaultLabel[type]}`;
 
           await supabase.from("components").insert([
-  {
-    team_id: ctx.teamId,
-    type,
-    identifier,
-    car_id: newCar.id,
+            {
+              team_id: ctx.teamId,
+              type,
+              identifier,
+              car_id: newCar.id,
               is_active: true,
             },
           ]);
@@ -460,11 +473,11 @@ const { data: newCar, error: carErr } = await supabase
           const expiry = e?.expiry || addYearsYYYYMMDD(years);
 
           await supabase.from("components").insert([
-  {
-    team_id: ctx.teamId,
-    type,
-    identifier,
-    car_id: newCar.id,
+            {
+              team_id: ctx.teamId,
+              type,
+              identifier,
+              car_id: newCar.id,
               expiry_date: expiry,
               is_active: true,
             },
@@ -490,10 +503,13 @@ const { data: newCar, error: carErr } = await supabase
     setSaving(true);
 
     try {
+      const ctx = await getCurrentTeamContext();
+
       const { error: carErr } = await supabase
         .from("cars")
         .update({ name, chassis_number: chassis })
-        .eq("id", selectedCar.id);
+        .eq("id", selectedCar.id)
+        .eq("team_id", ctx.teamId);
 
       if (carErr) throw carErr;
 
@@ -509,7 +525,14 @@ const { data: newCar, error: carErr } = await supabase
 
             const { data: created, error: insErr } = await supabase
               .from("components")
-              .insert([{ type, identifier, is_active: true }])
+              .insert([
+                {
+                  team_id: ctx.teamId,
+                  type,
+                  identifier,
+                  is_active: true,
+                },
+              ])
               .select("id")
               .single();
 
@@ -526,7 +549,8 @@ const { data: newCar, error: carErr } = await supabase
               .from("components")
               .update({ identifier: curr.identifier })
               .eq("car_id", selectedCar.id)
-              .eq("type", type);
+              .eq("type", type)
+              .eq("team_id", ctx.teamId);
           }
         }
       }
@@ -549,7 +573,15 @@ const { data: newCar, error: carErr } = await supabase
 
             const { data: created, error: insErr } = await supabase
               .from("components")
-              .insert([{ type, identifier, expiry_date: expiry, is_active: true }])
+              .insert([
+                {
+                  team_id: ctx.teamId,
+                  type,
+                  identifier,
+                  expiry_date: expiry,
+                  is_active: true,
+                },
+              ])
               .select("id")
               .single();
 
@@ -566,7 +598,8 @@ const { data: newCar, error: carErr } = await supabase
               .from("components")
               .update({ identifier: e.identifier, expiry_date: e.expiry })
               .eq("car_id", selectedCar.id)
-              .eq("type", type);
+              .eq("type", type)
+              .eq("team_id", ctx.teamId);
           }
         }
       }
@@ -859,7 +892,10 @@ const { data: newCar, error: carErr } = await supabase
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
-                      <button onClick={() => openEdit(car)} className="btn-primary !px-3 !py-2 !rounded-lg">
+                      <button
+                        onClick={() => openEdit(car)}
+                        className="btn-primary !px-3 !py-2 !rounded-lg"
+                      >
                         <Edit size={16} /> Modifica
                       </button>
 
