@@ -11,6 +11,7 @@ import {
   CalendarClock,
   CarFront,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -39,11 +40,23 @@ type CarOption = {
 type ComponentOption = {
   id: string;
   identifier: string;
+  hours: number | null;
+  life_hours: number | null;
+};
+
+type ToastState = {
+  show: boolean;
+  message: string;
+  type: "success" | "error";
 };
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("it-IT");
+}
+
+function formatHours(value: number | null | undefined) {
+  return `${Number(value ?? 0).toFixed(2)} h`;
 }
 
 function normalizeRelation<T>(value: T | T[] | null): T | null {
@@ -85,16 +98,41 @@ function MaintenancesPageContent() {
   const [type, setType] = useState("");
   const [notes, setNotes] = useState("");
 
+  const [revisionDescription, setRevisionDescription] = useState("");
+  const [registerRevisionHistory, setRegisterRevisionHistory] = useState(true);
+  const [resetHoursAfterRevision, setResetHoursAfterRevision] = useState(false);
+
   const [cars, setCars] = useState<CarOption[]>([]);
   const [components, setComponents] = useState<ComponentOption[]>([]);
 
   const [prefillHandled, setPrefillHandled] = useState(false);
+
+  const [toast, setToast] = useState<ToastState>({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   const queryCarId = searchParams.get("carId") || "";
   const queryCarName = searchParams.get("carName") || "";
   const queryComponentId = searchParams.get("componentId") || "";
   const queryComponentName = searchParams.get("componentName") || "";
   const queryType = searchParams.get("type") || "";
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    window.setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
+
+  const isRevision = useMemo(() => {
+    return type.trim().toLowerCase().includes("revis");
+  }, [type]);
+
+  const selectedComponent = useMemo(() => {
+    return components.find((c) => c.id === componentId) || null;
+  }, [components, componentId]);
 
   const fetchMaintenances = async () => {
     setLoading(true);
@@ -122,9 +160,10 @@ function MaintenancesPageContent() {
 
   const fetchCarsAndComponents = async () => {
     const { data: carsData } = await supabase.from("cars").select("id, name").order("name");
+
     const { data: compsData } = await supabase
       .from("components")
-      .select("id, identifier")
+      .select("id, identifier, hours, life_hours")
       .order("identifier");
 
     setCars((carsData as CarOption[]) || []);
@@ -156,6 +195,12 @@ function MaintenancesPageContent() {
 
     if (queryType === "revisione") {
       setType("Revisione");
+      setRegisterRevisionHistory(true);
+      setRevisionDescription(
+        queryComponentName
+          ? `Revisione ${queryComponentName}`
+          : "Revisione componente"
+      );
     } else if (queryType) {
       setType(queryType);
     } else {
@@ -209,6 +254,9 @@ function MaintenancesPageContent() {
     setType("");
     setNotes("");
     setEditId(null);
+    setRevisionDescription("");
+    setRegisterRevisionHistory(true);
+    setResetHoursAfterRevision(false);
   };
 
   const closeModal = () => {
@@ -229,12 +277,19 @@ function MaintenancesPageContent() {
     setDate(m.date || "");
     setType(m.type || "");
     setNotes(m.notes || "");
+    setRevisionDescription(
+      m.type?.toLowerCase().includes("revis")
+        ? `Revisione ${normalizeRelation(m.component_id)?.identifier || ""}`.trim()
+        : ""
+    );
+    setRegisterRevisionHistory(false);
+    setResetHoursAfterRevision(false);
     setOpenModal(true);
   };
 
   const saveMaintenance = async () => {
     if (!carId || !componentId || !date || !type) {
-      alert("Compila tutti i campi obbligatori");
+      showToast("Compila tutti i campi obbligatori", "error");
       return;
     }
 
@@ -254,8 +309,10 @@ function MaintenancesPageContent() {
           .eq("id", editId);
 
         if (error) throw error;
+
+        showToast("Manutenzione aggiornata");
       } else {
-        const { error } = await supabase.from("maintenances").insert([
+        const { error: maintenanceError } = await supabase.from("maintenances").insert([
           {
             car_id: carId,
             component_id: componentId,
@@ -265,14 +322,66 @@ function MaintenancesPageContent() {
           },
         ]);
 
-        if (error) throw error;
+        if (maintenanceError) throw maintenanceError;
+
+        if (isRevision && registerRevisionHistory) {
+          const hoursBefore = Number(selectedComponent?.hours ?? 0);
+          const hoursAfter = resetHoursAfterRevision ? 0 : hoursBefore;
+
+          const { error: revisionError } = await supabase
+            .from("component_revisions")
+            .insert([
+              {
+                component_id: componentId,
+                date,
+                description:
+                  revisionDescription.trim() ||
+                  `Revisione ${selectedComponent?.identifier || "componente"}`,
+                notes: notes || null,
+                reset_hours: resetHoursAfterRevision,
+                hours_before_reset: hoursBefore,
+                hours_after_reset: hoursAfter,
+                life_hours_at_revision: selectedComponent?.life_hours ?? null,
+              },
+            ]);
+
+          if (revisionError) throw revisionError;
+
+          const componentUpdatePayload: {
+            last_maintenance_date: string;
+            hours?: number;
+          } = {
+            last_maintenance_date: date,
+          };
+
+          if (resetHoursAfterRevision) {
+            componentUpdatePayload.hours = 0;
+          }
+
+          const { error: componentError } = await supabase
+            .from("components")
+            .update(componentUpdatePayload)
+            .eq("id", componentId);
+
+          if (componentError) throw componentError;
+        } else {
+          const { error: componentError } = await supabase
+            .from("components")
+            .update({ last_maintenance_date: date })
+            .eq("id", componentId);
+
+          if (componentError) throw componentError;
+        }
+
+        showToast(isRevision ? "Revisione registrata" : "Manutenzione registrata");
       }
 
       closeModal();
       await fetchMaintenances();
+      await fetchCarsAndComponents();
     } catch (e) {
       console.error("Errore salvataggio manutenzione:", e);
-      alert("Errore nel salvataggio");
+      showToast("Errore nel salvataggio", "error");
     } finally {
       setSaving(false);
     }
@@ -448,6 +557,19 @@ function MaintenancesPageContent() {
                   </select>
                 </div>
 
+                {selectedComponent && (
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                    <div>
+                      <span className="font-semibold">Ore attuali:</span>{" "}
+                      {formatHours(selectedComponent.hours)}
+                    </div>
+                    <div className="mt-1">
+                      <span className="font-semibold">Ore vita:</span>{" "}
+                      {formatHours(selectedComponent.life_hours)}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 mb-1">
                     Data
@@ -471,6 +593,61 @@ function MaintenancesPageContent() {
                     placeholder="Es. Controllo, revisione, sostituzione..."
                   />
                 </div>
+
+                {isRevision && (
+                  <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-4 flex flex-col gap-4">
+                    <div className="flex items-center gap-2 text-yellow-900 font-semibold">
+                      <RotateCcw size={16} />
+                      Opzioni revisione
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-1">
+                        Descrizione revisione
+                      </label>
+                      <input
+                        className="border rounded-xl p-3 w-full bg-white"
+                        value={revisionDescription}
+                        onChange={(e) => setRevisionDescription(e.target.value)}
+                        placeholder="Es. Revisione completa cambio"
+                      />
+                    </div>
+
+                    <label className="flex items-start gap-3 text-sm text-neutral-800">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={registerRevisionHistory}
+                        onChange={(e) => setRegisterRevisionHistory(e.target.checked)}
+                        disabled={Boolean(editId)}
+                      />
+                      <span>
+                        Registra anche nello storico revisioni del componente
+                        {editId && (
+                          <span className="block text-xs text-neutral-500 mt-1">
+                            Disponibile solo in creazione per evitare duplicazioni nello storico.
+                          </span>
+                        )}
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm text-neutral-800">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={resetHoursAfterRevision}
+                        onChange={(e) => setResetHoursAfterRevision(e.target.checked)}
+                        disabled={!registerRevisionHistory || Boolean(editId)}
+                      />
+                      <span>
+                        Reset ore componente dopo revisione
+                        <span className="block text-xs text-neutral-500 mt-1">
+                          Se attivo, le ore del componente verranno impostate a 0.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 mb-1">
@@ -496,6 +673,18 @@ function MaintenancesPageContent() {
             </div>
           </div>
         </>
+      )}
+
+      {toast.show && (
+        <div
+          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-lg font-semibold ${
+            toast.type === "success"
+              ? "bg-yellow-400 text-black"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
       )}
     </div>
   );
