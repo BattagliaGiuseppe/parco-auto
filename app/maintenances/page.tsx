@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useSearchParams } from "next/navigation";
 import {
   Edit,
   PlusCircle,
@@ -50,13 +51,19 @@ function normalizeRelation<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function MaintenancesPage() {
+  const searchParams = useSearchParams();
+
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [openModal, setOpenModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const [carId, setCarId] = useState("");
   const [componentId, setComponentId] = useState("");
@@ -66,6 +73,14 @@ export default function MaintenancesPage() {
 
   const [cars, setCars] = useState<CarOption[]>([]);
   const [components, setComponents] = useState<ComponentOption[]>([]);
+
+  const [prefillHandled, setPrefillHandled] = useState(false);
+
+  const queryCarId = searchParams.get("carId") || "";
+  const queryCarName = searchParams.get("carName") || "";
+  const queryComponentId = searchParams.get("componentId") || "";
+  const queryComponentName = searchParams.get("componentName") || "";
+  const queryType = searchParams.get("type") || "";
 
   const fetchMaintenances = async () => {
     setLoading(true);
@@ -107,6 +122,56 @@ export default function MaintenancesPage() {
     fetchCarsAndComponents();
   }, []);
 
+  useEffect(() => {
+    if (prefillHandled) return;
+    if (!cars.length && !components.length) return;
+
+    const hasPrefill =
+      Boolean(queryCarId) ||
+      Boolean(queryComponentId) ||
+      Boolean(queryType) ||
+      Boolean(queryCarName) ||
+      Boolean(queryComponentName);
+
+    if (!hasPrefill) return;
+
+    resetForm();
+
+    if (queryCarId) setCarId(queryCarId);
+    if (queryComponentId) setComponentId(queryComponentId);
+
+    if (queryType === "revisione") {
+      setType("Revisione");
+    } else if (queryType) {
+      setType(queryType);
+    } else {
+      setType("");
+    }
+
+    setDate(todayIso());
+
+    const prefillLines: string[] = [];
+    if (queryCarName) prefillLines.push(`Auto: ${queryCarName}`);
+    if (queryComponentName) prefillLines.push(`Componente: ${queryComponentName}`);
+    if (queryType === "revisione") prefillLines.push("Intervento aperto da dettaglio componente");
+
+    if (prefillLines.length > 0) {
+      setNotes(prefillLines.join("\n"));
+    }
+
+    setOpenModal(true);
+    setPrefillHandled(true);
+  }, [
+    prefillHandled,
+    cars,
+    components,
+    queryCarId,
+    queryComponentId,
+    queryType,
+    queryCarName,
+    queryComponentName,
+  ]);
+
   const totalMaintenances = maintenances.length;
 
   const maintenancesWithNotes = useMemo(
@@ -139,11 +204,12 @@ export default function MaintenancesPage() {
 
   const openForCreate = () => {
     resetForm();
+    setDate(todayIso());
     setOpenModal(true);
   };
 
   const openForEdit = (m: MaintenanceRow) => {
-    setEditId(Number(m.id));
+    setEditId(m.id);
     setCarId(normalizeRelation(m.car_id)?.id || "");
     setComponentId(normalizeRelation(m.component_id)?.id || "");
     setDate(m.date || "");
@@ -227,6 +293,12 @@ export default function MaintenancesPage() {
         </div>
 
         <div className="p-5 md:p-6">
+          {(queryCarId || queryComponentId || queryType) && (
+            <div className="mb-5 rounded-2xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+              Apertura rapida da componente attiva. La manutenzione viene precompilata nel modulo.
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <SummaryCard
               icon={<Wrench size={18} className="text-yellow-600" />}
@@ -400,18 +472,10 @@ export default function MaintenancesPage() {
               </div>
 
               <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white">
-                <button
-                  onClick={closeModal}
-                  disabled={saving}
-                  className="btn-secondary"
-                >
+                <button onClick={closeModal} disabled={saving} className="btn-secondary">
                   Annulla
                 </button>
-                <button
-                  onClick={saveMaintenance}
-                  disabled={saving}
-                  className="btn-primary"
-                >
+                <button onClick={saveMaintenance} disabled={saving} className="btn-primary">
                   {saving ? "Salvataggio..." : "Salva"}
                 </button>
               </div>
