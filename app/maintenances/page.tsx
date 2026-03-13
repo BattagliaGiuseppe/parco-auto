@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useSearchParams } from "next/navigation";
 import {
@@ -56,6 +56,20 @@ function todayIso() {
 }
 
 export default function MaintenancesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className={`card-base p-10 text-center text-neutral-500 ${audiowide.className}`}>
+          Caricamento manutenzioni...
+        </div>
+      }
+    >
+      <MaintenancesPageContent />
+    </Suspense>
+  );
+}
+
+function MaintenancesPageContent() {
   const searchParams = useSearchParams();
 
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
