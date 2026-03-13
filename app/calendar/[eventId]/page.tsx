@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   ArrowLeft,
   Wrench,
@@ -75,22 +76,35 @@ export default function EventDetailPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .select("id, name, date, notes, circuit_id (name)")
-        .eq("id", eventId)
-        .single();
+      try {
+        const ctx = await getCurrentTeamContext();
 
-      const { data: carsData, error: carsError } = await supabase
-        .from("event_cars")
-        .select("id, car_id (id, name), status")
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: true });
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("id, name, date, notes, circuit_id (name)")
+          .eq("id", eventId)
+          .eq("team_id", ctx.teamId)
+          .single();
 
-      if (!eventError) setEvent(eventData as EventRow);
-      if (!carsError) setEventCars((carsData as EventCarRow[]) || []);
+        const { data: carsData, error: carsError } = await supabase
+          .from("event_cars")
+          .select("id, car_id (id, name), status")
+          .eq("event_id", eventId)
+          .eq("team_id", ctx.teamId)
+          .order("created_at", { ascending: true });
 
-      setLoading(false);
+        if (!eventError) setEvent(eventData as EventRow);
+        else setEvent(null);
+
+        if (!carsError) setEventCars((carsData as EventCarRow[]) || []);
+        else setEventCars([]);
+      } catch (error) {
+        console.error("Errore caricamento dettaglio evento:", error);
+        setEvent(null);
+        setEventCars([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
