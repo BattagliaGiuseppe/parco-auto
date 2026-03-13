@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -222,6 +223,8 @@ export default function ComponentDetailPage() {
       try {
         setLoading(true);
 
+        const ctx = await getCurrentTeamContext();
+
         const [
           { data: compData, error: componentError },
           { data: historyRows, error: historyError },
@@ -243,18 +246,24 @@ export default function ComponentDetailPage() {
               car_id (id, name, chassis_number)
             `)
             .eq("id", componentId)
+            .eq("team_id", ctx.teamId)
             .single(),
           supabase
             .from("car_components")
             .select("id, component_id, car_id, status, mounted_at, removed_at, hours_used, notes")
             .eq("component_id", componentId)
+            .eq("team_id", ctx.teamId)
             .order("mounted_at", { ascending: false }),
           supabase
             .from("component_revisions")
             .select("*")
             .eq("component_id", componentId)
+            .eq("team_id", ctx.teamId)
             .order("date", { ascending: false }),
-          supabase.from("cars").select("id, name, chassis_number"),
+          supabase
+            .from("cars")
+            .select("id, name, chassis_number")
+            .eq("team_id", ctx.teamId),
         ]);
 
         if (componentError) throw componentError;
@@ -397,20 +406,20 @@ export default function ComponentDetailPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-  <Link
-    href={`/components/${component.id}/edit`}
-    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
-  >
-    Modifica componente
-  </Link>
+              <Link
+                href={`/components/${component.id}/edit`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold"
+              >
+                Modifica componente
+              </Link>
 
-  <Link
-    href="/components"
-    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold"
-  >
-    <ArrowLeft size={16} /> Torna ai componenti
-  </Link>
-</div>
+              <Link
+                href="/components"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-yellow-400 font-semibold"
+              >
+                <ArrowLeft size={16} /> Torna ai componenti
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -585,7 +594,9 @@ export default function ComponentDetailPage() {
               <div className="font-semibold mb-2 text-neutral-800">Ultima revisione</div>
               {latestRevision ? (
                 <div>
-                  <div className="font-semibold text-neutral-900">{formatDate(latestRevision.date)}</div>
+                  <div className="font-semibold text-neutral-900">
+                    {formatDate(latestRevision.date)}
+                  </div>
                   <div className="text-neutral-500 text-xs mt-1">
                     {latestRevision.description || "Revisione registrata"}
                   </div>
@@ -773,7 +784,9 @@ function StatusBox({
   return (
     <div className="border rounded-xl p-4 bg-neutral-50">
       <div className="text-sm text-neutral-600 mb-2">{label}</div>
-      <span className={`inline-flex items-center rounded-full px-3 py-1 font-semibold text-sm ${className}`}>
+      <span
+        className={`inline-flex items-center rounded-full px-3 py-1 font-semibold text-sm ${className}`}
+      >
         {badge}
       </span>
     </div>
