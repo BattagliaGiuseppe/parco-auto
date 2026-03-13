@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   Edit,
   List,
@@ -236,58 +237,64 @@ export default function CarsPage() {
   };
 
   const fetchCars = async () => {
-    const { data, error } = await supabase
-      .from("cars")
-      .select(`
-        id,
-        name,
-        chassis_number,
-        hours,
-        components (
-          id,
-          type,
-          identifier,
-          expiry_date,
-          is_active,
-          hours,
-          life_hours,
-          warning_threshold_hours,
-          revision_threshold_hours,
-          last_maintenance_date
-        )
-      `)
-      .order("id", { ascending: true });
+  const ctx = await getCurrentTeamContext();
 
-    if (!error) {
-      const normalized: CarRow[] = (data || []).map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        chassis_number: row.chassis_number,
-        hours: row.hours,
-        components: (row.components || []) as CarComponent[],
-      }));
-      setCars(normalized);
-    }
-  };
+  const { data, error } = await supabase
+    .from("cars")
+    .select(`
+      id,
+      name,
+      chassis_number,
+      hours,
+      components (
+        id,
+        type,
+        identifier,
+        expiry_date,
+        is_active,
+        hours,
+        life_hours,
+        warning_threshold_hours,
+        revision_threshold_hours,
+        last_maintenance_date
+      )
+    `)
+    .eq("team_id", ctx.teamId)
+    .order("id", { ascending: true });
+
+  if (!error) {
+    const normalized: CarRow[] = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      chassis_number: row.chassis_number,
+      hours: row.hours,
+      components: (row.components || []) as CarComponent[],
+    }));
+    setCars(normalized);
+  }
+};
 
   const fetchAllComponents = async () => {
-    const { data, error } = await supabase
-      .from("components")
-      .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
-      .order("id", { ascending: true });
+  const ctx = await getCurrentTeamContext();
 
-    if (!error) {
-      const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
-        id: row.id,
-        type: row.type,
-        identifier: row.identifier,
-        expiry_date: row.expiry_date,
-        car_id: row.car_id,
-        car: row.car,
-      }));
-      setAllComponents(normalized);
-    }
-  };
+  const { data, error } = await supabase
+    .from("components")
+    .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
+    .eq("team_id", ctx.teamId)
+    .order("id", { ascending: true });
+
+  if (!error) {
+    const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      identifier: row.identifier,
+      expiry_date: row.expiry_date,
+      car_id: row.car_id,
+      car: row.car,
+    }));
+    setAllComponents(normalized);
+  }
+};
 
   useEffect(() => {
     fetchCars();
@@ -349,44 +356,65 @@ export default function CarsPage() {
   );
 
   const mountComponent = async (carId: string, compId: string) => {
-    if (!carId || !compId) return;
+  if (!carId || !compId) return;
 
-    const { data: selectedComp, error: compErr } = await supabase
-      .from("components")
-      .select("id, type, car_id")
-      .eq("id", compId)
-      .single();
+  const ctx = await getCurrentTeamContext();
+
+  const { data: selectedComp, error: compErr } = await supabase
+    .from("components")
+    .select("id, type, car_id")
+    .eq("id", compId)
+    .eq("team_id", ctx.teamId)
+    .single();
 
     if (compErr || !selectedComp) return;
 
     if (selectedComp.car_id && selectedComp.car_id !== carId) {
-      await supabase.from("components").update({ car_id: null }).eq("id", selectedComp.id);
-    }
+      await supabase
+  .from("components")
+  .update({ car_id: null })
+  .eq("id", selectedComp.id)
+  .eq("team_id", ctx.teamId);
 
     const { data: existingComp } = await supabase
-      .from("components")
-      .select("id")
-      .eq("car_id", carId)
-      .eq("type", selectedComp.type)
-      .single();
+  .from("components")
+  .select("id")
+  .eq("car_id", carId)
+  .eq("type", selectedComp.type)
+  .eq("team_id", ctx.teamId)
+  .single();
 
     if (existingComp) {
-      await supabase.from("components").update({ car_id: null }).eq("id", existingComp.id);
-    }
+      await supabase
+  .from("components")
+  .update({ car_id: null })
+  .eq("id", existingComp.id)
+  .eq("team_id", ctx.teamId);
 
-    await supabase.from("components").update({ car_id: carId }).eq("id", compId);
-  };
+    await supabase
+  .from("components")
+  .update({ car_id: carId })
+  .eq("id", compId)
+  .eq("team_id", ctx.teamId);
 
   const onSaveCar = async () => {
     if (!name.trim() || !chassis.trim()) return;
     setSaving(true);
 
     try {
-      const { data: newCar, error: carErr } = await supabase
-        .from("cars")
-        .insert([{ name, chassis_number: chassis }])
-        .select()
-        .single();
+      const ctx = await getCurrentTeamContext();
+
+const { data: newCar, error: carErr } = await supabase
+  .from("cars")
+  .insert([
+    {
+      team_id: ctx.teamId,
+      name,
+      chassis_number: chassis,
+    },
+  ])
+  .select()
+  .single();
 
       if (carErr) throw carErr;
 
@@ -402,10 +430,11 @@ export default function CarsPage() {
             `${name} - ${defaultLabel[type]}`;
 
           await supabase.from("components").insert([
-            {
-              type,
-              identifier,
-              car_id: newCar.id,
+  {
+    team_id: ctx.teamId,
+    type,
+    identifier,
+    car_id: newCar.id,
               is_active: true,
             },
           ]);
@@ -431,10 +460,11 @@ export default function CarsPage() {
           const expiry = e?.expiry || addYearsYYYYMMDD(years);
 
           await supabase.from("components").insert([
-            {
-              type,
-              identifier,
-              car_id: newCar.id,
+  {
+    team_id: ctx.teamId,
+    type,
+    identifier,
+    car_id: newCar.id,
               expiry_date: expiry,
               is_active: true,
             },
