@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { useSearchParams } from "next/navigation";
 import {
   Edit,
@@ -137,12 +138,17 @@ function MaintenancesPageContent() {
   const fetchMaintenances = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("maintenances")
-      .select("id, date, type, notes, car_id (id, name), component_id (id, identifier)")
-      .order("date", { ascending: false });
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (!error) {
+      const { data, error } = await supabase
+        .from("maintenances")
+        .select("id, date, type, notes, car_id (id, name), component_id (id, identifier)")
+        .eq("team_id", ctx.teamId)
+        .order("date", { ascending: false });
+
+      if (error) throw error;
+
       const normalized: MaintenanceRow[] = (data || []).map((row: any) => ({
         id: row.id,
         date: row.date,
@@ -153,21 +159,42 @@ function MaintenancesPageContent() {
       }));
 
       setMaintenances(normalized);
+    } catch (error) {
+      console.error("Errore caricamento manutenzioni:", error);
+      showToast("Errore caricamento manutenzioni", "error");
+      setMaintenances([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const fetchCarsAndComponents = async () => {
-    const { data: carsData } = await supabase.from("cars").select("id, name").order("name");
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    const { data: compsData } = await supabase
-      .from("components")
-      .select("id, identifier, hours, life_hours")
-      .order("identifier");
+      const { data: carsData, error: carsError } = await supabase
+        .from("cars")
+        .select("id, name")
+        .eq("team_id", ctx.teamId)
+        .order("name");
 
-    setCars((carsData as CarOption[]) || []);
-    setComponents((compsData as ComponentOption[]) || []);
+      const { data: compsData, error: compsError } = await supabase
+        .from("components")
+        .select("id, identifier, hours, life_hours")
+        .eq("team_id", ctx.teamId)
+        .order("identifier");
+
+      if (carsError) throw carsError;
+      if (compsError) throw compsError;
+
+      setCars((carsData as CarOption[]) || []);
+      setComponents((compsData as ComponentOption[]) || []);
+    } catch (error) {
+      console.error("Errore caricamento auto/componenti:", error);
+      showToast("Errore caricamento dati collegati", "error");
+      setCars([]);
+      setComponents([]);
+    }
   };
 
   useEffect(() => {
@@ -197,9 +224,7 @@ function MaintenancesPageContent() {
       setType("Revisione");
       setRegisterRevisionHistory(true);
       setRevisionDescription(
-        queryComponentName
-          ? `Revisione ${queryComponentName}`
-          : "Revisione componente"
+        queryComponentName ? `Revisione ${queryComponentName}` : "Revisione componente"
       );
     } else if (queryType) {
       setType(queryType);
@@ -212,7 +237,9 @@ function MaintenancesPageContent() {
     const prefillLines: string[] = [];
     if (queryCarName) prefillLines.push(`Auto: ${queryCarName}`);
     if (queryComponentName) prefillLines.push(`Componente: ${queryComponentName}`);
-    if (queryType === "revisione") prefillLines.push("Intervento aperto da dettaglio componente");
+    if (queryType === "revisione") {
+      prefillLines.push("Intervento aperto da dettaglio componente");
+    }
 
     if (prefillLines.length > 0) {
       setNotes(prefillLines.join("\n"));
@@ -296,6 +323,8 @@ function MaintenancesPageContent() {
     setSaving(true);
 
     try {
+      const ctx = await getCurrentTeamContext();
+
       if (editId) {
         const { error } = await supabase
           .from("maintenances")
@@ -306,7 +335,8 @@ function MaintenancesPageContent() {
             type,
             notes,
           })
-          .eq("id", editId);
+          .eq("id", editId)
+          .eq("team_id", ctx.teamId);
 
         if (error) throw error;
 
@@ -314,6 +344,7 @@ function MaintenancesPageContent() {
       } else {
         const { error: maintenanceError } = await supabase.from("maintenances").insert([
           {
+            team_id: ctx.teamId,
             car_id: carId,
             component_id: componentId,
             date,
@@ -332,6 +363,7 @@ function MaintenancesPageContent() {
             .from("component_revisions")
             .insert([
               {
+                team_id: ctx.teamId,
                 component_id: componentId,
                 date,
                 description:
@@ -361,14 +393,16 @@ function MaintenancesPageContent() {
           const { error: componentError } = await supabase
             .from("components")
             .update(componentUpdatePayload)
-            .eq("id", componentId);
+            .eq("id", componentId)
+            .eq("team_id", ctx.teamId);
 
           if (componentError) throw componentError;
         } else {
           const { error: componentError } = await supabase
             .from("components")
             .update({ last_maintenance_date: date })
-            .eq("id", componentId);
+            .eq("id", componentId)
+            .eq("team_id", ctx.teamId);
 
           if (componentError) throw componentError;
         }
