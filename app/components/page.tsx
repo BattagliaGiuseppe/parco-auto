@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   Wrench,
   Loader2,
@@ -208,21 +209,39 @@ export default function ComponentsPage() {
     const load = async () => {
       setLoading(true);
 
-      const [{ data: componentsData, error: componentsError }, { data: carsData, error: carsError }] =
-        await Promise.all([
+      try {
+        const ctx = await getCurrentTeamContext();
+
+        const [
+          { data: componentsData, error: componentsError },
+          { data: carsData, error: carsError },
+        ] = await Promise.all([
           supabase
             .from("components")
             .select(
               "id, type, identifier, expiry_date, hours, life_hours, warning_threshold_hours, revision_threshold_hours, car_id"
             )
+            .eq("team_id", ctx.teamId)
             .order("identifier", { ascending: true }),
-          supabase.from("cars").select("id, name").order("name", { ascending: true }),
+          supabase
+            .from("cars")
+            .select("id, name")
+            .eq("team_id", ctx.teamId)
+            .order("name", { ascending: true }),
         ]);
 
-      if (!componentsError) setComponents((componentsData || []) as ComponentRow[]);
-      if (!carsError) setCars((carsData || []) as CarRow[]);
+        if (componentsError) throw componentsError;
+        if (carsError) throw carsError;
 
-      setLoading(false);
+        setComponents((componentsData || []) as ComponentRow[]);
+        setCars((carsData || []) as CarRow[]);
+      } catch (error) {
+        console.error("Errore caricamento componenti:", error);
+        setComponents([]);
+        setCars([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     load();
@@ -606,7 +625,9 @@ function ComponentCard({
 
       <div className="mt-5 flex flex-col sm:flex-row gap-3">
         <Link
-          href={`/maintenances`}
+          href={`/maintenances?componentId=${component.id}&componentName=${encodeURIComponent(
+            `${component.type} – ${component.identifier}`
+          )}&carId=${component.car_id || ""}&carName=${encodeURIComponent(component.carName)}`}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2"
         >
           <Wrench size={16} />
