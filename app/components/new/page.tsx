@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { ArrowLeft, PlusCircle, Save, Wrench } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -57,18 +58,25 @@ export default function NewComponentPage() {
   useEffect(() => {
     const loadCars = async () => {
       setLoadingCars(true);
-      const { data, error } = await supabase
-        .from("cars")
-        .select("id, name")
-        .order("name", { ascending: true });
 
-      if (!error) {
+      try {
+        const ctx = await getCurrentTeamContext();
+
+        const { data, error } = await supabase
+          .from("cars")
+          .select("id, name")
+          .eq("team_id", ctx.teamId)
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+
         setCars((data as CarOption[]) || []);
-      } else {
+      } catch (error) {
+        console.error("Errore caricamento auto:", error);
         showToast("Errore caricamento auto", "error");
+      } finally {
+        setLoadingCars(false);
       }
-
-      setLoadingCars(false);
     };
 
     loadCars();
@@ -83,7 +91,10 @@ export default function NewComponentPage() {
     setSaving(true);
 
     try {
+      const ctx = await getCurrentTeamContext();
+
       const payload = {
+        team_id: ctx.teamId,
         type: type.trim(),
         identifier: identifier.trim(),
         car_id: carId || null,
@@ -245,11 +256,7 @@ export default function NewComponentPage() {
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={saveComponent}
-              disabled={saving}
-              className="btn-primary"
-            >
+            <button onClick={saveComponent} disabled={saving} className="btn-primary">
               {saving ? <Save size={18} /> : <PlusCircle size={18} />}
               {saving ? "Salvataggio..." : "Crea componente"}
             </button>
