@@ -248,7 +248,9 @@ export default function ComponentsPage() {
         status,
         predictive,
         expiryStatus,
-        carName: component.car_id ? carsMap.get(component.car_id) || "Auto non trovata" : "Non assegnato",
+        carName: component.car_id
+          ? carsMap.get(component.car_id) || "Auto non trovata"
+          : "Non assegnato",
         remainingToRevision,
       };
     });
@@ -266,7 +268,9 @@ export default function ComponentsPage() {
 
       const matchesFilter =
         filterMode === "all" ||
-        (filterMode === "ok" && component.status.severity === 1 && component.expiryStatus !== "expired") ||
+        (filterMode === "ok" &&
+          component.status.severity === 1 &&
+          component.expiryStatus !== "expired") ||
         (filterMode === "warning" && component.status.severity === 2) ||
         (filterMode === "critical" && component.status.severity === 3) ||
         (filterMode === "expired" && component.expiryStatus === "expired");
@@ -329,13 +333,9 @@ export default function ComponentsPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              className="btn-primary opacity-70 cursor-not-allowed"
-              title="Creazione guidata componente da attivare"
-            >
+            <Link href="/components/new" className="btn-primary">
               <PlusCircle size={18} /> Nuovo componente
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -384,7 +384,10 @@ export default function ComponentsPage() {
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+              />
               <input
                 type="text"
                 value={search}
@@ -502,7 +505,9 @@ function ComponentCard({
                   <CarFront size={12} />
                   {component.carName}
                 </span>
-                <span className={`rounded-full px-2.5 py-1 font-semibold ${component.status.className}`}>
+                <span
+                  className={`rounded-full px-2.5 py-1 font-semibold ${component.status.className}`}
+                >
                   {component.status.label}
                 </span>
                 <span
@@ -608,13 +613,12 @@ function ComponentCard({
           Crea manutenzione
         </Link>
 
-        <button
-          type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-500 font-semibold px-4 py-2 opacity-70 cursor-not-allowed"
-          title="Dettaglio componente da attivare"
+        <Link
+          href={`/components/${component.id}`}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-800 font-semibold px-4 py-2"
         >
           Apri dettaglio <ArrowRight size={16} />
-        </button>
+        </Link>
       </div>
     </article>
   );
