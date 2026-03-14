@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Wrench, Link2, Unlink, CheckCircle, XCircle, History } from "lucide-react";
+import { getCurrentTeamContext } from "@/lib/teamContext";
+import {
+  Wrench,
+  Link2,
+  Unlink,
+  CheckCircle,
+  XCircle,
+  History,
+} from "lucide-react";
 
 type CarItem = {
   id: string;
@@ -70,20 +78,27 @@ export default function MountsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const ctx = await getCurrentTeamContext();
 
       const [
         { data: carsData, error: carsError },
         { data: componentsData, error: componentsError },
         { data: mountsData, error: mountsError },
       ] = await Promise.all([
-        supabase.from("cars").select("id, name").order("name", { ascending: true }),
+        supabase
+          .from("cars")
+          .select("id, name")
+          .eq("team_id", ctx.teamId)
+          .order("name", { ascending: true }),
         supabase
           .from("components")
           .select("id, type, identifier, car_id")
+          .eq("team_id", ctx.teamId)
           .order("identifier", { ascending: true }),
         supabase
           .from("car_components")
           .select("id, car_id, component_id, status, mounted_at, removed_at, hours_used")
+          .eq("team_id", ctx.teamId)
           .order("mounted_at", { ascending: false }),
       ]);
 
@@ -142,20 +157,27 @@ export default function MountsPage() {
       return;
     }
 
-    const { error } = await supabase.rpc("mount_component", {
-      p_car_id: selectedCar,
-      p_component_id: selectedComponent,
-    });
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (error) {
+      const { error } = await supabase.rpc("mount_component", {
+        p_team_id: ctx.teamId,
+        p_car_id: selectedCar,
+        p_component_id: selectedComponent,
+      });
+
+      if (error) {
+        showToast(`Errore montaggio: ${error.message}`, "error");
+        return;
+      }
+
+      setSelectedCar("");
+      setSelectedComponent("");
+      showToast("Componente montato correttamente", "success");
+      await fetchData();
+    } catch (error: any) {
       showToast(`Errore montaggio: ${error.message}`, "error");
-      return;
     }
-
-    setSelectedCar("");
-    setSelectedComponent("");
-    showToast("Componente montato correttamente", "success");
-    await fetchData();
   };
 
   const unmount = async (mountRow: MountRowView) => {
@@ -164,17 +186,24 @@ export default function MountsPage() {
     );
     if (!confirmed) return;
 
-    const { error } = await supabase.rpc("unmount_component", {
-      p_car_component_id: mountRow.id,
-    });
+    try {
+      const ctx = await getCurrentTeamContext();
 
-    if (error) {
+      const { error } = await supabase.rpc("unmount_component", {
+        p_team_id: ctx.teamId,
+        p_car_component_id: mountRow.id,
+      });
+
+      if (error) {
+        showToast(`Errore smontaggio: ${error.message}`, "error");
+        return;
+      }
+
+      showToast("Componente smontato", "success");
+      await fetchData();
+    } catch (error: any) {
       showToast(`Errore smontaggio: ${error.message}`, "error");
-      return;
     }
-
-    showToast("Componente smontato", "success");
-    await fetchData();
   };
 
   return (
