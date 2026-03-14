@@ -13,6 +13,8 @@ import {
   SlidersHorizontal,
   Image as ImageIcon,
   Loader2,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -130,6 +132,8 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const [toast, setToast] = useState<ToastState>({
     show: false,
@@ -209,7 +213,6 @@ export default function SettingsPage() {
           .single();
 
         if (insertError) throw insertError;
-
         applySettings(inserted as AppSettingsRow);
       } else {
         applySettings(data as AppSettingsRow);
@@ -324,6 +327,59 @@ export default function SettingsPage() {
     }
   };
 
+  const uploadBrandingFile = async (
+    file: File,
+    type: "logo" | "cover"
+  ): Promise<string | null> => {
+    if (!teamId) {
+      showToast("Team non trovato", "error");
+      return null;
+    }
+
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `${teamId}/${type}-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("branding")
+      .upload(filePath, file, {
+        upsert: true,
+      });
+
+    if (uploadError) {
+      showToast(`Errore upload ${type}: ${uploadError.message}`, "error");
+      return null;
+    }
+
+    const { data } = supabase.storage.from("branding").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file) return;
+    try {
+      setUploadingLogo(true);
+      const publicUrl = await uploadBrandingFile(file, "logo");
+      if (!publicUrl) return;
+      setTeamLogoUrl(publicUrl);
+      showToast("Logo caricato correttamente");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleCoverUpload = async (file: File | null) => {
+    if (!file) return;
+    try {
+      setUploadingCover(true);
+      const publicUrl = await uploadBrandingFile(file, "cover");
+      if (!publicUrl) return;
+      setDashboardCoverUrl(publicUrl);
+      showToast("Cover caricata correttamente");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className={`card-base p-10 text-center text-neutral-500 ${audiowide.className}`}>
@@ -361,7 +417,7 @@ export default function SettingsPage() {
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm text-yellow-100/75 leading-relaxed">
-                Personalizza identità del team, aspetto grafico, moduli attivi, soglie operative
+                Personalizza identità del team, branding grafico, moduli attivi, soglie operative
                 e notifiche della webapp.
               </p>
             </div>
@@ -398,22 +454,88 @@ export default function SettingsPage() {
             />
           </Field>
 
-          <Field label="URL logo team">
-            <input
-              className="input-base"
-              value={teamLogoUrl}
-              onChange={(e) => setTeamLogoUrl(e.target.value)}
-              placeholder="https://..."
-            />
+          <Field label="Logo team">
+            <div className="flex flex-col gap-3">
+              {teamLogoUrl ? (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <img
+                    src={teamLogoUrl}
+                    alt="Logo team"
+                    className="h-24 w-24 object-contain rounded-xl bg-white border"
+                  />
+                </div>
+              ) : null}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <label className="btn-secondary cursor-pointer">
+                  <Upload size={16} />
+                  {uploadingLogo ? "Caricamento..." : "Carica logo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLogoUpload(e.target.files?.[0] || null)}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setTeamLogoUrl("")}
+                >
+                  <Trash2 size={16} /> Rimuovi logo
+                </button>
+              </div>
+
+              <input
+                className="input-base"
+                value={teamLogoUrl}
+                onChange={(e) => setTeamLogoUrl(e.target.value)}
+                placeholder="Oppure incolla URL logo"
+              />
+            </div>
           </Field>
 
-          <Field label="URL immagine dashboard">
-            <input
-              className="input-base"
-              value={dashboardCoverUrl}
-              onChange={(e) => setDashboardCoverUrl(e.target.value)}
-              placeholder="https://..."
-            />
+          <Field label="Cover dashboard">
+            <div className="flex flex-col gap-3">
+              {dashboardCoverUrl ? (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-2 overflow-hidden">
+                  <img
+                    src={dashboardCoverUrl}
+                    alt="Cover dashboard"
+                    className="w-full h-40 object-cover rounded-xl"
+                  />
+                </div>
+              ) : null}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <label className="btn-secondary cursor-pointer">
+                  <Upload size={16} />
+                  {uploadingCover ? "Caricamento..." : "Carica cover"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleCoverUpload(e.target.files?.[0] || null)}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setDashboardCoverUrl("")}
+                >
+                  <Trash2 size={16} /> Rimuovi cover
+                </button>
+              </div>
+
+              <input
+                className="input-base"
+                value={dashboardCoverUrl}
+                onChange={(e) => setDashboardCoverUrl(e.target.value)}
+                placeholder="Oppure incolla URL cover"
+              />
+            </div>
           </Field>
         </SettingsCard>
 
