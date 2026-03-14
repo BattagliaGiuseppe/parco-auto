@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 import { Audiowide } from "next/font/google";
 import {
   ArrowLeft,
@@ -298,14 +299,21 @@ export default function EventCarPage() {
   async function loadAllData() {
     try {
       setLoading(true);
+      const ctx = await getCurrentTeamContext();
 
       const [{ data: eventData, error: eventError }, { data: carData, error: eventCarError }] =
         await Promise.all([
-          supabase.from("events").select("id, name, date").eq("id", eventId).single(),
+          supabase
+            .from("events")
+            .select("id, name, date")
+            .eq("id", eventId)
+            .eq("team_id", ctx.teamId)
+            .single(),
           supabase
             .from("event_cars")
             .select("id, car_id (id, name, hours), notes")
             .eq("id", eventCarId)
+            .eq("team_id", ctx.teamId)
             .single(),
         ]);
 
@@ -330,6 +338,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "setup")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -338,6 +347,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "setup")
           .order("created_at", { ascending: false })
           .limit(3),
@@ -345,6 +355,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "checkup")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -353,6 +364,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "checkup")
           .order("created_at", { ascending: false })
           .limit(3),
@@ -360,11 +372,13 @@ export default function EventCarPage() {
           .from("event_car_turns")
           .select("id, minutes, laps, notes, created_at")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .order("created_at", { ascending: true }),
         supabase
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "fuel")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -373,6 +387,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "fuel")
           .order("created_at", { ascending: false })
           .limit(3),
@@ -380,6 +395,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "notes")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -388,6 +404,7 @@ export default function EventCarPage() {
           .from("event_car_data")
           .select("*")
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .eq("section", "notes")
           .order("created_at", { ascending: false })
           .limit(3),
@@ -459,17 +476,20 @@ export default function EventCarPage() {
   }, [eventId, eventCarId]);
 
   async function saveSection(section: SectionType, data: any) {
-    const payload = { event_car_id: eventCarId, section, data };
+    const ctx = await getCurrentTeamContext();
+    const payload = { team_id: ctx.teamId, event_car_id: eventCarId, section, data };
     const { error } = await supabase.from("event_car_data").insert([payload]);
     if (error) throw new Error(error.message);
   }
 
   async function deleteSectionRow(rowId: string, section: SectionType) {
+    const ctx = await getCurrentTeamContext();
     const { error } = await supabase
       .from("event_car_data")
       .delete()
       .eq("id", rowId)
       .eq("event_car_id", eventCarId)
+      .eq("team_id", ctx.teamId)
       .eq("section", section);
 
     if (error) throw new Error(error.message);
@@ -478,6 +498,7 @@ export default function EventCarPage() {
       .from("event_car_data")
       .select("*")
       .eq("event_car_id", eventCarId)
+      .eq("team_id", ctx.teamId)
       .eq("section", section)
       .order("created_at", { ascending: false })
       .limit(3);
@@ -572,6 +593,7 @@ export default function EventCarPage() {
 
     try {
       setTurnsSaving(true);
+      const ctx = await getCurrentTeamContext();
 
       if (isEditing && editingTurn) {
         const { data, error } = await supabase
@@ -583,6 +605,7 @@ export default function EventCarPage() {
           })
           .eq("id", editingTurn.id)
           .eq("event_car_id", eventCarId)
+          .eq("team_id", ctx.teamId)
           .select("id")
           .maybeSingle();
 
@@ -595,6 +618,7 @@ export default function EventCarPage() {
           .from("event_car_turns")
           .insert([
             {
+              team_id: ctx.teamId,
               event_car_id: eventCarId,
               minutes,
               laps,
@@ -626,11 +650,13 @@ export default function EventCarPage() {
     if (!confirm("Vuoi eliminare questo turno?")) return;
 
     try {
+      const ctx = await getCurrentTeamContext();
       const { error } = await supabase
         .from("event_car_turns")
         .delete()
         .eq("id", turnId)
-        .eq("event_car_id", eventCarId);
+        .eq("event_car_id", eventCarId)
+        .eq("team_id", ctx.teamId);
 
       if (error) {
         showToast(`Errore eliminazione turno: ${error.message}`, "error");
