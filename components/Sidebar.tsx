@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,157 +11,124 @@ import {
   CalendarDays,
   Settings,
   Menu,
-  X,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
+import { getTeamSettings, type TeamSettings } from "@/lib/teamSettings";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [teamSettings, setTeamSettings] = useState<TeamSettings | null>(null);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await getTeamSettings();
+        setTeamSettings(data);
+      } catch (error) {
+        console.error("Errore caricamento team settings:", error);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { href: "/cars", label: "Auto", icon: Car },
     { href: "/components", label: "Componenti", icon: Wrench },
-    { href: "/maintenances", label: "Manutenzioni", icon: Wrench },
+    { href: "/maintenances", label: "Manutenzioni", icon: BarChart3 },
     { href: "/calendar", label: "Calendario", icon: CalendarDays },
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
 
   const itemClass = (href: string) => {
     const active = pathname.startsWith(href);
-
-    return [
-      "group flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200",
+    return `flex items-center gap-3 p-3 rounded-xl transition ${
       active
-        ? "bg-yellow-400 text-black shadow-md"
-        : "text-yellow-100 hover:bg-white/10 hover:text-yellow-300",
-    ].join(" ");
+        ? "bg-yellow-500 text-black font-bold"
+        : "hover:bg-gray-900 hover:text-yellow-400"
+    }`;
   };
 
+  const teamName = teamSettings?.team_name || "Battaglia Racing";
+  const teamLogoUrl = teamSettings?.team_logo_url || null;
+
   return (
-    <div className={audiowide.className}>
+    <>
+      {/* Pulsante hamburger mobile */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="lg:hidden fixed top-4 left-4 z-[70] inline-flex items-center justify-center rounded-xl bg-black text-yellow-400 shadow-lg border border-yellow-500/30 w-11 h-11"
+        className="md:hidden fixed top-4 left-4 z-50 bg-black text-yellow-500 p-2 rounded-lg shadow-lg"
         aria-label="Apri menu"
       >
-        {open ? <X size={20} /> : <Menu size={20} />}
+        <Menu size={22} />
       </button>
 
+      {/* Overlay mobile */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50"
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setOpen(false)}
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={[
-          "fixed top-0 left-0 z-[60] h-screen w-[280px] transform transition-transform duration-300",
-          "bg-gradient-to-b from-neutral-950 via-black to-neutral-900 text-yellow-400",
-          "border-r border-yellow-500/15 shadow-2xl",
-          open ? "translate-x-0" : "-translate-x-full",
-          "lg:translate-x-0 lg:sticky lg:top-0",
-        ].join(" ")}
+        className={`fixed md:static top-0 left-0 h-screen w-72 bg-black text-yellow-500 p-5 z-50 transform transition-transform duration-300 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0 flex flex-col ${audiowide.className}`}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-yellow-500/15 px-6 py-7">
-            <div className="flex flex-col items-center text-center">
-              <div className="rounded-2xl bg-white/5 p-3 border border-yellow-500/10">
-                <Image
-                  src="/logo.png"
-                  alt="Battaglia Racing Car Logo"
-                  width={110}
-                  height={110}
-                  className="object-contain drop-shadow-lg"
-                  priority
-                />
-              </div>
-
-              <h2 className="mt-4 text-lg font-bold tracking-wide text-yellow-400">
-                Battaglia Racing
-              </h2>
-
-              <p className="mt-2 text-xs text-yellow-100/70 leading-relaxed">
-                Gestione tecnica parco auto, eventi, componenti e manutenzioni
-              </p>
+        {/* Logo / header team */}
+        <div className="flex flex-col items-center text-center border-b border-yellow-500/20 pb-5 mb-5">
+          {teamLogoUrl ? (
+            <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-white/5 border border-yellow-500/10">
+              <Image
+                src={teamLogoUrl}
+                alt={teamName}
+                fill
+                className="object-contain p-2"
+                unoptimized
+              />
             </div>
-          </div>
-
-          <nav className="flex-1 px-4 py-5 space-y-2 overflow-y-auto">
-            {links.map(({ href, label, icon: Icon }) => {
-              const active = pathname.startsWith(href);
-
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={itemClass(href)}
-                  onClick={() => setOpen(false)}
-                >
-                  <div
-                    className={[
-                      "inline-flex items-center justify-center w-10 h-10 rounded-xl transition-colors",
-                      active
-                        ? "bg-black/10 text-black"
-                        : "bg-white/5 text-yellow-300 group-hover:bg-white/10",
-                    ].join(" ")}
-                  >
-                    <Icon size={19} />
-                  </div>
-
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold truncate">{label}</span>
-                    <span
-                      className={`text-[11px] ${
-                        active ? "text-black/70" : "text-yellow-100/50"
-                      }`}
-                    >
-                      {getSectionHint(label)}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="border-t border-yellow-500/15 px-5 py-4">
-            <div className="rounded-2xl bg-white/5 border border-yellow-500/10 px-4 py-3 text-center">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-100/50">
-                Racing Management
-              </div>
-              <div className="mt-1 text-xs text-yellow-300 font-semibold">
-                Battaglia Racing Car
-              </div>
-              <div className="mt-1 text-[11px] text-yellow-100/50">
-                © 2026
-              </div>
+          ) : (
+            <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-white/5 border border-yellow-500/10">
+              <Image
+                src="/logo-sidebar.png"
+                alt="Battaglia Racing Car Logo"
+                fill
+                className="object-contain p-2"
+                priority
+              />
             </div>
-          </div>
+          )}
+
+          <h2 className="mt-4 text-xl font-bold leading-tight">{teamName}</h2>
+          <p className="text-xs text-yellow-300/70 mt-1">Racing Control Center</p>
+        </div>
+
+        {/* Menu */}
+        <nav className="flex-1 space-y-2">
+          {links.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={itemClass(href)}
+              onClick={() => setOpen(false)}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="pt-5 border-t border-yellow-500/20 text-xs text-yellow-300/60 text-center">
+          © 2026 {teamName}
         </div>
       </aside>
-    </div>
+    </>
   );
-}
-
-function getSectionHint(label: string) {
-  switch (label) {
-    case "Dashboard":
-      return "Panoramica generale";
-    case "Auto":
-      return "Vetture e stato";
-    case "Componenti":
-      return "Magazzino e montaggi";
-    case "Manutenzioni":
-      return "Interventi e revisioni";
-    case "Calendario":
-      return "Eventi e pista";
-    case "Impostazioni":
-      return "Configurazione app";
-    default:
-      return "";
-  }
 }
