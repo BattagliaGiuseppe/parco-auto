@@ -66,15 +66,19 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-    try {
-      setLoggingOut(true);
-      await supabase.auth.signOut();
-      router.replace("/login");
-    } finally {
-      setLoggingOut(false);
-    }
-  };
+  try {
+    setLoggingOut(true);
+    const { error } = await supabase.auth.signOut();
 
+    if (error) {
+      console.error("Errore logout:", error);
+    }
+
+    window.location.href = "/login";
+  } finally {
+    setLoggingOut(false);
+  }
+};
   const teamName = teamSettings?.team_name || "Battaglia Racing";
   const logoUrl = teamSettings?.team_logo_url || null;
 
