@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   LogOut,
+  UserRound,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
@@ -50,13 +51,15 @@ export default function Sidebar() {
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { href: "/cars", label: "Auto", icon: Car },
     { href: "/components", label: "Componenti", icon: Wrench },
+    { href: "/mounts", label: "Montaggi", icon: Wrench },
     { href: "/maintenances", label: "Manutenzioni", icon: Wrench },
     { href: "/calendar", label: "Calendario", icon: CalendarDays },
+    { href: "/drivers", label: "Piloti", icon: UserRound },
     { href: "/settings", label: "Impostazioni", icon: Settings },
   ];
 
   const itemClass = (href: string) => {
-    const active = pathname.startsWith(href);
+    const active = pathname === href || pathname.startsWith(`${href}/`);
     return [
       "group flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200",
       active
@@ -66,19 +69,20 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-  try {
-    setLoggingOut(true);
-    const { error } = await supabase.auth.signOut();
+    try {
+      setLoggingOut(true);
+      const { error } = await supabase.auth.signOut();
 
-    if (error) {
-      console.error("Errore logout:", error);
+      if (error) {
+        console.error("Errore logout:", error);
+      }
+
+      window.location.href = "/login";
+    } finally {
+      setLoggingOut(false);
     }
+  };
 
-    window.location.href = "/login";
-  } finally {
-    setLoggingOut(false);
-  }
-};
   const teamName = teamSettings?.team_name || "Battaglia Racing";
   const logoUrl = teamSettings?.team_logo_url || null;
 
@@ -136,7 +140,7 @@ export default function Sidebar() {
 
           <nav className="flex-1 space-y-2">
             {links.map(({ href, label, icon: Icon }) => {
-              const active = pathname.startsWith(href);
+              const active = pathname === href || pathname.startsWith(`${href}/`);
 
               return (
                 <Link
@@ -150,7 +154,9 @@ export default function Sidebar() {
                     <div className="font-semibold">{label}</div>
                     <div
                       className={`text-[11px] ${
-                        active ? "text-black/70" : "text-yellow-100/50 group-hover:text-yellow-200/70"
+                        active
+                          ? "text-black/70"
+                          : "text-yellow-100/50 group-hover:text-yellow-200/70"
                       }`}
                     >
                       {getSectionHint(label)}
@@ -189,10 +195,14 @@ function getSectionHint(label: string) {
       return "Vetture e stato";
     case "Componenti":
       return "Magazzino e montaggi";
+    case "Montaggi":
+      return "Storico componenti";
     case "Manutenzioni":
       return "Interventi e revisioni";
     case "Calendario":
       return "Eventi e pista";
+    case "Piloti":
+      return "Anagrafiche e scadenze";
     case "Impostazioni":
       return "Configurazione app";
     default:
