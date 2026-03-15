@@ -17,6 +17,8 @@ import {
   CalendarDays,
   TriangleAlert,
   Save,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 
@@ -130,6 +132,13 @@ function getExpiryTone(value: string | null | undefined) {
   };
 }
 
+function sanitizeFileName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
 export default function DriverDetailPage() {
   const params = useParams();
   const driverId = params?.id as string;
@@ -142,6 +151,8 @@ export default function DriverDetailPage() {
 
   const [savingLicense, setSavingLicense] = useState(false);
   const [savingDocument, setSavingDocument] = useState(false);
+  const [uploadingLicenseFile, setUploadingLicenseFile] = useState(false);
+  const [uploadingDocumentFile, setUploadingDocumentFile] = useState(false);
 
   const [licenseType, setLicenseType] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -150,10 +161,12 @@ export default function DriverDetailPage() {
   const [licenseExpiryDate, setLicenseExpiryDate] = useState("");
   const [licenseNotes, setLicenseNotes] = useState("");
   const [licenseFileUrl, setLicenseFileUrl] = useState("");
+  const [licenseFileName, setLicenseFileName] = useState("");
 
   const [documentType, setDocumentType] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentFileUrl, setDocumentFileUrl] = useState("");
+  const [documentFileName, setDocumentFileName] = useState("");
   const [documentSignedAt, setDocumentSignedAt] = useState("");
   const [documentExpiresAt, setDocumentExpiresAt] = useState("");
   const [documentNotes, setDocumentNotes] = useState("");
@@ -210,14 +223,8 @@ export default function DriverDetailPage() {
           .eq("team_id", ctx.teamId)
           .eq("driver_id", driverId)
           .order("created_at", { ascending: false }),
-        supabase
-          .from("events")
-          .select("id, name")
-          .eq("team_id", ctx.teamId),
-        supabase
-          .from("cars")
-          .select("id, name")
-          .eq("team_id", ctx.teamId),
+        supabase.from("events").select("id, name").eq("team_id", ctx.teamId),
+        supabase.from("cars").select("id, name").eq("team_id", ctx.teamId),
       ]);
 
       if (driverError) throw driverError;
@@ -273,6 +280,61 @@ export default function DriverDetailPage() {
       )[0] || null;
   }, [documents]);
 
+  const uploadFile = async (file: File, category: "licenses" | "documents") => {
+    const ctx = await getCurrentTeamContext();
+    const safeName = sanitizeFileName(file.name);
+    const filePath = `${ctx.teamId}/${driverId}/${category}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("driver-documents")
+      .upload(filePath, file, {
+        upsert: false,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from("driver-documents").getPublicUrl(filePath);
+
+    return {
+      fileUrl: data.publicUrl,
+      fileName: file.name,
+    };
+  };
+
+  const handleLicenseFileChange = async (file: File | null) => {
+    if (!file || !driverId) return;
+
+    try {
+      setUploadingLicenseFile(true);
+      const result = await uploadFile(file, "licenses");
+      setLicenseFileUrl(result.fileUrl);
+      setLicenseFileName(result.fileName);
+      showToast("File licenza caricato correttamente");
+    } catch (error: any) {
+      console.error("Errore upload licenza:", error);
+      showToast(error.message || "Errore upload file licenza", "error");
+    } finally {
+      setUploadingLicenseFile(false);
+    }
+  };
+
+  const handleDocumentFileChange = async (file: File | null) => {
+    if (!file || !driverId) return;
+
+    try {
+      setUploadingDocumentFile(true);
+      const result = await uploadFile(file, "documents");
+      setDocumentFileUrl(result.fileUrl);
+      setDocumentFileName(result.fileName);
+      showToast("File documento caricato correttamente");
+    } catch (error: any) {
+      console.error("Errore upload documento:", error);
+      showToast(error.message || "Errore upload file documento", "error");
+    } finally {
+      setUploadingDocumentFile(false);
+    }
+  };
+
   const addLicense = async () => {
     if (!driverId || !licenseType.trim()) {
       showToast("Compila almeno il tipo licenza", "error");
@@ -306,6 +368,7 @@ export default function DriverDetailPage() {
       setLicenseExpiryDate("");
       setLicenseNotes("");
       setLicenseFileUrl("");
+      setLicenseFileName("");
 
       showToast("Licenza aggiunta correttamente");
       await loadData();
@@ -319,7 +382,7 @@ export default function DriverDetailPage() {
 
   const addDocument = async () => {
     if (!driverId || !documentType.trim() || !documentFileUrl.trim()) {
-      showToast("Compila tipo documento e file URL", "error");
+      showToast("Compila tipo documento e carica il file", "error");
       return;
     }
 
@@ -345,6 +408,7 @@ export default function DriverDetailPage() {
       setDocumentType("");
       setDocumentTitle("");
       setDocumentFileUrl("");
+      setDocumentFileName("");
       setDocumentSignedAt("");
       setDocumentExpiresAt("");
       setDocumentNotes("");
@@ -589,12 +653,32 @@ export default function DriverDetailPage() {
                 value={licenseExpiryDate}
                 onChange={(e) => setLicenseExpiryDate(e.target.value)}
               />
-              <input
-                className="input-base"
-                value={licenseFileUrl}
-                onChange={(e) => setLicenseFileUrl(e.target.value)}
-                placeholder="URL file"
-              />
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                  File licenza
+                </label>
+
+                <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-3 cursor-pointer hover:bg-neutral-50">
+                  {uploadingLicenseFile ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  <span>
+                    {uploadingLicenseFile ? "Caricamento..." : "Carica file"}
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => handleLicenseFileChange(e.target.files?.[0] || null)}
+                  />
+                </label>
+
+                <div className="mt-2 text-sm text-neutral-500">
+                  {licenseFileName || "Nessun file caricato"}
+                </div>
+              </div>
             </div>
 
             <textarea
@@ -604,7 +688,11 @@ export default function DriverDetailPage() {
               placeholder="Note licenza..."
             />
 
-            <button onClick={addLicense} disabled={savingLicense} className="btn-primary self-start">
+            <button
+              onClick={addLicense}
+              disabled={savingLicense || uploadingLicenseFile}
+              className="btn-primary self-start"
+            >
               <Save size={18} />
               {savingLicense ? "Salvataggio..." : "Aggiungi licenza"}
             </button>
@@ -639,6 +727,19 @@ export default function DriverDetailPage() {
                       <MiniInfoCard label="Emissione" value={formatDate(license.issue_date)} />
                       <MiniInfoCard label="Scadenza" value={formatDate(license.expiry_date)} />
                     </div>
+
+                    {license.file_url ? (
+                      <div className="mt-3">
+                        <a
+                          href={license.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
+                        >
+                          Apri file licenza
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })
@@ -666,12 +767,33 @@ export default function DriverDetailPage() {
                 onChange={(e) => setDocumentTitle(e.target.value)}
                 placeholder="Titolo"
               />
-              <input
-                className="input-base md:col-span-2"
-                value={documentFileUrl}
-                onChange={(e) => setDocumentFileUrl(e.target.value)}
-                placeholder="URL file *"
-              />
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                  File documento
+                </label>
+
+                <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-3 cursor-pointer hover:bg-neutral-50">
+                  {uploadingDocumentFile ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  <span>
+                    {uploadingDocumentFile ? "Caricamento..." : "Carica file"}
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => handleDocumentFileChange(e.target.files?.[0] || null)}
+                  />
+                </label>
+
+                <div className="mt-2 text-sm text-neutral-500">
+                  {documentFileName || "Nessun file caricato"}
+                </div>
+              </div>
+
               <input
                 type="datetime-local"
                 className="input-base"
@@ -693,7 +815,11 @@ export default function DriverDetailPage() {
               placeholder="Note documento..."
             />
 
-            <button onClick={addDocument} disabled={savingDocument} className="btn-primary self-start">
+            <button
+              onClick={addDocument}
+              disabled={savingDocument || uploadingDocumentFile}
+              className="btn-primary self-start"
+            >
               <PlusCircle size={18} />
               {savingDocument ? "Salvataggio..." : "Aggiungi documento"}
             </button>
@@ -728,10 +854,7 @@ export default function DriverDetailPage() {
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                       <MiniInfoCard label="Firmato" value={formatDate(document.signed_at)} />
                       <MiniInfoCard label="Scadenza" value={formatDate(document.expires_at)} />
-                      <MiniInfoCard
-                        label="File"
-                        value={document.file_url ? "Disponibile" : "—"}
-                      />
+                      <MiniInfoCard label="File" value={document.file_url ? "Disponibile" : "—"} />
                     </div>
 
                     {document.file_url ? (
@@ -868,7 +991,9 @@ function StatusBox({
   return (
     <div className="border rounded-xl p-4 bg-neutral-50">
       <div className="text-sm text-neutral-600 mb-2">{label}</div>
-      <span className={`inline-flex items-center rounded-full px-3 py-1 font-semibold text-sm ${className}`}>
+      <span
+        className={`inline-flex items-center rounded-full px-3 py-1 font-semibold text-sm ${className}`}
+      >
         {badge}
       </span>
     </div>
