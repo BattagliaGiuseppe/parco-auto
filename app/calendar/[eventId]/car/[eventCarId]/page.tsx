@@ -72,6 +72,37 @@ type EventCarRow = {
   notes?: string | null;
 };
 
+
+type DriverLiteRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  nickname?: string | null;
+  is_active?: boolean;
+};
+
+type DriverEventEntryRow = {
+  id: string;
+  event_id: string;
+  event_car_id: string | null;
+  car_id: string | null;
+  driver_id: string;
+  role: string;
+  notes: string | null;
+  driverName: string;
+};
+
+type EventSessionRow = {
+  id: string;
+  event_id: string;
+  name: string;
+  session_type: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  notes: string | null;
+  created_at?: string;
+};
+
 type ToastState = {
   show: boolean;
   message: string;
@@ -218,6 +249,20 @@ export default function EventCarPage() {
   const [activeNotesId, setActiveNotesId] = useState<string | null>(null);
   const [lastNotesTime, setLastNotesTime] = useState<string | null>(null);
 
+  const [teamDrivers, setTeamDrivers] = useState<DriverLiteRow[]>([]);
+  const [assignedDrivers, setAssignedDrivers] = useState<DriverEventEntryRow[]>([]);
+  const [eventSessions, setEventSessions] = useState<EventSessionRow[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [selectedDriverRole, setSelectedDriverRole] = useState("primary");
+  const [driverAssigning, setDriverAssigning] = useState(false);
+
+  const [sessionName, setSessionName] = useState("");
+  const [sessionType, setSessionType] = useState("test");
+  const [sessionStartsAt, setSessionStartsAt] = useState("");
+  const [sessionEndsAt, setSessionEndsAt] = useState("");
+  const [sessionNotes, setSessionNotes] = useState("");
+  const [sessionSaving, setSessionSaving] = useState(false);
+
   const [toast, setToast] = useState<ToastState>({
     show: false,
     message: "",
@@ -267,6 +312,11 @@ export default function EventCarPage() {
   const totalHours = useMemo(() => totalMinutes / 60, [totalMinutes]);
   const totalTurns = useMemo(() => turns.length, [turns]);
   const criticalChecks = useMemo(() => statusCounts.Problema, [statusCounts]);
+
+  const availableDrivers = useMemo(() => {
+    const assignedIds = new Set(assignedDrivers.map((row) => row.driver_id));
+    return teamDrivers.filter((driver) => !assignedIds.has(driver.id));
+  }, [teamDrivers, assignedDrivers]);
 
   const fuelUsed = useMemo(() => {
     if (fuelStart < 0 || fuelEnd < 0) return null;
@@ -333,6 +383,9 @@ export default function EventCarPage() {
         { data: fuelHist },
         { data: notesLast },
         { data: notesHist },
+        { data: driversData, error: driversError },
+        { data: entryRows, error: entriesError },
+        { data: sessionRows, error: sessionsError },
       ] = await Promise.all([
         supabase
           .from("event_car_data")
@@ -408,6 +461,25 @@ export default function EventCarPage() {
           .eq("section", "notes")
           .order("created_at", { ascending: false })
           .limit(3),
+        supabase
+          .from("drivers")
+          .select("id, first_name, last_name, nickname, is_active")
+          .eq("team_id", ctx.teamId)
+          .eq("is_active", true)
+          .order("last_name", { ascending: true }),
+        supabase
+          .from("driver_event_entries")
+          .select("id, event_id, event_car_id, car_id, driver_id, role, notes")
+          .eq("team_id", ctx.teamId)
+          .eq("event_id", eventId)
+          .eq("event_car_id", eventCarId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("event_sessions")
+          .select("id, event_id, name, session_type, starts_at, ends_at, notes, created_at")
+          .eq("team_id", ctx.teamId)
+          .eq("event_id", eventId)
+          .order("starts_at", { ascending: true }),
       ]);
 
       if (setupLast?.data) {
@@ -462,6 +534,29 @@ export default function EventCarPage() {
         setLastNotesTime(null);
       }
       setNotesHistory((notesHist as DataRow[]) || []);
+
+      if (driversError) throw driversError;
+      if (entriesError) throw entriesError;
+      if (sessionsError) throw sessionsError;
+
+      const driverList = (driversData || []) as DriverLiteRow[];
+      setTeamDrivers(driverList);
+
+      const driverMap = new Map(
+        driverList.map((driver) => [
+          driver.id,
+          `${driver.first_name} ${driver.last_name}${driver.nickname ? ` (${driver.nickname})` : ""}`,
+        ])
+      );
+
+      setAssignedDrivers(
+        ((entryRows || []) as any[]).map((row) => ({
+          ...row,
+          driverName: driverMap.get(row.driver_id) || "Pilota",
+        }))
+      );
+
+      setEventSessions((sessionRows || []) as EventSessionRow[]);
     } catch (error: any) {
       showToast(`Errore caricamento dati: ${error.message}`, "error");
     } finally {
@@ -741,6 +836,130 @@ export default function EventCarPage() {
     setLastNotesTime(new Date(row.created_at).toLocaleString());
   }
 
+
+  async function assignDriverToEventCar() {
+    if (!selectedDriverId) {
+      showToast("Seleziona un pilota", "error");
+      return;
+    }
+
+    try {
+      setDriverAssigning(true);
+      const ctx = await getCurrentTeamContext();
+
+      const alreadyAssigned = assignedDrivers.some((row) => row.driver_id === selectedDriverId);
+      if (alreadyAssigned) {
+        showToast("Pilota già assegnato a questa auto", "error");
+        return;
+      }
+
+      const { error } = await supabase.from("driver_event_entries").insert([
+        {
+          team_id: ctx.teamId,
+          event_id: eventId,
+          event_car_id: eventCarId,
+          car_id: car?.id || null,
+          driver_id: selectedDriverId,
+          role: selectedDriverRole,
+          notes: null,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setSelectedDriverId("");
+      setSelectedDriverRole("primary");
+      await loadAllData();
+      showToast("Pilota assegnato correttamente");
+    } catch (error: any) {
+      showToast(`Errore assegnazione pilota: ${error.message}`, "error");
+    } finally {
+      setDriverAssigning(false);
+    }
+  }
+
+  async function removeDriverAssignment(entryId: string) {
+    if (!confirm("Vuoi rimuovere questo pilota dall’auto in evento?")) return;
+
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const { error } = await supabase
+        .from("driver_event_entries")
+        .delete()
+        .eq("id", entryId)
+        .eq("team_id", ctx.teamId)
+        .eq("event_car_id", eventCarId);
+
+      if (error) throw error;
+
+      await loadAllData();
+      showToast("Pilota rimosso correttamente");
+    } catch (error: any) {
+      showToast(`Errore rimozione pilota: ${error.message}`, "error");
+    }
+  }
+
+  async function createEventSession() {
+    if (!sessionName.trim()) {
+      showToast("Inserisci il nome sessione", "error");
+      return;
+    }
+
+    try {
+      setSessionSaving(true);
+      const ctx = await getCurrentTeamContext();
+
+      const { error } = await supabase.from("event_sessions").insert([
+        {
+          team_id: ctx.teamId,
+          event_id: eventId,
+          name: sessionName.trim(),
+          session_type: sessionType,
+          starts_at: sessionStartsAt || null,
+          ends_at: sessionEndsAt || null,
+          notes: sessionNotes.trim() || null,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setSessionName("");
+      setSessionType("test");
+      setSessionStartsAt("");
+      setSessionEndsAt("");
+      setSessionNotes("");
+      await loadAllData();
+      showToast("Sessione creata correttamente");
+    } catch (error: any) {
+      showToast(`Errore creazione sessione: ${error.message}`, "error");
+    } finally {
+      setSessionSaving(false);
+    }
+  }
+
+  async function deleteEventSession(sessionId: string) {
+    if (!confirm("Vuoi eliminare questa sessione evento?")) return;
+
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const { error } = await supabase
+        .from("event_sessions")
+        .delete()
+        .eq("id", sessionId)
+        .eq("team_id", ctx.teamId)
+        .eq("event_id", eventId);
+
+      if (error) throw error;
+
+      await loadAllData();
+      showToast("Sessione eliminata");
+    } catch (error: any) {
+      showToast(`Errore eliminazione sessione: ${error.message}`, "error");
+    }
+  }
+
   if (loading) {
     return (
       <div className="card-base p-10 text-center text-neutral-500">
@@ -840,6 +1059,192 @@ export default function EventCarPage() {
               value={String(criticalChecks)}
               valueClassName={criticalChecks > 0 ? "text-red-700" : "text-green-700"}
             />
+          </div>
+        </div>
+      </section>
+
+
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="card-base p-5 md:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <UserRound className="text-yellow-500" size={18} />
+            <h2 className="text-lg font-bold text-neutral-800">Piloti assegnati</h2>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-3">
+              <select
+                value={selectedDriverId}
+                onChange={(e) => setSelectedDriverId(e.target.value)}
+                className="input-base"
+              >
+                <option value="">Seleziona pilota</option>
+                {availableDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.first_name} {driver.last_name}
+                    {driver.nickname ? ` (${driver.nickname})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedDriverRole}
+                onChange={(e) => setSelectedDriverRole(e.target.value)}
+                className="input-base"
+              >
+                <option value="primary">Primary</option>
+                <option value="co_driver">Co-driver</option>
+                <option value="reserve">Reserve</option>
+              </select>
+
+              <button
+                onClick={assignDriverToEventCar}
+                disabled={driverAssigning}
+                className="btn-primary"
+              >
+                {driverAssigning ? <Loader2 className="animate-spin" size={16} /> : <PlusCircle size={16} />}
+                Aggiungi
+              </button>
+            </div>
+
+            {availableDrivers.length === 0 && (
+              <p className="text-sm text-neutral-500 mt-3">
+                Tutti i piloti attivi del team sono già assegnati a questa auto oppure non ci sono piloti disponibili.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {assignedDrivers.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
+                Nessun pilota assegnato a questa auto.
+              </div>
+            ) : (
+              assignedDrivers.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-neutral-200 bg-white p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                >
+                  <div>
+                    <div className="font-bold text-neutral-900">{entry.driverName}</div>
+                    <div className="text-sm text-neutral-500 mt-1">
+                      Ruolo: <span className="font-semibold">{entry.role}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => removeDriverAssignment(entry.id)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 font-semibold"
+                  >
+                    <Trash2 size={16} />
+                    Rimuovi
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="card-base p-5 md:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarDays className="text-yellow-500" size={18} />
+            <h2 className="text-lg font-bold text-neutral-800">Sessioni evento</h2>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 flex flex-col gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                className="input-base"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                placeholder="Nome sessione"
+              />
+
+              <select
+                value={sessionType}
+                onChange={(e) => setSessionType(e.target.value)}
+                className="input-base"
+              >
+                <option value="test">Test</option>
+                <option value="prove_libere">Prove libere</option>
+                <option value="qualifica">Qualifica</option>
+                <option value="gara">Gara</option>
+                <option value="stint">Stint</option>
+                <option value="warmup">Warmup</option>
+              </select>
+
+              <input
+                type="datetime-local"
+                className="input-base"
+                value={sessionStartsAt}
+                onChange={(e) => setSessionStartsAt(e.target.value)}
+              />
+
+              <input
+                type="datetime-local"
+                className="input-base"
+                value={sessionEndsAt}
+                onChange={(e) => setSessionEndsAt(e.target.value)}
+              />
+            </div>
+
+            <textarea
+              className="input-base min-h-[100px]"
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="Note sessione..."
+            />
+
+            <button
+              onClick={createEventSession}
+              disabled={sessionSaving}
+              className="btn-primary self-start"
+            >
+              {sessionSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              Crea sessione
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {eventSessions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
+                Nessuna sessione registrata per questo evento.
+              </div>
+            ) : (
+              eventSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="rounded-2xl border border-neutral-200 bg-white p-4 flex flex-col gap-3"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-neutral-900">{session.name}</div>
+                      <div className="text-sm text-neutral-500 mt-1">
+                        Tipo: <span className="font-semibold">{session.session_type}</span>
+                      </div>
+                      <div className="text-xs text-neutral-500 mt-2">
+                        {session.starts_at ? `Da ${new Date(session.starts_at).toLocaleString("it-IT")}` : "Inizio non impostato"}
+                        {session.ends_at ? ` • A ${new Date(session.ends_at).toLocaleString("it-IT")}` : ""}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => deleteEventSession(session.id)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 font-semibold self-start"
+                    >
+                      <Trash2 size={16} />
+                      Elimina
+                    </button>
+                  </div>
+
+                  {session.notes ? (
+                    <div className="text-sm text-neutral-700 rounded-xl bg-neutral-50 border border-neutral-200 p-3 whitespace-pre-line">
+                      {session.notes}
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
