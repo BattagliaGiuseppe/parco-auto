@@ -1248,6 +1248,9 @@ export default function EventCarPage() {
           </div>
         </div>
       </section>
+<div className="rounded-2xl border border-red-500 bg-red-50 p-4 text-red-700 font-bold">
+  TEST NUOVA PAGINA EVENT CAR
+</div>
 
       <section className="card-base p-5 md:p-6">
         <SectionHeader
