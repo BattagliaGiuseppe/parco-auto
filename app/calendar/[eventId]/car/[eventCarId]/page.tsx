@@ -28,6 +28,7 @@ import {
   Wrench,
   Activity,
   FileText,
+  UserRound,
 } from "lucide-react";
 
 import SetupScheda from "./setup-scheda";
