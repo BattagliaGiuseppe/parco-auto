@@ -30,6 +30,7 @@ import {
   FileText,
   UserRound,
   PlusCircle,
+  CalendarDays,
 } from "lucide-react";
 
 import SetupScheda from "./setup-scheda";
