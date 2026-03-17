@@ -29,6 +29,7 @@ import {
   Activity,
   FileText,
   UserRound,
+  PlusCircle,
 } from "lucide-react";
 
 import SetupScheda from "./setup-scheda";
