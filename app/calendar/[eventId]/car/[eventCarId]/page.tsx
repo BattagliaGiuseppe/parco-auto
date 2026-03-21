@@ -32,7 +32,6 @@ import {
   UserRound,
   CalendarDays,
   PlusCircle,
-  Settings2,
   MapPin,
 } from "lucide-react";
 
@@ -336,6 +335,7 @@ export default function EventCarPage() {
       else if (value === "Problema") counts.Problema++;
       else counts["Da controllare"]++;
     }
+
     return counts;
   }, [checkup]);
 
@@ -385,55 +385,80 @@ export default function EventCarPage() {
       setLoading(true);
       const ctx = await getCurrentTeamContext();
 
-      const [
-        { data: eventData, error: eventError },
-        { data: eventCarData, error: eventCarError },
-        { data: driversData, error: driversError },
-        { data: assignedDriversData, error: assignedDriversError },
-        { data: sessionsData, error: sessionsError },
-        { data: turnsData, error: turnsError },
-        { data: checkLast, error: checkLastError },
-        { data: checkHist, error: checkHistError },
-        { data: fuelLast, error: fuelLastError },
-        { data: fuelHist, error: fuelHistError },
-        { data: notesLast, error: notesLastError },
-        { data: notesHist, error: notesHistError },
-      ] = await Promise.all([
-        supabase
-          .from("events")
-          .select("id, name, date, circuit_id")
+      const { data: eventData, error: eventError } = await supabase
+        .from("events")
+        .select("id, name, date, circuit_id")
+        .eq("team_id", ctx.teamId)
+        .eq("id", eventId)
+        .single();
+
+      if (eventError) throw eventError;
+
+      const { data: eventCarData, error: eventCarError } = await supabase
+        .from("event_cars")
+        .select("id, event_id, car_id, driver, notes, status")
+        .eq("team_id", ctx.teamId)
+        .eq("id", eventCarId)
+        .single();
+
+      if (eventCarError) throw eventCarError;
+
+      const eventCarRow = eventCarData as EventCarRow;
+
+      const { data: carData, error: carError } = await supabase
+        .from("cars")
+        .select("id, name, hours")
+        .eq("team_id", ctx.teamId)
+        .eq("id", eventCarRow.car_id)
+        .single();
+
+      if (carError) throw carError;
+
+      setEvent(eventData as EventRow);
+      setEventCar(eventCarRow);
+      setCar(carData as CarRow);
+
+      if ((eventData as EventRow).circuit_id) {
+        const { data: circuitData } = await supabase
+          .from("circuits")
+          .select("id, name")
           .eq("team_id", ctx.teamId)
-          .eq("id", eventId)
-          .single(),
-        supabase
-          .from("event_cars")
-          .select("id, event_id, car_id, driver, notes, status")
-          .eq("team_id", ctx.teamId)
-          .eq("id", eventCarId)
-          .single(),
+          .eq("id", (eventData as EventRow).circuit_id)
+          .maybeSingle();
+
+        setCircuit((circuitData as CircuitRow) || null);
+      } else {
+        setCircuit(null);
+      }
+
+      const results = await Promise.allSettled([
         supabase
           .from("drivers")
           .select("id, first_name, last_name, nickname, is_active")
           .eq("team_id", ctx.teamId)
           .order("last_name", { ascending: true }),
+
         supabase
           .from("driver_event_entries")
           .select("id, event_car_id, event_id, car_id, driver_id, role, notes, created_at")
           .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .order("created_at", { ascending: true }),
+
         supabase
           .from("event_sessions")
           .select("id, event_id, name, session_type, starts_at, ends_at, notes, created_at")
           .eq("team_id", ctx.teamId)
           .eq("event_id", eventId)
           .order("created_at", { ascending: true }),
+
         supabase
           .from("event_car_turns")
           .select("id, event_car_id, event_session_id, minutes, laps, notes, created_at")
           .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .order("created_at", { ascending: true }),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -443,6 +468,7 @@ export default function EventCarPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -451,6 +477,7 @@ export default function EventCarPage() {
           .eq("section", "checkup")
           .order("created_at", { ascending: false })
           .limit(3),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -460,6 +487,7 @@ export default function EventCarPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -468,6 +496,7 @@ export default function EventCarPage() {
           .eq("section", "fuel")
           .order("created_at", { ascending: false })
           .limit(3),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -477,6 +506,7 @@ export default function EventCarPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+
         supabase
           .from("event_car_data")
           .select("*")
@@ -487,82 +517,83 @@ export default function EventCarPage() {
           .limit(3),
       ]);
 
-      if (eventError) throw eventError;
-      if (eventCarError) throw eventCarError;
-      if (driversError) throw driversError;
-      if (assignedDriversError) throw assignedDriversError;
-      if (sessionsError) throw sessionsError;
-      if (turnsError) throw turnsError;
-      if (checkLastError) throw checkLastError;
-      if (checkHistError) throw checkHistError;
-      if (fuelLastError) throw fuelLastError;
-      if (fuelHistError) throw fuelHistError;
-      if (notesLastError) throw notesLastError;
-      if (notesHistError) throw notesHistError;
+      const [
+        driversRes,
+        assignedDriversRes,
+        sessionsRes,
+        turnsRes,
+        checkLastRes,
+        checkHistRes,
+        fuelLastRes,
+        fuelHistRes,
+        notesLastRes,
+        notesHistRes,
+      ] = results;
 
-      setEvent(eventData as EventRow);
-      setEventCar(eventCarData as EventCarRow);
-      setDrivers((driversData || []) as DriverRow[]);
-      setAssignedDrivers((assignedDriversData || []) as DriverEntryRow[]);
-      setSessions((sessionsData || []) as EventSessionRow[]);
-      setTurns((turnsData || []) as TurnRow[]);
-
-      const eventCarRow = eventCarData as EventCarRow;
-
-      if (eventCarRow?.car_id) {
-        const { data: carData, error: carError } = await supabase
-          .from("cars")
-          .select("id, name, hours")
-          .eq("team_id", ctx.teamId)
-          .eq("id", eventCarRow.car_id)
-          .single();
-
-        if (!carError && carData) {
-          setCar(carData as CarRow);
-        } else {
-          setCar(null);
-        }
+      if (driversRes.status === "fulfilled" && !driversRes.value.error) {
+        setDrivers((driversRes.value.data || []) as DriverRow[]);
       } else {
-        setCar(null);
+        setDrivers([]);
+        console.error("Errore drivers:", driversRes);
       }
 
-      const eventRow = eventData as EventRow;
-      if (eventRow?.circuit_id) {
-        const { data: circuitData, error: circuitError } = await supabase
-          .from("circuits")
-          .select("id, name")
-          .eq("team_id", ctx.teamId)
-          .eq("id", eventRow.circuit_id)
-          .single();
-
-        if (!circuitError && circuitData) {
-          setCircuit(circuitData as CircuitRow);
-        } else {
-          setCircuit(null);
-        }
+      if (
+        assignedDriversRes.status === "fulfilled" &&
+        !assignedDriversRes.value.error
+      ) {
+        setAssignedDrivers((assignedDriversRes.value.data || []) as DriverEntryRow[]);
       } else {
-        setCircuit(null);
+        setAssignedDrivers([]);
+        console.error("Errore driver_event_entries:", assignedDriversRes);
       }
 
-      if ((checkLast as DataRow | null)?.data) {
-        setCheckup((checkLast as DataRow).data || {});
-        setActiveCheckupId((checkLast as DataRow).id);
-        setLastCheckupTime(new Date((checkLast as DataRow).created_at).toLocaleString());
+      if (sessionsRes.status === "fulfilled" && !sessionsRes.value.error) {
+        setSessions((sessionsRes.value.data || []) as EventSessionRow[]);
+      } else {
+        setSessions([]);
+        console.error("Errore event_sessions:", sessionsRes);
+      }
+
+      if (turnsRes.status === "fulfilled" && !turnsRes.value.error) {
+        setTurns((turnsRes.value.data || []) as TurnRow[]);
+      } else {
+        setTurns([]);
+        console.error("Errore event_car_turns:", turnsRes);
+      }
+
+      if (
+        checkLastRes.status === "fulfilled" &&
+        !checkLastRes.value.error &&
+        checkLastRes.value.data?.data
+      ) {
+        const row = checkLastRes.value.data as DataRow;
+        setCheckup(row.data || {});
+        setActiveCheckupId(row.id);
+        setLastCheckupTime(new Date(row.created_at).toLocaleString());
       } else {
         setCheckup({});
         setActiveCheckupId(null);
         setLastCheckupTime(null);
       }
-      setCheckupHistory((checkHist as DataRow[]) || []);
 
-      if ((fuelLast as DataRow | null)?.data) {
-        const data = (fuelLast as DataRow).data || {};
-        setFuelStart(Number(data.fuelStart ?? 0));
-        setFuelEnd(Number(data.fuelEnd ?? 0));
-        setLapsDone(Number(data.lapsDone ?? 0));
-        setLapsPlanned(Number(data.lapsPlanned ?? 0));
-        setActiveFuelId((fuelLast as DataRow).id);
-        setLastFuelTime(new Date((fuelLast as DataRow).created_at).toLocaleString());
+      if (checkHistRes.status === "fulfilled" && !checkHistRes.value.error) {
+        setCheckupHistory((checkHistRes.value.data || []) as DataRow[]);
+      } else {
+        setCheckupHistory([]);
+      }
+
+      if (
+        fuelLastRes.status === "fulfilled" &&
+        !fuelLastRes.value.error &&
+        fuelLastRes.value.data?.data
+      ) {
+        const row = fuelLastRes.value.data as DataRow;
+        setFuelStart(Number(row.data.fuelStart ?? 0));
+        setFuelEnd(Number(row.data.fuelEnd ?? 0));
+        setLapsDone(Number(row.data.lapsDone ?? 0));
+        setLapsPlanned(Number(row.data.lapsPlanned ?? 0));
+        setActiveFuelId(row.id);
+        setLastFuelTime(new Date(row.created_at).toLocaleString());
       } else {
         setFuelStart(0);
         setFuelEnd(0);
@@ -571,20 +602,35 @@ export default function EventCarPage() {
         setActiveFuelId(null);
         setLastFuelTime(null);
       }
-      setFuelHistory((fuelHist as DataRow[]) || []);
 
-      if ((notesLast as DataRow | null)?.data?.text) {
-        setNotes(String((notesLast as DataRow).data.text));
-        setActiveNotesId((notesLast as DataRow).id);
-        setLastNotesTime(new Date((notesLast as DataRow).created_at).toLocaleString());
+      if (fuelHistRes.status === "fulfilled" && !fuelHistRes.value.error) {
+        setFuelHistory((fuelHistRes.value.data || []) as DataRow[]);
+      } else {
+        setFuelHistory([]);
+      }
+
+      if (
+        notesLastRes.status === "fulfilled" &&
+        !notesLastRes.value.error &&
+        notesLastRes.value.data?.data?.text
+      ) {
+        const row = notesLastRes.value.data as DataRow;
+        setNotes(String(row.data.text));
+        setActiveNotesId(row.id);
+        setLastNotesTime(new Date(row.created_at).toLocaleString());
       } else {
         setNotes("");
         setActiveNotesId(null);
         setLastNotesTime(null);
       }
-      setNotesHistory((notesHist as DataRow[]) || []);
+
+      if (notesHistRes.status === "fulfilled" && !notesHistRes.value.error) {
+        setNotesHistory((notesHistRes.value.data || []) as DataRow[]);
+      } else {
+        setNotesHistory([]);
+      }
     } catch (error: any) {
-      console.error(error);
+      console.error("Errore loadAllData:", error);
       showToast(`Errore caricamento dati: ${error.message}`, "error");
     } finally {
       setLoading(false);
