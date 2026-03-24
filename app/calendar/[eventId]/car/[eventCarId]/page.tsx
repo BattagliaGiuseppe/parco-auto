@@ -209,6 +209,8 @@ export default function EventCarPage() {
   const [driversExpanded, setDriversExpanded] = useState(true);
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
 
+  const [selectedSessionFilter, setSelectedSessionFilter] = useState("");
+
   const checkupGroups = useMemo<CheckupGroup[]>(
     () => [
       {
@@ -347,6 +349,28 @@ export default function EventCarPage() {
   const totalHours = useMemo(() => totalMinutes / 60, [totalMinutes]);
   const totalTurns = useMemo(() => turns.length, [turns]);
   const criticalChecks = useMemo(() => statusCounts.Problema, [statusCounts]);
+
+  const filteredTurns = useMemo(() => {
+    if (!selectedSessionFilter) return turns;
+    return turns.filter((t) => t.event_session_id === selectedSessionFilter);
+  }, [turns, selectedSessionFilter]);
+
+  const filteredTotalMinutes = useMemo(
+    () => filteredTurns.reduce((acc, t) => acc + Number(t.minutes || 0), 0),
+    [filteredTurns]
+  );
+
+  const filteredTotalLaps = useMemo(
+    () => filteredTurns.reduce((acc, t) => acc + Number(t.laps || 0), 0),
+    [filteredTurns]
+  );
+
+  const filteredTotalTurns = useMemo(() => filteredTurns.length, [filteredTurns]);
+
+  const selectedSessionLabel = useMemo(() => {
+    if (!selectedSessionFilter) return "Tutte le sessioni";
+    return sessions.find((s) => s.id === selectedSessionFilter)?.name || "Sessione";
+  }, [selectedSessionFilter, sessions]);
 
   const fuelUsed = useMemo(() => {
     if (fuelStart < 0 || fuelEnd < 0) return null;
@@ -1530,6 +1554,45 @@ export default function EventCarPage() {
               </div>
             )}
 
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Filtra per sessione
+                  </label>
+                  <select
+                    value={selectedSessionFilter}
+                    onChange={(e) => setSelectedSessionFilter(e.target.value)}
+                    className="border rounded-xl p-3 text-sm w-full bg-white"
+                  >
+                    <option value="">Tutte le sessioni</option>
+                    {sessions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <SummaryCard
+                  icon={<Clock3 size={18} className="text-yellow-600" />}
+                  label="Minuti sessione"
+                  value={String(filteredTotalMinutes)}
+                />
+                <SummaryCard
+                  icon={<Flag size={18} className="text-yellow-600" />}
+                  label="Giri sessione"
+                  value={String(filteredTotalLaps)}
+                />
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">{selectedSessionLabel}</span>
+                {" • "}
+                {filteredTotalTurns} turni
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-gray-200 overflow-hidden mb-5">
               <div className="hidden md:grid grid-cols-12 bg-gray-100 text-gray-700 text-sm font-semibold">
                 <div className="col-span-1 p-3 text-center">#</div>
@@ -1540,11 +1603,11 @@ export default function EventCarPage() {
                 <div className="col-span-2 p-3 text-center">Azioni</div>
               </div>
 
-              {turns.length === 0 ? (
+              {filteredTurns.length === 0 ? (
                 <div className="p-6 text-center text-gray-400">Nessun turno registrato</div>
               ) : (
                 <div className="divide-y divide-gray-200">
-                  {turns.map((t, i) => {
+                  {filteredTurns.map((t, i) => {
                     const session = sessions.find((s) => s.id === t.event_session_id);
                     return (
                       <div key={t.id}>
