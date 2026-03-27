@@ -117,6 +117,23 @@ type EventSessionRow = {
   created_at: string;
 };
 
+type DriverSessionPerformanceRow = {
+  id: string;
+  team_id: string;
+  event_session_id: string;
+  event_car_id: string;
+  driver_id: string;
+  best_lap_time: string | null;
+  average_lap_time: string | null;
+  consistency_score: number | null;
+  laps_completed: number | null;
+  incidents: number | null;
+  driver_feedback: string | null;
+  engineer_notes: string | null;
+  track_conditions: string | null;
+  created_at: string;
+};
+
 type ToastState = {
   show: boolean;
   message: string;
@@ -208,6 +225,7 @@ export default function EventCarPage() {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [driversExpanded, setDriversExpanded] = useState(true);
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
+  const [performanceExpanded, setPerformanceExpanded] = useState(false);
 
   const [selectedSessionFilter, setSelectedSessionFilter] = useState("");
 
@@ -240,6 +258,7 @@ export default function EventCarPage() {
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
   const [assignedDrivers, setAssignedDrivers] = useState<DriverEntryRow[]>([]);
   const [sessions, setSessions] = useState<EventSessionRow[]>([]);
+  const [performances, setPerformances] = useState<DriverSessionPerformanceRow[]>([]);
 
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedDriverRole, setSelectedDriverRole] = useState("primary");
@@ -251,6 +270,18 @@ export default function EventCarPage() {
   const [sessionEndsAt, setSessionEndsAt] = useState("");
   const [sessionNotes, setSessionNotes] = useState("");
   const [savingSession, setSavingSession] = useState(false);
+
+  const [performanceSessionId, setPerformanceSessionId] = useState("");
+  const [performanceDriverId, setPerformanceDriverId] = useState("");
+  const [bestLapTime, setBestLapTime] = useState("");
+  const [averageLapTime, setAverageLapTime] = useState("");
+  const [consistencyScore, setConsistencyScore] = useState("");
+  const [lapsCompleted, setLapsCompleted] = useState("");
+  const [incidents, setIncidents] = useState("");
+  const [driverFeedback, setDriverFeedback] = useState("");
+  const [engineerNotes, setEngineerNotes] = useState("");
+  const [trackConditions, setTrackConditions] = useState("");
+  const [savingPerformance, setSavingPerformance] = useState(false);
 
   const [checkup, setCheckup] = useState<Record<string, CheckStatus>>({});
   const [checkupSaving, setCheckupSaving] = useState(false);
@@ -477,6 +508,13 @@ export default function EventCarPage() {
           .order("created_at", { ascending: true }),
 
         supabase
+          .from("driver_session_performance")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .eq("event_car_id", eventCarId)
+          .order("created_at", { ascending: false }),
+
+        supabase
           .from("event_car_turns")
           .select("id, event_car_id, event_session_id, minutes, laps, notes, created_at")
           .eq("team_id", ctx.teamId)
@@ -545,6 +583,7 @@ export default function EventCarPage() {
         driversRes,
         assignedDriversRes,
         sessionsRes,
+        performancesRes,
         turnsRes,
         checkLastRes,
         checkHistRes,
@@ -561,10 +600,7 @@ export default function EventCarPage() {
         console.error("Errore drivers:", driversRes);
       }
 
-      if (
-        assignedDriversRes.status === "fulfilled" &&
-        !assignedDriversRes.value.error
-      ) {
+      if (assignedDriversRes.status === "fulfilled" && !assignedDriversRes.value.error) {
         setAssignedDrivers((assignedDriversRes.value.data || []) as DriverEntryRow[]);
       } else {
         setAssignedDrivers([]);
@@ -576,6 +612,13 @@ export default function EventCarPage() {
       } else {
         setSessions([]);
         console.error("Errore event_sessions:", sessionsRes);
+      }
+
+      if (performancesRes.status === "fulfilled" && !performancesRes.value.error) {
+        setPerformances((performancesRes.value.data || []) as DriverSessionPerformanceRow[]);
+      } else {
+        setPerformances([]);
+        console.error("Errore driver_session_performance:", performancesRes);
       }
 
       if (turnsRes.status === "fulfilled" && !turnsRes.value.error) {
@@ -824,6 +867,55 @@ export default function EventCarPage() {
     }
   }
 
+  async function onSavePerformance() {
+    if (!performanceSessionId || !performanceDriverId) {
+      showToast("Seleziona sessione e pilota", "error");
+      return;
+    }
+
+    try {
+      setSavingPerformance(true);
+      const ctx = await getCurrentTeamContext();
+
+      const { error } = await supabase.from("driver_session_performance").insert([
+        {
+          team_id: ctx.teamId,
+          event_session_id: performanceSessionId,
+          event_car_id: eventCarId,
+          driver_id: performanceDriverId,
+          best_lap_time: bestLapTime.trim() || null,
+          average_lap_time: averageLapTime.trim() || null,
+          consistency_score: consistencyScore ? Number(consistencyScore) : null,
+          laps_completed: lapsCompleted ? Number(lapsCompleted) : 0,
+          incidents: incidents ? Number(incidents) : 0,
+          driver_feedback: driverFeedback.trim() || null,
+          engineer_notes: engineerNotes.trim() || null,
+          track_conditions: trackConditions.trim() || null,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setPerformanceSessionId("");
+      setPerformanceDriverId("");
+      setBestLapTime("");
+      setAverageLapTime("");
+      setConsistencyScore("");
+      setLapsCompleted("");
+      setIncidents("");
+      setDriverFeedback("");
+      setEngineerNotes("");
+      setTrackConditions("");
+
+      showToast("Performance pilota salvata");
+      await loadAllData();
+    } catch (error: any) {
+      showToast(`Errore salvataggio performance: ${error.message}`, "error");
+    } finally {
+      setSavingPerformance(false);
+    }
+  }
+
   async function onSaveCheckup() {
     try {
       setCheckupSaving(true);
@@ -1066,9 +1158,7 @@ export default function EventCarPage() {
                 <span>{event.name}</span>
               </h1>
 
-              <p className="text-yellow-200/90 text-sm mt-2">
-                Gestione tecnica evento
-              </p>
+              <p className="text-yellow-200/90 text-sm mt-2">Gestione tecnica evento</p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {overallStatus === "OK" && (
@@ -1221,9 +1311,7 @@ export default function EventCarPage() {
               )}
             </>
           ) : (
-            <div className="text-sm text-gray-500">
-              {assignedDrivers.length} piloti assegnati
-            </div>
+            <div className="text-sm text-gray-500">{assignedDrivers.length} piloti assegnati</div>
           )}
         </section>
 
@@ -1347,6 +1435,172 @@ export default function EventCarPage() {
 
       <section className="card-base p-5 md:p-6">
         <SectionHeader
+          title="Performance pilota"
+          subtitle="Analisi manuale per pilota e sessione"
+          icon={<UserRound className="text-yellow-500" />}
+          expanded={performanceExpanded}
+          onToggle={() => setPerformanceExpanded((v) => !v)}
+        />
+
+        {performanceExpanded ? (
+          <>
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex flex-col gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <select
+                  value={performanceSessionId}
+                  onChange={(e) => setPerformanceSessionId(e.target.value)}
+                  className="input-base"
+                >
+                  <option value="">Seleziona sessione</option>
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={performanceDriverId}
+                  onChange={(e) => setPerformanceDriverId(e.target.value)}
+                  className="input-base"
+                >
+                  <option value="">Seleziona pilota</option>
+                  {assignedDriversDetailed.map((entry) =>
+                    entry.driver ? (
+                      <option key={entry.driver.id} value={entry.driver.id}>
+                        {driverLabel(entry.driver)}
+                      </option>
+                    ) : null
+                  )}
+                </select>
+
+                <input
+                  className="input-base"
+                  value={bestLapTime}
+                  onChange={(e) => setBestLapTime(e.target.value)}
+                  placeholder="Best lap (es. 1:34.221)"
+                />
+
+                <input
+                  className="input-base"
+                  value={averageLapTime}
+                  onChange={(e) => setAverageLapTime(e.target.value)}
+                  placeholder="Lap medio"
+                />
+
+                <input
+                  type="number"
+                  className="input-base"
+                  value={consistencyScore}
+                  onChange={(e) => setConsistencyScore(e.target.value)}
+                  placeholder="Costanza"
+                />
+
+                <input
+                  type="number"
+                  className="input-base"
+                  value={lapsCompleted}
+                  onChange={(e) => setLapsCompleted(e.target.value)}
+                  placeholder="Giri completati"
+                />
+
+                <input
+                  type="number"
+                  className="input-base"
+                  value={incidents}
+                  onChange={(e) => setIncidents(e.target.value)}
+                  placeholder="Incidenti"
+                />
+
+                <input
+                  className="input-base"
+                  value={trackConditions}
+                  onChange={(e) => setTrackConditions(e.target.value)}
+                  placeholder="Condizioni pista"
+                />
+              </div>
+
+              <textarea
+                className="input-base min-h-[100px]"
+                value={driverFeedback}
+                onChange={(e) => setDriverFeedback(e.target.value)}
+                placeholder="Feedback pilota..."
+              />
+
+              <textarea
+                className="input-base min-h-[100px]"
+                value={engineerNotes}
+                onChange={(e) => setEngineerNotes(e.target.value)}
+                placeholder="Note ingegnere..."
+              />
+
+              <button
+                onClick={onSavePerformance}
+                disabled={savingPerformance}
+                className="btn-primary self-start"
+              >
+                {savingPerformance ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salva performance
+              </button>
+            </div>
+
+            {performances.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
+                Nessuna performance registrata.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {performances.map((perf) => {
+                  const session = sessions.find((s) => s.id === perf.event_session_id);
+                  const driver = drivers.find((d) => d.id === perf.driver_id);
+
+                  return (
+                    <div
+                      key={perf.id}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-neutral-900">
+                            {driver ? driverLabel(driver) : "Pilota"}
+                          </div>
+                          <div className="text-sm text-neutral-500">
+                            {session?.name || "Sessione"}
+                          </div>
+                        </div>
+                        <div className="text-xs text-neutral-500">
+                          {formatDateTime(perf.created_at)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-4">
+                        <MiniInfoCard label="Best lap" value={perf.best_lap_time || "—"} />
+                        <MiniInfoCard label="Lap medio" value={perf.average_lap_time || "—"} />
+                        <MiniInfoCard label="Costanza" value={perf.consistency_score?.toString() || "—"} />
+                        <MiniInfoCard label="Giri" value={perf.laps_completed?.toString() || "0"} />
+                        <MiniInfoCard label="Incidenti" value={perf.incidents?.toString() || "0"} />
+                      </div>
+
+                      {(perf.track_conditions || perf.driver_feedback || perf.engineer_notes) && (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <MiniInfoCard label="Condizioni pista" value={perf.track_conditions || "—"} />
+                          <MiniInfoCard label="Feedback pilota" value={perf.driver_feedback || "—"} />
+                          <MiniInfoCard label="Note ingegnere" value={perf.engineer_notes || "—"} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-sm text-gray-500">{performances.length} performance registrate</div>
+        )}
+      </section>
+
+      <section className="card-base p-5 md:p-6">
+        <SectionHeader
           title="Assetto"
           subtitle="Scheda tecnica completa setup"
           icon={<Gauge className="text-yellow-500" />}
@@ -1384,9 +1638,7 @@ export default function EventCarPage() {
           <>
             <div className="mb-5 rounded-xl border bg-gray-50 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="flex items-center gap-2 text-base font-semibold">
-                {overallStatus === "OK" && (
-                  <span className="text-green-700">Tutti i controlli OK</span>
-                )}
+                {overallStatus === "OK" && <span className="text-green-700">Tutti i controlli OK</span>}
                 {overallStatus === "Da controllare" && (
                   <span className="text-yellow-700">Check-up da completare</span>
                 )}
@@ -2256,7 +2508,9 @@ function MiniInfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3">
       <div className="text-xs text-neutral-500">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-neutral-900 break-words">{value}</div>
+      <div className="mt-1 text-sm font-semibold text-neutral-900 break-words whitespace-pre-wrap">
+        {value}
+      </div>
     </div>
   );
 }
