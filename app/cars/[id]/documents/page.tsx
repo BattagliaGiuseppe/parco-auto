@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTeamContext } from "@/lib/teamContext";
 import { PlusCircle, FileText, ArrowLeft } from "lucide-react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+const audiowide = { className: "" };
 
 type Document = {
   id: string;
@@ -26,7 +24,7 @@ const PRESET_TYPES = [
 ];
 
 export default function DocumentsPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -34,27 +32,15 @@ export default function DocumentsPage() {
   const [customType, setCustomType] = useState("");
 
   const fetchDocs = async () => {
-    if (!id) return;
-
     setLoading(true);
-    try {
-      const ctx = await getCurrentTeamContext();
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("car_id", id)
+      .order("uploaded_at", { ascending: false });
 
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("car_id", id)
-        .eq("team_id", ctx.teamId)
-        .order("uploaded_at", { ascending: false });
-
-      if (!error && data) setDocs(data as Document[]);
-      else setDocs([]);
-    } catch (error) {
-      console.error("Errore caricamento documenti:", error);
-      setDocs([]);
-    } finally {
-      setLoading(false);
-    }
+    if (!error && data) setDocs(data);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -62,57 +48,46 @@ export default function DocumentsPage() {
   }, [id]);
 
   const uploadDoc = async () => {
-    if (!file || !id) {
+    if (!file) {
       alert("Seleziona un file");
       return;
     }
+    const finalType =
+      docType === "Altro" ? customType.trim() || "Altro" : docType;
 
-    const finalType = docType === "Altro" ? customType.trim() || "Altro" : docType;
+    const fileName = `${id}-${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(fileName, file);
 
-    try {
-      const ctx = await getCurrentTeamContext();
+    if (uploadError) {
+      console.error("Errore upload:", uploadError);
+      alert("Errore nell’upload del file");
+      return;
+    }
 
-      const fileName = `${id}-${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(fileName, file);
+    const { data: publicUrl } = supabase.storage
+      .from("documents")
+      .getPublicUrl(fileName);
 
-      if (uploadError) {
-        console.error("Errore upload:", uploadError);
-        alert("Errore nell’upload del file");
-        return;
-      }
+    const { error: insertError } = await supabase
+      .from("documents")
+      .insert([{ car_id: id, type: finalType, file_url: publicUrl.publicUrl }]);
 
-      const { data: publicUrl } = supabase.storage
-        .from("documents")
-        .getPublicUrl(fileName);
-
-      const { error: insertError } = await supabase.from("documents").insert([
-        {
-          team_id: ctx.teamId,
-          car_id: id,
-          type: finalType,
-          file_url: publicUrl.publicUrl,
-        },
-      ]);
-
-      if (!insertError) {
-        setFile(null);
-        setDocType(PRESET_TYPES[0]);
-        setCustomType("");
-        fetchDocs();
-      } else {
-        console.error("Errore inserimento metadata:", insertError);
-        alert("Errore nel salvataggio del documento");
-      }
-    } catch (error) {
-      console.error("Errore upload documento:", error);
-      alert("Errore durante il caricamento del documento");
+    if (!insertError) {
+      setFile(null);
+      setDocType(PRESET_TYPES[0]);
+      setCustomType("");
+      fetchDocs();
+    } else {
+      console.error("Errore inserimento metadata:", insertError);
+      alert("Errore nel salvataggio del documento");
     }
   };
 
   return (
     <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
+      {/* Pulsante Indietro */}
       <Link
         href="/cars"
         className="w-fit bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
@@ -122,7 +97,9 @@ export default function DocumentsPage() {
 
       <h1 className="text-2xl font-bold text-gray-800 mb-4">📄 Documenti Auto</h1>
 
+      {/* Upload form */}
       <div className="bg-white shadow rounded-lg p-4 flex flex-col md:flex-row gap-4 items-center">
+        {/* Pulsante "Scegli file" */}
         <div className="flex items-center gap-2">
           <label
             htmlFor="fileInput"
@@ -150,7 +127,6 @@ export default function DocumentsPage() {
               </option>
             ))}
           </select>
-
           {docType === "Altro" && (
             <input
               type="text"
@@ -162,6 +138,7 @@ export default function DocumentsPage() {
           )}
         </div>
 
+        {/* Pulsante Carica */}
         <button
           onClick={uploadDoc}
           className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
@@ -170,6 +147,7 @@ export default function DocumentsPage() {
         </button>
       </div>
 
+      {/* Lista documenti */}
       {loading ? (
         <p>Caricamento...</p>
       ) : (
@@ -187,16 +165,15 @@ export default function DocumentsPage() {
                   {new Date(doc.uploaded_at).toLocaleString("it-IT")}
                 </p>
               </div>
-
               <div className="flex gap-2">
                 <a
                   href={doc.file_url}
                   target="_blank"
-                  rel="noreferrer"
                   className="bg-gray-900 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-800"
                 >
                   Apri
                 </a>
+                {/* TODO: Abilitare elimina solo per utenti admin */}
               </div>
             </div>
           ))}

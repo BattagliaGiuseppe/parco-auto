@@ -1,29 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTeamContext } from "@/lib/teamContext";
-import { getTeamSettings, type TeamSettings } from "@/lib/teamSettings";
 import {
   CheckCircle,
   AlertTriangle,
   XCircle,
   Calendar,
+  GaugeCircle,
   CarFront,
   Wrench,
-  Flag,
-  Clock3,
-  TriangleAlert,
-  ArrowRight,
-  ShieldAlert,
-  Activity,
-  CalendarDays,
 } from "lucide-react";
-import { Audiowide } from "next/font/google";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+const audiowide = { className: "" };
 
 type CarRow = {
   id: string;
@@ -50,28 +48,8 @@ type EventRow = {
   date: string | null;
 };
 
-type ComponentStatus = {
-  label: string;
-  severity: 1 | 2 | 3;
-  className: string;
-};
-
-function formatHoursDecimal(value: number | null | undefined) {
-  return `${Number(value ?? 0).toFixed(2)} h`;
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("it-IT");
-}
-
-function daysUntil(value: string | null | undefined) {
-  if (!value) return null;
-  const today = new Date();
-  const target = new Date(value);
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const end = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
-  return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+function formatHours(value: number | null | undefined) {
+  return Number(value ?? 0).toFixed(2);
 }
 
 function getExpiryStatus(expiryDate: string | null) {
@@ -90,7 +68,7 @@ function getExpiryStatus(expiryDate: string | null) {
   return "ok";
 }
 
-function getComponentStatus(component: ComponentRow): ComponentStatus {
+function getComponentStatus(component: ComponentRow) {
   const hours = Number(component.hours ?? 0);
   const warning = component.warning_threshold_hours;
   const revision = component.revision_threshold_hours;
@@ -135,8 +113,7 @@ function getComponentStatus(component: ComponentRow): ComponentStatus {
   };
 }
 
-export default function DashboardPage() {
-  const [settings, setSettings] = useState<TeamSettings | null>(null);
+export default function Dashboard() {
   const [cars, setCars] = useState<CarRow[]>([]);
   const [components, setComponents] = useState<ComponentRow[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -144,40 +121,42 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true);
-        const ctx = await getCurrentTeamContext();
+      setLoading(true);
 
-        const [settingsData, carsRes, componentsRes, eventsRes] = await Promise.all([
-          getTeamSettings(),
-          supabase
-            .from("cars")
-            .select("id, name, chassis_number, hours")
-            .eq("team_id", ctx.teamId)
-            .order("name", { ascending: true }),
-          supabase
-            .from("components")
-            .select(
-              "id, type, identifier, expiry_date, hours, life_hours, warning_threshold_hours, revision_threshold_hours, car_id"
-            )
-            .eq("team_id", ctx.teamId)
-            .order("identifier", { ascending: true }),
-          supabase
-            .from("events")
-            .select("id, name, date")
-            .eq("team_id", ctx.teamId)
-            .order("date", { ascending: true }),
-        ]);
+      const [
+        { data: carsData, error: carsError },
+        { data: compsData, error: compsError },
+        { data: eventsData, error: eventsError },
+      ] = await Promise.all([
+        supabase
+          .from("cars")
+          .select("id, name, chassis_number, hours")
+          .order("name", { ascending: true }),
+        supabase
+          .from("components")
+          .select(
+            "id, type, identifier, expiry_date, hours, life_hours, warning_threshold_hours, revision_threshold_hours, car_id"
+          )
+          .order("identifier", { ascending: true }),
+        supabase
+          .from("events")
+          .select("id, name, date")
+          .order("date", { ascending: true }),
+      ]);
 
-        setSettings(settingsData || null);
-        if (!carsRes.error) setCars((carsRes.data || []) as CarRow[]);
-        if (!componentsRes.error) setComponents((componentsRes.data || []) as ComponentRow[]);
-        if (!eventsRes.error) setEvents((eventsRes.data || []) as EventRow[]);
-      } catch (error) {
-        console.error("Errore caricamento dashboard:", error);
-      } finally {
-        setLoading(false);
+      if (!carsError) {
+        setCars((carsData || []) as CarRow[]);
       }
+
+      if (!compsError) {
+        setComponents((compsData || []) as ComponentRow[]);
+      }
+
+      if (!eventsError) {
+        setEvents((eventsData || []) as EventRow[]);
+      }
+
+      setLoading(false);
     };
 
     fetchData();
@@ -190,44 +169,7 @@ export default function DashboardPage() {
       .filter((event) => event.date && new Date(event.date) >= now)
       .sort((a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime())
       .slice(0, 5);
-  }, [events, now]);
-
-  const nextEvent = upcomingEvents[0] || null;
-
-  const componentsInWarning = useMemo(() => {
-    return components.filter((component) => getComponentStatus(component).severity === 2).length;
-  }, [components]);
-
-  const urgentComponents = useMemo(() => {
-    return components.filter((component) => getComponentStatus(component).severity === 3).length;
-  }, [components]);
-
-  const expiringSoon = useMemo(() => {
-    return components
-      .filter((component) => {
-        const status = getExpiryStatus(component.expiry_date);
-        return status === "expired" || status === "expiring";
-      })
-      .slice(0, 6);
-  }, [components]);
-
-  const carsReady = useMemo(() => {
-    if (cars.length === 0) return 0;
-
-    const carIdsWithProblems = new Set(
-      components
-        .filter((component) => getComponentStatus(component).severity >= 2 && component.car_id)
-        .map((component) => component.car_id as string)
-    );
-
-    return cars.filter((car) => !carIdsWithProblems.has(car.id)).length;
-  }, [cars, components]);
-
-  const topCarsByHours = useMemo(() => {
-    return [...cars]
-      .sort((a, b) => Number(b.hours ?? 0) - Number(a.hours ?? 0))
-      .slice(0, 5);
-  }, [cars]);
+  }, [events]);
 
   const criticalComponents = useMemo(() => {
     return components
@@ -240,115 +182,159 @@ export default function DashboardPage() {
       .slice(0, 8);
   }, [components]);
 
-  const teamName = settings?.team_name || "Battaglia Racing";
-  const cover = settings?.dashboard_cover_url || null;
-  const logo = settings?.team_logo_url || null;
+  const expiringComponents = useMemo(() => {
+    return components
+      .filter((component) => component.expiry_date)
+      .sort(
+        (a, b) =>
+          new Date(a.expiry_date || "").getTime() - new Date(b.expiry_date || "").getTime()
+      )
+      .slice(0, 8);
+  }, [components]);
+
+  const topCarsByHours = useMemo(() => {
+    return [...cars]
+      .sort((a, b) => Number(b.hours ?? 0) - Number(a.hours ?? 0))
+      .slice(0, 5);
+  }, [cars]);
+
+  const componentsInWarning = useMemo(() => {
+    return components.filter((component) => {
+      const status = getComponentStatus(component);
+      return status.label === "In attenzione" || status.label === "In scadenza";
+    }).length;
+  }, [components]);
+
+  const urgentComponents = useMemo(() => {
+    return components.filter((component) => {
+      const status = getComponentStatus(component);
+      return status.label === "Fuori soglia" || status.label === "Scaduto";
+    }).length;
+  }, [components]);
+
+  const carsReady = useMemo(() => {
+    if (cars.length === 0) return 0;
+
+    const carIdsWithProblems = new Set(
+      components
+        .filter((component) => {
+          const status = getComponentStatus(component);
+          return status.severity >= 2 && component.car_id;
+        })
+        .map((component) => component.car_id as string)
+    );
+
+    return cars.filter((car) => !carIdsWithProblems.has(car.id)).length;
+  }, [cars, components]);
+
+  const chartData = useMemo(() => {
+    return cars.map((car) => ({
+      name: car.name,
+      ore: Number(car.hours ?? 0),
+    }));
+  }, [cars]);
 
   if (loading) {
     return (
-      <div className={`card-base p-10 text-center text-neutral-500 ${audiowide.className}`}>
-        Caricamento dashboard...
+      <div className={`p-6 ${audiowide.className}`}>
+        <p>Caricamento dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col gap-6 ${audiowide.className}`}>
-      <section className="relative overflow-hidden rounded-2xl border border-neutral-200 min-h-[260px]">
-        {cover ? (
-          <img src={cover} alt="Dashboard cover" className="absolute inset-0 h-full w-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-neutral-900 to-neutral-800" />
-        )}
+    <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
+      <h1 className="text-3xl font-bold text-gray-800 mb-2">🏁 Dashboard</h1>
 
-        <div className="absolute inset-0 bg-black/45" />
-
-        <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-yellow-200">
-              <Flag size={14} />
-              Team control center
-            </div>
-
-            <div className="mt-4 flex items-center gap-4 flex-wrap">
-              {logo ? (
-                <div className="h-20 w-20 rounded-2xl bg-white/90 p-2 shadow-lg">
-                  <img src={logo} alt={teamName} className="h-full w-full object-contain" />
-                </div>
-              ) : null}
-
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-yellow-400">{teamName}</h1>
-                <p className="mt-2 text-sm text-yellow-100/80 max-w-2xl">
-                  Stato vetture, criticità tecniche, manutenzioni da pianificare e prossimi eventi
-                  del team in un’unica dashboard operativa.
-                </p>
-              </div>
-            </div>
+      {/* Cards principali */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+            Auto pronte
           </div>
-
-          <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-4 text-sm text-yellow-100 min-w-[260px]">
-            <div className="font-bold text-yellow-300">Prossimo evento</div>
-            <div className="mt-2 text-base font-semibold">{nextEvent?.name || "Nessun evento"}</div>
-            <div className="mt-1 text-yellow-100/80">{nextEvent ? formatDate(nextEvent.date) : "—"}</div>
-            <div className="mt-2 text-xs text-yellow-100/70">
-              {nextEvent?.date ? `${daysUntil(nextEvent.date)} giorni` : "Calendario libero"}
-            </div>
+          <div className="flex items-center gap-3 p-6">
+            <CheckCircle className="text-green-500" size={36} />
+            <span className="text-2xl font-bold">{carsReady}</span>
           </div>
         </div>
-      </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <SummaryCard
-          icon={<CheckCircle size={18} className="text-yellow-600" />}
-          label="Auto pronte"
-          value={String(carsReady)}
-          valueClassName="text-green-700"
-        />
-        <SummaryCard
-          icon={<AlertTriangle size={18} className="text-yellow-600" />}
-          label="Componenti in attenzione"
-          value={String(componentsInWarning)}
-          valueClassName={componentsInWarning > 0 ? "text-yellow-700" : "text-green-700"}
-        />
-        <SummaryCard
-          icon={<XCircle size={18} className="text-yellow-600" />}
-          label="Urgenze"
-          value={String(urgentComponents)}
-          valueClassName={urgentComponents > 0 ? "text-red-700" : "text-green-700"}
-        />
-        <SummaryCard
-          icon={<Calendar size={18} className="text-yellow-600" />}
-          label="Eventi programmati"
-          value={String(upcomingEvents.length)}
-        />
-      </section>
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+            Componenti in attenzione
+          </div>
+          <div className="flex items-center gap-3 p-6">
+            <AlertTriangle className="text-yellow-500" size={36} />
+            <span className="text-2xl font-bold">{componentsInWarning}</span>
+          </div>
+        </div>
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="card-base overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+            Urgenze
+          </div>
+          <div className="flex items-center gap-3 p-6">
+            <XCircle className="text-red-500" size={36} />
+            <span className="text-2xl font-bold">{urgentComponents}</span>
+          </div>
+        </div>
+
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+            Eventi programmati
+          </div>
+          <div className="flex items-center gap-3 p-6">
+            <Calendar className="text-yellow-500" size={36} />
+            <span className="text-2xl font-bold">{upcomingEvents.length}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Grafico ore auto */}
+      <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+          Ore vettura
+        </div>
+        <div className="h-72 p-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip formatter={(value) => `${Number(value).toFixed(2)} h`} />
+              <Bar dataKey="ore" fill="#facc15" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Liste */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Componenti critici */}
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
             <Wrench size={20} /> Componenti critici
           </div>
           <ul className="space-y-3 p-4">
             {criticalComponents.length === 0 ? (
-              <li className="text-neutral-500">Nessuna criticità rilevata.</li>
+              <li className="text-gray-500">Nessuna criticità rilevata.</li>
             ) : (
               criticalComponents.map((component) => (
                 <li
                   key={component.id}
-                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
+                  className="flex items-center justify-between gap-3 border-b pb-2"
                 >
-                  <div className="min-w-0">
-                    <div className="text-neutral-800 font-semibold truncate">
+                  <div>
+                    <div className="text-gray-800 font-semibold">
                       {component.type} – {component.identifier}
                     </div>
-                    <div className="text-xs text-neutral-500 mt-1">
-                      Ore attuali: {formatHoursDecimal(component.hours)}
+                    <div className="text-xs text-gray-500">
+                      Ore attuali: {formatHours(component.hours)} • Vita:{" "}
+                      {formatHours(component.life_hours)}
                     </div>
                   </div>
 
                   <span
-                    className={`text-sm px-3 py-1 rounded-full font-semibold whitespace-nowrap ${component.status.className}`}
+                    className={`text-sm px-3 py-1 rounded-full font-semibold ${component.status.className}`}
                   >
                     {component.status.label}
                   </span>
@@ -358,35 +344,32 @@ export default function DashboardPage() {
           </ul>
         </div>
 
-        <div className="card-base overflow-hidden">
-          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
-            <CalendarDays size={20} /> Prossime scadenze
+        {/* Prossime scadenze */}
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg">
+            Prossime Scadenze
           </div>
           <ul className="space-y-3 p-4">
-            {expiringSoon.length === 0 ? (
-              <li className="text-neutral-500">Nessuna scadenza imminente.</li>
+            {expiringComponents.length === 0 ? (
+              <li className="text-gray-500">Nessuna scadenza registrata.</li>
             ) : (
-              expiringSoon.map((component) => (
-                <li
-                  key={component.id}
-                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
-                >
-                  <div>
-                    <div className="font-semibold text-neutral-800">
-                      {component.type} – {component.identifier}
-                    </div>
-                    <div className="text-xs text-neutral-500 mt-1">
-                      {component.expiry_date ? formatDate(component.expiry_date) : "—"}
-                    </div>
-                  </div>
+              expiringComponents.map((component) => (
+                <li key={component.id} className="flex items-center justify-between gap-3">
+                  <span className="text-gray-700">
+                    {component.type} – {component.identifier}
+                  </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    className={`text-sm px-3 py-1 rounded-full ${
                       getExpiryStatus(component.expiry_date) === "expired"
                         ? "bg-red-100 text-red-700"
-                        : "bg-yellow-100 text-yellow-700"
+                        : getExpiryStatus(component.expiry_date) === "expiring"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-green-100 text-green-700"
                     }`}
                   >
-                    {getExpiryStatus(component.expiry_date) === "expired" ? "Scaduto" : "In scadenza"}
+                    {component.expiry_date
+                      ? new Date(component.expiry_date).toLocaleDateString("it-IT")
+                      : "—"}
                   </span>
                 </li>
               ))
@@ -394,65 +377,53 @@ export default function DashboardPage() {
           </ul>
         </div>
 
-        <div className="card-base overflow-hidden xl:col-span-2">
-          <div className="bg-black text-yellow-500 px-4 py-3 font-bold text-lg flex items-center gap-2">
+        {/* Auto con più ore */}
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
             <CarFront size={20} /> Auto con più ore
           </div>
           <ul className="space-y-3 p-4">
             {topCarsByHours.length === 0 ? (
-              <li className="text-neutral-500">Nessuna auto disponibile.</li>
+              <li className="text-gray-500">Nessuna auto disponibile.</li>
             ) : (
               topCarsByHours.map((car) => (
-                <li
-                  key={car.id}
-                  className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3"
-                >
-                  <div className="min-w-0">
-                    <div className="font-semibold text-neutral-800">{car.name}</div>
-                    <div className="text-xs text-neutral-500 mt-1">
-                      {car.chassis_number || "Telaio non specificato"}
-                    </div>
+                <li key={car.id} className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-gray-800">{car.name}</div>
+                    <div className="text-xs text-gray-500">{car.chassis_number || "—"}</div>
                   </div>
-                  <span className="text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold whitespace-nowrap">
-                    {formatHoursDecimal(car.hours)}
+                  <span className="text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
+                    {formatHours(car.hours)} h
                   </span>
                 </li>
               ))
             )}
           </ul>
         </div>
-      </section>
 
-      <div className="flex justify-end">
-        <Link
-          href="/components"
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
-        >
-          Vai ai componenti <ArrowRight size={16} />
-        </Link>
+        {/* Prossimi eventi */}
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-black text-yellow-500 px-4 py-2 font-bold text-lg flex items-center gap-2">
+            <GaugeCircle size={20} /> Prossimi eventi
+          </div>
+          <ul className="space-y-3 p-4">
+            {upcomingEvents.length === 0 ? (
+              <li className="text-gray-500">Nessun evento futuro programmato.</li>
+            ) : (
+              upcomingEvents.map((event) => (
+                <li key={event.id} className="flex items-center justify-between gap-3">
+                  <span className="text-gray-700 font-semibold">{event.name}</span>
+                  <span className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                    {event.date
+                      ? new Date(event.date).toLocaleDateString("it-IT")
+                      : "—"}
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  valueClassName = "text-neutral-900",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-neutral-50 p-4">
-      <div className="flex items-center gap-2 text-sm text-neutral-600">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`mt-2 text-xl font-bold ${valueClassName}`}>{value}</div>
     </div>
   );
 }

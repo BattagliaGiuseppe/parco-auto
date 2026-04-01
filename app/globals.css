@@ -2,235 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================
-   BASE
-========================= */
+@layer base {
+  body {
+    @apply bg-neutral-100 text-neutral-900 font-sans;
+  }
+}
 
 :root {
-  color-scheme: light;
+  --color-primary: #d4af37;
+  --color-primary-dark: #b58e2f;
+  --racing-gold: #ffd700;
+  --racing-gold-dark: #e6c200;
+  --racing-gray: #1f1f1f;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  @apply bg-neutral-100 text-neutral-900 antialiased;
-}
-
-/* =========================
-   TYPOGRAPHY
-========================= */
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  @apply tracking-tight;
-}
-
-p {
-  @apply leading-relaxed;
-}
-
-/* =========================
-   SELECTION
-========================= */
-
-::selection {
-  background: rgba(250, 204, 21, 0.35);
-  color: #111827;
-}
-
-/* =========================
-   SCROLLBAR
-========================= */
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #facc15 #171717;
-}
-
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: #171717;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: #facc15;
-  border-radius: 9999px;
-  border: 2px solid #171717;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: #eab308;
-}
-
-/* =========================
-   FORM ELEMENTS
-========================= */
-
-input,
-textarea,
-select {
-  @apply transition-all duration-200;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  @apply outline-none ring-2 ring-yellow-300 border-yellow-400;
-}
-
-input::placeholder,
-textarea::placeholder {
-  @apply text-neutral-400;
-}
-
-/* rimuove frecce brutte browser dove possibile */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-/* date input più pulito */
-input[type="date"] {
-  @apply bg-white;
-}
-
-/* checkbox base */
-input[type="checkbox"] {
-  accent-color: #facc15;
-}
-
-/* range base */
-input[type="range"] {
-  accent-color: #facc15;
-}
-
-/* =========================
-   BUTTON HELPERS
-========================= */
-
-.btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 font-semibold text-black shadow-sm transition hover:bg-yellow-500;
-}
-
-.btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-100 px-4 py-2.5 font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-200;
-}
-
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-red-700;
-}
-
-.btn-dark {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 font-semibold text-yellow-400 shadow-sm transition hover:bg-neutral-900;
-}
-
-/* =========================
-   CARD HELPERS
-========================= */
-
-.card-base {
-  @apply rounded-2xl border border-neutral-200 bg-white shadow-sm;
-}
-
-.card-soft {
-  @apply rounded-2xl border border-neutral-200 bg-neutral-50;
-}
-
-.card-warning {
-  @apply rounded-2xl border border-yellow-200 bg-yellow-50;
-}
-
-.card-danger {
-  @apply rounded-2xl border border-red-200 bg-red-50;
-}
-
-.card-success {
-  @apply rounded-2xl border border-green-200 bg-green-50;
-}
-
-/* =========================
-   BADGE HELPERS
-========================= */
-
-.badge-neutral {
-  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-neutral-100 text-neutral-700;
-}
-
-.badge-warning {
-  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800;
-}
-
-.badge-danger {
-  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-red-100 text-red-700;
-}
-
-.badge-success {
-  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-green-100 text-green-700;
-}
-
-.badge-racing {
-  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-black text-yellow-400;
-}
-
-/* =========================
-   TABLE HELPERS
-========================= */
-
-.table-clean {
-  @apply w-full border-collapse overflow-hidden rounded-2xl;
-}
-
-.table-clean thead tr {
-  @apply bg-neutral-100 text-neutral-700;
-}
-
-.table-clean th {
-  @apply border border-neutral-200 px-3 py-2 text-left text-sm font-semibold;
-}
-
-.table-clean td {
-  @apply border border-neutral-200 px-3 py-2 text-sm;
-}
-
-/* =========================
-   ANIMATIONS
-========================= */
-
-.fade-in {
-  animation: fadeIn 0.25s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-black shadow-sm transition hover:bg-yellow-500;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-800 transition hover:bg-neutral-50;
+  }
+
+  .input-base {
+    @apply w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none transition focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200;
+  }
+
+  .card-base {
+    @apply rounded-3xl border border-neutral-200 bg-white shadow-sm;
   }
 }
 
-/* =========================
-   MOBILE SPACING TUNING
-========================= */
+@media print {
+  aside,
+  button[aria-label="Apri menu"] {
+    display: none !important;
+  }
 
-@media (max-width: 640px) {
+  body,
+  main {
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  section,
+  div {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .print-container {
+    margin: 0 auto !important;
+    width: 95% !important;
+    max-width: 1100px !important;
+  }
+
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  html,
   body {
-    @apply text-[15px];
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
   }
 }

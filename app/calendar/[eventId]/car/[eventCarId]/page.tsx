@@ -1,12 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTeamContext } from "@/lib/teamContext";
-import { Audiowide } from "next/font/google";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -20,27 +17,13 @@ import {
   Trash2,
   Clock3,
   AlertTriangle,
-  CarFront,
-  Flag,
-  TriangleAlert,
-  Droplets,
-  ShieldCheck,
-  Cpu,
-  Wrench,
-  Activity,
-  FileText,
-  UserRound,
-  CalendarDays,
-  PlusCircle,
-  MapPin,
 } from "lucide-react";
 
 import SetupScheda from "./setup-scheda";
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+const audiowide = { className: "" };
 
-type SectionType = "checkup" | "fuel" | "notes";
-type CheckStatus = "OK" | "Da controllare" | "Problema";
+type SectionType = "checkup" | "fuel" | "notes" | "setup";
 
 type DataRow = {
   id: string;
@@ -53,7 +36,6 @@ type DataRow = {
 type TurnRow = {
   id: string;
   event_car_id?: string;
-  event_session_id?: string | null;
   minutes: number;
   laps: number;
   notes: string;
@@ -64,12 +46,6 @@ type EventRow = {
   id: string;
   name: string;
   date: string | null;
-  circuit_id: string | null;
-};
-
-type CircuitRow = {
-  id: string;
-  name: string;
 };
 
 type CarRow = {
@@ -80,58 +56,8 @@ type CarRow = {
 
 type EventCarRow = {
   id: string;
-  event_id: string | null;
-  car_id: string | null;
-  driver?: string | null;
+  car_id: CarRow | CarRow[] | null;
   notes?: string | null;
-  status?: string | null;
-};
-
-type DriverRow = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  nickname: string | null;
-  is_active: boolean;
-};
-
-type DriverEntryRow = {
-  id: string;
-  event_car_id: string | null;
-  event_id: string;
-  car_id: string | null;
-  driver_id: string;
-  role: string;
-  notes: string | null;
-  created_at: string;
-};
-
-type EventSessionRow = {
-  id: string;
-  event_id: string;
-  name: string;
-  session_type: string;
-  starts_at: string | null;
-  ends_at: string | null;
-  notes: string | null;
-  created_at: string;
-};
-
-type DriverSessionPerformanceRow = {
-  id: string;
-  team_id: string;
-  event_session_id: string;
-  event_car_id: string;
-  driver_id: string;
-  best_lap_time: string | null;
-  average_lap_time: string | null;
-  consistency_score: number | null;
-  laps_completed: number | null;
-  incidents: number | null;
-  driver_feedback: string | null;
-  engineer_notes: string | null;
-  track_conditions: string | null;
-  created_at: string;
 };
 
 type ToastState = {
@@ -140,70 +66,14 @@ type ToastState = {
   type: "success" | "error";
 };
 
-type CheckupGroup = {
-  title: string;
-  icon: ReactNode;
-  items: string[];
-};
+function normalizeCarRelation(value: CarRow | CarRow[] | null): CarRow | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
 
 function formatHours(value: number | null | undefined) {
-  const totalMinutes = Math.round(Number(value ?? 0) * 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
-}
-
-function formatEventDate(value: string | null | undefined) {
-  if (!value) return "Data non disponibile";
-  return new Date(value).toLocaleDateString("it-IT");
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("it-IT");
-}
-
-function formatLiters(value: number | null | undefined, digits = 1) {
-  if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return `${value.toFixed(digits)} L`;
-}
-
-function normalizeRole(role: string | null | undefined) {
-  if (!role) return "primary";
-  return role;
-}
-
-function driverLabel(driver: DriverRow) {
-  const full = `${driver.first_name} ${driver.last_name}`.trim();
-  if (driver.nickname?.trim()) return `${full} (${driver.nickname.trim()})`;
-  return full;
-}
-
-function getCheckupStyles(value: CheckStatus) {
-  if (value === "OK") {
-    return {
-      card: "border-green-200 bg-green-50",
-      badge: "bg-green-100 text-green-800",
-      select: "border-green-300 text-green-800",
-      dot: "bg-green-500",
-    };
-  }
-
-  if (value === "Problema") {
-    return {
-      card: "border-red-200 bg-red-50",
-      badge: "bg-red-100 text-red-700",
-      select: "border-red-300 text-red-700",
-      dot: "bg-red-500",
-    };
-  }
-
-  return {
-    card: "border-yellow-200 bg-yellow-50",
-    badge: "bg-yellow-100 text-yellow-800",
-    select: "border-yellow-300 text-yellow-800",
-    dot: "bg-yellow-500",
-  };
+  return Number(value ?? 0).toFixed(2);
 }
 
 export default function EventCarPage() {
@@ -213,77 +83,30 @@ export default function EventCarPage() {
   };
 
   const [event, setEvent] = useState<EventRow | null>(null);
-  const [circuit, setCircuit] = useState<CircuitRow | null>(null);
   const [car, setCar] = useState<CarRow | null>(null);
-  const [eventCar, setEventCar] = useState<EventCarRow | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [tab, setTab] = useState<"scheda" | "touch">("scheda");
 
   const [setupExpanded, setSetupExpanded] = useState(true);
   const [checkupExpanded, setCheckupExpanded] = useState(false);
   const [turnsExpanded, setTurnsExpanded] = useState(false);
   const [fuelExpanded, setFuelExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
-  const [driversExpanded, setDriversExpanded] = useState(true);
-  const [sessionsExpanded, setSessionsExpanded] = useState(true);
-  const [performanceExpanded, setPerformanceExpanded] = useState(false);
 
-  const [selectedSessionFilter, setSelectedSessionFilter] = useState("");
+  const [setupData, setSetupData] = useState<Record<string, any>>({});
+  const [setupHistory, setSetupHistory] = useState<DataRow[]>([]);
+  const [setupSaving, setSetupSaving] = useState(false);
+  const [setupTick, setSetupTick] = useState(0);
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
+  const [lastSetupTime, setLastSetupTime] = useState<string | null>(null);
 
-  const checkupGroups = useMemo<CheckupGroup[]>(
-    () => [
-      {
-        title: "Sicurezza",
-        icon: <ShieldCheck size={18} className="text-yellow-600" />,
-        items: ["Serraggi", "Freni", "Ruote"],
-      },
-      {
-        title: "Meccanica",
-        icon: <Wrench size={18} className="text-yellow-600" />,
-        items: ["Liquidi", "Cambio"],
-      },
-      {
-        title: "Dinamica",
-        icon: <Activity size={18} className="text-yellow-600" />,
-        items: ["Sospensioni"],
-      },
-      {
-        title: "Elettronica",
-        icon: <Cpu size={18} className="text-yellow-600" />,
-        items: ["Elettronica"],
-      },
-    ],
+  const defaultCheckupItems = useMemo(
+    () => ["Serraggi", "Freni", "Liquidi", "Sospensioni", "Elettronica", "Ruote", "Cambio"],
     []
   );
 
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [assignedDrivers, setAssignedDrivers] = useState<DriverEntryRow[]>([]);
-  const [sessions, setSessions] = useState<EventSessionRow[]>([]);
-  const [performances, setPerformances] = useState<DriverSessionPerformanceRow[]>([]);
-
-  const [selectedDriverId, setSelectedDriverId] = useState("");
-  const [selectedDriverRole, setSelectedDriverRole] = useState("primary");
-  const [assigningDriver, setAssigningDriver] = useState(false);
-
-  const [sessionName, setSessionName] = useState("");
-  const [sessionType, setSessionType] = useState("test");
-  const [sessionStartsAt, setSessionStartsAt] = useState("");
-  const [sessionEndsAt, setSessionEndsAt] = useState("");
-  const [sessionNotes, setSessionNotes] = useState("");
-  const [savingSession, setSavingSession] = useState(false);
-
-  const [performanceSessionId, setPerformanceSessionId] = useState("");
-  const [performanceDriverId, setPerformanceDriverId] = useState("");
-  const [bestLapTime, setBestLapTime] = useState("");
-  const [averageLapTime, setAverageLapTime] = useState("");
-  const [consistencyScore, setConsistencyScore] = useState("");
-  const [lapsCompleted, setLapsCompleted] = useState("");
-  const [incidents, setIncidents] = useState("");
-  const [driverFeedback, setDriverFeedback] = useState("");
-  const [engineerNotes, setEngineerNotes] = useState("");
-  const [trackConditions, setTrackConditions] = useState("");
-  const [savingPerformance, setSavingPerformance] = useState(false);
-
-  const [checkup, setCheckup] = useState<Record<string, CheckStatus>>({});
+  const [checkup, setCheckup] = useState<Record<string, "OK" | "Da controllare" | "Problema">>({});
   const [checkupSaving, setCheckupSaving] = useState(false);
   const [checkupTick, setCheckupTick] = useState(0);
   const [checkupHistory, setCheckupHistory] = useState<DataRow[]>([]);
@@ -291,18 +114,11 @@ export default function EventCarPage() {
   const [lastCheckupTime, setLastCheckupTime] = useState<string | null>(null);
 
   const [turns, setTurns] = useState<TurnRow[]>([]);
-  const [newTurn, setNewTurn] = useState<{
-    durata: string;
-    giri: string;
-    note: string;
-    sessionId: string;
-  }>({
+  const [newTurn, setNewTurn] = useState<{ durata: string; giri: string; note: string }>({
     durata: "",
     giri: "",
     note: "",
-    sessionId: "",
   });
-  const [editingTurn, setEditingTurn] = useState<TurnRow | null>(null);
   const [turnsSaving, setTurnsSaving] = useState(false);
 
   const [fuelStart, setFuelStart] = useState<number>(0);
@@ -335,19 +151,6 @@ export default function EventCarPage() {
     }, 3000);
   };
 
-  const availableDrivers = useMemo(() => {
-    const assignedIds = new Set(assignedDrivers.map((row) => row.driver_id));
-    return drivers.filter((d) => d.is_active && !assignedIds.has(d.id));
-  }, [drivers, assignedDrivers]);
-
-  const assignedDriversDetailed = useMemo(() => {
-    const driverMap = new Map(drivers.map((d) => [d.id, d]));
-    return assignedDrivers.map((entry) => ({
-      ...entry,
-      driver: driverMap.get(entry.driver_id) || null,
-    }));
-  }, [assignedDrivers, drivers]);
-
   const overallStatus = useMemo(() => {
     const values = Object.values(checkup);
     if (values.length === 0) return "Da controllare";
@@ -361,14 +164,13 @@ export default function EventCarPage() {
       OK: 0,
       "Da controllare": 0,
       Problema: 0,
-    } as Record<CheckStatus, number>;
+    } as Record<"OK" | "Da controllare" | "Problema", number>;
 
     for (const value of Object.values(checkup)) {
       if (value === "OK") counts.OK++;
       else if (value === "Problema") counts.Problema++;
       else counts["Da controllare"]++;
     }
-
     return counts;
   }, [checkup]);
 
@@ -379,288 +181,154 @@ export default function EventCarPage() {
 
   const totalHours = useMemo(() => totalMinutes / 60, [totalMinutes]);
   const totalTurns = useMemo(() => turns.length, [turns]);
-  const criticalChecks = useMemo(() => statusCounts.Problema, [statusCounts]);
-
-  const filteredTurns = useMemo(() => {
-    if (!selectedSessionFilter) return turns;
-    return turns.filter((t) => t.event_session_id === selectedSessionFilter);
-  }, [turns, selectedSessionFilter]);
-
-  const filteredTotalMinutes = useMemo(
-    () => filteredTurns.reduce((acc, t) => acc + Number(t.minutes || 0), 0),
-    [filteredTurns]
-  );
-
-  const filteredTotalLaps = useMemo(
-    () => filteredTurns.reduce((acc, t) => acc + Number(t.laps || 0), 0),
-    [filteredTurns]
-  );
-
-  const filteredTotalTurns = useMemo(() => filteredTurns.length, [filteredTurns]);
-
-  const selectedSessionLabel = useMemo(() => {
-    if (!selectedSessionFilter) return "Tutte le sessioni";
-    return sessions.find((s) => s.id === selectedSessionFilter)?.name || "Sessione";
-  }, [selectedSessionFilter, sessions]);
-
-  const fuelUsed = useMemo(() => {
-    if (fuelStart < 0 || fuelEnd < 0) return null;
-    const used = fuelStart - fuelEnd;
-    if (used < 0) return null;
-    return used;
-  }, [fuelStart, fuelEnd]);
 
   const fuelPerLap = useMemo(() => {
-    if (lapsDone > 0 && fuelUsed !== null) {
-      return fuelUsed > 0 ? fuelUsed / lapsDone : 0;
+    if (lapsDone > 0 && fuelStart >= 0 && fuelEnd >= 0) {
+      const used = fuelStart - fuelEnd;
+      return used > 0 ? used / lapsDone : 0;
     }
     return 0;
-  }, [fuelUsed, lapsDone]);
-
-  const estimatedLapsRemaining = useMemo(() => {
-    if (fuelPerLap > 0 && fuelEnd >= 0) {
-      return fuelEnd / fuelPerLap;
-    }
-    return 0;
-  }, [fuelPerLap, fuelEnd]);
+  }, [fuelStart, fuelEnd, lapsDone]);
 
   const fuelToAddRaw =
     lapsPlanned > 0 && fuelPerLap > 0 ? lapsPlanned * fuelPerLap - fuelEnd : 0;
 
   const fuelToAdd = Math.max(0, fuelToAddRaw);
-  const notesLength = useMemo(() => notes.trim().length, [notes]);
-
-  function resetTurnForm() {
-    setNewTurn({ durata: "", giri: "", note: "", sessionId: "" });
-    setEditingTurn(null);
-  }
 
   async function loadAllData() {
     try {
       setLoading(true);
-      const ctx = await getCurrentTeamContext();
 
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .select("id, name, date, circuit_id")
-        .eq("team_id", ctx.teamId)
-        .eq("id", eventId)
-        .single();
+      const [{ data: eventData, error: eventError }, { data: carData, error: eventCarError }] =
+        await Promise.all([
+          supabase
+            .from("events")
+            .select("id, name, date")
+            .eq("id", eventId)
+            .single(),
+          supabase
+            .from("event_cars")
+            .select("id, car_id (id, name, hours), notes")
+            .eq("id", eventCarId)
+            .single(),
+        ]);
 
       if (eventError) throw eventError;
-
-      const { data: eventCarData, error: eventCarError } = await supabase
-        .from("event_cars")
-        .select("id, event_id, car_id, driver, notes, status")
-        .eq("team_id", ctx.teamId)
-        .eq("id", eventCarId)
-        .single();
-
       if (eventCarError) throw eventCarError;
 
-      const eventCarRow = eventCarData as EventCarRow;
-
-      const { data: carData, error: carError } = await supabase
-        .from("cars")
-        .select("id, name, hours")
-        .eq("team_id", ctx.teamId)
-        .eq("id", eventCarRow.car_id)
-        .single();
-
-      if (carError) throw carError;
-
       setEvent(eventData as EventRow);
-      setEventCar(eventCarRow);
-      setCar(carData as CarRow);
+      setCar(normalizeCarRelation((carData as EventCarRow)?.car_id ?? null));
 
-      if ((eventData as EventRow).circuit_id) {
-        const { data: circuitData } = await supabase
-          .from("circuits")
-          .select("id, name")
-          .eq("team_id", ctx.teamId)
-          .eq("id", (eventData as EventRow).circuit_id)
-          .maybeSingle();
-
-        setCircuit((circuitData as CircuitRow) || null);
-      } else {
-        setCircuit(null);
-      }
-
-      const results = await Promise.allSettled([
+      const [
+        { data: setupLast },
+        { data: setupHist },
+        { data: checkLast },
+        { data: checkHist },
+        { data: turnsData, error: turnsError },
+        { data: fuelLast },
+        { data: fuelHist },
+        { data: notesLast },
+        { data: notesHist },
+      ] = await Promise.all([
         supabase
-          .from("drivers")
-          .select("id, first_name, last_name, nickname, is_active")
-          .eq("team_id", ctx.teamId)
-          .order("last_name", { ascending: true }),
-
-        supabase
-          .from("driver_event_entries")
-          .select("id, event_car_id, event_id, car_id, driver_id, role, notes, created_at")
-          .eq("team_id", ctx.teamId)
-          .eq("event_car_id", eventCarId)
-          .order("created_at", { ascending: true }),
-
-        supabase
-          .from("event_sessions")
-          .select("id, event_id, name, session_type, starts_at, ends_at, notes, created_at")
-          .eq("team_id", ctx.teamId)
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: true }),
-
-        supabase
-          .from("driver_session_performance")
+          .from("event_car_data")
           .select("*")
-          .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
-          .order("created_at", { ascending: false }),
-
+          .eq("section", "setup")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("event_car_data")
+          .select("*")
+          .eq("event_car_id", eventCarId)
+          .eq("section", "setup")
+          .order("created_at", { ascending: false })
+          .limit(3),
+        supabase
+          .from("event_car_data")
+          .select("*")
+          .eq("event_car_id", eventCarId)
+          .eq("section", "checkup")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("event_car_data")
+          .select("*")
+          .eq("event_car_id", eventCarId)
+          .eq("section", "checkup")
+          .order("created_at", { ascending: false })
+          .limit(3),
         supabase
           .from("event_car_turns")
-          .select("id, event_car_id, event_session_id, minutes, laps, notes, created_at")
-          .eq("team_id", ctx.teamId)
+          .select("id, minutes, laps, notes, created_at")
           .eq("event_car_id", eventCarId)
           .order("created_at", { ascending: true }),
-
         supabase
           .from("event_car_data")
           .select("*")
-          .eq("team_id", ctx.teamId)
-          .eq("event_car_id", eventCarId)
-          .eq("section", "checkup")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-
-        supabase
-          .from("event_car_data")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .eq("event_car_id", eventCarId)
-          .eq("section", "checkup")
-          .order("created_at", { ascending: false })
-          .limit(3),
-
-        supabase
-          .from("event_car_data")
-          .select("*")
-          .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .eq("section", "fuel")
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-
         supabase
           .from("event_car_data")
           .select("*")
-          .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .eq("section", "fuel")
           .order("created_at", { ascending: false })
           .limit(3),
-
         supabase
           .from("event_car_data")
           .select("*")
-          .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .eq("section", "notes")
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-
         supabase
           .from("event_car_data")
           .select("*")
-          .eq("team_id", ctx.teamId)
           .eq("event_car_id", eventCarId)
           .eq("section", "notes")
           .order("created_at", { ascending: false })
           .limit(3),
       ]);
 
-      const [
-        driversRes,
-        assignedDriversRes,
-        sessionsRes,
-        performancesRes,
-        turnsRes,
-        checkLastRes,
-        checkHistRes,
-        fuelLastRes,
-        fuelHistRes,
-        notesLastRes,
-        notesHistRes,
-      ] = results;
-
-      if (driversRes.status === "fulfilled" && !driversRes.value.error) {
-        setDrivers((driversRes.value.data || []) as DriverRow[]);
+      if (setupLast?.data) {
+        setSetupData(setupLast.data || {});
+        setActiveSetupId(setupLast.id);
+        setLastSetupTime(new Date(setupLast.created_at).toLocaleString());
       } else {
-        setDrivers([]);
-        console.error("Errore drivers:", driversRes);
+        setSetupData({});
+        setActiveSetupId(null);
+        setLastSetupTime(null);
       }
+      setSetupHistory((setupHist as DataRow[]) || []);
 
-      if (assignedDriversRes.status === "fulfilled" && !assignedDriversRes.value.error) {
-        setAssignedDrivers((assignedDriversRes.value.data || []) as DriverEntryRow[]);
-      } else {
-        setAssignedDrivers([]);
-        console.error("Errore driver_event_entries:", assignedDriversRes);
-      }
-
-      if (sessionsRes.status === "fulfilled" && !sessionsRes.value.error) {
-        setSessions((sessionsRes.value.data || []) as EventSessionRow[]);
-      } else {
-        setSessions([]);
-        console.error("Errore event_sessions:", sessionsRes);
-      }
-
-      if (performancesRes.status === "fulfilled" && !performancesRes.value.error) {
-        setPerformances((performancesRes.value.data || []) as DriverSessionPerformanceRow[]);
-      } else {
-        setPerformances([]);
-        console.error("Errore driver_session_performance:", performancesRes);
-      }
-
-      if (turnsRes.status === "fulfilled" && !turnsRes.value.error) {
-        setTurns((turnsRes.value.data || []) as TurnRow[]);
-      } else {
-        setTurns([]);
-        console.error("Errore event_car_turns:", turnsRes);
-      }
-
-      if (
-        checkLastRes.status === "fulfilled" &&
-        !checkLastRes.value.error &&
-        checkLastRes.value.data?.data
-      ) {
-        const row = checkLastRes.value.data as DataRow;
-        setCheckup(row.data || {});
-        setActiveCheckupId(row.id);
-        setLastCheckupTime(new Date(row.created_at).toLocaleString());
+      if (checkLast?.data) {
+        setCheckup(checkLast.data || {});
+        setActiveCheckupId(checkLast.id);
+        setLastCheckupTime(new Date(checkLast.created_at).toLocaleString());
       } else {
         setCheckup({});
         setActiveCheckupId(null);
         setLastCheckupTime(null);
       }
+      setCheckupHistory((checkHist as DataRow[]) || []);
 
-      if (checkHistRes.status === "fulfilled" && !checkHistRes.value.error) {
-        setCheckupHistory((checkHistRes.value.data || []) as DataRow[]);
-      } else {
-        setCheckupHistory([]);
-      }
+      if (turnsError) throw turnsError;
+      setTurns((turnsData as TurnRow[]) || []);
 
-      if (
-        fuelLastRes.status === "fulfilled" &&
-        !fuelLastRes.value.error &&
-        fuelLastRes.value.data?.data
-      ) {
-        const row = fuelLastRes.value.data as DataRow;
-        setFuelStart(Number(row.data.fuelStart ?? 0));
-        setFuelEnd(Number(row.data.fuelEnd ?? 0));
-        setLapsDone(Number(row.data.lapsDone ?? 0));
-        setLapsPlanned(Number(row.data.lapsPlanned ?? 0));
-        setActiveFuelId(row.id);
-        setLastFuelTime(new Date(row.created_at).toLocaleString());
+      if (fuelLast?.data) {
+        setFuelStart(Number(fuelLast.data.fuelStart ?? 0));
+        setFuelEnd(Number(fuelLast.data.fuelEnd ?? 0));
+        setLapsDone(Number(fuelLast.data.lapsDone ?? 0));
+        setLapsPlanned(Number(fuelLast.data.lapsPlanned ?? 0));
+        setActiveFuelId(fuelLast.id);
+        setLastFuelTime(new Date(fuelLast.created_at).toLocaleString());
       } else {
         setFuelStart(0);
         setFuelEnd(0);
@@ -669,35 +337,19 @@ export default function EventCarPage() {
         setActiveFuelId(null);
         setLastFuelTime(null);
       }
+      setFuelHistory((fuelHist as DataRow[]) || []);
 
-      if (fuelHistRes.status === "fulfilled" && !fuelHistRes.value.error) {
-        setFuelHistory((fuelHistRes.value.data || []) as DataRow[]);
-      } else {
-        setFuelHistory([]);
-      }
-
-      if (
-        notesLastRes.status === "fulfilled" &&
-        !notesLastRes.value.error &&
-        notesLastRes.value.data?.data?.text
-      ) {
-        const row = notesLastRes.value.data as DataRow;
-        setNotes(String(row.data.text));
-        setActiveNotesId(row.id);
-        setLastNotesTime(new Date(row.created_at).toLocaleString());
+      if (notesLast?.data?.text) {
+        setNotes(String(notesLast.data.text));
+        setActiveNotesId(notesLast.id);
+        setLastNotesTime(new Date(notesLast.created_at).toLocaleString());
       } else {
         setNotes("");
         setActiveNotesId(null);
         setLastNotesTime(null);
       }
-
-      if (notesHistRes.status === "fulfilled" && !notesHistRes.value.error) {
-        setNotesHistory((notesHistRes.value.data || []) as DataRow[]);
-      } else {
-        setNotesHistory([]);
-      }
+      setNotesHistory((notesHist as DataRow[]) || []);
     } catch (error: any) {
-      console.error("Errore loadAllData:", error);
       showToast(`Errore caricamento dati: ${error.message}`, "error");
     } finally {
       setLoading(false);
@@ -711,25 +363,16 @@ export default function EventCarPage() {
   }, [eventId, eventCarId]);
 
   async function saveSection(section: SectionType, data: any) {
-    const ctx = await getCurrentTeamContext();
-    const payload = {
-      team_id: ctx.teamId,
-      event_car_id: eventCarId,
-      section,
-      data,
-    };
+    const payload = { event_car_id: eventCarId, section, data };
     const { error } = await supabase.from("event_car_data").insert([payload]);
     if (error) throw new Error(error.message);
   }
 
   async function deleteSectionRow(rowId: string, section: SectionType) {
-    const ctx = await getCurrentTeamContext();
-
     const { error } = await supabase
       .from("event_car_data")
       .delete()
       .eq("id", rowId)
-      .eq("team_id", ctx.teamId)
       .eq("event_car_id", eventCarId)
       .eq("section", section);
 
@@ -738,7 +381,6 @@ export default function EventCarPage() {
     const { data: hist, error: histError } = await supabase
       .from("event_car_data")
       .select("*")
-      .eq("team_id", ctx.teamId)
       .eq("event_car_id", eventCarId)
       .eq("section", section)
       .order("created_at", { ascending: false })
@@ -749,171 +391,40 @@ export default function EventCarPage() {
     if (section === "checkup") setCheckupHistory((hist as DataRow[]) || []);
     if (section === "fuel") setFuelHistory((hist as DataRow[]) || []);
     if (section === "notes") setNotesHistory((hist as DataRow[]) || []);
+    if (section === "setup") setSetupHistory((hist as DataRow[]) || []);
 
-    showToast("Eliminato");
+    showToast("✅ Eliminato");
   }
 
-  async function assignDriverToEventCar() {
-    if (!selectedDriverId || !eventCar?.event_id) {
-      showToast("Seleziona un pilota", "error");
-      return;
-    }
-
+  async function onSaveSetup() {
     try {
-      setAssigningDriver(true);
-      const ctx = await getCurrentTeamContext();
+      setSetupSaving(true);
+      await saveSection("setup", setupData);
 
-      const { error } = await supabase.from("driver_event_entries").insert([
-        {
-          team_id: ctx.teamId,
-          event_id: eventCar.event_id,
-          event_car_id: eventCar.id,
-          car_id: eventCar.car_id,
-          driver_id: selectedDriverId,
-          role: selectedDriverRole,
-          notes: null,
-        },
-      ]);
+      const { data } = await supabase
+        .from("event_car_data")
+        .select("*")
+        .eq("event_car_id", eventCarId)
+        .eq("section", "setup")
+        .order("created_at", { ascending: false })
+        .limit(3);
 
-      if (error) throw error;
-
-      setSelectedDriverId("");
-      setSelectedDriverRole("primary");
-      showToast("Pilota assegnato");
-      await loadAllData();
-    } catch (error: any) {
-      showToast(`Errore assegnazione pilota: ${error.message}`, "error");
+      setSetupHistory((data as DataRow[]) || []);
+      setSetupTick((t) => t + 1);
+      setLastSetupTime(new Date().toLocaleString());
+      showToast("💾 Setup salvato");
+    } catch (e: any) {
+      showToast(`Errore salvataggio setup: ${e.message}`, "error");
     } finally {
-      setAssigningDriver(false);
+      setSetupSaving(false);
     }
   }
 
-  async function removeDriverAssignment(assignmentId: string) {
-    try {
-      const ctx = await getCurrentTeamContext();
-
-      const { error } = await supabase
-        .from("driver_event_entries")
-        .delete()
-        .eq("team_id", ctx.teamId)
-        .eq("id", assignmentId);
-
-      if (error) throw error;
-
-      showToast("Pilota rimosso");
-      await loadAllData();
-    } catch (error: any) {
-      showToast(`Errore rimozione pilota: ${error.message}`, "error");
-    }
-  }
-
-  async function createEventSession() {
-    if (!sessionName.trim()) {
-      showToast("Inserisci il nome sessione", "error");
-      return;
-    }
-
-    try {
-      setSavingSession(true);
-      const ctx = await getCurrentTeamContext();
-
-      const { error } = await supabase.from("event_sessions").insert([
-        {
-          team_id: ctx.teamId,
-          event_id: eventId,
-          name: sessionName.trim(),
-          session_type: sessionType,
-          starts_at: sessionStartsAt || null,
-          ends_at: sessionEndsAt || null,
-          notes: sessionNotes.trim() || null,
-        },
-      ]);
-
-      if (error) throw error;
-
-      setSessionName("");
-      setSessionType("test");
-      setSessionStartsAt("");
-      setSessionEndsAt("");
-      setSessionNotes("");
-
-      showToast("Sessione creata");
-      await loadAllData();
-    } catch (error: any) {
-      showToast(`Errore creazione sessione: ${error.message}`, "error");
-    } finally {
-      setSavingSession(false);
-    }
-  }
-
-  async function deleteEventSession(sessionId: string) {
-    if (!confirm("Vuoi eliminare questa sessione?")) return;
-
-    try {
-      const ctx = await getCurrentTeamContext();
-
-      const { error } = await supabase
-        .from("event_sessions")
-        .delete()
-        .eq("team_id", ctx.teamId)
-        .eq("id", sessionId);
-
-      if (error) throw error;
-
-      showToast("Sessione eliminata");
-      await loadAllData();
-    } catch (error: any) {
-      showToast(`Errore eliminazione sessione: ${error.message}`, "error");
-    }
-  }
-
-  async function onSavePerformance() {
-    if (!performanceSessionId || !performanceDriverId) {
-      showToast("Seleziona sessione e pilota", "error");
-      return;
-    }
-
-    try {
-      setSavingPerformance(true);
-      const ctx = await getCurrentTeamContext();
-
-      const { error } = await supabase.from("driver_session_performance").insert([
-        {
-          team_id: ctx.teamId,
-          event_session_id: performanceSessionId,
-          event_car_id: eventCarId,
-          driver_id: performanceDriverId,
-          best_lap_time: bestLapTime.trim() || null,
-          average_lap_time: averageLapTime.trim() || null,
-          consistency_score: consistencyScore ? Number(consistencyScore) : null,
-          laps_completed: lapsCompleted ? Number(lapsCompleted) : 0,
-          incidents: incidents ? Number(incidents) : 0,
-          driver_feedback: driverFeedback.trim() || null,
-          engineer_notes: engineerNotes.trim() || null,
-          track_conditions: trackConditions.trim() || null,
-        },
-      ]);
-
-      if (error) throw error;
-
-      setPerformanceSessionId("");
-      setPerformanceDriverId("");
-      setBestLapTime("");
-      setAverageLapTime("");
-      setConsistencyScore("");
-      setLapsCompleted("");
-      setIncidents("");
-      setDriverFeedback("");
-      setEngineerNotes("");
-      setTrackConditions("");
-
-      showToast("Performance pilota salvata");
-      await loadAllData();
-    } catch (error: any) {
-      showToast(`Errore salvataggio performance: ${error.message}`, "error");
-    } finally {
-      setSavingPerformance(false);
-    }
+  function loadSetup(row: DataRow) {
+    if (!row?.data) return;
+    setSetupData(row.data || {});
+    setActiveSetupId(row.id);
+    setLastSetupTime(new Date(row.created_at).toLocaleString());
   }
 
   async function onSaveCheckup() {
@@ -921,11 +432,9 @@ export default function EventCarPage() {
       setCheckupSaving(true);
       await saveSection("checkup", checkup);
 
-      const ctx = await getCurrentTeamContext();
       const { data } = await supabase
         .from("event_car_data")
         .select("*")
-        .eq("team_id", ctx.teamId)
         .eq("event_car_id", eventCarId)
         .eq("section", "checkup")
         .order("created_at", { ascending: false })
@@ -934,7 +443,7 @@ export default function EventCarPage() {
       setCheckupHistory((data as DataRow[]) || []);
       setCheckupTick((t) => t + 1);
       setLastCheckupTime(new Date().toLocaleString());
-      showToast("Check-up salvato");
+      showToast("💾 Check-up salvato");
     } catch (e: any) {
       showToast(`Errore salvataggio check-up: ${e.message}`, "error");
     } finally {
@@ -949,7 +458,7 @@ export default function EventCarPage() {
     setLastCheckupTime(new Date(row.created_at).toLocaleString());
   }
 
-  async function saveTurn() {
+  async function addTurn() {
     if (!newTurn.durata) {
       showToast("Inserisci la durata del turno", "error");
       return;
@@ -958,8 +467,6 @@ export default function EventCarPage() {
     const minutes = Number(newTurn.durata);
     const laps = Number(newTurn.giri) || 0;
     const noteText = newTurn.note || "";
-    const sessionId = newTurn.sessionId || null;
-    const isEditing = Boolean(editingTurn);
 
     if (!Number.isFinite(minutes) || minutes <= 0) {
       showToast("La durata deve essere maggiore di zero", "error");
@@ -968,52 +475,31 @@ export default function EventCarPage() {
 
     try {
       setTurnsSaving(true);
-      const ctx = await getCurrentTeamContext();
 
-      if (isEditing && editingTurn) {
-        const { data, error } = await supabase
-          .from("event_car_turns")
-          .update({
-            event_session_id: sessionId,
+      const { data: inserted, error } = await supabase
+        .from("event_car_turns")
+        .insert([
+          {
+            event_car_id: eventCarId,
             minutes,
             laps,
             notes: noteText,
-          })
-          .eq("id", editingTurn.id)
-          .eq("team_id", ctx.teamId)
-          .eq("event_car_id", eventCarId)
-          .select("id")
-          .maybeSingle();
+          },
+        ])
+        .select()
+        .single();
 
-        if (error) throw new Error(error.message);
-        if (!data) throw new Error("Nessun turno aggiornato");
+      if (error) throw new Error(error.message);
 
-        showToast("Turno aggiornato");
-      } else {
-        const { data, error } = await supabase
-          .from("event_car_turns")
-          .insert([
-            {
-              team_id: ctx.teamId,
-              event_car_id: eventCarId,
-              event_session_id: sessionId,
-              minutes,
-              laps,
-              notes: noteText,
-            },
-          ])
-          .select("id")
-          .single();
+      setTurns((prev) => [...prev, inserted as TurnRow]);
+      setNewTurn({ durata: "", giri: "", note: "" });
 
-        if (error || !data) {
-          throw new Error(error?.message || "Errore salvataggio turno");
-        }
+      showToast("✅ Turno aggiunto");
 
-        showToast("Turno aggiunto");
+      if (confirm("Vuoi eseguire subito il check-up post turno?")) {
+        const el = document.getElementById("checkup-section");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-
-      resetTurnForm();
-      await loadAllData();
     } catch (e: any) {
       showToast(`Errore salvataggio turno: ${e.message}`, "error");
     } finally {
@@ -1024,30 +510,19 @@ export default function EventCarPage() {
   async function deleteTurn(turnId: string) {
     if (!confirm("Vuoi eliminare questo turno?")) return;
 
-    try {
-      const ctx = await getCurrentTeamContext();
+    const { error } = await supabase
+      .from("event_car_turns")
+      .delete()
+      .eq("id", turnId)
+      .eq("event_car_id", eventCarId);
 
-      const { error } = await supabase
-        .from("event_car_turns")
-        .delete()
-        .eq("id", turnId)
-        .eq("team_id", ctx.teamId)
-        .eq("event_car_id", eventCarId);
-
-      if (error) {
-        showToast(`Errore eliminazione turno: ${error.message}`, "error");
-        return;
-      }
-
-      if (editingTurn?.id === turnId) {
-        resetTurnForm();
-      }
-
-      await loadAllData();
-      showToast("Turno eliminato");
-    } catch (e: any) {
-      showToast(`Errore eliminazione turno: ${e.message}`, "error");
+    if (error) {
+      showToast(`Errore eliminazione turno: ${error.message}`, "error");
+      return;
     }
+
+    setTurns((prev) => prev.filter((t) => t.id !== turnId));
+    showToast("🗑️ Turno eliminato");
   }
 
   async function onSaveFuel() {
@@ -1056,11 +531,9 @@ export default function EventCarPage() {
       const data = { fuelStart, fuelEnd, lapsDone, lapsPlanned };
       await saveSection("fuel", data);
 
-      const ctx = await getCurrentTeamContext();
       const { data: hist } = await supabase
         .from("event_car_data")
         .select("*")
-        .eq("team_id", ctx.teamId)
         .eq("event_car_id", eventCarId)
         .eq("section", "fuel")
         .order("created_at", { ascending: false })
@@ -1069,7 +542,7 @@ export default function EventCarPage() {
       setFuelHistory((hist as DataRow[]) || []);
       setFuelTick((t) => t + 1);
       setLastFuelTime(new Date().toLocaleString());
-      showToast("Carburante salvato");
+      showToast("💾 Carburante salvato");
     } catch (e: any) {
       showToast(`Errore salvataggio carburante: ${e.message}`, "error");
     } finally {
@@ -1093,11 +566,9 @@ export default function EventCarPage() {
       const data = { text: notes };
       await saveSection("notes", data);
 
-      const ctx = await getCurrentTeamContext();
       const { data: hist } = await supabase
         .from("event_car_data")
         .select("*")
-        .eq("team_id", ctx.teamId)
         .eq("event_car_id", eventCarId)
         .eq("section", "notes")
         .order("created_at", { ascending: false })
@@ -1106,7 +577,7 @@ export default function EventCarPage() {
       setNotesHistory((hist as DataRow[]) || []);
       setNotesTick((t) => t + 1);
       setLastNotesTime(new Date().toLocaleString());
-      showToast("Note salvate");
+      showToast("💾 Note salvate");
     } catch (e: any) {
       showToast(`Errore salvataggio note: ${e.message}`, "error");
     } finally {
@@ -1123,524 +594,239 @@ export default function EventCarPage() {
 
   if (loading) {
     return (
-      <div className="card-base p-10 text-center text-neutral-500">
-        <div className="inline-flex items-center gap-2">
-          <Loader2 className="animate-spin" />
-          Caricamento dati...
-        </div>
+      <div className="p-6 flex items-center gap-2 text-gray-600">
+        <Loader2 className="animate-spin" /> Caricamento dati...
       </div>
     );
   }
 
-  if (!event || !car || !eventCar) {
+  if (!event || !car) {
     return (
-      <div className="card-base p-10 text-center text-red-600 font-semibold">
-        Errore: dati non trovati.
+      <div className="p-6 text-center text-red-500 font-semibold">
+        ❌ Errore: dati non trovati.
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col gap-6 ${audiowide.className}`}>
-      <section className="card-base overflow-hidden">
-        <div className="bg-black text-yellow-500 px-5 py-5 md:px-6 md:py-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm text-yellow-200/90 mb-2">
-                <Flag size={15} />
-                <span>{formatEventDate(event.date)}</span>
-              </div>
-
-              <h1 className="text-2xl md:text-3xl font-bold flex flex-wrap items-center gap-2">
-                <CarFront size={24} />
-                <span>{car.name}</span>
-                <span className="text-yellow-300">–</span>
-                <span>{event.name}</span>
-              </h1>
-
-              <p className="text-yellow-200/90 text-sm mt-2">Gestione tecnica evento</p>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {overallStatus === "OK" && (
-                  <span className="inline-flex items-center rounded-full bg-green-100 text-green-800 px-3 py-1 text-xs font-semibold">
-                    Auto OK
-                  </span>
-                )}
-                {overallStatus === "Da controllare" && (
-                  <span className="inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-3 py-1 text-xs font-semibold">
-                    Check-up da completare
-                  </span>
-                )}
-                {overallStatus === "Problema" && (
-                  <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-3 py-1 text-xs font-semibold">
-                    Problema tecnico segnalato
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2 text-sm text-yellow-100/80">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
-                  <MapPin size={14} />
-                  {circuit?.name || "Autodromo non specificato"}
-                </span>
-              </div>
+    <div className={`p-6 flex flex-col gap-6 ${audiowide.className}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">
+            {car.name} – {event.name}
+          </h1>
+          <p className="text-gray-600 text-sm">Gestione tecnica evento</p>
+          <div className="mt-1 flex flex-col gap-1">
+            <div className="text-sm text-gray-700 font-semibold">
+              Ore auto attuali: <span className="text-yellow-700">{formatHours(car.hours)} h</span>
             </div>
 
-            <Link href={`/calendar/${eventId}`} className="btn-secondary self-start">
-              <ArrowLeft size={16} /> Torna all’evento
-            </Link>
+            {overallStatus === "OK" && (
+              <span className="text-green-700 font-semibold">🟢 Auto OK</span>
+            )}
+            {overallStatus === "Da controllare" && (
+              <span className="text-yellow-700 font-semibold">🟠 Check-up da completare</span>
+            )}
+            {overallStatus === "Problema" && (
+              <span className="text-red-700 font-semibold">🔴 Problema tecnico segnalato</span>
+            )}
           </div>
         </div>
 
-        <div className="p-5 md:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <SummaryCard
-              icon={<Clock3 size={18} className="text-yellow-600" />}
-              label="Ore auto attuali"
-              value={formatHours(car.hours)}
-            />
-            <SummaryCard
-              icon={<Flag size={18} className="text-yellow-600" />}
-              label="Turni evento"
-              value={String(totalTurns)}
-            />
-            <SummaryCard
-              icon={<ClipboardCheck size={18} className="text-yellow-600" />}
-              label="Stato check-up"
-              value={overallStatus}
-              valueClassName={
-                overallStatus === "OK"
-                  ? "text-green-700"
-                  : overallStatus === "Problema"
-                  ? "text-red-700"
-                  : "text-yellow-700"
-              }
-            />
-            <SummaryCard
-              icon={<TriangleAlert size={18} className="text-yellow-600" />}
-              label="Criticità"
-              value={String(criticalChecks)}
-              valueClassName={criticalChecks > 0 ? "text-red-700" : "text-green-700"}
-            />
-          </div>
+        <Link
+          href={`/calendar/${eventId}`}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold"
+        >
+          <ArrowLeft size={16} /> Torna all’evento
+        </Link>
+      </div>
+
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
+
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Gauge className="text-yellow-500" /> Assetto
+          </h2>
+          <button
+            onClick={() => setSetupExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {setupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+          </button>
         </div>
-      </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section className="card-base p-5 md:p-6">
-          <SectionHeader
-            title="Piloti assegnati"
-            subtitle="Associa uno o più piloti a questa auto evento"
-            icon={<UserRound className="text-yellow-500" />}
-            expanded={driversExpanded}
-            onToggle={() => setDriversExpanded((v) => !v)}
-          />
-
-          {driversExpanded ? (
-            <>
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-3">
-                  <select
-                    value={selectedDriverId}
-                    onChange={(e) => setSelectedDriverId(e.target.value)}
-                    className="input-base"
-                  >
-                    <option value="">— Seleziona pilota —</option>
-                    {availableDrivers.map((driver) => (
-                      <option key={driver.id} value={driver.id}>
-                        {driverLabel(driver)}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedDriverRole}
-                    onChange={(e) => setSelectedDriverRole(e.target.value)}
-                    className="input-base"
-                  >
-                    <option value="primary">Primary</option>
-                    <option value="co_driver">Co-driver</option>
-                    <option value="reserve">Reserve</option>
-                  </select>
-
-                  <button
-                    onClick={assignDriverToEventCar}
-                    disabled={assigningDriver}
-                    className="btn-primary"
-                  >
-                    {assigningDriver ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <PlusCircle size={16} />
-                    )}
-                    Aggiungi
-                  </button>
-                </div>
-              </div>
-
-              {assignedDriversDetailed.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
-                  Nessun pilota assegnato a questa auto.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {assignedDriversDetailed.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                    >
-                      <div>
-                        <div className="font-bold text-neutral-900">
-                          {entry.driver ? driverLabel(entry.driver) : "Pilota non trovato"}
-                        </div>
-                        <div className="text-sm text-neutral-500 mt-1">
-                          Ruolo: {normalizeRole(entry.role)}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => removeDriverAssignment(entry.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 text-white px-4 py-2 font-semibold"
-                      >
-                        <Trash2 size={16} />
-                        Rimuovi
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-sm text-gray-500">{assignedDrivers.length} piloti assegnati</div>
-          )}
-        </section>
-
-        <section className="card-base p-5 md:p-6">
-          <SectionHeader
-            title="Sessioni evento"
-            subtitle="Crea e organizza test, libere, qualifica, gara e stint"
-            icon={<CalendarDays className="text-yellow-500" />}
-            expanded={sessionsExpanded}
-            onToggle={() => setSessionsExpanded((v) => !v)}
-          />
-
-          {sessionsExpanded ? (
-            <>
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex flex-col gap-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input
-                    className="input-base"
-                    value={sessionName}
-                    onChange={(e) => setSessionName(e.target.value)}
-                    placeholder="Nome sessione"
-                  />
-
-                  <select
-                    value={sessionType}
-                    onChange={(e) => setSessionType(e.target.value)}
-                    className="input-base"
-                  >
-                    <option value="test">Test</option>
-                    <option value="prove_libere">Prove libere</option>
-                    <option value="qualifica">Qualifica</option>
-                    <option value="gara">Gara</option>
-                    <option value="stint">Stint</option>
-                    <option value="warmup">Warmup</option>
-                  </select>
-
-                  <input
-                    type="datetime-local"
-                    className="input-base"
-                    value={sessionStartsAt}
-                    onChange={(e) => setSessionStartsAt(e.target.value)}
-                  />
-
-                  <input
-                    type="datetime-local"
-                    className="input-base"
-                    value={sessionEndsAt}
-                    onChange={(e) => setSessionEndsAt(e.target.value)}
-                  />
-                </div>
-
-                <textarea
-                  className="input-base min-h-[100px]"
-                  value={sessionNotes}
-                  onChange={(e) => setSessionNotes(e.target.value)}
-                  placeholder="Note sessione..."
-                />
-
-                <button
-                  onClick={createEventSession}
-                  disabled={savingSession}
-                  className="btn-primary self-start"
-                >
-                  {savingSession ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <PlusCircle size={16} />
-                  )}
-                  Crea sessione
-                </button>
-              </div>
-
-              {sessions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
-                  Nessuna sessione creata.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 flex flex-col gap-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                          <div className="font-bold text-neutral-900">{session.name}</div>
-                          <div className="text-sm text-neutral-500 mt-1">
-                            Tipo: {session.session_type}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => deleteEventSession(session.id)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 text-white px-4 py-2 font-semibold"
-                        >
-                          <Trash2 size={16} />
-                          Elimina
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <MiniInfoCard label="Inizio" value={formatDateTime(session.starts_at)} />
-                        <MiniInfoCard label="Fine" value={formatDateTime(session.ends_at)} />
-                      </div>
-
-                      {session.notes ? (
-                        <div className="text-sm text-neutral-700 whitespace-pre-line">
-                          {session.notes}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-sm text-gray-500">{sessions.length} sessioni create</div>
-          )}
-        </section>
-      </section>
-
-      <section className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Performance pilota"
-          subtitle="Analisi manuale per pilota e sessione"
-          icon={<UserRound className="text-yellow-500" />}
-          expanded={performanceExpanded}
-          onToggle={() => setPerformanceExpanded((v) => !v)}
-        />
-
-        {performanceExpanded ? (
+        {setupExpanded ? (
           <>
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex flex-col gap-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <select
-                  value={performanceSessionId}
-                  onChange={(e) => setPerformanceSessionId(e.target.value)}
-                  className="input-base"
-                >
-                  <option value="">Seleziona sessione</option>
-                  {sessions.map((session) => (
-                    <option key={session.id} value={session.id}>
-                      {session.name}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={performanceDriverId}
-                  onChange={(e) => setPerformanceDriverId(e.target.value)}
-                  className="input-base"
-                >
-                  <option value="">Seleziona pilota</option>
-                  {assignedDriversDetailed.map((entry) =>
-                    entry.driver ? (
-                      <option key={entry.driver.id} value={entry.driver.id}>
-                        {driverLabel(entry.driver)}
-                      </option>
-                    ) : null
-                  )}
-                </select>
-
-                <input
-                  className="input-base"
-                  value={bestLapTime}
-                  onChange={(e) => setBestLapTime(e.target.value)}
-                  placeholder="Best lap (es. 1:34.221)"
-                />
-
-                <input
-                  className="input-base"
-                  value={averageLapTime}
-                  onChange={(e) => setAverageLapTime(e.target.value)}
-                  placeholder="Lap medio"
-                />
-
-                <input
-                  type="number"
-                  className="input-base"
-                  value={consistencyScore}
-                  onChange={(e) => setConsistencyScore(e.target.value)}
-                  placeholder="Costanza"
-                />
-
-                <input
-                  type="number"
-                  className="input-base"
-                  value={lapsCompleted}
-                  onChange={(e) => setLapsCompleted(e.target.value)}
-                  placeholder="Giri completati"
-                />
-
-                <input
-                  type="number"
-                  className="input-base"
-                  value={incidents}
-                  onChange={(e) => setIncidents(e.target.value)}
-                  placeholder="Incidenti"
-                />
-
-                <input
-                  className="input-base"
-                  value={trackConditions}
-                  onChange={(e) => setTrackConditions(e.target.value)}
-                  placeholder="Condizioni pista"
-                />
-              </div>
-
-              <textarea
-                className="input-base min-h-[100px]"
-                value={driverFeedback}
-                onChange={(e) => setDriverFeedback(e.target.value)}
-                placeholder="Feedback pilota..."
-              />
-
-              <textarea
-                className="input-base min-h-[100px]"
-                value={engineerNotes}
-                onChange={(e) => setEngineerNotes(e.target.value)}
-                placeholder="Note ingegnere..."
-              />
-
+            <div className="flex flex-wrap gap-3 mb-4">
               <button
-                onClick={onSavePerformance}
-                disabled={savingPerformance}
-                className="btn-primary self-start"
+                onClick={() => setTab("scheda")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "scheda"
+                    ? "bg-yellow-400 text-black"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
               >
-                {savingPerformance ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                Salva performance
+                Setup Scheda Tecnica
+              </button>
+              <button
+                onClick={() => setTab("touch")}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  tab === "touch"
+                    ? "bg-yellow-400 text-black"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Setup Touch
               </button>
             </div>
 
-            {performances.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
-                Nessuna performance registrata.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {performances.map((perf) => {
-                  const session = sessions.find((s) => s.id === perf.event_session_id);
-                  const driver = drivers.find((d) => d.id === perf.driver_id);
+            <div className="transition-all duration-300">
+              {tab === "scheda" && (
+                <div className="flex flex-col gap-3">
+                  <SetupScheda eventCarId={eventCarId} />
 
-                  return (
-                    <div
-                      key={perf.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                        <div>
-                          <div className="font-bold text-neutral-900">
-                            {driver ? driverLabel(driver) : "Pilota"}
-                          </div>
-                          <div className="text-sm text-neutral-500">
-                            {session?.name || "Sessione"}
-                          </div>
-                        </div>
-                        <div className="text-xs text-neutral-500">
-                          {formatDateTime(perf.created_at)}
-                        </div>
-                      </div>
+                  <HistoryBar
+                    title="Ultimi 3 salvataggi Setup"
+                    rows={setupHistory}
+                    onOpen={loadSetup}
+                    onDelete={async (row) => {
+                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                      try {
+                        await deleteSectionRow(row.id, "setup");
+                        if (activeSetupId === row.id) setActiveSetupId(null);
+                      } catch (e: any) {
+                        showToast(`Errore eliminazione: ${e.message}`, "error");
+                      }
+                    }}
+                    activeId={activeSetupId}
+                  />
+                </div>
+              )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-4">
-                        <MiniInfoCard label="Best lap" value={perf.best_lap_time || "—"} />
-                        <MiniInfoCard label="Lap medio" value={perf.average_lap_time || "—"} />
-                        <MiniInfoCard label="Costanza" value={perf.consistency_score?.toString() || "—"} />
-                        <MiniInfoCard label="Giri" value={perf.laps_completed?.toString() || "0"} />
-                        <MiniInfoCard label="Incidenti" value={perf.incidents?.toString() || "0"} />
-                      </div>
-
-                      {(perf.track_conditions || perf.driver_feedback || perf.engineer_notes) && (
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <MiniInfoCard label="Condizioni pista" value={perf.track_conditions || "—"} />
-                          <MiniInfoCard label="Feedback pilota" value={perf.driver_feedback || "—"} />
-                          <MiniInfoCard label="Note ingegnere" value={perf.engineer_notes || "—"} />
-                        </div>
-                      )}
+              {tab === "touch" && (
+                <div className="flex flex-col gap-4">
+                  {"imageUrl" in setupData && setupData.imageUrl ? (
+                    <div className="w-full flex justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={setupData.imageUrl}
+                        alt="Auto centrale"
+                        className="max-h-72 object-contain"
+                      />
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ) : (
+                    <div className="text-center text-xs text-gray-500">
+                      Immagine auto centrale non impostata
+                    </div>
+                  )}
+
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border p-2 text-left">Parametro</th>
+                        <th className="border p-2 text-left">Valore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(setupData || {}).length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="p-3 text-center text-gray-400">
+                            Nessun parametro disponibile. Salva prima dalla scheda tecnica, poi modifica qui.
+                          </td>
+                        </tr>
+                      )}
+
+                      {Object.entries(setupData || {}).map(([key, value]) => {
+                        if (key === "imageUrl") return null;
+                        return (
+                          <tr key={key}>
+                            <td className="border p-2">{key}</td>
+                            <td className="border p-2">
+                              <input
+                                className="border rounded-lg p-1 w-full"
+                                value={String(value ?? "")}
+                                onChange={(e) =>
+                                  setSetupData((s) => ({
+                                    ...s,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <div className="flex justify-center mt-2 mb-2">
+                    <button
+                      onClick={onSaveSetup}
+                      disabled={setupSaving}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
+                    >
+                      {setupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                      Salva Setup
+                      <CheckCircle2
+                        size={18}
+                        className={`transition-opacity ${setupTick ? "opacity-100" : "opacity-0"}`}
+                      />
+                    </button>
+                  </div>
+
+                  {lastSetupTime && (
+                    <p className="text-xs text-gray-500 text-center -mt-2">
+                      Ultimo salvataggio: {lastSetupTime}
+                    </p>
+                  )}
+
+                  <HistoryBar
+                    title="Ultimi 3 salvataggi Setup"
+                    rows={setupHistory}
+                    onOpen={loadSetup}
+                    onDelete={async (row) => {
+                      if (!confirm("Vuoi davvero eliminare questo salvataggio di setup?")) return;
+                      try {
+                        await deleteSectionRow(row.id, "setup");
+                        if (activeSetupId === row.id) setActiveSetupId(null);
+                      } catch (e: any) {
+                        showToast(`Errore eliminazione: ${e.message}`, "error");
+                      }
+                    }}
+                    activeId={activeSetupId}
+                  />
+                </div>
+              )}
+            </div>
           </>
-        ) : (
-          <div className="text-sm text-gray-500">{performances.length} performance registrate</div>
-        )}
-      </section>
-
-      <section className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Assetto"
-          subtitle="Scheda tecnica completa setup"
-          icon={<Gauge className="text-yellow-500" />}
-          expanded={setupExpanded}
-          onToggle={() => setSetupExpanded((v) => !v)}
-        />
-
-        {setupExpanded ? (
-          <SetupScheda eventCarId={eventCarId} />
         ) : (
           <div className="text-sm text-gray-500">Vista sintetica</div>
         )}
       </section>
 
-      <section id="checkup-section" className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Check-up tecnico"
-          subtitle="Controlli divisi per area per leggere tutto più velocemente in pista"
-          icon={<ClipboardCheck className="text-yellow-500" />}
-          expanded={checkupExpanded}
-          onToggle={() => setCheckupExpanded((v) => !v)}
-        />
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <StatusSummaryCard title="Controlli OK" value={statusCounts.OK} tone="green" />
-          <StatusSummaryCard
-            title="Da controllare"
-            value={statusCounts["Da controllare"]}
-            tone="yellow"
-          />
-          <StatusSummaryCard title="Problemi" value={statusCounts.Problema} tone="red" />
+      <section id="checkup-section" className="bg-white border rounded-xl shadow-sm p-5 relative">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <ClipboardCheck className="text-yellow-500" /> Check-up tecnico
+          </h2>
+          <button
+            onClick={() => setCheckupExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {checkupExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+          </button>
         </div>
 
         {checkupExpanded ? (
           <>
-            <div className="mb-5 rounded-xl border bg-gray-50 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2 text-base font-semibold">
-                {overallStatus === "OK" && <span className="text-green-700">Tutti i controlli OK</span>}
+                {overallStatus === "OK" && <span className="text-green-700">🟢 Tutti i controlli OK</span>}
                 {overallStatus === "Da controllare" && (
-                  <span className="text-yellow-700">Check-up da completare</span>
+                  <span className="text-yellow-700">🟠 Check-up da completare</span>
                 )}
                 {overallStatus === "Problema" && (
                   <span className="text-red-700 flex items-center gap-2">
@@ -1649,90 +835,80 @@ export default function EventCarPage() {
                 )}
               </div>
 
-              {lastCheckupTime && (
-                <div className="text-xs text-gray-500">
-                  Ultimo salvataggio: {lastCheckupTime}
-                </div>
-              )}
+              <div className="flex flex-wrap gap-3 text-sm font-semibold">
+                <span className="text-green-700">✅ {statusCounts.OK} OK</span>
+                <span className="text-yellow-700">🟡 {statusCounts["Da controllare"]} Da controllare</span>
+                <span className="text-red-700">❌ {statusCounts.Problema} Problema</span>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-6 mb-5">
-              {checkupGroups.map((group) => (
-                <div
-                  key={group.title}
-                  className="rounded-2xl border border-gray-200 p-4 md:p-5 bg-gray-50"
-                >
-                  <div className="flex items-center gap-2 mb-4">
-                    {group.icon}
-                    <h3 className="text-base font-bold text-gray-800">{group.title}</h3>
-                  </div>
+            <table className="w-full text-sm border-collapse mb-4">
+              <thead>
+                <tr className="bg-gray-50 text-gray-700">
+                  <th className="border p-2 text-left">Controllo</th>
+                  <th className="border p-2 text-center">Stato</th>
+                  <th className="border p-2 text-center">Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {defaultCheckupItems.map((item) => {
+                  const value = checkup[item] || "Da controllare";
+                  const bgColor =
+                    value === "OK"
+                      ? "bg-green-100"
+                      : value === "Da controllare"
+                      ? "bg-yellow-100"
+                      : "bg-red-100";
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {group.items.map((item) => {
-                      const value: CheckStatus = checkup[item] || "Da controllare";
-                      const styles = getCheckupStyles(value);
+                  const borderColor =
+                    value === "OK"
+                      ? "border-green-400"
+                      : value === "Da controllare"
+                      ? "border-yellow-400"
+                      : "border-red-400";
 
-                      return (
-                        <div
-                          key={item}
-                          className={`rounded-2xl border p-4 ${styles.card}`}
+                  return (
+                    <tr key={item} className={bgColor}>
+                      <td className="border p-2">{item}</td>
+                      <td className="border p-2 text-center">
+                        <select
+                          value={value}
+                          onChange={(e) =>
+                            setCheckup((s) => ({
+                              ...s,
+                              [item]: e.target.value as "OK" | "Da controllare" | "Problema",
+                            }))
+                          }
+                          className={`border rounded-lg p-1 text-sm ${borderColor}`}
                         >
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-2.5 h-2.5 rounded-full ${styles.dot}`} />
-                                <h4 className="font-bold text-gray-900">{item}</h4>
-                              </div>
-                              <div className="mt-2">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${styles.badge}`}
-                                >
-                                  {value}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                          <option>OK</option>
+                          <option>Da controllare</option>
+                          <option>Problema</option>
+                        </select>
+                      </td>
+                      <td className="border p-2 text-center">
+                        {value === "Problema" && (
+                          <button
+                            onClick={() =>
+                              showToast(`Segnalazione manutenzione per: ${item} (funzione da collegare)`)
+                            }
+                            className="text-red-700 text-xs font-semibold hover:underline"
+                          >
+                            Crea manutenzione
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <select
-                              value={value}
-                              onChange={(e) =>
-                                setCheckup((s) => ({
-                                  ...s,
-                                  [item]: e.target.value as CheckStatus,
-                                }))
-                              }
-                              className={`flex-1 border rounded-xl p-3 text-sm bg-white font-semibold ${styles.select}`}
-                            >
-                              <option>OK</option>
-                              <option>Da controllare</option>
-                              <option>Problema</option>
-                            </select>
-
-                            {value === "Problema" && (
-                              <button
-                                onClick={() =>
-                                  showToast(`Segnalazione manutenzione per: ${item} (da collegare)`)
-                                }
-                                className="px-4 py-3 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold"
-                              >
-                                Crea manutenzione
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mt-4 mb-2">
               <button
                 onClick={onSaveCheckup}
                 disabled={checkupSaving}
-                className="btn-primary"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
               >
                 {checkupSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                 Salva Check-up
@@ -1744,6 +920,12 @@ export default function EventCarPage() {
                 />
               </button>
             </div>
+
+            {lastCheckupTime && (
+              <p className="text-xs text-gray-500 text-center mb-4">
+                Ultimo salvataggio: {lastCheckupTime}
+              </p>
+            )}
 
             <HistoryBar
               title="Ultimi 3 salvataggi Check-up"
@@ -1762,280 +944,110 @@ export default function EventCarPage() {
             />
           </>
         ) : (
-          <div className="text-sm text-gray-500">
-            {statusCounts.OK} OK • {statusCounts["Da controllare"]} da controllare •{" "}
-            {statusCounts.Problema} problemi
-          </div>
+          <div className="text-sm text-gray-500">Vista sintetica</div>
         )}
       </section>
 
-      <section className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Turni svolti"
-          subtitle="Gestione turni, modifiche rapide e riepilogo ore evento"
-          icon={<Clock3 className="text-yellow-500" />}
-          expanded={turnsExpanded}
-          onToggle={() => setTurnsExpanded((v) => !v)}
-        />
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <SummaryCard
-            icon={<Flag size={18} className="text-yellow-600" />}
-            label="Turni totali"
-            value={String(totalTurns)}
-          />
-          <SummaryCard
-            icon={<Clock3 size={18} className="text-yellow-600" />}
-            label="Minuti totali"
-            value={String(totalMinutes)}
-          />
-          <SummaryCard
-            icon={<Clock3 size={18} className="text-yellow-600" />}
-            label="Ore evento"
-            value={`${totalHours.toFixed(2)} h`}
-            valueClassName="text-yellow-800"
-            cardClassName="bg-yellow-50 border-yellow-300"
-          />
+      <section className="bg-white border rounded-xl shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Clock3 className="text-yellow-500" /> Turni Svolti{" "}
+            <span className="ml-1 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-gray-800">
+              {totalTurns}
+            </span>
+          </h2>
+          <button
+            onClick={() => setTurnsExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {turnsExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+          </button>
         </div>
 
         {turnsExpanded ? (
           <>
-            {editingTurn && (
-              <div className="mb-4 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 font-semibold">
-                Stai modificando un turno esistente. Salva le modifiche oppure annulla.
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Filtra per sessione
-                  </label>
-                  <select
-                    value={selectedSessionFilter}
-                    onChange={(e) => setSelectedSessionFilter(e.target.value)}
-                    className="border rounded-xl p-3 text-sm w-full bg-white"
-                  >
-                    <option value="">Tutte le sessioni</option>
-                    {sessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <SummaryCard
-                  icon={<Clock3 size={18} className="text-yellow-600" />}
-                  label="Minuti sessione"
-                  value={String(filteredTotalMinutes)}
-                />
-                <SummaryCard
-                  icon={<Flag size={18} className="text-yellow-600" />}
-                  label="Giri sessione"
-                  value={String(filteredTotalLaps)}
-                />
-              </div>
-
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-800">{selectedSessionLabel}</span>
-                {" • "}
-                {filteredTotalTurns} turni
-              </div>
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex items-center justify-between">
+              <span className="font-semibold text-gray-700">
+                Turni totali: <span className="text-gray-900">{totalTurns}</span>
+              </span>
+              <span className="font-semibold text-gray-700">
+                Ore totali evento: <span className="text-yellow-700">{totalHours.toFixed(2)} h</span>
+              </span>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 overflow-hidden mb-5">
-              <div className="hidden md:grid grid-cols-12 bg-gray-100 text-gray-700 text-sm font-semibold">
-                <div className="col-span-1 p-3 text-center">#</div>
-                <div className="col-span-2 p-3 text-center">Sessione</div>
-                <div className="col-span-2 p-3 text-center">Durata</div>
-                <div className="col-span-2 p-3 text-center">Giri</div>
-                <div className="col-span-3 p-3">Note</div>
-                <div className="col-span-2 p-3 text-center">Azioni</div>
-              </div>
-
-              {filteredTurns.length === 0 ? (
-                <div className="p-6 text-center text-gray-400">Nessun turno registrato</div>
-              ) : (
-                <div className="divide-y divide-gray-200">
-                  {filteredTurns.map((t, i) => {
-                    const session = sessions.find((s) => s.id === t.event_session_id);
-                    return (
-                      <div key={t.id}>
-                        <div className="hidden md:grid grid-cols-12 items-center text-sm bg-white">
-                          <div className="col-span-1 p-3 text-center font-semibold text-gray-700">
-                            {i + 1}
-                          </div>
-                          <div className="col-span-2 p-3 text-center">
-                            {session?.name || "—"}
-                          </div>
-                          <div className="col-span-2 p-3 text-center">{t.minutes} min</div>
-                          <div className="col-span-2 p-3 text-center">{t.laps}</div>
-                          <div className="col-span-3 p-3 text-gray-700">{t.notes || "—"}</div>
-                          <div className="col-span-2 p-3">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => {
-                                  setEditingTurn(t);
-                                  setNewTurn({
-                                    durata: String(t.minutes ?? ""),
-                                    giri: String(t.laps ?? ""),
-                                    note: t.notes || "",
-                                    sessionId: t.event_session_id || "",
-                                  });
-                                }}
-                                className="px-3 py-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-semibold"
-                              >
-                                Modifica
-                              </button>
-
-                              <button
-                                onClick={() => deleteTurn(t.id)}
-                                className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold"
-                              >
-                                Elimina
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="md:hidden p-4 bg-white">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-bold text-gray-900">Turno #{i + 1}</div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {session?.name || "Nessuna sessione"} • {t.minutes} min • {t.laps} giri
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 text-sm text-gray-700">
-                            <span className="font-semibold">Note:</span> {t.notes || "—"}
-                          </div>
-
-                          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingTurn(t);
-                                setNewTurn({
-                                  durata: String(t.minutes ?? ""),
-                                  giri: String(t.laps ?? ""),
-                                  note: t.notes || "",
-                                  sessionId: t.event_session_id || "",
-                                });
-                              }}
-                              className="flex-1 px-3 py-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-sm font-semibold"
-                            >
-                              Modifica
-                            </button>
-
-                            <button
-                              onClick={() => deleteTurn(t.id)}
-                              className="flex-1 px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold"
-                            >
-                              Elimina
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5">
-              <h3 className="text-base font-bold text-gray-800 mb-4">
-                {editingTurn ? "Modifica turno" : "Aggiungi nuovo turno"}
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Sessione
-                  </label>
-                  <select
-                    value={newTurn.sessionId}
-                    onChange={(e) => setNewTurn({ ...newTurn, sessionId: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white"
-                  >
-                    <option value="">— Nessuna —</option>
-                    {sessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Durata (minuti)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Es. 20"
-                    value={newTurn.durata}
-                    onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Giri
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Es. 12"
-                    value={newTurn.giri}
-                    onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Note
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Annotazioni turno"
-                    value={newTurn.note}
-                    onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
-                    className="border rounded-xl p-3 text-sm w-full bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={saveTurn}
-                  disabled={turnsSaving}
-                  className="btn-primary"
-                >
-                  {turnsSaving ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : editingTurn ? (
-                    <Save size={16} />
-                  ) : (
-                    <PlusCircle size={16} />
-                  )}
-                  {editingTurn ? "Salva modifica" : "Aggiungi turno"}
-                </button>
-
-                {editingTurn && (
-                  <button
-                    onClick={resetTurnForm}
-                    type="button"
-                    className="btn-secondary"
-                  >
-                    Annulla modifica
-                  </button>
+            <table className="w-full text-sm border-collapse mb-4">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border p-2">#</th>
+                  <th className="border p-2">Durata (min)</th>
+                  <th className="border p-2">Giri</th>
+                  <th className="border p-2">Note</th>
+                  <th className="border p-2 text-center">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {turns.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center text-gray-400 p-3">
+                      Nessun turno registrato
+                    </td>
+                  </tr>
+                ) : (
+                  turns.map((t, i) => (
+                    <tr key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="border p-2 text-center">{i + 1}</td>
+                      <td className="border p-2 text-center">{t.minutes}</td>
+                      <td className="border p-2 text-center">{t.laps}</td>
+                      <td className="border p-2">{t.notes}</td>
+                      <td className="border p-2 text-center">
+                        <button
+                          onClick={() => deleteTurn(t.id)}
+                          className="text-red-600 hover:text-red-800 text-xs font-semibold inline-flex items-center gap-1"
+                          title="Elimina turno"
+                        >
+                          <Trash2 size={14} /> Elimina
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
+              </tbody>
+            </table>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <input
+                type="number"
+                placeholder="Durata (minuti)"
+                value={newTurn.durata}
+                onChange={(e) => setNewTurn({ ...newTurn, durata: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
+              <input
+                type="number"
+                placeholder="Giri"
+                value={newTurn.giri}
+                onChange={(e) => setNewTurn({ ...newTurn, giri: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Note"
+                value={newTurn.note}
+                onChange={(e) => setNewTurn({ ...newTurn, note: e.target.value })}
+                className="border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-300 outline-none"
+              />
             </div>
+
+            <button
+              onClick={addTurn}
+              disabled={turnsSaving}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold rounded-lg shadow-sm"
+            >
+              {turnsSaving ? <Loader2 className="animate-spin" size={16} /> : "➕"}
+              Aggiungi Turno
+            </button>
           </>
         ) : (
           <div className="text-sm text-gray-500">
@@ -2044,112 +1056,68 @@ export default function EventCarPage() {
         )}
       </section>
 
-      <section className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Gestione carburante"
-          subtitle="Analisi consumo, autonomia residua e carburante da aggiungere"
-          icon={<Fuel className="text-yellow-500" />}
-          expanded={fuelExpanded}
-          onToggle={() => setFuelExpanded((v) => !v)}
-        />
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
-          <SummaryCard
-            icon={<Droplets size={18} className="text-yellow-600" />}
-            label="Consumato"
-            value={fuelUsed !== null ? formatLiters(fuelUsed, 1) : "—"}
-          />
-          <SummaryCard
-            icon={<Fuel size={18} className="text-yellow-600" />}
-            label="Consumo medio/giro"
-            value={fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L` : "—"}
-          />
-          <SummaryCard
-            icon={<Flag size={18} className="text-yellow-600" />}
-            label="Autonomia residua"
-            value={estimatedLapsRemaining > 0 ? `${estimatedLapsRemaining.toFixed(1)} giri` : "—"}
-          />
-          <SummaryCard
-            icon={<TriangleAlert size={18} className="text-yellow-600" />}
-            label="Da aggiungere"
-            value={fuelToAdd > 0 ? formatLiters(fuelToAdd, 1) : "—"}
-            valueClassName={fuelToAdd > 0 ? "text-yellow-700" : "text-green-700"}
-          />
+      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Fuel className="text-yellow-500" /> Gestione carburante
+          </h2>
+          <button
+            onClick={() => setFuelExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {fuelExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+          </button>
         </div>
 
         {fuelExpanded ? (
           <>
-            <div className="mb-5 rounded-xl border bg-gray-50 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex flex-col sm:flex-row gap-4 text-sm font-semibold">
-                <span className="text-gray-700">
-                  Consumo medio:{" "}
-                  <span className="text-gray-900">
-                    {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
-                  </span>
+            <div className="mb-4 px-4 py-3 rounded-lg border bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="font-semibold text-gray-700">
+                Consumo medio:{" "}
+                <span className="text-gray-900">
+                  {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
                 </span>
-                <span className="text-gray-700">
-                  Carburante da aggiungere:{" "}
-                  <span className="text-yellow-700">
-                    {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L` : "—"}
-                  </span>
+              </span>
+              <span className="font-semibold text-gray-700">
+                Carburante da aggiungere:{" "}
+                <span className="text-yellow-700">
+                  {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L` : "—"}
                 </span>
-              </div>
-
-              {lastFuelTime && (
-                <div className="text-xs text-gray-500">
-                  Ultimo salvataggio: {lastFuelTime}
-                </div>
-              )}
+              </span>
             </div>
 
-            {fuelUsed === null && fuelStart >= 0 && fuelEnd >= 0 && (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-semibold">
-                Attenzione: il carburante residuo è maggiore di quello iniziale. Verifica i dati inseriti.
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
-              <h3 className="text-base font-bold text-gray-800 mb-4">
-                Dati sessione e previsione
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-                <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
-                <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
-                <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
-                <NumberCard
-                  label="Giri previsti prossimo turno"
-                  value={lapsPlanned}
-                  setValue={setLapsPlanned}
-                  integer
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <ReadOnlyCard
-                  label="Carburante consumato"
-                  value={fuelUsed !== null ? formatLiters(fuelUsed, 1) : "—"}
-                />
-                <ReadOnlyCard
-                  label="Consumo medio a giro"
-                  value={fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "—"}
-                />
-                <ReadOnlyCard
-                  label="Autonomia residua"
-                  value={estimatedLapsRemaining > 0 ? `${estimatedLapsRemaining.toFixed(1)} giri` : "—"}
-                />
-                <HighlightCard
-                  label="Carburante da aggiungere"
-                  value={fuelToAdd > 0 ? formatLiters(fuelToAdd, 1) : "—"}
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+              <NumberCard label="Carburante iniziale (L)" value={fuelStart} setValue={setFuelStart} />
+              <NumberCard label="Carburante residuo (L)" value={fuelEnd} setValue={setFuelEnd} />
+              <NumberCard label="Giri effettuati" value={lapsDone} setValue={setLapsDone} integer />
             </div>
 
-            <div className="flex justify-center mb-2">
+            <hr className="my-3 border-gray-200" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <ReadOnlyCard
+                label="Consumo medio a giro (L/giro)"
+                value={fuelPerLap > 0 ? fuelPerLap.toFixed(2) : "—"}
+              />
+              <NumberCard
+                label="Giri previsti prossimo turno"
+                value={lapsPlanned}
+                setValue={setLapsPlanned}
+                integer
+              />
+              <HighlightCard
+                label="Carburante da aggiungere (L)"
+                value={fuelToAdd > 0 ? fuelToAdd.toFixed(1) : "—"}
+              />
+            </div>
+
+            <div className="flex justify-center mt-5 mb-2">
               <button
                 onClick={onSaveFuel}
                 disabled={fuelSaving}
-                className="btn-primary"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
               >
                 {fuelSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                 Salva carburante
@@ -2159,6 +1127,12 @@ export default function EventCarPage() {
                 />
               </button>
             </div>
+
+            {lastFuelTime && (
+              <p className="text-xs text-gray-500 text-center mb-4">
+                Ultimo salvataggio: {lastFuelTime}
+              </p>
+            )}
 
             <HistoryBar
               title="Ultimi 3 salvataggi Carburante"
@@ -2177,68 +1151,40 @@ export default function EventCarPage() {
             />
           </>
         ) : (
-          <div className="text-sm text-gray-500">
-            {fuelPerLap > 0 ? `${fuelPerLap.toFixed(2)} L/giro` : "Consumo non calcolabile"} •{" "}
-            {fuelToAdd > 0 ? `${fuelToAdd.toFixed(1)} L da aggiungere` : "nessun rabbocco stimato"}
-          </div>
+          <div className="text-sm text-gray-500">Vista sintetica</div>
         )}
       </section>
 
-      <section className="card-base p-5 md:p-6">
-        <SectionHeader
-          title="Note e osservazioni"
-          subtitle="Annotazioni pilota, problemi emersi, modifiche da ricordare e feedback pista"
-          icon={<StickyNote className="text-yellow-500" />}
-          expanded={notesExpanded}
-          onToggle={() => setNotesExpanded((v) => !v)}
-        />
+      <div className="h-[2px] bg-yellow-400/80 my-6" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <SummaryCard
-            icon={<FileText size={18} className="text-yellow-600" />}
-            label="Lunghezza note"
-            value={`${notesLength} caratteri`}
-          />
-          <SummaryCard
-            icon={<StickyNote size={18} className="text-yellow-600" />}
-            label="Stato contenuto"
-            value={notesLength > 0 ? "Compilate" : "Vuote"}
-            valueClassName={notesLength > 0 ? "text-green-700" : "text-yellow-700"}
-          />
-          <SummaryCard
-            icon={<Clock3 size={18} className="text-yellow-600" />}
-            label="Ultimo salvataggio"
-            value={lastNotesTime || "—"}
-            valueClassName="text-gray-900 text-sm"
-          />
+      <section className="bg-white border rounded-xl shadow-sm p-5 relative">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <StickyNote className="text-yellow-500" /> Note e osservazioni
+          </h2>
+          <button
+            onClick={() => setNotesExpanded((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
+          >
+            {notesExpanded ? "↩ Vista sintetica" : "🔍 Dettagli"}
+          </button>
         </div>
 
         {notesExpanded ? (
           <>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5 mb-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-bold text-gray-800">Taccuino evento</h3>
-                <span className="text-xs text-gray-500">{notesLength} caratteri</span>
-              </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Annota eventuali problemi, sensazioni del pilota o modifiche da fare..."
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-yellow-300 outline-none"
+              rows={4}
+            />
 
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Annota eventuali problemi, sensazioni del pilota, modifiche da fare, condizioni pista, meteo, comportamento vettura..."
-                className="border rounded-xl p-4 w-full bg-white min-h-[180px]"
-                rows={7}
-              />
-
-              <div className="mt-3 text-xs text-gray-500">
-                Suggerimento: usa le note per segnare comportamento vettura, consumo gomme, correzioni assetto e lavori da fare prima del prossimo turno.
-              </div>
-            </div>
-
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mt-4 mb-2">
               <button
                 onClick={onSaveNotes}
                 disabled={notesSaving}
-                className="btn-primary"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold shadow-sm"
               >
                 {notesSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                 Salva Note
@@ -2248,6 +1194,12 @@ export default function EventCarPage() {
                 />
               </button>
             </div>
+
+            {lastNotesTime && (
+              <p className="text-xs text-gray-500 text-center mb-4">
+                Ultimo salvataggio: {lastNotesTime}
+              </p>
+            )}
 
             <HistoryBar
               title="Ultimi 3 salvataggi Note"
@@ -2266,17 +1218,13 @@ export default function EventCarPage() {
             />
           </>
         ) : (
-          <div className="text-sm text-gray-500">
-            {notesLength > 0
-              ? `${notesLength} caratteri salvati nelle note evento`
-              : "Nessuna annotazione presente"}
-          </div>
+          <div className="text-sm text-gray-500">Vista sintetica</div>
         )}
       </section>
 
       {toast.show && (
         <div
-          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-lg font-semibold ${
+          className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-lg shadow-lg font-semibold ${
             toast.type === "success"
               ? "bg-yellow-400 text-black"
               : "bg-red-600 text-white"
@@ -2290,98 +1238,6 @@ export default function EventCarPage() {
 }
 
 /* ---------------- UI SUBCOMPONENTS ---------------- */
-
-function SectionHeader({
-  title,
-  subtitle,
-  icon,
-  expanded,
-  onToggle,
-}: {
-  title: string;
-  subtitle: string;
-  icon: ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-      <div>
-        <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-          {icon} {title}
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
-      </div>
-
-      <button
-        onClick={onToggle}
-        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold"
-      >
-        {expanded ? "Vista sintetica" : "Dettagli"}
-      </button>
-    </div>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  valueClassName = "text-gray-900",
-  cardClassName = "bg-gray-50 border-neutral-200",
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  valueClassName?: string;
-  cardClassName?: string;
-}) {
-  return (
-    <div className={`rounded-xl border p-4 ${cardClassName}`}>
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`text-xl font-bold mt-2 ${valueClassName}`}>{value}</div>
-    </div>
-  );
-}
-
-function StatusSummaryCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: number;
-  tone: "green" | "yellow" | "red";
-}) {
-  const classes =
-    tone === "green"
-      ? {
-          box: "bg-green-50 border-green-200",
-          title: "text-green-700",
-          value: "text-green-800",
-        }
-      : tone === "red"
-      ? {
-          box: "bg-red-50 border-red-200",
-          title: "text-red-700",
-          value: "text-red-800",
-        }
-      : {
-          box: "bg-yellow-50 border-yellow-200",
-          title: "text-yellow-700",
-          value: "text-yellow-800",
-        };
-
-  return (
-    <div className={`rounded-xl border p-4 ${classes.box}`}>
-      <div className={`text-xs uppercase tracking-wide ${classes.title}`}>{title}</div>
-      <div className={`text-2xl font-bold mt-1 ${classes.value}`}>{value}</div>
-    </div>
-  );
-}
 
 function HistoryBar({
   title,
@@ -2428,10 +1284,10 @@ function HistoryBar({
 
                 <div className="flex items-center gap-3">
                   {isActive ? (
-                    <span className="text-green-700 font-semibold">Aperto</span>
+                    <span className="text-green-700 font-semibold">✅ Aperto</span>
                   ) : (
                     <button onClick={() => onOpen(r)} className="text-yellow-600 font-semibold">
-                      Apri
+                      🔄 Apri
                     </button>
                   )}
 
@@ -2478,7 +1334,7 @@ function NumberCard({
               : parseFloat(e.target.value || "0")
           )
         }
-        className="border rounded-xl p-3 w-full text-center bg-white"
+        className="border rounded-lg p-2 w-full text-center focus:ring-2 focus:ring-yellow-300 outline-none"
       />
     </div>
   );
@@ -2488,7 +1344,7 @@ function ReadOnlyCard({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <div className="border rounded-xl p-3 bg-white text-center font-semibold">{value}</div>
+      <div className="border rounded-lg p-2 bg-gray-50 text-center font-semibold">{value}</div>
     </div>
   );
 }
@@ -2497,18 +1353,7 @@ function HighlightCard({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
-      <div className="rounded-xl p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MiniInfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-neutral-900 break-words whitespace-pre-wrap">
+      <div className="rounded-lg p-3 text-center font-bold text-black text-xl bg-yellow-400 border-2 border-yellow-600 shadow-inner">
         {value}
       </div>
     </div>

@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTeamContext } from "@/lib/teamContext";
 import {
   Edit,
   List,
@@ -13,15 +12,12 @@ import {
   FileText,
   Printer,
   CarFront,
+  GaugeCircle,
   Wrench,
   Info,
-  PlusCircle,
-  GaugeCircle,
-  TriangleAlert,
 } from "lucide-react";
-import { Audiowide } from "next/font/google";
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+const audiowide = { className: "" };
 
 type ComponentType =
   | "motore"
@@ -110,10 +106,7 @@ function capitalize(s: string) {
 }
 
 function formatHours(value: number | null | undefined) {
-  const totalMinutes = Math.round(Number(value ?? 0) * 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+  return Number(value ?? 0).toFixed(2);
 }
 
 function getExpiryColor(date: string) {
@@ -123,37 +116,10 @@ function getExpiryColor(date: string) {
     (expiry.getFullYear() - now.getFullYear()) * 12 +
     (expiry.getMonth() - now.getMonth());
 
-  if (expiry < now) return "text-red-600";
-  if (months > 12) return "text-green-700";
-  if (months > 6) return "text-yellow-700";
-  return "text-orange-600";
-}
-
-function getExpiryBadge(date: string) {
-  const expiry = new Date(date);
-  const now = new Date();
-  const months =
-    (expiry.getFullYear() - now.getFullYear()) * 12 +
-    (expiry.getMonth() - now.getMonth());
-
-  if (expiry < now) {
-    return {
-      label: "Scaduto",
-      className: "bg-red-100 text-red-700",
-    };
-  }
-
-  if (months <= 6) {
-    return {
-      label: "In scadenza",
-      className: "bg-yellow-100 text-yellow-800",
-    };
-  }
-
-  return {
-    label: "Valido",
-    className: "bg-green-100 text-green-700",
-  };
+  if (expiry < now) return "text-red-500";
+  if (months > 12) return "text-green-500";
+  if (months > 6) return "text-yellow-500";
+  return "text-orange-500";
 }
 
 function getThresholdBadge(component: CarComponent) {
@@ -171,7 +137,7 @@ function getThresholdBadge(component: CarComponent) {
   if (warning !== null && warning !== undefined && hours >= warning) {
     return {
       label: "In attenzione",
-      className: "bg-yellow-100 text-yellow-800",
+      className: "bg-yellow-100 text-yellow-700",
     };
   }
 
@@ -233,76 +199,60 @@ export default function CarsPage() {
 
   const showToast = (message: string) => {
     setToast({ show: true, message });
-    setTimeout(() => setToast({ show: false, message: "" }), 2200);
+    setTimeout(() => setToast({ show: false, message: "" }), 2000);
   };
 
   const fetchCars = async () => {
-    try {
-      const ctx = await getCurrentTeamContext();
-
-      const { data, error } = await supabase
-        .from("cars")
-        .select(`
+    const { data, error } = await supabase
+      .from("cars")
+      .select(`
+        id,
+        name,
+        chassis_number,
+        hours,
+        components (
           id,
-          name,
-          chassis_number,
+          type,
+          identifier,
+          expiry_date,
+          is_active,
           hours,
-          components (
-            id,
-            type,
-            identifier,
-            expiry_date,
-            is_active,
-            hours,
-            life_hours,
-            warning_threshold_hours,
-            revision_threshold_hours,
-            last_maintenance_date
-          )
-        `)
-        .eq("team_id", ctx.teamId)
-        .order("id", { ascending: true });
+          life_hours,
+          warning_threshold_hours,
+          revision_threshold_hours,
+          last_maintenance_date
+        )
+      `)
+      .order("id", { ascending: true });
 
-      if (!error) {
-        const normalized: CarRow[] = (data || []).map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          chassis_number: row.chassis_number,
-          hours: row.hours,
-          components: (row.components || []) as CarComponent[],
-        }));
-        setCars(normalized);
-      }
-    } catch (error) {
-      console.error("Errore caricamento auto:", error);
-      setCars([]);
+    if (!error) {
+      const normalized: CarRow[] = (data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        chassis_number: row.chassis_number,
+        hours: row.hours,
+        components: (row.components || []) as CarComponent[],
+      }));
+      setCars(normalized);
     }
   };
 
   const fetchAllComponents = async () => {
-    try {
-      const ctx = await getCurrentTeamContext();
+    const { data, error } = await supabase
+      .from("components")
+      .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
+      .order("id", { ascending: true });
 
-      const { data, error } = await supabase
-        .from("components")
-        .select("id, type, identifier, expiry_date, car_id, car:car_id(name)")
-        .eq("team_id", ctx.teamId)
-        .order("id", { ascending: true });
-
-      if (!error) {
-        const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
-          id: row.id,
-          type: row.type,
-          identifier: row.identifier,
-          expiry_date: row.expiry_date,
-          car_id: row.car_id,
-          car: row.car,
-        }));
-        setAllComponents(normalized);
-      }
-    } catch (error) {
-      console.error("Errore caricamento componenti:", error);
-      setAllComponents([]);
+    if (!error) {
+      const normalized: GlobalComponent[] = (data || []).map((row: any) => ({
+        id: row.id,
+        type: row.type,
+        identifier: row.identifier,
+        expiry_date: row.expiry_date,
+        car_id: row.car_id,
+        car: row.car,
+      }));
+      setAllComponents(normalized);
     }
   };
 
@@ -348,43 +298,19 @@ export default function CarsPage() {
     });
   }, [cars, search, searchBy]);
 
-  const totalCars = cars.length;
-  const totalComponentsMounted = useMemo(
-    () => cars.reduce((acc, car) => acc + (car.components?.length || 0), 0),
-    [cars]
-  );
-  const totalCriticalComponents = useMemo(
-    () =>
-      cars.reduce((acc, car) => {
-        const count = (car.components || []).filter((component) => {
-          const badge = getThresholdBadge(component);
-          return badge.label !== "OK";
-        }).length;
-        return acc + count;
-      }, 0),
-    [cars]
-  );
-
   const mountComponent = async (carId: string, compId: string) => {
     if (!carId || !compId) return;
-
-    const ctx = await getCurrentTeamContext();
 
     const { data: selectedComp, error: compErr } = await supabase
       .from("components")
       .select("id, type, car_id")
       .eq("id", compId)
-      .eq("team_id", ctx.teamId)
       .single();
 
     if (compErr || !selectedComp) return;
 
     if (selectedComp.car_id && selectedComp.car_id !== carId) {
-      await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("id", selectedComp.id)
-        .eq("team_id", ctx.teamId);
+      await supabase.from("components").update({ car_id: null }).eq("id", selectedComp.id);
     }
 
     const { data: existingComp } = await supabase
@@ -392,22 +318,13 @@ export default function CarsPage() {
       .select("id")
       .eq("car_id", carId)
       .eq("type", selectedComp.type)
-      .eq("team_id", ctx.teamId)
       .single();
 
     if (existingComp) {
-      await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("id", existingComp.id)
-        .eq("team_id", ctx.teamId);
+      await supabase.from("components").update({ car_id: null }).eq("id", existingComp.id);
     }
 
-    await supabase
-      .from("components")
-      .update({ car_id: carId })
-      .eq("id", compId)
-      .eq("team_id", ctx.teamId);
+    await supabase.from("components").update({ car_id: carId }).eq("id", compId);
   };
 
   const onSaveCar = async () => {
@@ -415,17 +332,9 @@ export default function CarsPage() {
     setSaving(true);
 
     try {
-      const ctx = await getCurrentTeamContext();
-
       const { data: newCar, error: carErr } = await supabase
         .from("cars")
-        .insert([
-          {
-            team_id: ctx.teamId,
-            name,
-            chassis_number: chassis,
-          },
-        ])
+        .insert([{ name, chassis_number: chassis }])
         .select()
         .single();
 
@@ -444,7 +353,6 @@ export default function CarsPage() {
 
           await supabase.from("components").insert([
             {
-              team_id: ctx.teamId,
               type,
               identifier,
               car_id: newCar.id,
@@ -474,7 +382,6 @@ export default function CarsPage() {
 
           await supabase.from("components").insert([
             {
-              team_id: ctx.teamId,
               type,
               identifier,
               car_id: newCar.id,
@@ -489,7 +396,6 @@ export default function CarsPage() {
       resetForm();
       await fetchAllComponents();
       await fetchCars();
-      showToast("Auto salvata correttamente");
     } catch (e) {
       console.error("Errore salvataggio auto:", e);
       alert("Errore nel salvataggio. Controlla la console.");
@@ -503,13 +409,10 @@ export default function CarsPage() {
     setSaving(true);
 
     try {
-      const ctx = await getCurrentTeamContext();
-
       const { error: carErr } = await supabase
         .from("cars")
         .update({ name, chassis_number: chassis })
-        .eq("id", selectedCar.id)
-        .eq("team_id", ctx.teamId);
+        .eq("id", selectedCar.id);
 
       if (carErr) throw carErr;
 
@@ -525,14 +428,7 @@ export default function CarsPage() {
 
             const { data: created, error: insErr } = await supabase
               .from("components")
-              .insert([
-                {
-                  team_id: ctx.teamId,
-                  type,
-                  identifier,
-                  is_active: true,
-                },
-              ])
+              .insert([{ type, identifier, is_active: true }])
               .select("id")
               .single();
 
@@ -549,8 +445,7 @@ export default function CarsPage() {
               .from("components")
               .update({ identifier: curr.identifier })
               .eq("car_id", selectedCar.id)
-              .eq("type", type)
-              .eq("team_id", ctx.teamId);
+              .eq("type", type);
           }
         }
       }
@@ -573,15 +468,7 @@ export default function CarsPage() {
 
             const { data: created, error: insErr } = await supabase
               .from("components")
-              .insert([
-                {
-                  team_id: ctx.teamId,
-                  type,
-                  identifier,
-                  expiry_date: expiry,
-                  is_active: true,
-                },
-              ])
+              .insert([{ type, identifier, expiry_date: expiry, is_active: true }])
               .select("id")
               .single();
 
@@ -598,8 +485,7 @@ export default function CarsPage() {
               .from("components")
               .update({ identifier: e.identifier, expiry_date: e.expiry })
               .eq("car_id", selectedCar.id)
-              .eq("type", type)
-              .eq("team_id", ctx.teamId);
+              .eq("type", type);
           }
         }
       }
@@ -608,7 +494,6 @@ export default function CarsPage() {
       resetForm();
       await fetchAllComponents();
       await fetchCars();
-      showToast("Auto aggiornata correttamente");
     } catch (e) {
       console.error("Errore aggiornamento auto:", e);
       alert("Errore nell'aggiornamento.");
@@ -722,7 +607,7 @@ export default function CarsPage() {
       await mountComponent(selectedCar.id, compId);
       await fetchAllComponents();
       await fetchCars();
-      showToast("Componente montato correttamente");
+      showToast("✅ Componente montato correttamente");
     }
 
     setEditChoice((prev) => ({
@@ -742,93 +627,40 @@ export default function CarsPage() {
   };
 
   return (
-    <div className={`flex flex-col gap-6 ${audiowide.className}`}>
-      <section className="card-base overflow-hidden">
-        <div className="bg-black text-yellow-500 px-5 py-5 md:px-6 md:py-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-yellow-300">
-                <CarFront size={14} />
-                Gestione Auto
-              </div>
-
-              <h1 className="mt-3 text-2xl md:text-3xl font-bold text-yellow-400">
-                Parco auto racing
-              </h1>
-
-              <p className="mt-2 max-w-3xl text-sm text-yellow-100/75 leading-relaxed">
-                Controlla le vetture, i componenti montati, le scadenze e lo stato tecnico
-                generale in un’unica schermata.
-              </p>
-            </div>
-
-            <div className="w-full xl:w-auto">
-              <div className="rounded-2xl bg-white/5 border border-yellow-500/10 p-2">
-                <Image
-                  src="/mia-foto.png"
-                  alt="La mia auto"
-                  width={960}
-                  height={480}
-                  priority
-                  className="rounded-xl w-full xl:w-[420px] h-auto object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5 md:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <SummaryCard
-              icon={<CarFront size={18} className="text-yellow-600" />}
-              label="Auto totali"
-              value={String(totalCars)}
-            />
-            <SummaryCard
-              icon={<Wrench size={18} className="text-yellow-600" />}
-              label="Componenti montati"
-              value={String(totalComponentsMounted)}
-            />
-            <SummaryCard
-              icon={<TriangleAlert size={18} className="text-yellow-600" />}
-              label="Da controllare"
-              value={String(totalCriticalComponents)}
-              valueClassName={totalCriticalComponents > 0 ? "text-red-700" : "text-green-700"}
-            />
-            <SummaryCard
-              icon={<GaugeCircle size={18} className="text-yellow-600" />}
-              label="Vista attiva"
-              value={view === "sintetica" ? "Sintetica" : "Dettagliata"}
+    <div className={`p-6 flex flex-col gap-8 ${audiowide.className}`}>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Gestione Auto</h1>
+          <div className="mt-3">
+            <Image
+              src="/mia-foto.png"
+              alt="La mia auto"
+              width={960}
+              height={480}
+              priority
+              className="rounded-xl w-full max-w-3xl h-auto"
             />
           </div>
         </div>
-      </section>
 
-      <section className="card-base p-4 md:p-5">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-          <div className="flex flex-col md:flex-row gap-3 md:items-center flex-1">
-            <div className="relative flex-1">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
-              />
-              <input
-                type="text"
-                placeholder={
-                  searchBy === "auto"
-                    ? "Cerca per nome auto o numero telaio..."
-                    : `Cerca per ${searchBy}...`
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white pl-10 pr-3 py-3 text-sm"
-              />
-            </div>
-
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <div className="flex items-center border rounded-lg px-3 py-2 bg-white shadow-sm">
+            <Search className="text-gray-500 mr-2" size={18} />
+            <input
+              type="text"
+              placeholder={
+                searchBy === "auto"
+                  ? "Cerca per nome o telaio…"
+                  : `Cerca per ${searchBy} (identificativo)…`
+              }
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="outline-none text-sm w-48 md:w-72"
+            />
             <select
               value={searchBy}
               onChange={(e) => setSearchBy(e.target.value as "auto" | ComponentType)}
-              className="rounded-xl border border-neutral-300 bg-white px-3 py-3 text-sm"
+              className="ml-2 text-sm border rounded px-2 py-1"
             >
               <option value="auto">Auto</option>
               {COMPONENT_TYPES.map((t) => (
@@ -839,333 +671,293 @@ export default function CarsPage() {
             </select>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
-              className="btn-secondary"
-            >
-              {view === "sintetica" ? (
-                <>
-                  <Grid size={18} /> Vista dettagliata
-                </>
-              ) : (
-                <>
-                  <List size={18} /> Vista sintetica
-                </>
-              )}
-            </button>
+          <button
+            onClick={() => setView(view === "sintetica" ? "dettagliata" : "sintetica")}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            {view === "sintetica" ? (
+              <>
+                <Grid size={18} /> Vista dettagliata
+              </>
+            ) : (
+              <>
+                <List size={18} /> Vista sintetica
+              </>
+            )}
+          </button>
 
-            <button onClick={openAdd} className="btn-primary">
-              <PlusCircle size={18} /> Aggiungi auto
-            </button>
-          </div>
+          <button
+            onClick={openAdd}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg"
+          >
+            + Aggiungi Auto
+          </button>
         </div>
-      </section>
+      </div>
 
-      <section>
-        {filteredCars.length === 0 ? (
-          <div className="card-base p-10 text-center text-neutral-500">
-            Nessuna auto trovata con i filtri attuali.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {filteredCars.map((car) => {
-              const criticalComponents = (car.components || []).filter((component) => {
-                const badge = getThresholdBadge(component);
-                return badge.label !== "OK";
-              }).length;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredCars.map((car) => {
+          const criticalComponents = (car.components || []).filter((component) => {
+            const badge = getThresholdBadge(component);
+            return badge.label !== "OK";
+          }).length;
 
-              return (
-                <article
-                  key={car.id}
-                  className="card-base overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="bg-black text-yellow-500 px-4 py-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <CarFront size={18} />
-                        <h2 className="text-lg font-bold truncate">{car.name}</h2>
-                      </div>
-                      <div className="mt-1 text-sm text-yellow-100/75">
-                        Telaio: {car.chassis_number || "—"}
-                      </div>
-                    </div>
+          return (
+            <div
+              key={car.id}
+              className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition"
+            >
+              <div className="bg-black text-yellow-500 px-4 py-3 flex justify-between items-start gap-3">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <CarFront size={18} />
+                    {car.name}
+                  </h2>
+                  <span className="text-sm opacity-80">{car.chassis_number || "—"}</span>
+                </div>
 
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => openEdit(car)}
-                        className="btn-primary !px-3 !py-2 !rounded-lg"
-                      >
-                        <Edit size={16} /> Modifica
-                      </button>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <button
+                    onClick={() => openEdit(car)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-3 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Edit size={16} /> Modifica
+                  </button>
 
-                      <Link
-                        href={`/cars/${car.id}`}
-                        className="btn-secondary !px-3 !py-2 !rounded-lg"
-                      >
-                        <Info size={16} /> Dettagli
-                      </Link>
-                    </div>
+                  <Link
+                    href={`/cars/${car.id}`}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Info size={16} /> Dettagli
+                  </Link>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Ore auto</div>
+                    <div className="font-bold text-gray-900">{formatHours(car.hours)}</div>
                   </div>
 
-                  <div className="p-4 md:p-5 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <MiniStatCard
-                        label="Ore auto"
-                        value={formatHours(car.hours)}
-                        icon={<GaugeCircle size={16} className="text-yellow-600" />}
-                      />
-                      <MiniStatCard
-                        label="Componenti"
-                        value={String(car.components?.length || 0)}
-                        icon={<Wrench size={16} className="text-yellow-600" />}
-                      />
-                      <MiniStatCard
-                        label="Criticità"
-                        value={String(criticalComponents)}
-                        valueClassName={criticalComponents > 0 ? "text-red-700" : "text-green-700"}
-                        icon={<TriangleAlert size={16} className="text-yellow-600" />}
-                      />
-                    </div>
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Componenti</div>
+                    <div className="font-bold text-gray-900">{car.components?.length || 0}</div>
+                  </div>
 
-                    {view === "dettagliata" ? (
-                      <>
-                        {car.components?.length > 0 ? (
-                          <div className="flex flex-col gap-3">
-                            {car.components.map((comp) => {
-                              const badge = getThresholdBadge(comp);
-                              const expiryBadge =
-                                comp.expiry_date ? getExpiryBadge(comp.expiry_date) : null;
+                  <div className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="text-gray-500">Da controllare</div>
+                    <div className="font-bold text-gray-900">{criticalComponents}</div>
+                  </div>
+                </div>
 
-                              return (
-                                <div
-                                  key={comp.id}
-                                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                                >
-                                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                    <div className="min-w-0">
-                                      <div className="font-bold text-sm text-neutral-900">
-                                        {capitalize(comp.type)} – {comp.identifier}
-                                      </div>
+                {view === "dettagliata" ? (
+                  <>
+                    {car.components?.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {car.components.map((comp) => {
+                          const badge = getThresholdBadge(comp);
 
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        <span
-                                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}
-                                        >
-                                          {badge.label}
-                                        </span>
-
-                                        {expiryBadge && (
-                                          <span
-                                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${expiryBadge.className}`}
-                                          >
-                                            {expiryBadge.label}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
+                          return (
+                            <div
+                              key={comp.id}
+                              className="bg-gray-50 px-3 py-3 rounded-xl border border-gray-200"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-semibold text-sm text-gray-900">
+                                    {comp.type} – {comp.identifier}
                                   </div>
-
-                                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm">
-                                    <InfoRow label="Ore attuali" value={formatHours(comp.hours)} />
-                                    <InfoRow label="Ore vita" value={formatHours(comp.life_hours)} />
-                                    <InfoRow
-                                      label="Soglia attenzione"
-                                      value={
-                                        comp.warning_threshold_hours !== null &&
-                                        comp.warning_threshold_hours !== undefined
-                                          ? formatHours(comp.warning_threshold_hours)
-                                          : "—"
-                                      }
-                                    />
-                                    <InfoRow
-                                      label="Soglia revisione"
-                                      value={
-                                        comp.revision_threshold_hours !== null &&
-                                        comp.revision_threshold_hours !== undefined
-                                          ? formatHours(comp.revision_threshold_hours)
-                                          : "—"
-                                      }
-                                    />
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Ore attuali: {formatHours(comp.hours)} | Ore vita:{" "}
+                                    {formatHours(comp.life_hours)}
                                   </div>
-
-                                  {comp.expiry_date && (
-                                    <div className="mt-3 text-sm">
-                                      <span className="text-neutral-500">Scadenza: </span>
-                                      <span className={getExpiryColor(comp.expiry_date)}>
-                                        {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500 text-center">
-                            Nessun componente montato su questa auto.
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600 flex items-center gap-2">
-                        <Wrench size={15} className="text-yellow-500" />
-                        <span>
-                          {car.components?.length || 0} componenti montati • {criticalComponents} da
-                          controllare
-                        </span>
+
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.className}`}
+                                >
+                                  {badge.label}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
+                                <span>
+                                  Soglia attenzione:{" "}
+                                  {comp.warning_threshold_hours !== null &&
+                                  comp.warning_threshold_hours !== undefined
+                                    ? formatHours(comp.warning_threshold_hours)
+                                    : "—"}
+                                </span>
+
+                                <span>
+                                  Soglia revisione:{" "}
+                                  {comp.revision_threshold_hours !== null &&
+                                  comp.revision_threshold_hours !== undefined
+                                    ? formatHours(comp.revision_threshold_hours)
+                                    : "—"}
+                                </span>
+
+                                {comp.expiry_date && (
+                                  <span className={getExpiryColor(comp.expiry_date)}>
+                                    Scadenza:{" "}
+                                    {new Date(comp.expiry_date).toLocaleDateString("it-IT")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Nessun componente montato su questa auto.
+                      </p>
                     )}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <Wrench size={15} className="text-yellow-500" />
+                    <span>
+                      {car.components?.length || 0} componenti montati • {criticalComponents} da
+                      controllare
+                    </span>
                   </div>
+                )}
+              </div>
 
-                  <div className="px-4 pb-4 md:px-5 md:pb-5 flex flex-col sm:flex-row gap-2 sm:justify-end">
-                    <Link
-                      href={`/cars/${car.id}/documents`}
-                      className="btn-dark !px-3 !py-2 !rounded-lg"
-                    >
-                      <FileText size={16} /> Documenti
-                    </Link>
+              <div className="px-4 pb-4 flex justify-end gap-2 flex-wrap">
+                <Link
+                  href={`/cars/${car.id}/documents`}
+                  className="bg-gray-900 hover:bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <FileText size={16} /> Documenti
+                </Link>
 
-                    <Link
-                      href={`/cars/${car.id}/print`}
-                      className="btn-secondary !px-3 !py-2 !rounded-lg"
-                    >
-                      <Printer size={16} /> Stampa
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                <Link
+                  href={`/cars/${car.id}/print`}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <Printer size={16} /> Stampa
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {openModal && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-black/50"
             onClick={() => !saving && setOpenModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
-              <div className="flex items-center justify-between px-6 py-4 border-b bg-black text-yellow-400">
-                <h3 className="text-xl font-bold">
+            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h3 className="text-xl font-bold text-gray-800">
                   {selectedCar ? "Modifica Auto" : "Aggiungi Auto"}
                 </h3>
                 <button
                   onClick={() => !saving && setOpenModal(false)}
-                  className="rounded-lg px-3 py-1 text-yellow-300 hover:bg-white/10"
+                  className="p-2 rounded hover:bg-gray-100"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="p-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                    <h4 className="font-bold text-neutral-800 mb-4">Dati auto</h4>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="block text-sm text-gray-700">Nome auto</label>
+                  <input
+                    className="border rounded-lg p-2 w-full"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm text-neutral-700 font-semibold mb-1">
-                          Nome auto
-                        </label>
-                        <input
-                          className="border rounded-xl p-3 w-full bg-white"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-neutral-700 font-semibold mb-1">
-                          Numero telaio
-                        </label>
-                        <input
-                          className="border rounded-xl p-3 w-full bg-white"
-                          value={chassis}
-                          onChange={(e) => setChassis(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                    <h4 className="font-bold text-neutral-800 mb-4">Componenti base</h4>
-
-                    <div className="space-y-4">
-                      {(["motore", "cambio", "differenziale"] as ComponentType[]).map((type) => {
-                        const { unassigned, assigned } = optionsForType(type);
-                        const currentSel =
-                          editChoice[type]?.selection ??
-                          selectedCar?.components?.find((c) => c.type === type)?.id ??
-                          "";
-
-                        return (
-                          <div key={type} className="space-y-2">
-                            <span className="text-sm text-neutral-700 font-semibold block capitalize">
-                              {type}
-                            </span>
-
-                            <select
-                              className="border rounded-xl p-3 w-full bg-white"
-                              value={currentSel}
-                              onChange={(e) => handleSelectChange(type, e.target.value)}
-                            >
-                              <option value="__new__">➕ Aggiungi nuovo componente…</option>
-
-                              {unassigned.length > 0 && (
-                                <>
-                                  <option disabled>— Smontati —</option>
-                                  {unassigned.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.identifier} (smontato)
-                                    </option>
-                                  ))}
-                                </>
-                              )}
-
-                              {assigned.length > 0 && (
-                                <>
-                                  <option disabled>— Montati —</option>
-                                  {assigned.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
-                                    </option>
-                                  ))}
-                                </>
-                              )}
-
-                              {!currentSel && <option value="">— Seleziona —</option>}
-                            </select>
-
-                            {editChoice[type]?.selection === "__new__" && (
-                              <input
-                                className="border rounded-xl p-3 w-full bg-white"
-                                placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
-                                value={editChoice[type]?.newIdentifier || ""}
-                                onChange={(e) =>
-                                  setEditChoice((prev) => ({
-                                    ...prev,
-                                    [type]: {
-                                      selection: "__new__",
-                                      newIdentifier: e.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <label className="block text-sm text-gray-700 mt-3">Numero telaio</label>
+                  <input
+                    className="border rounded-lg p-2 w-full"
+                    value={chassis}
+                    onChange={(e) => setChassis(e.target.value)}
+                  />
                 </div>
 
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <h4 className="font-bold text-neutral-800 mb-4">Componenti con scadenza</h4>
+                <div className="space-y-3">
+                  <p className="font-semibold text-gray-800">Componenti base</p>
+                  {(["motore", "cambio", "differenziale"] as ComponentType[]).map((type) => {
+                    const { unassigned, assigned } = optionsForType(type);
+                    const currentSel =
+                      editChoice[type]?.selection ??
+                      selectedCar?.components?.find((c) => c.type === type)?.id ??
+                      "";
 
-                  <div className="space-y-4">
+                    return (
+                      <div key={type} className="space-y-1">
+                        <span className="w-32 text-sm text-gray-600 capitalize block">
+                          {type}
+                        </span>
+
+                        <select
+                          className="border rounded-lg p-2 w-full"
+                          value={currentSel}
+                          onChange={(e) => handleSelectChange(type, e.target.value)}
+                        >
+                          <option value="__new__">➕ Aggiungi nuovo componente…</option>
+
+                          {unassigned.length > 0 && (
+                            <>
+                              <option disabled className="font-bold">
+                                — Smontati —
+                              </option>
+                              {unassigned.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.identifier} (smontato)
+                                </option>
+                              ))}
+                            </>
+                          )}
+
+                          {assigned.length > 0 && (
+                            <>
+                              <option disabled className="font-bold">
+                                — Montati —
+                              </option>
+                              {assigned.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
+                                </option>
+                              ))}
+                            </>
+                          )}
+
+                          {!currentSel && <option value="">— Seleziona —</option>}
+                        </select>
+
+                        {editChoice[type]?.selection === "__new__" && (
+                          <input
+                            className="border rounded-lg p-2 w-full mt-1"
+                            placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
+                            value={editChoice[type]?.newIdentifier || ""}
+                            onChange={(e) =>
+                              setEditChoice((prev) => ({
+                                ...prev,
+                                [type]: {
+                                  selection: "__new__",
+                                  newIdentifier: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="md:col-span-2">
+                  <p className="font-semibold text-gray-800 mb-2">Componenti con scadenza</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {(
                       ["cinture", "cavi", "estintore", "serbatoio", "passaporto"] as ComponentType[]
                     ).map((type) => {
@@ -1177,14 +969,14 @@ export default function CarsPage() {
                         "";
 
                       return (
-                        <div key={type} className="rounded-xl border border-neutral-200 bg-white p-3">
-                          <span className="text-sm text-neutral-700 font-semibold capitalize block mb-2">
+                        <div key={type} className="grid grid-cols-5 gap-2 items-center">
+                          <span className="col-span-1 text-sm text-gray-600 capitalize">
                             {type}
                           </span>
 
-                          <div className="grid grid-cols-1 gap-3">
+                          <div className="col-span-2">
                             <select
-                              className="border rounded-xl p-3 w-full bg-white"
+                              className="border rounded-lg p-2 w-full"
                               value={currentSel}
                               onChange={(ev) => handleSelectChange(type, ev.target.value)}
                             >
@@ -1192,7 +984,9 @@ export default function CarsPage() {
 
                               {unassigned.length > 0 && (
                                 <>
-                                  <option disabled>— Smontati —</option>
+                                  <option disabled className="font-bold">
+                                    — Smontati —
+                                  </option>
                                   {unassigned.map((c) => (
                                     <option key={c.id} value={c.id}>
                                       {c.identifier} (smontato)
@@ -1203,7 +997,9 @@ export default function CarsPage() {
 
                               {assigned.length > 0 && (
                                 <>
-                                  <option disabled>— Montati —</option>
+                                  <option disabled className="font-bold">
+                                    — Montati —
+                                  </option>
                                   {assigned.map((c) => (
                                     <option key={c.id} value={c.id}>
                                       {c.identifier} – Montato su: {normalizeCarName(c.car) || "—"}
@@ -1217,7 +1013,7 @@ export default function CarsPage() {
 
                             {editChoice[type]?.selection === "__new__" && (
                               <input
-                                className="border rounded-xl p-3 w-full bg-white"
+                                className="border rounded-lg p-2 w-full mt-1"
                                 placeholder={`Identificativo nuovo ${defaultLabel[type]}`}
                                 value={editChoice[type]?.newIdentifier || ""}
                                 onChange={(ev) =>
@@ -1231,19 +1027,19 @@ export default function CarsPage() {
                                 }
                               />
                             )}
-
-                            <input
-                              type="date"
-                              className="border rounded-xl p-3 w-full bg-white"
-                              value={e?.expiry || ""}
-                              onChange={(ev) => {
-                                const v = ev.target.value;
-                                setExpiringComponents((prev) =>
-                                  prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
-                                );
-                              }}
-                            />
                           </div>
+
+                          <input
+                            type="date"
+                            className="col-span-2 border rounded-lg p-2"
+                            value={e?.expiry || ""}
+                            onChange={(ev) => {
+                              const v = ev.target.value;
+                              setExpiringComponents((prev) =>
+                                prev.map((x) => (x.type === type ? { ...x, expiry: v } : x))
+                              );
+                            }}
+                          />
                         </div>
                       );
                     })}
@@ -1251,18 +1047,18 @@ export default function CarsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t">
                 <button
                   onClick={() => setOpenModal(false)}
                   disabled={saving}
-                  className="btn-secondary"
+                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={selectedCar ? onUpdateCar : onSaveCar}
                   disabled={saving}
-                  className="btn-primary"
+                  className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
                 >
                   {saving ? "Salvataggio..." : selectedCar ? "Salva modifiche" : "Salva auto"}
                 </button>
@@ -1273,12 +1069,12 @@ export default function CarsPage() {
       )}
 
       {confirmData.show && (
-        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold text-neutral-800 mb-4">
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">
               Conferma cambio componente
             </h3>
-            <p className="text-neutral-700 mb-6 leading-relaxed">
+            <p className="text-gray-700 mb-6">
               Vuoi smontare{" "}
               <span className="font-semibold">{confirmData.compIdentifier}</span> da{" "}
               <span className="font-semibold">{confirmData.fromAuto}</span> e montarlo su{" "}
@@ -1298,11 +1094,14 @@ export default function CarsPage() {
                     type: "",
                   })
                 }
-                className="btn-secondary"
+                className="px-4 py-2 rounded-lg border"
               >
                 Annulla
               </button>
-              <button onClick={confirmMountNow} className="btn-primary">
+              <button
+                onClick={confirmMountNow}
+                className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
+              >
                 Conferma
               </button>
             </div>
@@ -1311,63 +1110,10 @@ export default function CarsPage() {
       )}
 
       {toast.show && (
-        <div className="fixed top-6 right-6 z-[70] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-xl shadow-lg">
+        <div className="fixed top-6 right-6 z-[70] bg-yellow-400 text-black font-semibold px-4 py-3 rounded-lg shadow-lg">
           {toast.message}
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  valueClassName = "text-neutral-900",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-neutral-50 p-4">
-      <div className="flex items-center gap-2 text-sm text-neutral-600">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`mt-2 text-xl font-bold ${valueClassName}`}>{value}</div>
-    </div>
-  );
-}
-
-function MiniStatCard({
-  label,
-  value,
-  icon,
-  valueClassName = "text-neutral-900",
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-neutral-50 p-3">
-      <div className="flex items-center gap-2 text-xs text-neutral-500">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`mt-2 text-lg font-bold ${valueClassName}`}>{value}</div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-neutral-900">{value}</div>
     </div>
   );
 }

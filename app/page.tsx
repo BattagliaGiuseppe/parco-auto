@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  redirect("/login");
+  // appena si apre la root, reindirizza a /dashboard
+  redirect("/dashboard");
 }

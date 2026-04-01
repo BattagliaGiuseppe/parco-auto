@@ -7,11 +7,7 @@ export const metadata: Metadata = {
   description: "Gestione auto da corsa, componenti, eventi e manutenzioni",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" suppressHydrationWarning>
       <body className="min-h-screen bg-neutral-100 text-neutral-900">
