@@ -23,7 +23,6 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   getCurrentTeamContext,
   getCurrentTeamSettings,
-  type TeamSettings,
 } from "@/lib/teamContext";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -50,7 +49,7 @@ export default function Sidebar() {
 
   const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState("Parco Auto");
-  const [teamSubtitle, setTeamSubtitle] = useState("Control Center");
+  const [teamSubtitle, setTeamSubtitle] = useState("Gestione motorsport");
   const [settings, setSettings] = useState<SettingsShape | null>(null);
 
   useEffect(() => {
