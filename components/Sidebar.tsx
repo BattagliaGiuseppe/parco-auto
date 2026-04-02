@@ -46,10 +46,19 @@ export default function Sidebar() {
   useEffect(() => {
     async function load() {
       try {
-        const [ctx, appSettings] = await Promise.all([getCurrentTeamContext(), getCurrentTeamSettings()]);
-        setTeamName(appSettings.team_name || ctx.name || "Parco Auto");
-        setTeamSubtitle(appSettings.team_subtitle || "Gestione motorsport");
-        setSettings(appSettings);
+        const [ctx, appSettings] = await Promise.all([
+  getCurrentTeamContext(),
+  getCurrentTeamSettings(),
+]);
+
+const safeSettings = appSettings ?? {
+  team_name: null,
+  team_subtitle: null,
+};
+
+setTeamName(safeSettings.team_name || ctx.name || "Parco Auto");
+setTeamSubtitle(safeSettings.team_subtitle || "Gestione motorsport");
+setSettings(appSettings);
       } catch {
         setSettings(null);
       }
