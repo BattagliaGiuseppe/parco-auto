@@ -106,7 +106,21 @@ const normalizedEvents: Event[] = (eventsRes.data || []).map((row: any) => ({
 
 setEvents(normalizedEvents);
 
-setMaintenances((maintRes.data || []) as Maintenance[]);
+const normalizedMaintenances: Maintenance[] = (maintRes.data || []).map((row: any) => ({
+  id: row.id,
+  type: row.type,
+  status: row.status,
+  priority: row.priority,
+  date: row.date,
+  car_id: Array.isArray(row.car_id)
+    ? row.car_id[0] ?? { name: null }
+    : row.car_id ?? { name: null },
+  component_id: Array.isArray(row.component_id)
+    ? row.component_id[0] ?? { identifier: null }
+    : row.component_id ?? { identifier: null },
+}));
+
+setMaintenances(normalizedMaintenances);
 setDriverDocs((driverDocsRes.data || []) as DriverDoc[]);
 setInventory((inventoryRes.data || []) as Inventory[]);
       } finally {
