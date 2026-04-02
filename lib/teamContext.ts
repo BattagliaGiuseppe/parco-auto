@@ -25,8 +25,11 @@ export type TeamSettings = {
   team_id: string;
   team_name?: string | null;
   team_subtitle?: string | null;
+  enable_events?: boolean | null;
+  enable_maintenances?: boolean | null;
+  enable_notes?: boolean | null;
+  modules?: Record<string, boolean> | null;
   branding?: Record<string, any> | null;
-  enabled_modules?: Record<string, boolean> | null;
   vehicle_type?: string | null;
   preferences?: Record<string, any> | null;
 };
@@ -82,7 +85,7 @@ export async function getCurrentTeamSettings(): Promise<TeamSettings | null> {
   const ctx = await getCurrentTeamContext();
 
   const { data, error } = await supabase
-    .from("team_settings")
+    .from("app_settings")
     .select("*")
     .eq("team_id", ctx.teamId)
     .maybeSingle();
@@ -91,5 +94,5 @@ export async function getCurrentTeamSettings(): Promise<TeamSettings | null> {
     throw new Error(error.message);
   }
 
-  return data as TeamSettings | null;
+  return (data as TeamSettings | null) ?? null;
 }
