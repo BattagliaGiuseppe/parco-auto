@@ -24,6 +24,7 @@ export type TeamSettings = {
   id?: string;
   team_id: string;
   team_name?: string | null;
+  team_subtitle?: string | null;
   branding?: Record<string, any> | null;
   enabled_modules?: Record<string, boolean> | null;
   vehicle_type?: string | null;
