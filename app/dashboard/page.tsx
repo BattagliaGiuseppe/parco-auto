@@ -121,7 +121,15 @@ const normalizedMaintenances: Maintenance[] = (maintRes.data || []).map((row: an
 }));
 
 setMaintenances(normalizedMaintenances);
-setDriverDocs((driverDocsRes.data || []) as DriverDoc[]);
+const normalizedDriverDocs: DriverDoc[] = (driverDocsRes.data || []).map((row: any) => ({
+  id: row.id,
+  expires_at: row.expires_at,
+  driver_id: Array.isArray(row.driver_id)
+    ? row.driver_id[0] ?? { first_name: null, last_name: null }
+    : row.driver_id ?? { first_name: null, last_name: null },
+}));
+
+setDriverDocs(normalizedDriverDocs);
 setInventory((inventoryRes.data || []) as Inventory[]);
       } finally {
         setLoading(false);
