@@ -93,11 +93,22 @@ export default function DashboardPage() {
         setSettings((settingsRes.data || null) as AppSettings | null);
         setWidgets(((widgetsRes.data || []) as Widget[]).filter((w) => w.is_enabled));
         setCars((carsRes.data || []) as Car[]);
-        setComponents((compsRes.data || []) as Component[]);
-        setEvents((eventsRes.data || []) as Event[]);
-        setMaintenances((maintRes.data || []) as Maintenance[]);
-        setDriverDocs((driverDocsRes.data || []) as DriverDoc[]);
-        setInventory((inventoryRes.data || []) as Inventory[]);
+setComponents((compsRes.data || []) as Component[]);
+
+const normalizedEvents: Event[] = (eventsRes.data || []).map((row: any) => ({
+  id: row.id,
+  name: row.name,
+  date: row.date,
+  circuit_id: Array.isArray(row.circuit_id)
+    ? row.circuit_id[0] ?? { name: null }
+    : row.circuit_id ?? { name: null },
+}));
+
+setEvents(normalizedEvents);
+
+setMaintenances((maintRes.data || []) as Maintenance[]);
+setDriverDocs((driverDocsRes.data || []) as DriverDoc[]);
+setInventory((inventoryRes.data || []) as Inventory[]);
       } finally {
         setLoading(false);
       }
