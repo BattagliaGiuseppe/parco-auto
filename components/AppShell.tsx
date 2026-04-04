@@ -5,7 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
 
-const publicRoutes = ["/login", "/onboarding"];
+const publicRoutes = new Set(["/login", "/onboarding"]);
+
+type AccessStatus = "loading" | "guest" | "ready" | "onboarding" | "error";
 
 export default function AppShell({
   children,
@@ -17,7 +19,8 @@ export default function AppShell({
 
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<AccessStatus>("loading");
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   async function resolveSession(
     session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"],
@@ -25,10 +28,12 @@ export default function AppShell({
   ) {
     const logged = !!session;
     setIsAuthenticated(logged);
+    setAccessError(null);
 
     if (!logged) {
-      setNeedsOnboarding(false);
-      if (!publicRoutes.includes(currentPath)) {
+      setAccessStatus("guest");
+
+      if (!publicRoutes.has(currentPath)) {
         router.replace("/login");
       }
       return;
@@ -44,24 +49,28 @@ export default function AppShell({
 
     if (error) {
       console.error("Errore lettura team_users:", error);
-      setNeedsOnboarding(true);
+      setAccessStatus("error");
+      setAccessError(error.message || "Errore durante la verifica del workspace.");
+      return;
+    }
+
+    const onboarding = !teamUsers || teamUsers.length === 0;
+
+    if (onboarding) {
+      setAccessStatus("onboarding");
+
       if (currentPath !== "/onboarding") {
         router.replace("/onboarding");
       }
       return;
     }
 
-    const onboarding = !teamUsers || teamUsers.length === 0;
-    setNeedsOnboarding(onboarding);
-
-    if (onboarding && currentPath !== "/onboarding") {
-      router.replace("/onboarding");
-      return;
-    }
+    setAccessStatus("ready");
 
     if (
-      !onboarding &&
-      (currentPath === "/login" || currentPath === "/onboarding" || currentPath === "/")
+      currentPath === "/login" ||
+      currentPath === "/onboarding" ||
+      currentPath === "/"
     ) {
       router.replace("/dashboard");
     }
@@ -69,6 +78,8 @@ export default function AppShell({
 
   useEffect(() => {
     let active = true;
+    setReady(false);
+    setAccessStatus("loading");
 
     async function boot() {
       try {
@@ -80,12 +91,14 @@ export default function AppShell({
         await resolveSession(session, pathname);
       } catch (error) {
         console.error("Errore bootstrap AppShell:", error);
+
         if (!active) return;
 
         setIsAuthenticated(false);
-        setNeedsOnboarding(false);
+        setAccessStatus("guest");
+        setAccessError(null);
 
-        if (!publicRoutes.includes(pathname)) {
+        if (!publicRoutes.has(pathname)) {
           router.replace("/login");
         }
       } finally {
@@ -106,6 +119,11 @@ export default function AppShell({
           await resolveSession(session, pathname);
         } catch (error) {
           console.error("Errore auth state change:", error);
+
+          if (!active) return;
+
+          setAccessStatus("error");
+          setAccessError("Errore durante l'aggiornamento della sessione.");
         } finally {
           if (active) {
             setReady(true);
@@ -120,7 +138,12 @@ export default function AppShell({
     };
   }, [pathname, router]);
 
-  if (!ready) {
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  if (!ready || accessStatus === "loading") {
     return (
       <div className="min-h-screen bg-neutral-100 flex items-center justify-center text-neutral-500">
         Caricamento...
@@ -128,10 +151,50 @@ export default function AppShell({
     );
   }
 
+  if (isAuthenticated && accessStatus === "error") {
+    return (
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
+          <h1 className="text-2xl font-bold text-neutral-900">
+            Impossibile verificare il workspace
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-neutral-600">
+            L&apos;account risulta autenticato, ma la piattaforma non riesce a
+            controllare correttamente l&apos;accesso al team. Non significa per
+            forza che il workspace non esista: potrebbe essere un problema
+            temporaneo di query, permessi o policy.
+          </p>
+
+          {accessError ? (
+            <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {accessError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"
+            >
+              Riprova
+            </button>
+
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 px-4 py-3 font-semibold text-neutral-700 hover:bg-neutral-50"
+            >
+              Esci
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const showShell =
     isAuthenticated &&
-    !needsOnboarding &&
-    !publicRoutes.includes(pathname);
+    accessStatus === "ready" &&
+    !publicRoutes.has(pathname);
 
   if (!showShell) {
     return <>{children}</>;
