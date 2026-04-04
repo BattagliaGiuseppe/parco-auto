@@ -17,13 +17,17 @@ import {
   LogOut,
   Layers3,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
 import {
   getCurrentTeamContext,
   getCurrentTeamSettings,
+  TEAM_ROLE_LABELS,
+  canManageTeamRole,
 } from "@/lib/teamContext";
+import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -51,6 +55,8 @@ export default function Sidebar() {
   const [teamName, setTeamName] = useState("Parco Auto");
   const [teamSubtitle, setTeamSubtitle] = useState("Gestione motorsport");
   const [settings, setSettings] = useState<SettingsShape | null>(null);
+  const [teamRole, setTeamRole] = useState<string | null>(null);
+  const [permissionCodes, setPermissionCodes] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -80,11 +86,24 @@ export default function Sidebar() {
           normalizedSettings?.team_subtitle || "Gestione motorsport"
         );
         setSettings(normalizedSettings);
+        setTeamRole(ctx.role);
+
+        try {
+          const permissions = await getCurrentUserEffectivePermissions();
+          if (!active) return;
+          setPermissionCodes(permissions);
+        } catch (error) {
+          console.warn("Permessi non caricati in Sidebar:", error);
+          if (!active) return;
+          setPermissionCodes([]);
+        }
       } catch {
         if (!active) return;
         setSettings(null);
         setTeamName("Parco Auto");
         setTeamSubtitle("Gestione motorsport");
+        setTeamRole(null);
+        setPermissionCodes([]);
       }
     }
 
@@ -96,6 +115,9 @@ export default function Sidebar() {
   }, []);
 
   const modules = settings?.modules ?? {};
+  const canManageSettings =
+    permissionCodes.includes("settings.manage") || canManageTeamRole(teamRole);
+  const canManageTeam = canManageTeamRole(teamRole);
 
   const links: NavItem[] = useMemo(
     () => [
@@ -153,9 +175,18 @@ export default function Sidebar() {
         href: "/settings",
         label: "Impostazioni",
         icon: <Settings size={18} />,
+        enabled: canManageSettings,
+      },
+      {
+        href: "/settings/team",
+        label: "Team & Accessi",
+        icon: <ShieldCheck size={18} />,
+        enabled: canManageTeam,
       },
     ],
     [
+      canManageSettings,
+      canManageTeam,
       modules.drivers,
       modules.inventory,
       modules.telemetry,
@@ -173,7 +204,8 @@ export default function Sidebar() {
 
   const itemClass = (href: string) => {
     const active =
-      pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+      pathname === href ||
+      (href !== "/dashboard" && pathname.startsWith(`${href}/`));
 
     return `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
       active
@@ -212,6 +244,11 @@ export default function Sidebar() {
               </div>
               <div className="mt-2 text-xl font-bold text-white">{teamName}</div>
               <div className="mt-1 text-sm text-neutral-400">{teamSubtitle}</div>
+              {teamRole ? (
+                <div className="mt-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                  Ruolo: {TEAM_ROLE_LABELS[teamRole as keyof typeof TEAM_ROLE_LABELS] || teamRole}
+                </div>
+              ) : null}
             </div>
           </div>
 

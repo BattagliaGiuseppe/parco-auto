@@ -1,0 +1,27 @@
+PATCH TEAM & ACCESSI
+====================
+
+Questo zip contiene i file completi da aggiungere o sostituire nel repo.
+
+FILE DA SOSTITUIRE
+- components/AppShell.tsx
+- components/Sidebar.tsx
+- lib/teamContext.ts
+
+FILE DA AGGIUNGERE
+- lib/permissions.ts
+- app/settings/team/page.tsx
+- db/team_access_patch.sql
+
+ORDINE CONSIGLIATO
+1) sostituisci e aggiungi i file nel repo
+2) deploy / commit del codice
+3) in Supabase SQL Editor esegui db/team_access_patch.sql
+4) fai login
+5) verifica il nuovo menu "Team & Accessi"
+6) prova a cambiare ruolo/stato di un membro e a creare un override permesso
+
+NOTE IMPORTANTI
+- Il modulo gestisce membri gia' collegati al team
+- Gli inviti email automatici NON sono ancora inclusi in questa patch
+- Dopo un reset database, riesegui anche db/team_access_patch.sql se non lo hai ancora integrato nello script principale
