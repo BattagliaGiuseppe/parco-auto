@@ -1,58 +1,95 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { LogIn, ShieldCheck, Mail, KeyRound, UserPlus } from "lucide-react";
 import { Audiowide } from "next/font/google";
+import { readPendingInviteToken, setPendingInviteToken } from "@/lib/teamContext";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
-function getRedirectUrl() {
-  if (typeof window === 'undefined') return undefined;
-  return `${window.location.origin}/login`;
+function getRedirectUrl(token?: string | null) {
+  if (typeof window === "undefined") return undefined;
+  const url = new URL(`${window.location.origin}/login`);
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+  return url.toString();
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("token") || readPendingInviteToken();
 
-  const title = useMemo(() => mode === 'login' ? 'Accedi al workspace' : 'Crea il tuo account', [mode]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const title = useMemo(() => {
+    if (mode === "login") {
+      return inviteToken ? "Accedi per entrare nel team" : "Accedi al workspace";
+    }
+
+    return inviteToken ? "Crea account per accettare l'invito" : "Crea il tuo account";
+  }, [inviteToken, mode]);
+
+  useEffect(() => {
+    if (inviteToken) {
+      setPendingInviteToken(inviteToken);
+    }
+  }, [inviteToken]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace('/dashboard');
+      if (!data.session) return;
+
+      if (inviteToken) {
+        router.replace(`/accept-invite?token=${encodeURIComponent(inviteToken)}`);
+        return;
+      }
+
+      router.replace("/dashboard");
     });
-  }, [router]);
+  }, [inviteToken, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
 
     try {
-      if (mode === 'register') {
+      if (mode === "register") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: getRedirectUrl() },
+          options: { emailRedirectTo: getRedirectUrl(inviteToken) },
         });
         if (error) throw error;
-        setMessage('Registrazione completata. Controlla la mail di conferma e poi accedi.');
-        setMode('login');
+        setMessage(
+          inviteToken
+            ? "Account creato. Conferma la mail e poi accedi per entrare nel team invitato."
+            : "Registrazione completata. Controlla la mail di conferma e poi accedi."
+        );
+        setMode("login");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace('/dashboard');
+
+        if (inviteToken) {
+          router.replace(`/accept-invite?token=${encodeURIComponent(inviteToken)}`);
+          return;
+        }
+
+        router.replace("/dashboard");
       }
     } catch (err: any) {
-      setError(err.message || 'Errore autenticazione');
+      setError(err.message || "Errore autenticazione");
     } finally {
       setLoading(false);
     }
@@ -60,22 +97,22 @@ export default function LoginPage() {
 
   async function handleResetPassword() {
     if (!email.trim()) {
-      setError('Inserisci la tua email per ricevere il reset password.');
+      setError("Inserisci la tua email per ricevere il reset password.");
       return;
     }
 
     setLoading(true);
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getRedirectUrl(),
+        redirectTo: getRedirectUrl(inviteToken),
       });
       if (error) throw error;
-      setMessage('Email di reset inviata.');
+      setMessage("Email di reset inviata.");
     } catch (err: any) {
-      setError(err.message || 'Errore invio reset password');
+      setError(err.message || "Errore invio reset password");
     } finally {
       setLoading(false);
     }
@@ -103,9 +140,13 @@ export default function LoginPage() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-neutral-900">{title}</h2>
             <p className="mt-2 text-sm text-neutral-500">
-              {mode === 'login'
-                ? 'Entra nella piattaforma con il tuo account team.'
-                : 'Crea il tuo account e configura il primo workspace.'}
+              {mode === "login"
+                ? inviteToken
+                  ? "Usa l'email invitata per entrare nel team assegnato."
+                  : "Entra nella piattaforma con il tuo account team."
+                : inviteToken
+                  ? "Crea il tuo account con l'email invitata. Dopo la conferma potrai accettare l'invito."
+                  : "Crea il tuo account e configura il primo workspace."}
             </p>
           </div>
 
@@ -130,16 +171,16 @@ export default function LoginPage() {
             {message ? <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-700">{message}</div> : null}
 
             <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">
-              {mode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}
-              {loading ? 'Attendere...' : mode === 'login' ? 'Accedi' : 'Crea account'}
+              {mode === "login" ? <LogIn size={18} /> : <UserPlus size={18} />}
+              {loading ? "Attendere..." : mode === "login" ? "Accedi" : "Crea account"}
             </button>
           </form>
 
           <div className="mt-4 flex flex-col gap-3 text-sm">
-            <button onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-left font-semibold text-neutral-700 underline decoration-neutral-300 underline-offset-4">
-              {mode === 'login' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
+            <button onClick={() => setMode(mode === "login" ? "register" : "login")} className="text-left font-semibold text-neutral-700 underline decoration-neutral-300 underline-offset-4">
+              {mode === "login" ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
             </button>
-            {mode === 'login' ? (
+            {mode === "login" ? (
               <button onClick={handleResetPassword} className="text-left font-semibold text-neutral-500 underline decoration-neutral-300 underline-offset-4">
                 Password dimenticata
               </button>

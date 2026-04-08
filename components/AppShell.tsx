@@ -4,10 +4,23 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
+import {
+  clearPendingInviteToken,
+  getPublicInviteByToken,
+  listMyPendingTeamInvites,
+  readPendingInviteToken,
+  setPendingInviteToken,
+} from "@/lib/teamContext";
 
-const publicRoutes = new Set(["/login", "/onboarding"]);
+const publicRoutes = new Set(["/login", "/onboarding", "/accept-invite"]);
 
-type AccessStatus = "loading" | "guest" | "ready" | "onboarding" | "error";
+type AccessStatus =
+  | "loading"
+  | "guest"
+  | "ready"
+  | "onboarding"
+  | "invite"
+  | "error";
 
 export default function AppShell({
   children,
@@ -21,6 +34,46 @@ export default function AppShell({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessStatus, setAccessStatus] = useState<AccessStatus>("loading");
   const [accessError, setAccessError] = useState<string | null>(null);
+
+  async function resolvePendingInviteToken(session: {
+    user: { email?: string | null };
+  } | null) {
+    if (!session?.user?.email) {
+      return null;
+    }
+
+    const normalizedSessionEmail = session.user.email.trim().toLowerCase();
+    const storedToken = readPendingInviteToken();
+
+    if (storedToken) {
+      try {
+        const invite = await getPublicInviteByToken(storedToken);
+        const inviteEmail = invite?.email?.trim().toLowerCase();
+
+        if (invite?.is_valid && inviteEmail === normalizedSessionEmail) {
+          return storedToken;
+        }
+      } catch (error) {
+        console.warn("Token invito locale non valido:", error);
+      }
+
+      clearPendingInviteToken();
+    }
+
+    try {
+      const pendingInvites = await listMyPendingTeamInvites();
+      const firstInvite = pendingInvites[0];
+
+      if (firstInvite?.token) {
+        setPendingInviteToken(firstInvite.token);
+        return firstInvite.token;
+      }
+    } catch (error) {
+      console.warn("Inviti pendenti non caricati:", error);
+    }
+
+    return null;
+  }
 
   async function resolveSession(
     session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"],
@@ -54,9 +107,20 @@ export default function AppShell({
       return;
     }
 
-    const onboarding = !teamUsers || teamUsers.length === 0;
+    const hasMembership = !!teamUsers && teamUsers.length > 0;
 
-    if (onboarding) {
+    if (!hasMembership) {
+      const inviteToken = await resolvePendingInviteToken(session);
+
+      if (inviteToken) {
+        setAccessStatus("invite");
+
+        if (currentPath !== "/accept-invite") {
+          router.replace(`/accept-invite?token=${encodeURIComponent(inviteToken)}`);
+        }
+        return;
+      }
+
       setAccessStatus("onboarding");
 
       if (currentPath !== "/onboarding") {
@@ -65,6 +129,7 @@ export default function AppShell({
       return;
     }
 
+    clearPendingInviteToken();
     setAccessStatus("ready");
 
     if (
