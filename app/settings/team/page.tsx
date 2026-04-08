@@ -817,8 +817,8 @@ export default function TeamAccessPage() {
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {TEAM_ROLES.map((role) => {
-                const permissions = rolePermissionMap[role] || [];
-                return (
+  const permissions = Array.from(rolePermissionMap[role] || []).sort();
+  return (
                   <div key={role} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                     <div className="text-sm font-bold text-neutral-900">{TEAM_ROLE_LABELS[role]}</div>
                     <div className="mt-3 flex flex-wrap gap-2">
