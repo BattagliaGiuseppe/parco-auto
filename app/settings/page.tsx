@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Save, Settings, Blocks, LayoutPanelTop, ShieldCheck, Wrench, PlusCircle, Trash2 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
@@ -163,6 +163,13 @@ export default function SettingsPage() {
     );
   }
 
+  const stats: StatItem[] = [
+    { label: 'Componenti standard', value: String(definitions.length), icon: <Blocks size={18} /> },
+    { label: 'Checklist', value: String(checklists.length), icon: <Wrench size={18} /> },
+    { label: 'Campi setup', value: String(setupFields.length), icon: <LayoutPanelTop size={18} /> },
+    { label: 'Moduli attivi', value: String(Object.values(settings?.modules || emptyModuleState).filter(Boolean).length), icon: <ShieldCheck size={18} /> },
+  ];
+
   if (!access.canManageSettings) {
     return (
       <PagePermissionState
@@ -174,13 +181,6 @@ export default function SettingsPage() {
       />
     );
   }
-
-  const stats: StatItem[] = useMemo(() => [
-    { label: 'Componenti standard', value: String(definitions.length), icon: <Blocks size={18} /> },
-    { label: 'Checklist', value: String(checklists.length), icon: <Wrench size={18} /> },
-    { label: 'Campi setup', value: String(setupFields.length), icon: <LayoutPanelTop size={18} /> },
-    { label: 'Moduli attivi', value: String(Object.values(settings?.modules || emptyModuleState).filter(Boolean).length), icon: <ShieldCheck size={18} /> },
-  ], [definitions.length, checklists.length, setupFields.length, settings?.modules]);
 
   function patchSetting<K extends keyof AppSettingsRow>(key: K, value: AppSettingsRow[K]) {
     if (!settings) return;

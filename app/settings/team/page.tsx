@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   CopyPlus,
@@ -197,6 +197,55 @@ export default function TeamAccessPage() {
     );
   }
 
+  const canManageTeam = access.canManageTeam || canManageTeamRole(ctx?.role);
+  const ownerCount = members.filter(
+    (member) => member.role === "owner" && member.is_active
+  ).length;
+
+  const rolePermissionMap = buildRolePermissionMap(rolePermissions);
+
+  const selectedMember =
+    members.find((member) => member.id === selectedMemberId) || null;
+
+  const selectedMemberOverrides = overrides.filter(
+    (override) => override.team_user_id === selectedMemberId
+  );
+
+  const selectedMemberEffectivePermissions = !selectedMember
+    ? []
+    : getEffectivePermissionCodes({
+        role: selectedMember.role,
+        rolePermissions,
+        overrides: selectedMemberOverrides,
+      });
+
+  const stats: StatItem[] = [
+    {
+      label: "Membri team",
+      value: String(members.length),
+      icon: <Users size={18} />,
+    },
+    {
+      label: "Utenti attivi",
+      value: String(members.filter((member) => member.is_active).length),
+      icon: <CheckCircle2 size={18} />,
+    },
+    {
+      label: "Ruoli manager",
+      value: String(
+        members.filter(
+          (member) => member.is_active && (member.role === "owner" || member.role === "admin")
+        ).length
+      ),
+      icon: <UserCog size={18} />,
+    },
+    {
+      label: "Override accessi",
+      value: String(overrides.length),
+      icon: <ShieldCheck size={18} />,
+    },
+  ];
+
   if (!access.canManageTeam) {
     return (
       <PagePermissionState
@@ -208,67 +257,6 @@ export default function TeamAccessPage() {
       />
     );
   }
-
-  const canManageTeam = access.canManageTeam || canManageTeamRole(ctx?.role);
-  const ownerCount = useMemo(
-    () => members.filter((member) => member.role === "owner" && member.is_active).length,
-    [members]
-  );
-
-  const rolePermissionMap = useMemo(
-    () => buildRolePermissionMap(rolePermissions),
-    [rolePermissions]
-  );
-
-  const selectedMember = useMemo(
-    () => members.find((member) => member.id === selectedMemberId) || null,
-    [members, selectedMemberId]
-  );
-
-  const selectedMemberOverrides = useMemo(
-    () => overrides.filter((override) => override.team_user_id === selectedMemberId),
-    [overrides, selectedMemberId]
-  );
-
-  const selectedMemberEffectivePermissions = useMemo(() => {
-    if (!selectedMember) return [];
-
-    return getEffectivePermissionCodes({
-      role: selectedMember.role,
-      rolePermissions,
-      overrides: selectedMemberOverrides,
-    });
-  }, [rolePermissions, selectedMember, selectedMemberOverrides]);
-
-  const stats: StatItem[] = useMemo(
-    () => [
-      {
-        label: "Membri team",
-        value: String(members.length),
-        icon: <Users size={18} />,
-      },
-      {
-        label: "Utenti attivi",
-        value: String(members.filter((member) => member.is_active).length),
-        icon: <CheckCircle2 size={18} />,
-      },
-      {
-        label: "Ruoli manager",
-        value: String(
-          members.filter(
-            (member) => member.is_active && (member.role === "owner" || member.role === "admin")
-          ).length
-        ),
-        icon: <UserCog size={18} />,
-      },
-      {
-        label: "Override accessi",
-        value: String(overrides.length),
-        icon: <ShieldCheck size={18} />,
-      },
-    ],
-    [members, overrides.length]
-  );
 
   function patchMemberDraft(teamUserId: string, patch: Partial<MemberDraft>) {
     setMemberDrafts((current) => ({
