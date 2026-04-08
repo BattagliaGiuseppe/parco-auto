@@ -12,6 +12,8 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import PagePermissionState from "@/components/PagePermissionState";
+import { usePermissionAccess } from "@/lib/permissions";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -99,6 +101,9 @@ function getComponentStatus(component: ComponentRow) {
 }
 
 export default function CarsPage() {
+  const access = usePermissionAccess();
+  const canViewCars = access.hasPermission("cars.view");
+  const canEditCars = access.hasPermission("cars.edit", ["owner", "admin"]);
   const [cars, setCars] = useState<CarRow[]>([]);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [allComponents, setAllComponents] = useState<ComponentOption[]>([]);
@@ -130,7 +135,11 @@ export default function CarsPage() {
     }
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    if (!access.loading && canViewCars) {
+      void loadAll();
+    }
+  }, [access.loading, canViewCars]);
 
   useEffect(() => {
     const next: Record<string, ComponentForm> = {};
@@ -152,6 +161,7 @@ export default function CarsPage() {
   }, [cars, search]);
 
   function openCreate() {
+    if (!canEditCars) return;
     setEditing(null);
     setName('');
     setChassis('');
@@ -161,6 +171,7 @@ export default function CarsPage() {
   }
 
   function openEdit(car: CarRow) {
+    if (!canEditCars) return;
     const next: Record<string, ComponentForm> = {};
     for (const def of definitions) {
       const existing = car.components.find((component) => component.type === def.code);
@@ -220,6 +231,7 @@ export default function CarsPage() {
   }
 
   async function saveCar() {
+    if (!canEditCars) return;
     if (!name.trim() || !chassis.trim()) {
       alert('Inserisci almeno nome e telaio');
       return;
@@ -249,6 +261,18 @@ export default function CarsPage() {
     }
   }
 
+  if (access.loading) {
+    return <PagePermissionState title="Auto" subtitle="Anagrafica mezzi e configurazione componenti" icon={<CarFront size={22} />} state="loading" />;
+  }
+
+  if (access.error) {
+    return <PagePermissionState title="Auto" subtitle="Anagrafica mezzi e configurazione componenti" icon={<CarFront size={22} />} state="error" message={access.error} />;
+  }
+
+  if (!canViewCars) {
+    return <PagePermissionState title="Auto" subtitle="Anagrafica mezzi e configurazione componenti" icon={<CarFront size={22} />} state="denied" message="Il tuo ruolo non ha accesso al modulo auto." />;
+  }
+
   return (
     <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       {toast ? <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">{toast}</div> : null}
@@ -256,8 +280,10 @@ export default function CarsPage() {
         title="Scheda Mezzi"
         subtitle="Gestione mezzo, componenti standard, documenti e stampa tecnica"
         icon={<CarFront size={22} />}
-        actions={<button onClick={openCreate} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Aggiungi mezzo</button>}
+        actions={canEditCars ? <button onClick={openCreate} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Aggiungi mezzo</button> : undefined}
       />
+
+      {!canEditCars ? <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Hai accesso in sola lettura a questo modulo.</div> : null}
 
       <SectionCard>
         <StatsGrid items={stats} />
@@ -299,7 +325,7 @@ export default function CarsPage() {
                 })}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={() => openEdit(car)} className="rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-black hover:bg-yellow-500"><Edit size={16} className="mr-2 inline" />Modifica</button>
+                {canEditCars ? <button onClick={() => openEdit(car)} className="rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-black hover:bg-yellow-500"><Edit size={16} className="mr-2 inline" />Modifica</button> : null}
                 <Link href={`/cars/${car.id}`} className="rounded-xl border px-4 py-2 font-semibold">Apri scheda</Link>
                 <Link href={`/cars/${car.id}/documents`} className="rounded-xl border px-4 py-2 font-semibold"><FileText size={16} className="mr-2 inline" />Documenti</Link>
                 <Link href={`/cars/${car.id}/print`} className="rounded-xl border px-4 py-2 font-semibold"><Printer size={16} className="mr-2 inline" />Stampa</Link>

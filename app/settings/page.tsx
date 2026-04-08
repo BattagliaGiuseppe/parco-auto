@@ -9,6 +9,8 @@ import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
+import PagePermissionState from "@/components/PagePermissionState";
+import { usePermissionAccess } from "@/lib/permissions";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -91,6 +93,7 @@ function SectionTabs({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 export default function SettingsPage() {
+  const access = usePermissionAccess();
   const [settings, setSettings] = useState<AppSettingsRow | null>(null);
   const [definitions, setDefinitions] = useState<ComponentDefinition[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
@@ -131,7 +134,46 @@ export default function SettingsPage() {
     }
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    if (!access.loading && access.canManageSettings) {
+      void loadAll();
+    }
+  }, [access.loading, access.canManageSettings]);
+
+  if (access.loading) {
+    return (
+      <PagePermissionState
+        title="Control Center"
+        subtitle="Configurazione avanzata del team"
+        icon={<Settings size={20} />}
+        state="loading"
+      />
+    );
+  }
+
+  if (access.error) {
+    return (
+      <PagePermissionState
+        title="Control Center"
+        subtitle="Configurazione avanzata del team"
+        icon={<Settings size={20} />}
+        state="error"
+        message={access.error}
+      />
+    );
+  }
+
+  if (!access.canManageSettings) {
+    return (
+      <PagePermissionState
+        title="Control Center"
+        subtitle="Configurazione avanzata del team"
+        icon={<Settings size={20} />}
+        state="denied"
+        message="Solo owner e admin possono aprire e modificare il control center del team."
+      />
+    );
+  }
 
   const stats: StatItem[] = useMemo(() => [
     { label: 'Componenti standard', value: String(definitions.length), icon: <Blocks size={18} /> },

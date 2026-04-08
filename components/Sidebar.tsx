@@ -115,9 +115,11 @@ export default function Sidebar() {
   }, []);
 
   const modules = settings?.modules ?? {};
+  const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
   const canManageSettings =
-    permissionCodes.includes("settings.manage") || canManageTeamRole(teamRole);
-  const canManageTeam = canManageTeamRole(teamRole);
+    has("settings.manage") || canManageTeamRole(teamRole);
+  const canManageTeam =
+    has("team.manage") || canManageTeamRole(teamRole);
 
   const links: NavItem[] = useMemo(
     () => [
@@ -130,46 +132,50 @@ export default function Sidebar() {
         href: "/cars",
         label: "Auto",
         icon: <CarFront size={18} />,
+        enabled: has("cars.view"),
       },
       {
         href: "/components",
         label: "Componenti",
         icon: <Boxes size={18} />,
+        enabled: has("components.view"),
       },
       {
         href: "/maintenances",
         label: "Manutenzioni",
         icon: <Wrench size={18} />,
-        enabled: settings?.enable_maintenances !== false,
+        enabled:
+          settings?.enable_maintenances !== false && has("maintenances.view"),
       },
       {
         href: "/mounts",
         label: "Montaggi",
         icon: <Layers3 size={18} />,
+        enabled: modules.mounts !== false && has("mounts.view"),
       },
       {
         href: "/calendar",
         label: "Eventi",
         icon: <CalendarDays size={18} />,
-        enabled: settings?.enable_events !== false,
+        enabled: settings?.enable_events !== false && has("events.view"),
       },
       {
         href: "/drivers",
         label: "Piloti",
         icon: <Users size={18} />,
-        enabled: modules.drivers !== false,
+        enabled: modules.drivers !== false && has("drivers.view"),
       },
       {
         href: "/inventory",
         label: "Magazzino",
         icon: <Package size={18} />,
-        enabled: modules.inventory !== false,
+        enabled: modules.inventory !== false && has("inventory.view"),
       },
       {
         href: "/telemetry",
         label: "Telemetria",
         icon: <Activity size={18} />,
-        enabled: modules.telemetry !== false,
+        enabled: modules.telemetry !== false && has("telemetry.view"),
       },
       {
         href: "/settings",
@@ -189,7 +195,9 @@ export default function Sidebar() {
       canManageTeam,
       modules.drivers,
       modules.inventory,
+      modules.mounts,
       modules.telemetry,
+      permissionCodes,
       settings?.enable_events,
       settings?.enable_maintenances,
     ]

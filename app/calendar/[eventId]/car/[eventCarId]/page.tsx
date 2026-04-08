@@ -6,13 +6,19 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Users, CalendarDays, Fuel, ClipboardCheck, Settings2, Save, PlusCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
+import { usePermissionAccess } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
+import PagePermissionState from "@/components/PagePermissionState";
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as { eventId: string; eventCarId: string };
+  const access = usePermissionAccess();
+  const canViewEvents = access.hasPermission("events.view");
+  const canEditEvents = access.hasPermission("events.edit", ["owner", "admin"]);
+
   const [eventCar, setEventCar] = useState<any>(null);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [assignedDrivers, setAssignedDrivers] = useState<any[]>([]);
@@ -55,7 +61,11 @@ export default function EventCarPage() {
     setCheckData((checkDataRes.data as any)?.data || {});
   }
 
-  useEffect(() => { if (eventCarId && eventId) void loadAll(); }, [eventCarId, eventId]);
+  useEffect(() => {
+    if (eventCarId && eventId && !access.loading && canViewEvents) {
+      void loadAll();
+    }
+  }, [eventCarId, eventId, access.loading, canViewEvents]);
 
   const fuelSummary = useMemo(() => {
     const totalUsed = turns.reduce((acc, row) => acc + Math.max(0, Number(row.fuel_start_liters || 0) - Number(row.fuel_end_liters || 0)), 0);
@@ -71,7 +81,7 @@ export default function EventCarPage() {
   ], [assignedDrivers.length, sessions.length, turns.length, fuelSummary.perLap]);
 
   async function addDriver() {
-    if (!selectedDriver) return;
+    if (!canEditEvents || !selectedDriver) return;
     const ctx = await getCurrentTeamContext();
     const { error } = await supabase.from('event_car_drivers').insert([{ team_id: ctx.teamId, event_car_id: eventCarId, driver_id: selectedDriver, role: 'primary' }]);
     if (error) { alert(error.message); return; }
@@ -80,6 +90,7 @@ export default function EventCarPage() {
   }
 
   async function saveTurn() {
+    if (!canEditEvents) return;
     const ctx = await getCurrentTeamContext();
     const payload = {
       team_id: ctx.teamId,
@@ -100,6 +111,7 @@ export default function EventCarPage() {
   }
 
   async function saveSetup() {
+    if (!canEditEvents) return;
     const ctx = await getCurrentTeamContext();
     const { error } = await supabase.from('event_car_data').insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: 'setup', data: setupData }]);
     if (error) alert(error.message);
@@ -107,41 +119,52 @@ export default function EventCarPage() {
   }
 
   async function saveCheckup() {
+    if (!canEditEvents) return;
     const ctx = await getCurrentTeamContext();
     const { error } = await supabase.from('event_car_data').insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: 'checkup', data: checkData }]);
     if (error) alert(error.message);
     else alert('Check-up salvato');
   }
 
+  if (access.loading) return <PagePermissionState title="Console mezzo" subtitle="Piloti, setup, check-up, turni e fuel" icon={<CalendarDays size={22} />} state="loading" />;
+  if (access.error) return <PagePermissionState title="Console mezzo" subtitle="Piloti, setup, check-up, turni e fuel" icon={<CalendarDays size={22} />} state="error" message={access.error} />;
+  if (!canViewEvents) return <PagePermissionState title="Console mezzo" subtitle="Piloti, setup, check-up, turni e fuel" icon={<CalendarDays size={22} />} state="denied" message="Il tuo ruolo non può aprire la console mezzo dell'evento." />;
   if (!eventCar) return <div className="p-6 text-neutral-500">Caricamento console mezzo...</div>;
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader title={`${eventCar.car_id?.name || 'Mezzo'} · ${eventCar.event_id?.name || 'Evento'}`} subtitle="Console mezzo in evento: piloti, setup, check-up, turni e fuel" icon={<CalendarDays size={22} />} actions={<Link href={`/calendar/${eventId}`} className="rounded-xl bg-neutral-100 px-4 py-2"><ArrowLeft size={16} className="mr-2 inline" />Evento</Link>} />
+      {!canEditEvents ? <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Hai accesso in sola lettura a questa console mezzo.</div> : null}
       <SectionCard><StatsGrid items={stats} /></SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard title="Piloti assegnati" subtitle="Aggiungi i piloti che possono usare questo mezzo nell'evento">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px]">
-            <select className="rounded-xl border p-3" value={selectedDriver} onChange={(e) => setSelectedDriver(e.target.value)}><option value="">Seleziona pilota</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.first_name} {driver.last_name}</option>)}</select>
-            <button onClick={addDriver} className="rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Aggiungi pilota</button>
-          </div>
+          {canEditEvents ? (
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px]">
+              <select className="rounded-xl border p-3" value={selectedDriver} onChange={(e) => setSelectedDriver(e.target.value)}><option value="">Seleziona pilota</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.first_name} {driver.last_name}</option>)}</select>
+              <button onClick={addDriver} className="rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Aggiungi pilota</button>
+            </div>
+          ) : null}
           <div className="mt-4 space-y-2">
             {assignedDrivers.length === 0 ? <EmptyState title="Nessun pilota assegnato" /> : assignedDrivers.map((row) => <div key={row.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"><div className="font-bold text-neutral-900">{row.driver_id?.first_name} {row.driver_id?.last_name}</div><div className="mt-1 text-sm text-neutral-500">Ruolo {row.role}</div></div>)}
           </div>
         </SectionCard>
 
         <SectionCard title="Turni e fuel" subtitle="Registra stint, pilota, sessione e consumi">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <select className="rounded-xl border p-3" value={turnForm.event_session_id} onChange={(e) => setTurnForm({ ...turnForm, event_session_id: e.target.value })}><option value="">Sessione</option>{sessions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-            <select className="rounded-xl border p-3" value={turnForm.driver_id} onChange={(e) => setTurnForm({ ...turnForm, driver_id: e.target.value })}><option value="">Pilota</option>{assignedDrivers.map((row) => <option key={row.id} value={row.driver_id?.id}>{row.driver_id?.first_name} {row.driver_id?.last_name}</option>)}</select>
-            <input type="number" className="rounded-xl border p-3" placeholder="Minuti" value={turnForm.minutes} onChange={(e) => setTurnForm({ ...turnForm, minutes: e.target.value })} />
-            <input type="number" className="rounded-xl border p-3" placeholder="Giri" value={turnForm.laps} onChange={(e) => setTurnForm({ ...turnForm, laps: e.target.value })} />
-            <input type="number" className="rounded-xl border p-3" placeholder="Fuel start" value={turnForm.fuel_start_liters} onChange={(e) => setTurnForm({ ...turnForm, fuel_start_liters: e.target.value })} />
-            <input type="number" className="rounded-xl border p-3" placeholder="Fuel end" value={turnForm.fuel_end_liters} onChange={(e) => setTurnForm({ ...turnForm, fuel_end_liters: e.target.value })} />
-            <textarea className="rounded-xl border p-3 md:col-span-2 min-h-24" placeholder="Note turno" value={turnForm.notes} onChange={(e) => setTurnForm({ ...turnForm, notes: e.target.value })} />
-          </div>
-          <div className="mt-4 flex justify-end"><button onClick={saveTurn} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><Save size={16} className="mr-2 inline" />Salva turno</button></div>
+          {canEditEvents ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <select className="rounded-xl border p-3" value={turnForm.event_session_id} onChange={(e) => setTurnForm({ ...turnForm, event_session_id: e.target.value })}><option value="">Sessione</option>{sessions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+                <select className="rounded-xl border p-3" value={turnForm.driver_id} onChange={(e) => setTurnForm({ ...turnForm, driver_id: e.target.value })}><option value="">Pilota</option>{assignedDrivers.map((row) => <option key={row.id} value={row.driver_id?.id}>{row.driver_id?.first_name} {row.driver_id?.last_name}</option>)}</select>
+                <input type="number" className="rounded-xl border p-3" placeholder="Minuti" value={turnForm.minutes} onChange={(e) => setTurnForm({ ...turnForm, minutes: e.target.value })} />
+                <input type="number" className="rounded-xl border p-3" placeholder="Giri" value={turnForm.laps} onChange={(e) => setTurnForm({ ...turnForm, laps: e.target.value })} />
+                <input type="number" className="rounded-xl border p-3" placeholder="Fuel start" value={turnForm.fuel_start_liters} onChange={(e) => setTurnForm({ ...turnForm, fuel_start_liters: e.target.value })} />
+                <input type="number" className="rounded-xl border p-3" placeholder="Fuel end" value={turnForm.fuel_end_liters} onChange={(e) => setTurnForm({ ...turnForm, fuel_end_liters: e.target.value })} />
+                <textarea className="rounded-xl border p-3 md:col-span-2 min-h-24" placeholder="Note turno" value={turnForm.notes} onChange={(e) => setTurnForm({ ...turnForm, notes: e.target.value })} />
+              </div>
+              <div className="mt-4 flex justify-end"><button onClick={saveTurn} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><Save size={16} className="mr-2 inline" />Salva turno</button></div>
+            </>
+          ) : null}
           <div className="mt-4 space-y-2">
             {turns.length === 0 ? <EmptyState title="Nessun turno registrato" /> : turns.map((turn) => <div key={turn.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"><div className="font-bold text-neutral-900">{sessions.find((s) => s.id === turn.event_session_id)?.name || 'Sessione'} · {drivers.find((d) => d.id === turn.driver_id)?.first_name || 'Pilota'}</div><div className="mt-1 text-sm text-neutral-500">{turn.minutes} min · {turn.laps} giri · {(Number(turn.fuel_start_liters || 0) - Number(turn.fuel_end_liters || 0)).toFixed(1)} L consumati</div>{turn.notes ? <div className="mt-2 text-sm text-neutral-700">{turn.notes}</div> : null}</div>)}
           </div>
@@ -150,13 +173,13 @@ export default function EventCarPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard title="Setup dinamico" subtitle="Campi configurabili da impostazioni: adattabili a mezzo e team">
-          {setupFields.length === 0 ? <EmptyState title="Nessun campo setup configurato" /> : <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{setupFields.map((field) => <div key={field.id}><label className="mb-1 block text-sm font-semibold text-neutral-700">{field.label}</label>{field.field_type === 'textarea' ? <textarea className="w-full rounded-xl border p-3 min-h-24" value={setupData[field.field_key] || ''} onChange={(e) => setSetupData({ ...setupData, [field.field_key]: e.target.value })} /> : <input className="w-full rounded-xl border p-3" value={setupData[field.field_key] || ''} onChange={(e) => setSetupData({ ...setupData, [field.field_key]: e.target.value })} />}</div>)}</div>}
-          <div className="mt-4 flex justify-end"><button onClick={saveSetup} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><Settings2 size={16} className="mr-2 inline" />Salva setup</button></div>
+          {setupFields.length === 0 ? <EmptyState title="Nessun campo setup configurato" /> : <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{setupFields.map((field) => <div key={field.id}><label className="mb-1 block text-sm font-semibold text-neutral-700">{field.label}</label>{field.field_type === 'textarea' ? <textarea disabled={!canEditEvents} className={`w-full rounded-xl border p-3 min-h-24 ${!canEditEvents ? 'bg-neutral-100 text-neutral-500' : ''}`} value={setupData[field.field_key] || ''} onChange={(e) => setSetupData({ ...setupData, [field.field_key]: e.target.value })} /> : <input disabled={!canEditEvents} className={`w-full rounded-xl border p-3 ${!canEditEvents ? 'bg-neutral-100 text-neutral-500' : ''}`} value={setupData[field.field_key] || ''} onChange={(e) => setSetupData({ ...setupData, [field.field_key]: e.target.value })} />}</div>)}</div>}
+          {canEditEvents ? <div className="mt-4 flex justify-end"><button onClick={saveSetup} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><Settings2 size={16} className="mr-2 inline" />Salva setup</button></div> : null}
         </SectionCard>
 
         <SectionCard title="Check-up tecnico" subtitle="Checklist configurabile dalle impostazioni">
-          {checklists.length === 0 ? <EmptyState title="Nessuna checklist configurata" /> : <div className="space-y-4">{checklists.map((group) => <div key={group.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"><div className="font-bold text-neutral-900">{group.name}</div><div className="mt-3 space-y-3">{group.items.map((item: any) => <div key={item.id} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px]"><div><div className="text-sm font-semibold text-neutral-800">{item.label}</div><textarea className="mt-2 w-full rounded-xl border p-3 min-h-20" placeholder="Nota tecnica" value={checkData[item.id]?.note || ''} onChange={(e) => setCheckData({ ...checkData, [item.id]: { status: checkData[item.id]?.status || 'ok', note: e.target.value } })} /></div><select className="rounded-xl border p-3" value={checkData[item.id]?.status || 'ok'} onChange={(e) => setCheckData({ ...checkData, [item.id]: { status: e.target.value, note: checkData[item.id]?.note || '' } })}><option value="ok">OK</option><option value="check">Da controllare</option><option value="problem">Problema</option></select></div>)}</div></div>)}</div>}
-          <div className="mt-4 flex justify-end"><button onClick={saveCheckup} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><ClipboardCheck size={16} className="mr-2 inline" />Salva check-up</button></div>
+          {checklists.length === 0 ? <EmptyState title="Nessuna checklist configurata" /> : <div className="space-y-4">{checklists.map((group) => <div key={group.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"><div className="font-bold text-neutral-900">{group.name}</div><div className="mt-3 space-y-3">{group.items.map((item: any) => <div key={item.id} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px]"><div><div className="text-sm font-semibold text-neutral-800">{item.label}</div><textarea disabled={!canEditEvents} className={`mt-2 w-full rounded-xl border p-3 min-h-20 ${!canEditEvents ? 'bg-neutral-100 text-neutral-500' : ''}`} placeholder="Nota tecnica" value={checkData[item.id]?.note || ''} onChange={(e) => setCheckData({ ...checkData, [item.id]: { status: checkData[item.id]?.status || 'ok', note: e.target.value } })} /></div><select disabled={!canEditEvents} className={`rounded-xl border p-3 ${!canEditEvents ? 'bg-neutral-100 text-neutral-500' : ''}`} value={checkData[item.id]?.status || 'ok'} onChange={(e) => setCheckData({ ...checkData, [item.id]: { status: e.target.value, note: checkData[item.id]?.note || '' } })}><option value="ok">OK</option><option value="check">Da controllare</option><option value="problem">Problema</option></select></div>)}</div></div>)}</div>}
+          {canEditEvents ? <div className="mt-4 flex justify-end"><button onClick={saveCheckup} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><ClipboardCheck size={16} className="mr-2 inline" />Salva check-up</button></div> : null}
         </SectionCard>
       </div>
     </div>

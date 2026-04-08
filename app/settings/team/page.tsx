@@ -37,7 +37,9 @@ import {
   type AppPermission,
   type RolePermissionRow,
   type TeamUserPermissionOverride,
+  usePermissionAccess,
 } from "@/lib/permissions";
+import PagePermissionState from "@/components/PagePermissionState";
 
 type MemberDraft = {
   role: string;
@@ -78,6 +80,7 @@ function MemberStatusBadge({ active }: { active: boolean }) {
 }
 
 export default function TeamAccessPage() {
+  const access = usePermissionAccess();
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [feedback, setFeedback] = useState<string>("");
@@ -156,8 +159,10 @@ export default function TeamAccessPage() {
   }
 
   useEffect(() => {
-    void loadAll();
-  }, []);
+    if (!access.loading && access.canManageTeam) {
+      void loadAll();
+    }
+  }, [access.loading, access.canManageTeam]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -169,7 +174,42 @@ export default function TeamAccessPage() {
     return () => window.clearTimeout(timeout);
   }, [feedback]);
 
-  const canManageTeam = canManageTeamRole(ctx?.role);
+  if (access.loading) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="loading"
+      />
+    );
+  }
+
+  if (access.error) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="error"
+        message={access.error}
+      />
+    );
+  }
+
+  if (!access.canManageTeam) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="denied"
+        message="Solo owner e admin possono gestire ruoli, membri e override dei permessi del team."
+      />
+    );
+  }
+
+  const canManageTeam = access.canManageTeam || canManageTeamRole(ctx?.role);
   const ownerCount = useMemo(
     () => members.filter((member) => member.role === "owner" && member.is_active).length,
     [members]

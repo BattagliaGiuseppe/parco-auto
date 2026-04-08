@@ -4,13 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Layers3, Link2, Unlink, Search, PlusCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext, getTeamUsers } from "@/lib/teamContext";
+import { usePermissionAccess } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import PagePermissionState from "@/components/PagePermissionState";
 
 export default function MountsPage() {
+  const access = usePermissionAccess();
+  const canViewMounts = access.hasPermission("mounts.view");
+  const canEditMounts = access.hasPermission("mounts.edit", ["owner", "admin"]);
+
   const [mounts, setMounts] = useState<any[]>([]);
   const [cars, setCars] = useState<any[]>([]);
   const [components, setComponents] = useState<any[]>([]);
@@ -45,7 +51,11 @@ export default function MountsPage() {
     setLoading(false);
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    if (!access.loading && canViewMounts) {
+      void loadAll();
+    }
+  }, [access.loading, canViewMounts]);
 
   const activeMounts = mounts.filter((m) => !m.removed_at);
 
@@ -70,7 +80,7 @@ export default function MountsPage() {
 
   async function addMount(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedCar || !selectedComponent) return;
+    if (!canEditMounts || !selectedCar || !selectedComponent) return;
     setSaving(true);
     try {
       const ctx = await getCurrentTeamContext();
@@ -98,6 +108,7 @@ export default function MountsPage() {
   }
 
   async function unmount(mountId: string, componentId: string) {
+    if (!canEditMounts) return;
     const ctx = await getCurrentTeamContext();
     const actorId = ctx.teamUserId;
     const today = new Date().toISOString().slice(0,10);
@@ -108,22 +119,35 @@ export default function MountsPage() {
     }
   }
 
-  const canChooseActor = teamRole === 'owner' || teamRole === 'admin';
+  const canChooseActor = canEditMounts && (teamRole === 'owner' || teamRole === 'admin');
+
+  if (access.loading) {
+    return <PagePermissionState title="Montaggi" subtitle="Controllo configurazione tecnica del mezzo" icon={<Layers3 size={22} />} state="loading" />;
+  }
+  if (access.error) {
+    return <PagePermissionState title="Montaggi" subtitle="Controllo configurazione tecnica del mezzo" icon={<Layers3 size={22} />} state="error" message={access.error} />;
+  }
+  if (!canViewMounts) {
+    return <PagePermissionState title="Montaggi" subtitle="Controllo configurazione tecnica del mezzo" icon={<Layers3 size={22} />} state="denied" message="Il tuo ruolo non ha accesso al modulo montaggi." />;
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader title="Montaggi" subtitle="Controllo configurazione tecnica del mezzo" icon={<Layers3 size={22} />} />
+      {!canEditMounts ? <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Hai accesso in sola lettura a questo modulo.</div> : null}
       <SectionCard><StatsGrid items={stats} /></SectionCard>
-      <SectionCard title="Montaggio rapido" subtitle="La data odierna è precompilata: cambiala solo se serve">
-        <form onSubmit={addMount} className="grid grid-cols-1 gap-3 xl:grid-cols-[180px_1fr_160px_1fr_160px]">
-          <select value={selectedCar} onChange={(e) => setSelectedCar(e.target.value)} className="rounded-xl border p-3" required><option value="">Seleziona auto</option>{cars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-          <select value={selectedComponent} onChange={(e) => setSelectedComponent(e.target.value)} className="rounded-xl border p-3" required><option value="">Seleziona componente</option>{components.map((c) => <option key={c.id} value={c.id}>{c.type} · {c.identifier}</option>)}</select>
-          <input type="date" value={mountedAt} onChange={(e) => setMountedAt(e.target.value)} className="rounded-xl border p-3" />
-          {canChooseActor ? <select value={mountedBy} onChange={(e) => setMountedBy(e.target.value)} className="rounded-xl border p-3"><option value="">Operatore</option>{teamUsers.map((user) => <option key={user.id} value={user.id}>{user.name || user.email || user.role}</option>)}</select> : <input value="Operatore corrente" disabled className="rounded-xl border p-3 bg-neutral-100 text-neutral-500" />}
-          <button type="submit" disabled={saving} className="rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">{saving ? 'Montaggio...' : 'Monta componente'}</button>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} className="xl:col-span-5 rounded-xl border p-3 min-h-24" placeholder="Motivo / note del montaggio" />
-        </form>
-      </SectionCard>
+      {canEditMounts ? (
+        <SectionCard title="Montaggio rapido" subtitle="La data odierna è precompilata: cambiala solo se serve">
+          <form onSubmit={addMount} className="grid grid-cols-1 gap-3 xl:grid-cols-[180px_1fr_160px_1fr_160px]">
+            <select value={selectedCar} onChange={(e) => setSelectedCar(e.target.value)} className="rounded-xl border p-3" required><option value="">Seleziona auto</option>{cars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+            <select value={selectedComponent} onChange={(e) => setSelectedComponent(e.target.value)} className="rounded-xl border p-3" required><option value="">Seleziona componente</option>{components.map((c) => <option key={c.id} value={c.id}>{c.type} · {c.identifier}</option>)}</select>
+            <input type="date" value={mountedAt} onChange={(e) => setMountedAt(e.target.value)} className="rounded-xl border p-3" />
+            {canChooseActor ? <select value={mountedBy} onChange={(e) => setMountedBy(e.target.value)} className="rounded-xl border p-3"><option value="">Operatore</option>{teamUsers.map((user) => <option key={user.id} value={user.id}>{user.name || user.email || user.role}</option>)}</select> : <input value="Operatore corrente" disabled className="rounded-xl border p-3 bg-neutral-100 text-neutral-500" />}
+            <button type="submit" disabled={saving} className="rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">{saving ? 'Montaggio...' : 'Monta componente'}</button>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} className="xl:col-span-5 rounded-xl border p-3 min-h-24" placeholder="Motivo / note del montaggio" />
+          </form>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Filtri storico" subtitle="Controlla attivi, storico e montaggi per auto">
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[160px_220px_1fr]">
@@ -134,7 +158,7 @@ export default function MountsPage() {
       </SectionCard>
 
       <SectionCard title="Montaggi" subtitle="Visione unificata attivo + storico">
-        {loading ? <div className="text-neutral-500">Caricamento...</div> : filtered.length === 0 ? <EmptyState title="Nessun montaggio registrato" /> : <div className="space-y-3">{filtered.map((m) => <div key={m.id} className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:flex-row md:items-center md:justify-between"><div><div className="font-bold text-neutral-900">{m.components?.type} · {m.components?.identifier}</div><div className="mt-1 text-sm text-neutral-500">{m.cars?.name} · montato dal {m.mounted_at ? new Date(m.mounted_at).toLocaleDateString('it-IT') : '—'}{m.removed_at ? ` · smontato il ${new Date(m.removed_at).toLocaleDateString('it-IT')}` : ''}</div><div className="mt-2 flex flex-wrap gap-2">{m.reason ? <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600">{m.reason}</span> : null}<StatusBadge label={m.removed_at ? 'Storico' : 'Attivo'} tone={m.removed_at ? 'neutral' : 'green'} /></div></div>{!m.removed_at ? <button onClick={() => unmount(m.id, m.components?.id)} className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600"><Unlink size={16} className="mr-2 inline" />Smonta</button> : null}</div>)}</div>}
+        {loading ? <div className="text-neutral-500">Caricamento...</div> : filtered.length === 0 ? <EmptyState title="Nessun montaggio registrato" /> : <div className="space-y-3">{filtered.map((m) => <div key={m.id} className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:flex-row md:items-center md:justify-between"><div><div className="font-bold text-neutral-900">{m.components?.type} · {m.components?.identifier}</div><div className="mt-1 text-sm text-neutral-500">{m.cars?.name} · montato dal {m.mounted_at ? new Date(m.mounted_at).toLocaleDateString('it-IT') : '—'}{m.removed_at ? ` · smontato il ${new Date(m.removed_at).toLocaleDateString('it-IT')}` : ''}</div><div className="mt-2 flex flex-wrap gap-2">{m.reason ? <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600">{m.reason}</span> : null}<StatusBadge label={m.removed_at ? 'Storico' : 'Attivo'} tone={m.removed_at ? 'neutral' : 'green'} /></div></div>{!m.removed_at && canEditMounts ? <button onClick={() => unmount(m.id, m.components?.id)} className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600"><Unlink size={16} className="mr-2 inline" />Smonta</button> : null}</div>)}</div>}
       </SectionCard>
     </div>
   );

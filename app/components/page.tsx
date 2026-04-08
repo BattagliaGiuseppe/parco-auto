@@ -11,6 +11,8 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import PagePermissionState from "@/components/PagePermissionState";
+import { usePermissionAccess } from "@/lib/permissions";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -45,6 +47,9 @@ function getStatus(row: ComponentRow) {
 }
 
 export default function ComponentsPage() {
+  const access = usePermissionAccess();
+  const canViewComponents = access.hasPermission("components.view");
+  const canEditComponents = access.hasPermission("components.edit", ["owner", "admin"]);
   const [rows, setRows] = useState<ComponentRow[]>([]);
   const [cars, setCars] = useState<CarOption[]>([]);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
@@ -74,7 +79,11 @@ export default function ComponentsPage() {
     }
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    if (!access.loading && canViewComponents) {
+      void loadAll();
+    }
+  }, [access.loading, canViewComponents]);
 
   const availableTypes = useMemo(() => {
     const fromDefinitions = definitions.map((definition) => ({ value: definition.code, label: definition.label }));
@@ -105,6 +114,7 @@ export default function ComponentsPage() {
   ], [rows, definitions.length]);
 
   async function saveComponent() {
+    if (!canEditComponents) return;
     const type = form.type === '__custom__' ? form.customType.trim() : form.type;
     if (!type || !form.identifier.trim()) {
       alert('Tipo e identificativo sono obbligatori');
@@ -158,9 +168,23 @@ export default function ComponentsPage() {
     }
   }
 
+  if (access.loading) {
+    return <PagePermissionState title="Componenti" subtitle="Archivio tecnico e componenti standard del team" icon={<Boxes size={22} />} state="loading" />;
+  }
+
+  if (access.error) {
+    return <PagePermissionState title="Componenti" subtitle="Archivio tecnico e componenti standard del team" icon={<Boxes size={22} />} state="error" message={access.error} />;
+  }
+
+  if (!canViewComponents) {
+    return <PagePermissionState title="Componenti" subtitle="Archivio tecnico e componenti standard del team" icon={<Boxes size={22} />} state="denied" message="Il tuo ruolo non ha accesso al modulo componenti." />;
+  }
+
   return (
     <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
-      <PageHeader title="Componenti" subtitle="Archivio tecnico, filtri professionali e creazione componenti dal template team" icon={<Boxes size={22} />} actions={<button onClick={() => setOpen(true)} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Nuovo componente</button>} />
+      <PageHeader title="Componenti" subtitle="Archivio tecnico, filtri professionali e creazione componenti dal template team" icon={<Boxes size={22} />} actions={canEditComponents ? <button onClick={() => setOpen(true)} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="mr-2 inline" />Nuovo componente</button> : undefined} />
+
+      {!canEditComponents ? <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Hai accesso in sola lettura a questo modulo.</div> : null}
       <SectionCard><StatsGrid items={stats} /></SectionCard>
       <SectionCard title="Filtri" subtitle="Prima scegli lo stato, poi eventualmente l'auto o il tipo">
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[180px_220px_220px_1fr]">

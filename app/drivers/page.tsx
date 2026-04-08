@@ -5,11 +5,17 @@ import Link from "next/link";
 import { Users, PlusCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
+import { usePermissionAccess } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import EmptyState from "@/components/EmptyState";
+import PagePermissionState from "@/components/PagePermissionState";
 
 export default function DriversPage() {
+  const access = usePermissionAccess();
+  const canViewDrivers = access.hasPermission("drivers.view");
+  const canEditDrivers = access.hasPermission("drivers.edit", ["owner", "admin"]);
+
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -27,9 +33,15 @@ export default function DriversPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!access.loading && canViewDrivers) {
+      void load();
+    }
+  }, [access.loading, canViewDrivers]);
 
   async function save() {
+    if (!canEditDrivers) return;
+
     setSaving(true);
     try {
       const ctx = await getCurrentTeamContext();
@@ -41,12 +53,60 @@ export default function DriversPage() {
     } catch (err) {
       console.error(err);
       alert("Errore salvataggio pilota");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (access.loading) {
+    return (
+      <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, documenti, licenze e collegamento agli eventi"
+        icon={<Users size={22} />}
+        state="loading"
+      />
+    );
+  }
+
+  if (access.error) {
+    return (
+      <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, documenti, licenze e collegamento agli eventi"
+        icon={<Users size={22} />}
+        state="error"
+        message={access.error}
+      />
+    );
+  }
+
+  if (!canViewDrivers) {
+    return (
+      <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, documenti, licenze e collegamento agli eventi"
+        icon={<Users size={22} />}
+        state="denied"
+        message="Il tuo ruolo non ha accesso al modulo piloti. Chiedi a un owner o admin di abilitare il permesso drivers.view."
+      />
+    );
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader title="Piloti" subtitle="Anagrafica, documenti, licenze e collegamento agli eventi" icon={<Users size={22} />} actions={<button onClick={() => setOpen(true)} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="inline mr-2" />Nuovo pilota</button>} />
+      <PageHeader
+        title="Piloti"
+        subtitle="Anagrafica, documenti, licenze e collegamento agli eventi"
+        icon={<Users size={22} />}
+        actions={canEditDrivers ? <button onClick={() => setOpen(true)} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"><PlusCircle size={16} className="inline mr-2" />Nuovo pilota</button> : undefined}
+      />
+
+      {!canEditDrivers ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Hai accesso in sola lettura a questo modulo.
+        </div>
+      ) : null}
 
       <SectionCard title="Elenco piloti">
         {loading ? <div className="text-neutral-500">Caricamento...</div> : drivers.length === 0 ? <EmptyState title="Nessun pilota registrato" /> : (
@@ -62,7 +122,7 @@ export default function DriversPage() {
         )}
       </SectionCard>
 
-      {open ? (
+      {open && canEditDrivers ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-xl font-bold text-neutral-900">Nuovo pilota</h3>
