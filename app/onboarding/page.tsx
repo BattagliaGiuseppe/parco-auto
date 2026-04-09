@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Building2, Rocket, ShieldCheck } from "lucide-react";
 import { Audiowide } from "next/font/google";
+import { brandConfig } from "@/lib/brand";
 import { listMyPendingTeamInvites, setPendingInviteToken } from "@/lib/teamContext";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -110,7 +111,7 @@ export default function OnboardingPage() {
             <label className="mb-1 block text-sm font-semibold text-neutral-700">Nome team</label>
             <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-3">
               <Building2 size={16} className="text-neutral-400" />
-              <input className="w-full bg-transparent outline-none" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Es. Battaglia Racing Car" required />
+              <input className="w-full bg-transparent outline-none" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder={brandConfig.ownerTeamPlaceholder} required />
             </div>
           </div>
 

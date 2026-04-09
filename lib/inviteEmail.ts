@@ -1,3 +1,5 @@
+import { brandConfig } from "@/lib/brand";
+
 export type InviteEmailPayload = {
   to: string;
   inviterEmail?: string | null;
@@ -46,12 +48,17 @@ export function buildInviteEmailHtml(params: InviteEmailPayload) {
   const safeInviteLink = escapeHtml(params.inviteLink);
   const safeNote = params.note ? escapeHtml(params.note) : "";
   const expiresAt = escapeHtml(formatDateTime(params.expiresAt));
+  const safeProductLabel = escapeHtml(brandConfig.appName);
+  const safeVendorName = escapeHtml(brandConfig.vendorName);
+  const safeSupportEmail = brandConfig.supportEmail
+    ? escapeHtml(brandConfig.supportEmail)
+    : "";
 
   return `
     <div style="background:#f5f5f5;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#171717;">
       <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e5e5;border-radius:24px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.06);">
         <div style="background:#facc15;padding:24px 28px;">
-          <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#171717;">Parco Auto Motorsport</div>
+          <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#171717;">${safeProductLabel}</div>
           <h1 style="margin:12px 0 0;font-size:28px;line-height:1.2;">Sei stato invitato nel team ${safeTeamName}</h1>
         </div>
         <div style="padding:28px;">
@@ -71,6 +78,10 @@ export function buildInviteEmailHtml(params: InviteEmailPayload) {
           </div>
           <p style="margin:0 0 10px;font-size:13px;line-height:1.7;color:#737373;">Se il pulsante non funziona, copia e incolla questo link nel browser:</p>
           <p style="margin:0;word-break:break-all;font-size:13px;line-height:1.7;color:#525252;">${safeInviteLink}</p>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e5e5;font-size:12px;line-height:1.8;color:#737373;">
+            <div>Messaggio inviato da ${safeProductLabel} · ${safeVendorName}</div>
+            ${brandConfig.supportEmail ? `<div>Supporto: ${safeSupportEmail}</div>` : ""}
+          </div>
         </div>
       </div>
     </div>
@@ -83,10 +94,15 @@ export function buildInviteEmailText(params: InviteEmailPayload) {
     `${inviterDisplay} ti ha invitato nel team ${params.teamName}.`,
     `Ruolo iniziale: ${params.roleLabel}`,
     `Scadenza invito: ${formatDateTime(params.expiresAt)}`,
+    `Piattaforma: ${brandConfig.appName}`,
   ];
 
   if (params.note) {
     lines.push(`Nota: ${params.note}`);
+  }
+
+  if (brandConfig.supportEmail) {
+    lines.push(`Supporto: ${brandConfig.supportEmail}`);
   }
 
   lines.push("", "Accetta invito:", params.inviteLink);

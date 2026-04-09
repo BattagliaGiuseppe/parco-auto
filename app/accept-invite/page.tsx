@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -16,7 +17,8 @@ import {
   type PublicInviteInfo,
   type TeamInvite,
 } from "@/lib/teamContext";
-import { CheckCircle2, Loader2, Mail, ShieldCheck, Users } from "lucide-react";
+import { brandConfig } from "@/lib/brand";
+import { CheckCircle2, Loader2, Mail, Users } from "lucide-react";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -166,11 +168,19 @@ export default function AcceptInvitePage() {
     <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6 ${audiowide.className}`}>
       <div className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-start gap-3">
-          <div className="rounded-2xl bg-yellow-400 p-2 text-black">
-            <ShieldCheck size={20} />
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-yellow-400/30 text-black">
+            <Image
+              src={brandConfig.logoPath}
+              alt={brandConfig.appName}
+              width={56}
+              height={56}
+              className="h-14 w-14 object-contain"
+              unoptimized
+            />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Accetta invito team</h1>
+            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">{brandConfig.appName}</div>
+            <h1 className="mt-1 text-2xl font-bold text-neutral-900">Accetta invito team</h1>
             <p className="mt-1 text-sm text-neutral-500">
               Entra nel team assegnato senza passare dalla configurazione del workspace.
             </p>

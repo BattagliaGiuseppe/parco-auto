@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { buildInviteEmailHtml, buildInviteEmailSubject, buildInviteEmailText } from "@/lib/inviteEmail";
+import { brandConfig } from "@/lib/brand";
 
 const TEAM_ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const teamName = teamData?.name || "Workspace motorsport";
+    const teamName = teamData?.name || brandConfig.defaultWorkspaceLabel;
     const roleLabel = TEAM_ROLE_LABELS[invite.role as keyof typeof TEAM_ROLE_LABELS] || invite.role;
     const inviteLink = `${appBaseUrl}/accept-invite?token=${invite.token}`;
 

@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Ban,
   CheckCircle2,
-  Copy,
-  Link2,
+  CopyPlus,
   Loader2,
-  Mail,
-  MailPlus,
   ShieldCheck,
   Trash2,
   Users,
@@ -20,18 +16,15 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabaseClient";
+import { brandConfig } from "@/lib/brand";
 import {
   TEAM_ROLE_LABELS,
   TEAM_ROLES,
   canManageTeamRole,
-  createTeamInvite,
   getCurrentTeamContext,
   getCurrentTeamSettings,
-  getTeamInvites,
   getTeamUsers,
-  sendTeamInviteEmail,
   type TeamContext,
-  type TeamInvite,
   type TeamRole,
   type TeamSettings,
   type TeamUser,
@@ -58,13 +51,6 @@ const OVERRIDE_MODES = [
   { value: "allow", label: "Consenti" },
   { value: "deny", label: "Nega" },
 ] as const;
-
-const INVITE_STATUSES: Record<string, string> = {
-  pending: "In attesa",
-  accepted: "Accettato",
-  revoked: "Revocato",
-  expired: "Scaduto",
-};
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -94,23 +80,6 @@ function MemberStatusBadge({ active }: { active: boolean }) {
   );
 }
 
-function InviteStatusBadge({ status }: { status: string }) {
-  const classes =
-    status === "accepted"
-      ? "bg-emerald-100 text-emerald-700"
-      : status === "revoked"
-      ? "bg-red-100 text-red-700"
-      : status === "expired"
-      ? "bg-neutral-200 text-neutral-700"
-      : "bg-yellow-100 text-yellow-800";
-
-  return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${classes}`}>
-      {INVITE_STATUSES[status] || status}
-    </span>
-  );
-}
-
 export default function TeamAccessPage() {
   const access = usePermissionAccess();
   const [loading, setLoading] = useState(true);
@@ -120,7 +89,6 @@ export default function TeamAccessPage() {
   const [ctx, setCtx] = useState<TeamContext | null>(null);
   const [settings, setSettings] = useState<TeamSettings | null>(null);
   const [members, setMembers] = useState<TeamUser[]>([]);
-  const [invites, setInvites] = useState<TeamInvite[]>([]);
   const [permissionCatalog, setPermissionCatalog] = useState<AppPermission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissionRow[]>([]);
   const [overrides, setOverrides] = useState<TeamUserPermissionOverride[]>([]);
@@ -131,14 +99,6 @@ export default function TeamAccessPage() {
   const [selectedOverrideMode, setSelectedOverrideMode] = useState<"allow" | "deny">("allow");
   const [savingOverride, setSavingOverride] = useState(false);
   const [deletingOverrideId, setDeletingOverrideId] = useState<string | null>(null);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<TeamRole>("viewer");
-  const [inviteNote, setInviteNote] = useState("");
-  const [inviteExpiryDays, setInviteExpiryDays] = useState(7);
-  const [savingInvite, setSavingInvite] = useState(false);
-  const [sendingInviteEmailId, setSendingInviteEmailId] = useState<string | null>(null);
-  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
-  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
 
   async function loadAll(showSpinner = false) {
     if (showSpinner) {
@@ -151,7 +111,6 @@ export default function TeamAccessPage() {
       const currentCtx = await getCurrentTeamContext();
       const currentSettings = await getCurrentTeamSettings();
       const currentMembers = await getTeamUsers();
-      const currentInvites = await getTeamInvites(currentCtx.teamId);
 
       const [catalog, roleRows, overrideRows] = await Promise.all([
         getPermissionCatalog(),
@@ -162,7 +121,6 @@ export default function TeamAccessPage() {
       setCtx(currentCtx);
       setSettings(currentSettings);
       setMembers(currentMembers);
-      setInvites(currentInvites);
       setPermissionCatalog(catalog);
       setRolePermissions(roleRows);
       setOverrides(overrideRows);
@@ -212,22 +170,48 @@ export default function TeamAccessPage() {
 
     const timeout = window.setTimeout(() => {
       setFeedback("");
-      setCopiedInviteId(null);
     }, 2500);
 
     return () => window.clearTimeout(timeout);
   }, [feedback]);
 
+  if (access.loading) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="loading"
+      />
+    );
+  }
+
+  if (access.error) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="error"
+        message={access.error}
+      />
+    );
+  }
+
   const canManageTeam = access.canManageTeam || canManageTeamRole(ctx?.role);
   const ownerCount = members.filter(
     (member) => member.role === "owner" && member.is_active
   ).length;
-  const rolePermissionMap = useMemo(() => buildRolePermissionMap(rolePermissions), [rolePermissions]);
+
+  const rolePermissionMap = buildRolePermissionMap(rolePermissions);
+
   const selectedMember =
     members.find((member) => member.id === selectedMemberId) || null;
+
   const selectedMemberOverrides = overrides.filter(
     (override) => override.team_user_id === selectedMemberId
   );
+
   const selectedMemberEffectivePermissions = !selectedMember
     ? []
     : getEffectivePermissionCodes({
@@ -235,7 +219,7 @@ export default function TeamAccessPage() {
         rolePermissions,
         overrides: selectedMemberOverrides,
       });
-  const pendingInvites = invites.filter((invite) => invite.status === "pending");
+
   const stats: StatItem[] = [
     {
       label: "Membri team",
@@ -257,11 +241,23 @@ export default function TeamAccessPage() {
       icon: <UserCog size={18} />,
     },
     {
-      label: "Inviti pendenti",
-      value: String(pendingInvites.length),
-      icon: <MailPlus size={18} />,
+      label: "Override accessi",
+      value: String(overrides.length),
+      icon: <ShieldCheck size={18} />,
     },
   ];
+
+  if (!access.canManageTeam) {
+    return (
+      <PagePermissionState
+        title="Team & Accessi"
+        subtitle="Modulo di governance team e permessi"
+        icon={<ShieldCheck size={20} />}
+        state="denied"
+        message="Solo owner e admin possono gestire ruoli, membri e override dei permessi del team."
+      />
+    );
+  }
 
   function patchMemberDraft(teamUserId: string, patch: Partial<MemberDraft>) {
     setMemberDrafts((current) => ({
@@ -380,143 +376,6 @@ export default function TeamAccessPage() {
     }
   }
 
-  async function handleCreateInvite() {
-    if (!ctx) return;
-
-    setSavingInvite(true);
-    try {
-      const invite = await createTeamInvite({
-        teamId: ctx.teamId,
-        email: inviteEmail.trim(),
-        role: inviteRole,
-        note: inviteNote.trim(),
-        expiresInDays: inviteExpiryDays,
-      });
-
-      const sendResult = await sendTeamInviteEmail(invite.id);
-
-      setInviteEmail("");
-      setInviteRole("viewer");
-      setInviteNote("");
-      setInviteExpiryDays(7);
-
-      if (sendResult.ok) {
-        setFeedback("Invito creato e email automatica inviata correttamente.");
-      } else {
-        setFeedback(
-          sendResult.message ||
-            "Invito creato, ma l'email automatica non è configurata. Puoi comunque copiare il link manualmente."
-        );
-      }
-
-      await loadAll(true);
-    } catch (error) {
-      console.error(error);
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Errore durante la creazione dell'invito."
-      );
-    } finally {
-      setSavingInvite(false);
-    }
-  }
-
-  async function sendInviteEmail(invite: TeamInvite) {
-    setSendingInviteEmailId(invite.id);
-
-    try {
-      const result = await sendTeamInviteEmail(invite.id);
-      setFeedback(
-        result.ok
-          ? "Email invito inviata correttamente."
-          : result.message ||
-              "Invito presente, ma l'invio automatico email non è configurato. Puoi copiare il link manualmente."
-      );
-      await loadAll(true);
-    } catch (error) {
-      console.error(error);
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Errore durante l'invio dell'email invito."
-      );
-    } finally {
-      setSendingInviteEmailId(null);
-    }
-  }
-
-  async function copyInviteLink(invite: TeamInvite) {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const inviteLink = `${origin}/accept-invite?token=${invite.token}`;
-
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopiedInviteId(invite.id);
-      setFeedback("Link invito copiato negli appunti.");
-    } catch (error) {
-      console.error(error);
-      setFeedback("Impossibile copiare il link invito.");
-    }
-  }
-
-  async function revokeInvite(invite: TeamInvite) {
-    setRevokingInviteId(invite.id);
-    try {
-      const { error } = await supabase
-        .from("team_invites")
-        .update({ status: "revoked" })
-        .eq("id", invite.id);
-
-      if (error) throw error;
-
-      setFeedback("Invito revocato.");
-      await loadAll(true);
-    } catch (error) {
-      console.error(error);
-      setFeedback(
-        error instanceof Error ? error.message : "Errore durante la revoca dell'invito."
-      );
-    } finally {
-      setRevokingInviteId(null);
-    }
-  }
-
-  if (access.loading) {
-    return (
-      <PagePermissionState
-        title="Team & Accessi"
-        subtitle="Modulo di governance team e permessi"
-        icon={<ShieldCheck size={20} />}
-        state="loading"
-      />
-    );
-  }
-
-  if (access.error) {
-    return (
-      <PagePermissionState
-        title="Team & Accessi"
-        subtitle="Modulo di governance team e permessi"
-        icon={<ShieldCheck size={20} />}
-        state="error"
-        message={access.error}
-      />
-    );
-  }
-
-  if (!access.canManageTeam) {
-    return (
-      <PagePermissionState
-        title="Team & Accessi"
-        subtitle="Modulo di governance team e permessi"
-        icon={<ShieldCheck size={20} />}
-        state="denied"
-        message="Solo owner e admin possono gestire ruoli, membri, inviti e override dei permessi del team."
-      />
-    );
-  }
-
   if (loading) {
     return <div className="p-6 text-neutral-500">Caricamento Team & Accessi...</div>;
   }
@@ -543,14 +402,14 @@ export default function TeamAccessPage() {
     <div className="space-y-6">
       <PageHeader
         title="Team & Accessi"
-        subtitle="Gestione ruoli, inviti collaboratori e override permessi del team"
+        subtitle="Gestione ruoli, membri attivi e override permessi del team"
         icon={<ShieldCheck size={20} />}
         actions={
           <button
             onClick={() => void loadAll(true)}
             className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
           >
-            {reloading ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+            {reloading ? <Loader2 size={16} className="animate-spin" /> : <CopyPlus size={16} />}
             Aggiorna dati
           </button>
         }
@@ -581,7 +440,7 @@ export default function TeamAccessPage() {
               {settings.team_name || "Team senza nome"}
             </div>
             <div className="mt-1 text-sm text-neutral-500">
-              {settings.team_subtitle || "Gestione motorsport"}
+              {settings.team_subtitle || brandConfig.defaultTeamSubtitle}
             </div>
           </div>
 
@@ -594,9 +453,9 @@ export default function TeamAccessPage() {
           </div>
 
           <div className="rounded-2xl bg-neutral-50 p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Nuovo flusso utenti</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Nota operativa</div>
             <div className="mt-2 text-sm leading-6 text-neutral-700">
-              I collaboratori entrano nel team solo tramite invito. L&apos;onboarding workspace resta riservato all&apos;owner iniziale.
+              Questo modulo gestisce membri già collegati al team. Per creare inviti automatici via email servirà un passo successivo dedicato.
             </div>
           </div>
         </div>
@@ -606,168 +465,11 @@ export default function TeamAccessPage() {
         <SectionCard>
           <EmptyState
             title="Accesso limitato"
-            description="Solo owner e admin possono modificare ruoli, inviti, stato membri e override dei permessi."
+            description="Solo owner e admin possono modificare ruoli, stato membri e override dei permessi."
           />
         </SectionCard>
       ) : (
         <>
-          <SectionCard
-            title="Invita collaboratore"
-            subtitle="Genera un link sicuro associato a email e ruolo. Il collaboratore non crea il workspace: accetta solo l'invito ricevuto."
-          >
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <label className="block text-sm font-semibold text-neutral-700">
-                  <div className="mb-1">Email invitata</div>
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(event) => setInviteEmail(event.target.value)}
-                    placeholder="meccanico@team.com"
-                    className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-yellow-400"
-                  />
-                </label>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-semibold text-neutral-700">
-                    <div className="mb-1">Ruolo iniziale</div>
-                    <select
-                      value={inviteRole}
-                      onChange={(event) => setInviteRole(event.target.value as TeamRole)}
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-yellow-400"
-                    >
-                      {TEAM_ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {TEAM_ROLE_LABELS[role]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="text-sm font-semibold text-neutral-700">
-                    <div className="mb-1">Scadenza link</div>
-                    <select
-                      value={inviteExpiryDays}
-                      onChange={(event) => setInviteExpiryDays(Number(event.target.value))}
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-yellow-400"
-                    >
-                      <option value={3}>3 giorni</option>
-                      <option value={7}>7 giorni</option>
-                      <option value={14}>14 giorni</option>
-                      <option value={30}>30 giorni</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label className="block text-sm font-semibold text-neutral-700">
-                  <div className="mb-1">Nota interna opzionale</div>
-                  <textarea
-                    value={inviteNote}
-                    onChange={(event) => setInviteNote(event.target.value)}
-                    rows={3}
-                    placeholder="Es. Ingegnere pista per campionato 2026"
-                    className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-yellow-400"
-                  />
-                </label>
-
-                <button
-                  onClick={() => void handleCreateInvite()}
-                  disabled={savingInvite || !inviteEmail.trim()}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {savingInvite ? <Loader2 size={16} className="animate-spin" /> : <MailPlus size={16} />}
-                  Crea invito
-                </button>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-700">
-                <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Nota operativa</div>
-                <div className="mt-3">
-                  L&apos;invito salva già team, ruolo e scadenza. Il collaboratore potrà entrare solo con l&apos;email invitata e non potrà configurare il workspace del team.
-                </div>
-                <div className="mt-4 rounded-2xl bg-white p-4 text-neutral-600">
-                  Dopo la creazione, il sistema prova a inviare automaticamente l&apos;email di invito. Se l&apos;invio non è configurato o fallisce, il link resta comunque disponibile da copiare manualmente.
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Inviti team"
-            subtitle="Storico inviti generati per il workspace corrente"
-          >
-            {invites.length === 0 ? (
-              <EmptyState
-                title="Nessun invito presente"
-                description="Crea il primo invito per aggiungere un collaboratore al team senza farlo passare dall'onboarding workspace."
-              />
-            ) : (
-              <div className="space-y-4">
-                {invites.map((invite) => {
-                  const canRevoke = invite.status === "pending";
-                  const isRevoking = revokingInviteId === invite.id;
-                  const isSendingInviteEmail = sendingInviteEmailId === invite.id;
-
-                  return (
-                    <div
-                      key={invite.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                    >
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-base font-bold text-neutral-900 break-all">{invite.email}</div>
-                            <InviteStatusBadge status={invite.status} />
-                          </div>
-                          <div className="mt-1 text-sm text-neutral-500">
-                            Ruolo: {TEAM_ROLE_LABELS[invite.role as TeamRole] || invite.role}
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-4 text-xs text-neutral-500">
-                            <span>Creato: {formatDate(invite.created_at)}</span>
-                            <span>Scade: {formatDate(invite.expires_at)}</span>
-                            {invite.note ? <span>Nota: {invite.note}</span> : null}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-3">
-                          {canRevoke ? (
-                            <button
-                              onClick={() => void sendInviteEmail(invite)}
-                              disabled={isSendingInviteEmail}
-                              className="inline-flex items-center gap-2 rounded-xl border border-yellow-200 bg-white px-3 py-2 text-sm font-semibold text-yellow-800 hover:bg-yellow-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {isSendingInviteEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                              Invia email
-                            </button>
-                          ) : null}
-
-                          <button
-                            onClick={() => void copyInviteLink(invite)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-                          >
-                            {copiedInviteId === invite.id ? <CheckCircle2 size={14} /> : <Link2 size={14} />}
-                            {copiedInviteId === invite.id ? "Copiato" : "Copia link"}
-                          </button>
-
-                          {canRevoke ? (
-                            <button
-                              onClick={() => void revokeInvite(invite)}
-                              disabled={isRevoking}
-                              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {isRevoking ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
-                              Revoca
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
-
           <SectionCard
             title="Membri del team"
             subtitle="Aggiorna ruolo operativo e stato attivo dei membri già collegati al workspace"
@@ -818,42 +520,53 @@ export default function TeamAccessPage() {
                             <div className="mb-1">Ruolo</div>
                             <select
                               value={draft.role}
-                              onChange={(event) => patchMemberDraft(member.id, { role: event.target.value })}
-                              disabled={isSaving}
-                              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-yellow-400"
+                              onChange={(event) =>
+                                patchMemberDraft(member.id, { role: event.target.value })
+                              }
+                              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
                             >
                               {TEAM_ROLES.map((role) => (
-                                <option key={role} value={role} disabled={isLastOwner && role !== "owner"}>
+                                <option key={role} value={role}>
                                   {TEAM_ROLE_LABELS[role]}
                                 </option>
                               ))}
                             </select>
-                            {disableOwnerDowngrade ? (
-                              <div className="mt-1 text-xs text-red-500">Ultimo owner attivo: non puoi degradarlo.</div>
-                            ) : null}
                           </label>
 
-                          <label className="flex items-end gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-semibold text-neutral-700">
-                            <input
-                              type="checkbox"
-                              checked={draft.is_active}
-                              onChange={(event) => patchMemberDraft(member.id, { is_active: event.target.checked })}
-                              disabled={isSaving || disableOwnerDeactivate}
-                              className="h-4 w-4 rounded border-neutral-300 text-yellow-500 focus:ring-yellow-400"
-                            />
-                            <span>Utente attivo</span>
+                          <label className="text-sm font-semibold text-neutral-700">
+                            <div className="mb-1">Stato</div>
+                            <select
+                              value={draft.is_active ? "active" : "inactive"}
+                              onChange={(event) =>
+                                patchMemberDraft(member.id, {
+                                  is_active: event.target.value === "active",
+                                })
+                              }
+                              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                            >
+                              <option value="active">Attivo</option>
+                              <option value="inactive">Disattivo</option>
+                            </select>
                           </label>
 
-                          <button
-                            onClick={() => void saveMember(member)}
-                            disabled={isSaving}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <UserCog size={16} />}
-                            Salva membro
-                          </button>
+                          <div className="flex items-end">
+                            <button
+                              onClick={() => void saveMember(member)}
+                              disabled={isSaving || disableOwnerDowngrade || disableOwnerDeactivate}
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                              Salva membro
+                            </button>
+                          </div>
                         </div>
                       </div>
+
+                      {isLastOwner ? (
+                        <div className="mt-3 rounded-xl bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                          Questo è l&apos;ultimo owner attivo del team: non può essere disattivato né retrocesso finché non esiste un altro owner attivo.
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -862,42 +575,65 @@ export default function TeamAccessPage() {
           </SectionCard>
 
           <SectionCard
-            title="Matrice ruoli standard"
-            subtitle="Permessi base derivati da role_permissions"
+            title="Permessi base per ruolo"
+            subtitle="Matrice standard ricavata da role_permissions"
           >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {TEAM_ROLES.map((role) => {
-                const permissions = Array.from(rolePermissionMap[role] || []).sort();
-                return (
-                  <div key={role} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                    <div className="text-sm font-bold text-neutral-900">{TEAM_ROLE_LABELS[role]}</div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {permissions.length === 0 ? (
-                        <span className="text-sm text-neutral-500">Nessun permesso base</span>
-                      ) : (
-                        permissions.map((permissionCode) => (
-                          <span
-                            key={`${role}-${permissionCode}`}
-                            className="inline-flex rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800"
-                          >
-                            {permissionCode}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {permissionCatalog.length === 0 ? (
+              <EmptyState
+                title="Catalogo permessi vuoto"
+                description="Controlla la tabella app_permissions o applica la patch SQL inclusa nello zip."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                      <th className="px-3 py-3 font-semibold">Permesso</th>
+                      {TEAM_ROLES.map((role) => (
+                        <th key={role} className="px-3 py-3 font-semibold">
+                          {TEAM_ROLE_LABELS[role]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {permissionCatalog.map((permission) => (
+                      <tr key={permission.code} className="border-b border-neutral-100 align-top">
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-neutral-900">{permission.label || permission.code}</div>
+                          <div className="mt-1 text-xs text-neutral-500">{permission.description || permission.code}</div>
+                        </td>
+                        {TEAM_ROLES.map((role) => {
+                          const enabled = rolePermissionMap[role]?.has(permission.code) ?? false;
+                          return (
+                            <td key={`${permission.code}-${role}`} className="px-3 py-3">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  enabled
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-neutral-200 text-neutral-600"
+                                }`}
+                              >
+                                {enabled ? "Attivo" : "No"}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard
-            title="Override permessi per singolo membro"
-            subtitle="Aggiungi eccezioni rispetto al ruolo standard"
+            title="Override per utente"
+            subtitle="Permette di concedere o negare eccezioni rispetto al ruolo standard"
           >
-            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-3">
                   <label className="text-sm font-semibold text-neutral-700">
                     <div className="mb-1">Membro</div>
                     <select
@@ -977,7 +713,7 @@ export default function TeamAccessPage() {
                       return (
                         <div
                           key={override.id || `${override.team_user_id}-${override.permission_code}`}
-                          className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                          className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:flex-row md:items-center md:justify-between"
                         >
                           <div>
                             <div className="font-semibold text-neutral-900">
@@ -1047,7 +783,7 @@ export default function TeamAccessPage() {
                 )}
 
                 <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-neutral-600">
-                  Per far funzionare questo modulo lato database, esegui anche il file <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">db/team_access_patch.sql</code>, poi il nuovo file <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">db/team_invites_patch.sql</code> incluso nello zip.
+                  Per far funzionare questo modulo lato database, esegui anche il file <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">db/team_access_patch.sql</code> incluso nello zip.
                 </div>
               </div>
             </div>
@@ -1055,12 +791,12 @@ export default function TeamAccessPage() {
 
           <SectionCard
             title="Nota prodotto"
-            subtitle="Prossimo step commerciale consigliato"
+            subtitle="Per il prossimo step commerciale"
           >
             <div className="flex items-start gap-3 rounded-2xl bg-neutral-50 p-4 text-sm leading-6 text-neutral-700">
               <UserX className="mt-0.5 shrink-0" size={18} />
               <div>
-                Il flusso collaboratori adesso è corretto: i membri entrano dal link invito e non toccano la configurazione del workspace. Il passo successivo più forte è automatizzare l&apos;invio email oppure introdurre codici attivazione per l&apos;owner principale.
+                Il modulo attuale copre gestione membri, ruoli e override. Il passo successivo naturale per renderlo ancora più vendibile è aggiungere inviti email e onboarding guidato dei nuovi membri.
               </div>
             </div>
           </SectionCard>

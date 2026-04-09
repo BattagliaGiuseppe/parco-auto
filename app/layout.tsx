@@ -1,34 +1,33 @@
 import "./globals.css";
-
-import type { Metadata } from "next";
-import { Suspense } from "react";
-
+import type { Metadata, Viewport } from "next";
 import Providers from "./providers";
 import AppShell from "@/components/AppShell";
+import { brandConfig } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Parco Auto",
-  description: "Piattaforma motorsport modulare e configurabile",
+  title: {
+    default: brandConfig.appName,
+    template: `%s · ${brandConfig.appName}`,
+  },
+  description: brandConfig.appDescription,
+  applicationName: brandConfig.appName,
+  icons: {
+    icon: brandConfig.faviconPath,
+    shortcut: brandConfig.faviconPath,
+    apple: brandConfig.faviconPath,
+  },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  themeColor: brandConfig.themeColor,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" suppressHydrationWarning>
       <body className="min-h-screen bg-neutral-100 text-neutral-900">
         <Providers>
-          <Suspense
-            fallback={
-              <div className="min-h-screen bg-neutral-100 flex items-center justify-center text-neutral-500">
-                Caricamento...
-              </div>
-            }
-          >
-            <AppShell>{children}</AppShell>
-          </Suspense>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

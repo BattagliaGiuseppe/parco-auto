@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { LogIn, ShieldCheck, Mail, KeyRound, UserPlus } from "lucide-react";
 import { Audiowide } from "next/font/google";
+import { brandConfig } from "@/lib/brand";
 import { readPendingInviteToken, setPendingInviteToken } from "@/lib/teamContext";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
@@ -123,27 +125,67 @@ export default function LoginPage() {
       <div className="hidden bg-neutral-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-yellow-400">
-            <ShieldCheck size={14} /> Motorsport Operating System
+            <ShieldCheck size={14} /> {brandConfig.marketingLabel}
+          </div>
+          <div className="mt-6 flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-white/10">
+              <Image
+                src={brandConfig.logoPath}
+                alt={brandConfig.appName}
+                width={64}
+                height={64}
+                className="h-16 w-16 object-contain"
+                unoptimized
+              />
+            </div>
+            <div>
+              <div className="text-sm uppercase tracking-[0.18em] text-neutral-400">
+                {brandConfig.vendorName}
+              </div>
+              <div className="mt-1 text-3xl font-bold text-white">{brandConfig.appName}</div>
+            </div>
           </div>
           <h1 className="mt-6 max-w-xl text-4xl font-bold leading-tight">
-            La piattaforma configurabile per gestire mezzi, componenti, eventi, check tecnici e lavoro in pista.
+            {brandConfig.loginHeroTitle}
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-neutral-400">
-            Multi-team, ruoli, template mezzo, dashboard operative e control center: una base pensata per officina, paddock e management.
+            {brandConfig.loginHeroDescription}
           </p>
         </div>
-        <div className="text-sm text-neutral-500">© 2026 Battaglia Racing Car · Motorsport Management Platform</div>
+        <div className="text-sm text-neutral-500">
+          © 2026 {brandConfig.copyrightName} · {brandConfig.appDescription}
+        </div>
       </div>
 
       <div className="flex items-center justify-center bg-neutral-100 p-6">
         <div className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
           <div className="mb-6">
+            <div className="mb-4 flex items-center gap-3 lg:hidden">
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+                <Image
+                  src={brandConfig.logoPath}
+                  alt={brandConfig.appName}
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 object-contain"
+                  unoptimized
+                />
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+                  {brandConfig.vendorName}
+                </div>
+                <div className="mt-1 text-lg font-bold text-neutral-900">
+                  {brandConfig.appName}
+                </div>
+              </div>
+            </div>
             <h2 className="text-2xl font-bold text-neutral-900">{title}</h2>
             <p className="mt-2 text-sm text-neutral-500">
               {mode === "login"
                 ? inviteToken
                   ? "Usa l'email invitata per entrare nel team assegnato."
-                  : "Entra nella piattaforma con il tuo account team."
+                  : `Entra in ${brandConfig.appName} con il tuo account team.`
                 : inviteToken
                   ? "Crea il tuo account con l'email invitata. Dopo la conferma potrai accettare l'invito."
                   : "Crea il tuo account e configura il primo workspace."}

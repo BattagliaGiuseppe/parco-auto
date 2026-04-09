@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
+import { brandConfig } from "@/lib/brand";
 import {
   getCurrentTeamContext,
   getCurrentTeamSettings,
@@ -52,8 +54,8 @@ export default function Sidebar() {
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [teamName, setTeamName] = useState("Parco Auto");
-  const [teamSubtitle, setTeamSubtitle] = useState("Gestione motorsport");
+  const [teamName, setTeamName] = useState(brandConfig.defaultTeamName);
+  const [teamSubtitle, setTeamSubtitle] = useState(brandConfig.defaultTeamSubtitle);
   const [settings, setSettings] = useState<SettingsShape | null>(null);
   const [teamRole, setTeamRole] = useState<string | null>(null);
   const [permissionCodes, setPermissionCodes] = useState<string[]>([]);
@@ -81,9 +83,11 @@ export default function Sidebar() {
             }
           : null;
 
-        setTeamName(normalizedSettings?.team_name || ctx.name || "Parco Auto");
+        setTeamName(
+          normalizedSettings?.team_name || ctx.name || brandConfig.defaultTeamName
+        );
         setTeamSubtitle(
-          normalizedSettings?.team_subtitle || "Gestione motorsport"
+          normalizedSettings?.team_subtitle || brandConfig.defaultTeamSubtitle
         );
         setSettings(normalizedSettings);
         setTeamRole(ctx.role);
@@ -100,8 +104,8 @@ export default function Sidebar() {
       } catch {
         if (!active) return;
         setSettings(null);
-        setTeamName("Parco Auto");
-        setTeamSubtitle("Gestione motorsport");
+        setTeamName(brandConfig.defaultTeamName);
+        setTeamSubtitle(brandConfig.defaultTeamSubtitle);
         setTeamRole(null);
         setPermissionCodes([]);
       }
@@ -116,10 +120,8 @@ export default function Sidebar() {
 
   const modules = settings?.modules ?? {};
   const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
-  const canManageSettings =
-    has("settings.manage") || canManageTeamRole(teamRole);
-  const canManageTeam =
-    has("team.manage") || canManageTeamRole(teamRole);
+  const canManageSettings = has("settings.manage") || canManageTeamRole(teamRole);
+  const canManageTeam = has("team.manage") || canManageTeamRole(teamRole);
 
   const links: NavItem[] = useMemo(
     () => [
@@ -247,10 +249,27 @@ export default function Sidebar() {
         <div className={`flex h-full flex-col px-4 py-5 ${audiowide.className}`}>
           <div className="mb-6 px-2">
             <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-400/80">
-                Battaglia Racing Car
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+                  <Image
+                    src={brandConfig.logoPath}
+                    alt={brandConfig.appName}
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 object-contain"
+                    unoptimized
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-semibold uppercase tracking-[0.18em] text-yellow-400/80">
+                    {brandConfig.vendorName}
+                  </div>
+                  <div className="mt-1 truncate text-sm text-neutral-400">
+                    {brandConfig.appName}
+                  </div>
+                </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-white">{teamName}</div>
+              <div className="mt-4 text-xl font-bold text-white">{teamName}</div>
               <div className="mt-1 text-sm text-neutral-400">{teamSubtitle}</div>
               {teamRole ? (
                 <div className="mt-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">
