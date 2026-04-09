@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
 import {
@@ -29,7 +29,6 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,16 +37,13 @@ export default function AppShell({
   const [inviteRedirectToken, setInviteRedirectToken] = useState<string | null>(null);
 
   const inviteRedirectHref = useMemo(() => {
-    if (!inviteRedirectToken) {
-      return "/accept-invite";
-    }
-
+    if (!inviteRedirectToken) return "/accept-invite";
     return `/accept-invite?token=${encodeURIComponent(inviteRedirectToken)}`;
   }, [inviteRedirectToken]);
 
-  async function resolvePendingInviteToken(session: {
-    user: { email?: string | null };
-  } | null) {
+  async function resolvePendingInviteToken(
+    session: { user: { email?: string | null } } | null
+  ) {
     if (!session?.user?.email) {
       return null;
     }
@@ -109,7 +105,9 @@ export default function AppShell({
     if (error) {
       console.error("Errore lettura team_users:", error);
       setAccessStatus("error");
-      setAccessError(error.message || "Errore durante la verifica del workspace.");
+      setAccessError(
+        error.message || "Errore durante la verifica del workspace."
+      );
       return;
     }
 
@@ -202,7 +200,10 @@ export default function AppShell({
     }
 
     if (accessStatus === "invite") {
-      const currentToken = searchParams.get("token");
+      const currentToken =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("token")
+          : null;
 
       if (pathname !== "/accept-invite" || currentToken !== inviteRedirectToken) {
         router.replace(inviteRedirectHref);
@@ -231,7 +232,6 @@ export default function AppShell({
     pathname,
     ready,
     router,
-    searchParams,
   ]);
 
   async function handleSignOut() {
@@ -288,9 +288,7 @@ export default function AppShell({
   }
 
   const showShell =
-    isAuthenticated &&
-    accessStatus === "ready" &&
-    !publicRoutes.has(pathname);
+    isAuthenticated && accessStatus === "ready" && !publicRoutes.has(pathname);
 
   if (!showShell) {
     return <>{children}</>;
