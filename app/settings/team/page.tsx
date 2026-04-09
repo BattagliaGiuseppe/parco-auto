@@ -7,6 +7,7 @@ import {
   Copy,
   Link2,
   Loader2,
+  Mail,
   MailPlus,
   ShieldCheck,
   Trash2,
@@ -28,6 +29,7 @@ import {
   getCurrentTeamSettings,
   getTeamInvites,
   getTeamUsers,
+  sendTeamInviteEmail,
   type TeamContext,
   type TeamInvite,
   type TeamRole,
@@ -134,6 +136,7 @@ export default function TeamAccessPage() {
   const [inviteNote, setInviteNote] = useState("");
   const [inviteExpiryDays, setInviteExpiryDays] = useState(7);
   const [savingInvite, setSavingInvite] = useState(false);
+  const [sendingInviteEmailId, setSendingInviteEmailId] = useState<string | null>(null);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
   const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
 
@@ -382,7 +385,7 @@ export default function TeamAccessPage() {
 
     setSavingInvite(true);
     try {
-      await createTeamInvite({
+      const invite = await createTeamInvite({
         teamId: ctx.teamId,
         email: inviteEmail.trim(),
         role: inviteRole,
@@ -390,11 +393,22 @@ export default function TeamAccessPage() {
         expiresInDays: inviteExpiryDays,
       });
 
+      const sendResult = await sendTeamInviteEmail(invite.id);
+
       setInviteEmail("");
       setInviteRole("viewer");
       setInviteNote("");
       setInviteExpiryDays(7);
-      setFeedback("Invito creato correttamente. Copia il link e invialo al collaboratore.");
+
+      if (sendResult.ok) {
+        setFeedback("Invito creato e email automatica inviata correttamente.");
+      } else {
+        setFeedback(
+          sendResult.message ||
+            "Invito creato, ma l'email automatica non è configurata. Puoi comunque copiare il link manualmente."
+        );
+      }
+
       await loadAll(true);
     } catch (error) {
       console.error(error);
@@ -405,6 +419,30 @@ export default function TeamAccessPage() {
       );
     } finally {
       setSavingInvite(false);
+    }
+  }
+
+  async function sendInviteEmail(invite: TeamInvite) {
+    setSendingInviteEmailId(invite.id);
+
+    try {
+      const result = await sendTeamInviteEmail(invite.id);
+      setFeedback(
+        result.ok
+          ? "Email invito inviata correttamente."
+          : result.message ||
+              "Invito presente, ma l'invio automatico email non è configurato. Puoi copiare il link manualmente."
+      );
+      await loadAll(true);
+    } catch (error) {
+      console.error(error);
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Errore durante l'invio dell'email invito."
+      );
+    } finally {
+      setSendingInviteEmailId(null);
     }
   }
 
@@ -648,7 +686,7 @@ export default function TeamAccessPage() {
                   L&apos;invito salva già team, ruolo e scadenza. Il collaboratore potrà entrare solo con l&apos;email invitata e non potrà configurare il workspace del team.
                 </div>
                 <div className="mt-4 rounded-2xl bg-white p-4 text-neutral-600">
-                  In questa patch il sistema genera un <strong>link invito</strong> pronto da copiare. L&apos;invio email automatico può essere aggiunto come step successivo senza cambiare il modello dati.
+                  Dopo la creazione, il sistema prova a inviare automaticamente l&apos;email di invito. Se l&apos;invio non è configurato o fallisce, il link resta comunque disponibile da copiare manualmente.
                 </div>
               </div>
             </div>
@@ -668,6 +706,7 @@ export default function TeamAccessPage() {
                 {invites.map((invite) => {
                   const canRevoke = invite.status === "pending";
                   const isRevoking = revokingInviteId === invite.id;
+                  const isSendingInviteEmail = sendingInviteEmailId === invite.id;
 
                   return (
                     <div
@@ -691,6 +730,17 @@ export default function TeamAccessPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
+                          {canRevoke ? (
+                            <button
+                              onClick={() => void sendInviteEmail(invite)}
+                              disabled={isSendingInviteEmail}
+                              className="inline-flex items-center gap-2 rounded-xl border border-yellow-200 bg-white px-3 py-2 text-sm font-semibold text-yellow-800 hover:bg-yellow-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isSendingInviteEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                              Invia email
+                            </button>
+                          ) : null}
+
                           <button
                             onClick={() => void copyInviteLink(invite)}
                             className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
@@ -817,8 +867,8 @@ export default function TeamAccessPage() {
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {TEAM_ROLES.map((role) => {
-  const permissions = Array.from(rolePermissionMap[role] || []).sort();
-  return (
+                const permissions = Array.from(rolePermissionMap[role] || []).sort();
+                return (
                   <div key={role} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                     <div className="text-sm font-bold text-neutral-900">{TEAM_ROLE_LABELS[role]}</div>
                     <div className="mt-3 flex flex-wrap gap-2">

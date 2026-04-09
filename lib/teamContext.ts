@@ -293,6 +293,46 @@ export async function createTeamInvite(params: {
   return invite;
 }
 
+
+export async function sendTeamInviteEmail(inviteId: string): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+  message?: string;
+  emailId?: string | null;
+}> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.access_token) {
+    throw new Error("Sessione non disponibile per inviare l'email invito");
+  }
+
+  const response = await fetch("/api/team/invites/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ inviteId }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "Errore durante l'invio dell'email invito");
+  }
+
+  return {
+    ok: Boolean(payload?.ok),
+    skipped: payload?.skipped,
+    reason: payload?.reason,
+    message: payload?.message,
+    emailId: payload?.emailId ?? null,
+  };
+}
 export async function acceptTeamInvite(token: string): Promise<{ team_user_id: string; team_id: string }> {
   const { data, error } = await supabase.rpc("accept_team_invite", {
     p_token: token,

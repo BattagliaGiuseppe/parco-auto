@@ -267,8 +267,8 @@ begin
 
   select *
   into v_invite
-  from public.team_invites
-  where token = p_token
+  from public.team_invites ti
+  where ti.token = p_token
   limit 1
   for update;
 
@@ -282,7 +282,8 @@ begin
 
   if v_invite.expires_at <= now() then
     update public.team_invites
-    set status = 'expired'
+    set status = 'expired',
+        updated_at = now()
     where id = v_invite.id;
 
     raise exception 'Invito scaduto';
@@ -292,15 +293,37 @@ begin
     raise exception 'Questo invito è associato a un''altra email';
   end if;
 
-  insert into public.team_users (team_id, auth_user_id, email, role, is_active)
-  values (v_invite.team_id, v_auth_user, v_email, v_invite.role, true)
-  on conflict (team_id, auth_user_id)
-  do update set
-    email = excluded.email,
-    role = excluded.role,
-    is_active = true,
-    updated_at = now()
-  returning id into v_team_user_id;
+  select tu.id
+  into v_team_user_id
+  from public.team_users tu
+  where tu.team_id = v_invite.team_id
+    and tu.auth_user_id = v_auth_user
+  limit 1;
+
+  if v_team_user_id is not null then
+    update public.team_users
+    set email = v_email,
+        role = v_invite.role,
+        is_active = true,
+        updated_at = now()
+    where id = v_team_user_id;
+  else
+    insert into public.team_users (
+      team_id,
+      auth_user_id,
+      email,
+      role,
+      is_active
+    )
+    values (
+      v_invite.team_id,
+      v_auth_user,
+      v_email,
+      v_invite.role,
+      true
+    )
+    returning id into v_team_user_id;
+  end if;
 
   update public.team_invites
   set status = 'accepted',
@@ -310,7 +333,7 @@ begin
   where id = v_invite.id;
 
   return query
-    select v_team_user_id, v_invite.team_id;
+    select v_team_user_id as team_user_id, v_invite.team_id as team_id;
 end;
 $$;
 
