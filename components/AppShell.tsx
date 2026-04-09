@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
 import {
@@ -29,11 +29,21 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessStatus, setAccessStatus] = useState<AccessStatus>("loading");
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [inviteRedirectToken, setInviteRedirectToken] = useState<string | null>(null);
+
+  const inviteRedirectHref = useMemo(() => {
+    if (!inviteRedirectToken) {
+      return "/accept-invite";
+    }
+
+    return `/accept-invite?token=${encodeURIComponent(inviteRedirectToken)}`;
+  }, [inviteRedirectToken]);
 
   async function resolvePendingInviteToken(session: {
     user: { email?: string | null };
@@ -75,20 +85,16 @@ export default function AppShell({
     return null;
   }
 
-  async function resolveSession(
-    session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"],
-    currentPath: string
+  async function refreshAccess(
+    session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]
   ) {
     const logged = !!session;
     setIsAuthenticated(logged);
     setAccessError(null);
+    setInviteRedirectToken(null);
 
     if (!logged) {
       setAccessStatus("guest");
-
-      if (!publicRoutes.has(currentPath)) {
-        router.replace("/login");
-      }
       return;
     }
 
@@ -113,38 +119,21 @@ export default function AppShell({
       const inviteToken = await resolvePendingInviteToken(session);
 
       if (inviteToken) {
+        setInviteRedirectToken(inviteToken);
         setAccessStatus("invite");
-
-        if (currentPath !== "/accept-invite") {
-          router.replace(`/accept-invite?token=${encodeURIComponent(inviteToken)}`);
-        }
         return;
       }
 
       setAccessStatus("onboarding");
-
-      if (currentPath !== "/onboarding") {
-        router.replace("/onboarding");
-      }
       return;
     }
 
     clearPendingInviteToken();
     setAccessStatus("ready");
-
-    if (
-      currentPath === "/login" ||
-      currentPath === "/onboarding" ||
-      currentPath === "/"
-    ) {
-      router.replace("/dashboard");
-    }
   }
 
   useEffect(() => {
     let active = true;
-    setReady(false);
-    setAccessStatus("loading");
 
     async function boot() {
       try {
@@ -153,7 +142,7 @@ export default function AppShell({
         } = await supabase.auth.getSession();
 
         if (!active) return;
-        await resolveSession(session, pathname);
+        await refreshAccess(session);
       } catch (error) {
         console.error("Errore bootstrap AppShell:", error);
 
@@ -162,10 +151,7 @@ export default function AppShell({
         setIsAuthenticated(false);
         setAccessStatus("guest");
         setAccessError(null);
-
-        if (!publicRoutes.has(pathname)) {
-          router.replace("/login");
-        }
+        setInviteRedirectToken(null);
       } finally {
         if (active) {
           setReady(true);
@@ -181,7 +167,7 @@ export default function AppShell({
       void (async () => {
         try {
           if (!active) return;
-          await resolveSession(session, pathname);
+          await refreshAccess(session);
         } catch (error) {
           console.error("Errore auth state change:", error);
 
@@ -201,7 +187,52 @@ export default function AppShell({
       active = false;
       subscription.unsubscribe();
     };
-  }, [pathname, router]);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      if (!publicRoutes.has(pathname)) {
+        router.replace("/login");
+      }
+      return;
+    }
+
+    if (accessStatus === "invite") {
+      const currentToken = searchParams.get("token");
+
+      if (pathname !== "/accept-invite" || currentToken !== inviteRedirectToken) {
+        router.replace(inviteRedirectHref);
+      }
+      return;
+    }
+
+    if (accessStatus === "onboarding") {
+      if (pathname !== "/onboarding") {
+        router.replace("/onboarding");
+      }
+      return;
+    }
+
+    if (
+      accessStatus === "ready" &&
+      (pathname === "/login" || pathname === "/onboarding" || pathname === "/")
+    ) {
+      router.replace("/dashboard");
+    }
+  }, [
+    accessStatus,
+    inviteRedirectHref,
+    inviteRedirectToken,
+    isAuthenticated,
+    pathname,
+    ready,
+    router,
+    searchParams,
+  ]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();

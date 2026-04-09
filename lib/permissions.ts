@@ -38,6 +38,20 @@ export type PermissionAccessState = {
   canManageTeam: boolean;
 };
 
+type PermissionAccessSnapshot = {
+  cacheKey: string;
+  ctx: TeamContext;
+  permissionCodes: string[];
+};
+
+let permissionAccessCache: PermissionAccessSnapshot | null = null;
+let permissionAccessInflight: Promise<PermissionAccessSnapshot> | null = null;
+
+export function invalidatePermissionAccessCache() {
+  permissionAccessCache = null;
+  permissionAccessInflight = null;
+}
+
 export function buildRolePermissionMap(rows: RolePermissionRow[]) {
   return rows.reduce<Record<string, Set<string>>>((acc, row) => {
     if (!acc[row.role]) {
@@ -164,27 +178,73 @@ export async function getCurrentUserEffectivePermissions() {
   });
 }
 
+async function loadPermissionAccessSnapshot(force = false) {
+  const currentCtx = await getCurrentTeamContext();
+  const cacheKey = `${currentCtx.teamUserId}:${currentCtx.role}`;
+
+  if (!force && permissionAccessCache?.cacheKey === cacheKey) {
+    return permissionAccessCache;
+  }
+
+  if (!force && permissionAccessInflight) {
+    return permissionAccessInflight;
+  }
+
+  permissionAccessInflight = (async () => {
+    const [rolePermissions, overrides] = await Promise.all([
+      getRolePermissions(),
+      getTeamUserPermissionOverrides([currentCtx.teamUserId]),
+    ]);
+
+    const permissionCodes = getEffectivePermissionCodes({
+      role: currentCtx.role,
+      rolePermissions,
+      overrides: overrides.filter(
+        (row) => row.team_user_id === currentCtx.teamUserId
+      ),
+    });
+
+    const snapshot: PermissionAccessSnapshot = {
+      cacheKey,
+      ctx: currentCtx,
+      permissionCodes,
+    };
+
+    permissionAccessCache = snapshot;
+    return snapshot;
+  })();
+
+  try {
+    return await permissionAccessInflight;
+  } finally {
+    permissionAccessInflight = null;
+  }
+}
+
 export function usePermissionAccess(): PermissionAccessState {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!permissionAccessCache);
   const [error, setError] = useState<string | null>(null);
-  const [ctx, setCtx] = useState<TeamContext | null>(null);
-  const [permissionCodes, setPermissionCodes] = useState<string[]>([]);
+  const [ctx, setCtx] = useState<TeamContext | null>(permissionAccessCache?.ctx ?? null);
+  const [permissionCodes, setPermissionCodes] = useState<string[]>(
+    permissionAccessCache?.permissionCodes ?? []
+  );
 
   useEffect(() => {
     let active = true;
 
     async function load() {
-      setLoading(true);
+      if (!permissionAccessCache) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
-        const currentCtx = await getCurrentTeamContext();
-        const permissions = await getCurrentUserEffectivePermissions();
+        const snapshot = await loadPermissionAccessSnapshot();
 
         if (!active) return;
 
-        setCtx(currentCtx);
-        setPermissionCodes(permissions);
+        setCtx(snapshot.ctx);
+        setPermissionCodes(snapshot.permissionCodes);
       } catch (error) {
         console.error("Errore caricamento permessi:", error);
 
