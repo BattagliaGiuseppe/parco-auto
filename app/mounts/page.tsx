@@ -11,6 +11,7 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 export default function MountsPage() {
   const access = usePermissionAccess();
@@ -34,6 +35,7 @@ export default function MountsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "history">("all");
   const [carFilter, setCarFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   async function loadAll() {
     setLoading(true);
@@ -107,6 +109,7 @@ export default function MountsPage() {
     if (!canEditMounts || !selectedCar || !selectedComponent) return;
 
     setSaving(true);
+    setFeedback(null);
     try {
       const ctx = await getCurrentTeamContext();
       const actorId =
@@ -139,9 +142,10 @@ export default function MountsPage() {
       setMountedAt(new Date().toISOString().slice(0, 10));
       setReason("");
       await loadAll();
+      setFeedback({ type: "success", message: "Componente montato correttamente." });
     } catch (error) {
       console.error(error);
-      alert("Errore montaggio componente");
+      setFeedback({ type: "error", message: "Errore montaggio componente" });
     } finally {
       setSaving(false);
     }
@@ -149,6 +153,7 @@ export default function MountsPage() {
 
   async function unmount(mountId: string, componentId: string) {
     if (!canEditMounts) return;
+    setFeedback(null);
     const ctx = await getCurrentTeamContext();
     const actorId = ctx.teamUserId;
     const today = new Date().toISOString().slice(0, 10);
@@ -170,7 +175,11 @@ export default function MountsPage() {
         .eq("team_id", ctx.teamId)
         .eq("id", componentId);
       await loadAll();
+      setFeedback({ type: "success", message: "Componente smontato correttamente." });
+      return;
     }
+
+    setFeedback({ type: "error", message: error.message });
   }
 
   const canChooseActor = canEditMounts && (teamRole === "owner" || teamRole === "admin");
@@ -209,7 +218,7 @@ export default function MountsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6 font-sans text-neutral-900">
       <PageHeader
         title="Montaggi"
         subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
@@ -221,6 +230,8 @@ export default function MountsPage() {
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
+
+      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       <SectionCard>
         <StatsGrid items={stats} />
@@ -237,7 +248,7 @@ export default function MountsPage() {
               <select
                 value={selectedCar}
                 onChange={(e) => setSelectedCar(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3"
+                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
                 required
               >
                 <option value="">Seleziona auto</option>
@@ -256,7 +267,7 @@ export default function MountsPage() {
               <select
                 value={selectedComponent}
                 onChange={(e) => setSelectedComponent(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3"
+                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
                 required
               >
                 <option value="">Seleziona componente</option>
@@ -276,7 +287,7 @@ export default function MountsPage() {
                 type="date"
                 value={mountedAt}
                 onChange={(e) => setMountedAt(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3"
+                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
               />
             </div>
 
@@ -288,7 +299,7 @@ export default function MountsPage() {
                 <select
                   value={mountedBy}
                   onChange={(e) => setMountedBy(e.target.value)}
-                  className="w-full rounded-xl border px-4 py-3"
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
                 >
                   <option value="">Operatore</option>
                   {teamUsers.map((user) => (
@@ -321,7 +332,7 @@ export default function MountsPage() {
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="min-h-24 w-full rounded-xl border px-4 py-3"
+                className="min-h-24 w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
                 placeholder="Motivo tecnico, weekend gara, sostituzione preventiva..."
               />
             </div>
@@ -335,7 +346,7 @@ export default function MountsPage() {
       >
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr]">
           <select
-            className="rounded-xl border px-4 py-3"
+            className="rounded-xl border px-4 py-3 text-sm text-neutral-900"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
           >
@@ -345,7 +356,7 @@ export default function MountsPage() {
           </select>
 
           <select
-            className="rounded-xl border px-4 py-3"
+            className="rounded-xl border px-4 py-3 text-sm text-neutral-900"
             value={carFilter}
             onChange={(e) => setCarFilter(e.target.value)}
           >
@@ -360,7 +371,7 @@ export default function MountsPage() {
           <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
             <Search size={18} className="text-neutral-400" />
             <input
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent text-sm text-neutral-900 outline-none"
               placeholder="Cerca per componente o auto"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

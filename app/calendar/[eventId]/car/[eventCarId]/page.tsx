@@ -21,6 +21,7 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as {
@@ -43,13 +44,14 @@ export default function EventCarPage() {
   const [checkData, setCheckData] = useState<Record<string, { status: string; note: string }>>({});
 
   const [selectedDriver, setSelectedDriver] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const [turnForm, setTurnForm] = useState({
     event_session_id: "",
     driver_id: "",
-    minutes: "0",
-    laps: "0",
-    fuel_start_liters: "0",
-    fuel_end_liters: "0",
+    minutes: "",
+    laps: "",
+    fuel_start_liters: "",
+    fuel_end_liters: "",
     notes: "",
   });
 
@@ -196,78 +198,84 @@ export default function EventCarPage() {
     [assignedDrivers.length, sessions.length, turns.length, fuelSummary.perLap]
   );
 
-  async function addDriver() {
-    if (!canEditEvents || !selectedDriver) return;
-    const ctx = await getCurrentTeamContext();
-    const { error } = await supabase.from("event_car_drivers").insert([
-      {
-        team_id: ctx.teamId,
-        event_car_id: eventCarId,
-        driver_id: selectedDriver,
-        role: "primary",
-      },
-    ]);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    setSelectedDriver("");
-    await loadAll();
-  }
-
-  async function saveTurn() {
-    if (!canEditEvents) return;
-    const ctx = await getCurrentTeamContext();
-    const payload = {
+async function addDriver() {
+  if (!canEditEvents || !selectedDriver) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+  const { error } = await supabase.from("event_car_drivers").insert([
+    {
       team_id: ctx.teamId,
       event_car_id: eventCarId,
-      event_session_id: turnForm.event_session_id || null,
-      driver_id: turnForm.driver_id || null,
-      minutes: Number(turnForm.minutes || 0),
-      laps: Number(turnForm.laps || 0),
-      fuel_start_liters: Number(turnForm.fuel_start_liters || 0),
-      fuel_end_liters: Number(turnForm.fuel_end_liters || 0),
-      notes: turnForm.notes || null,
-      created_by_team_user_id: ctx.teamUserId,
-    };
-    const { error } = await supabase.from("event_car_turns").insert([payload]);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    setTurnForm({
-      event_session_id: "",
-      driver_id: "",
-      minutes: "0",
-      laps: "0",
-      fuel_start_liters: "0",
-      fuel_end_liters: "0",
-      notes: "",
-    });
-    await loadAll();
+      driver_id: selectedDriver,
+      role: "primary",
+    },
+  ]);
+  if (error) {
+    setFeedback({ type: "error", message: error.message });
+    return;
   }
+  setSelectedDriver("");
+  await loadAll();
+  setFeedback({ type: "success", message: "Pilota associato correttamente all'evento." });
+}
 
-  async function saveSetup() {
-    if (!canEditEvents) return;
-    const ctx = await getCurrentTeamContext();
-    const { error } = await supabase
-      .from("event_car_data")
-      .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data: setupData }]);
-
-    if (error) alert(error.message);
-    else alert("Setup salvato");
+async function saveTurn() {
+  if (!canEditEvents) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+  const payload = {
+    team_id: ctx.teamId,
+    event_car_id: eventCarId,
+    event_session_id: turnForm.event_session_id || null,
+    driver_id: turnForm.driver_id || null,
+    minutes: Number(turnForm.minutes || 0),
+    laps: Number(turnForm.laps || 0),
+    fuel_start_liters: Number(turnForm.fuel_start_liters || 0),
+    fuel_end_liters: Number(turnForm.fuel_end_liters || 0),
+    notes: turnForm.notes || null,
+    created_by_team_user_id: ctx.teamUserId,
+  };
+  const { error } = await supabase.from("event_car_turns").insert([payload]);
+  if (error) {
+    setFeedback({ type: "error", message: error.message });
+    return;
   }
+  setTurnForm({
+    event_session_id: "",
+    driver_id: "",
+    minutes: "",
+    laps: "",
+    fuel_start_liters: "",
+    fuel_end_liters: "",
+    notes: "",
+  });
+  await loadAll();
+  setFeedback({ type: "success", message: "Turno registrato correttamente." });
+}
 
-  async function saveCheckup() {
-    if (!canEditEvents) return;
-    const ctx = await getCurrentTeamContext();
-    const { error } = await supabase
-      .from("event_car_data")
-      .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "checkup", data: checkData }]);
+async function saveSetup() {
+  if (!canEditEvents) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+  const { error } = await supabase
+    .from("event_car_data")
+    .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data: setupData }]);
 
-    if (error) alert(error.message);
-    else alert("Check-up salvato");
-  }
+  if (error) setFeedback({ type: "error", message: error.message });
+  else setFeedback({ type: "success", message: "Setup salvato correttamente." });
+}
+
+async function saveCheckup() {
+  if (!canEditEvents) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+  const { error } = await supabase
+    .from("event_car_data")
+    .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "checkup", data: checkData }]);
+
+  if (error) setFeedback({ type: "error", message: error.message });
+  else setFeedback({ type: "success", message: "Check-up tecnico salvato." });
+}
 
   if (access.loading) {
     return (
@@ -336,6 +344,8 @@ export default function EventCarPage() {
         </div>
       ) : null}
 
+      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
+
       <SectionCard>
         <StatsGrid items={stats} />
       </SectionCard>
@@ -361,7 +371,8 @@ export default function EventCarPage() {
               </select>
               <button
                 onClick={addDriver}
-                className="rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"
+                disabled={!selectedDriver}
+                className={`rounded-xl px-4 py-3 font-bold transition ${selectedDriver ? "bg-yellow-400 text-black hover:bg-yellow-500" : "cursor-not-allowed bg-neutral-200 text-neutral-500"}`}
               >
                 <PlusCircle size={16} className="mr-2 inline" />
                 Associa pilota

@@ -13,6 +13,7 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import PrintLetterhead from "@/components/PrintLetterhead";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 type TurnRow = {
   id: string;
@@ -43,16 +44,17 @@ export default function EventCarTurnsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingTurnId, setEditingTurnId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const [nextStintMinutes, setNextStintMinutes] = useState("20");
-  const [nextStintLaps, setNextStintLaps] = useState("0");
+  const [nextStintLaps, setNextStintLaps] = useState("");
   const [reserveLiters, setReserveLiters] = useState("3");
   const [form, setForm] = useState({
     event_session_id: "",
     driver_id: "",
-    minutes: "20",
-    laps: "0",
-    fuel_start_liters: "0",
-    fuel_end_liters: "0",
+    minutes: "",
+    laps: "",
+    fuel_start_liters: "",
+    fuel_end_liters: "",
     notes: "",
   });
 
@@ -154,54 +156,59 @@ export default function EventCarTurnsPage() {
     };
   }, [nextStintMinutes, nextStintLaps, reserveLiters, totals]);
 
-  async function saveTurn() {
-    if (!canEditEvents) return;
-    setSaving(true);
-    try {
-      const ctx = await getCurrentTeamContext();
-      const payload = {
-        team_id: ctx.teamId,
-        event_car_id: eventCarId,
-        event_session_id: form.event_session_id || null,
-        driver_id: form.driver_id || null,
-        minutes: Number(form.minutes || 0),
-        laps: Number(form.laps || 0),
-        fuel_start_liters: Number(form.fuel_start_liters || 0),
-        fuel_end_liters: Number(form.fuel_end_liters || 0),
-        notes: form.notes || null,
-      };
+async function saveTurn() {
+  if (!canEditEvents) return;
+  setSaving(true);
+  setFeedback(null);
+  try {
+    const ctx = await getCurrentTeamContext();
+    const payload = {
+      team_id: ctx.teamId,
+      event_car_id: eventCarId,
+      event_session_id: form.event_session_id || null,
+      driver_id: form.driver_id || null,
+      minutes: Number(form.minutes || 0),
+      laps: Number(form.laps || 0),
+      fuel_start_liters: Number(form.fuel_start_liters || 0),
+      fuel_end_liters: Number(form.fuel_end_liters || 0),
+      notes: form.notes || null,
+    };
 
-      if (editingTurnId) {
-        const { error } = await supabase
-          .from("event_car_turns")
-          .update(payload)
-          .eq("team_id", ctx.teamId)
-          .eq("id", editingTurnId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("event_car_turns").insert([payload]);
-        if (error) throw error;
-      }
-
-      resetForm();
-      await loadAll();
-    } catch (error: any) {
-      console.error(error);
-      alert(error?.message || "Errore salvataggio turno");
-    } finally {
-      setSaving(false);
+    if (editingTurnId) {
+      const { error } = await supabase
+        .from("event_car_turns")
+        .update(payload)
+        .eq("team_id", ctx.teamId)
+        .eq("id", editingTurnId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("event_car_turns").insert([payload]);
+      if (error) throw error;
     }
+
+    resetForm();
+    await loadAll();
+    setFeedback({
+      type: "success",
+      message: editingTurnId ? "Turno aggiornato correttamente." : "Turno salvato correttamente.",
+    });
+  } catch (error: any) {
+    console.error(error);
+    setFeedback({ type: "error", message: error?.message || "Errore salvataggio turno" });
+  } finally {
+    setSaving(false);
   }
+}
 
   function startEdit(turn: TurnRow) {
     setEditingTurnId(turn.id);
     setForm({
       event_session_id: turn.event_session_id || "",
       driver_id: turn.driver_id || "",
-      minutes: String(turn.minutes || 0),
-      laps: String(turn.laps || 0),
-      fuel_start_liters: String(turn.fuel_start_liters || 0),
-      fuel_end_liters: String(turn.fuel_end_liters || 0),
+      minutes: turn.minutes != null ? String(turn.minutes) : "",
+      laps: turn.laps != null ? String(turn.laps) : "",
+      fuel_start_liters: turn.fuel_start_liters != null ? String(turn.fuel_start_liters) : "",
+      fuel_end_liters: turn.fuel_end_liters != null ? String(turn.fuel_end_liters) : "",
       notes: turn.notes || "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -212,10 +219,10 @@ export default function EventCarTurnsPage() {
     setForm({
       event_session_id: "",
       driver_id: "",
-      minutes: "20",
-      laps: "0",
-      fuel_start_liters: "0",
-      fuel_end_liters: "0",
+      minutes: "",
+      laps: "",
+      fuel_start_liters: "",
+      fuel_end_liters: "",
       notes: "",
     });
   }
@@ -231,12 +238,13 @@ export default function EventCarTurnsPage() {
       .eq("id", turnId);
 
     if (error) {
-      alert(error.message);
+      setFeedback({ type: "error", message: error.message });
       return;
     }
 
     if (editingTurnId === turnId) resetForm();
     await loadAll();
+    setFeedback({ type: "success", message: "Turno eliminato correttamente." });
   }
 
   if (access.loading) {
@@ -329,6 +337,8 @@ export default function EventCarTurnsPage() {
         </div>
       ) : null}
 
+      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} className="print:hidden" /> : null}
+
       <SectionCard className="print:border-none print:shadow-none">
         <StatsGrid
           items={[
@@ -380,24 +390,28 @@ export default function EventCarTurnsPage() {
                 <Field
                   label="Durata turno (min)"
                   type="number"
+                  placeholder="Es. 20"
                   value={form.minutes}
                   onChange={(value) => setForm({ ...form, minutes: value })}
                 />
                 <Field
                   label="Giri"
                   type="number"
+                  placeholder="Es. 12"
                   value={form.laps}
                   onChange={(value) => setForm({ ...form, laps: value })}
                 />
                 <Field
                   label="Litri inizio turno"
                   type="number"
+                  placeholder="Es. 18.5"
                   value={form.fuel_start_liters}
                   onChange={(value) => setForm({ ...form, fuel_start_liters: value })}
                 />
                 <Field
                   label="Litri fine turno"
                   type="number"
+                  placeholder="Es. 6.2"
                   value={form.fuel_end_liters}
                   onChange={(value) => setForm({ ...form, fuel_end_liters: value })}
                 />
@@ -582,11 +596,13 @@ function Field({
   value,
   onChange,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div>
@@ -595,6 +611,7 @@ function Field({
         type={type}
         className="w-full rounded-xl border px-4 py-3"
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>

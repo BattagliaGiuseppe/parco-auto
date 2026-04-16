@@ -7,12 +7,14 @@ import {
   ArrowLeft,
   Camera,
   FileText,
+  Pencil,
   PlusCircle,
   Printer,
   Save,
   ShieldCheck,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
@@ -23,6 +25,7 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 type SafetyItem = {
   id?: string;
@@ -87,6 +90,14 @@ export default function DriverDetailPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSafety, setSavingSafety] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [editingLicenseId, setEditingLicenseId] = useState<string | null>(null);
+  const [licenseDraft, setLicenseDraft] = useState({
+    license_type: "",
+    license_number: "",
+    expiry_date: "",
+    issued_by: "",
+  });
 
   async function load() {
     const ctx = await getCurrentTeamContext();
@@ -140,135 +151,144 @@ export default function DriverDetailPage() {
     }
   }, [driverId, access.loading, canViewDrivers]);
 
+  function showFeedback(type: "success" | "error" | "info", message: string) {
+    setFeedback({ type, message });
+  }
+
   const activeSafetyItems = useMemo(
     () => safetyItems.filter((item) => item.is_present),
     [safetyItems]
   );
 
-  async function saveProfile() {
-    if (!canEditDrivers || !driverForm) return;
-    setSavingProfile(true);
-    try {
-      const ctx = await getCurrentTeamContext();
-      let photoUrl = driverForm.photo_url || null;
-
-      if (profilePhotoFile) {
-        setUploadingPhoto(true);
-        const upload = await uploadTeamFile({
-          file: profilePhotoFile,
-          area: "driver-profile",
-          recordId: driverId,
-        });
-        photoUrl = upload.publicUrl;
-      }
-
-      const payload = {
-        first_name: driverForm.first_name?.trim() || "",
-        last_name: driverForm.last_name?.trim() || "",
-        nickname: driverForm.nickname || null,
-        birth_date: driverForm.birth_date || null,
-        nationality: driverForm.nationality || null,
-        email: driverForm.email || null,
-        phone: driverForm.phone || null,
-        emergency_contact: driverForm.emergency_contact || null,
-        notes: driverForm.notes || null,
-        is_active: driverForm.is_active ?? true,
-        photo_url: photoUrl,
-      };
-
-      const { error } = await supabase
-        .from("drivers")
-        .update(payload)
-        .eq("team_id", ctx.teamId)
-        .eq("id", driverId);
-
-      if (error) throw error;
-      setProfilePhotoFile(null);
-      await load();
-      alert("Scheda pilota aggiornata");
-    } catch (error: any) {
-      console.error(error);
-      alert(error?.message || "Errore aggiornamento pilota");
-    } finally {
-      setUploadingPhoto(false);
-      setSavingProfile(false);
-    }
-  }
-
-  async function addLicense() {
-    if (!canEditDrivers) return;
+async function saveProfile() {
+  if (!canEditDrivers || !driverForm) return;
+  setSavingProfile(true);
+  setFeedback(null);
+  try {
     const ctx = await getCurrentTeamContext();
-    if (!licenseForm.license_type.trim()) {
-      alert("Inserisci almeno il tipo licenza");
-      return;
-    }
+    let photoUrl = driverForm.photo_url || null;
 
-    const { error } = await supabase.from("driver_licenses").insert([
-      {
-        team_id: ctx.teamId,
-        driver_id: driverId,
-        ...licenseForm,
-      },
-    ]);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setLicenseForm({
-      license_type: "",
-      license_number: "",
-      expiry_date: "",
-      issued_by: "",
-    });
-    await load();
-  }
-
-  async function addDocument() {
-    if (!canEditDrivers) return;
-    const ctx = await getCurrentTeamContext();
-
-    if (!documentForm.title.trim() && !documentForm.document_type.trim() && !documentFile) {
-      alert("Inserisci almeno titolo/tipo o carica un file");
-      return;
-    }
-
-    let payload: any = {
-      team_id: ctx.teamId,
-      driver_id: driverId,
-      title: documentForm.title || documentForm.document_type || "Documento pilota",
-      document_type: documentForm.document_type || null,
-      expires_at: documentForm.expires_at || null,
-      uploaded_by_team_user_id: ctx.teamUserId,
-    };
-
-    if (documentFile) {
+    if (profilePhotoFile) {
+      setUploadingPhoto(true);
       const upload = await uploadTeamFile({
-        file: documentFile,
-        area: "driver-documents",
+        file: profilePhotoFile,
+        area: "driver-profile",
         recordId: driverId,
       });
-      payload = {
-        ...payload,
-        file_url: upload.publicUrl,
-        file_name: upload.fileName,
-        storage_path: upload.path,
-        mime_type: upload.mimeType,
-        size_bytes: upload.sizeBytes,
-      };
+      photoUrl = upload.publicUrl;
     }
 
-    const { error } = await supabase.from("driver_documents").insert([payload]);
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    const payload = {
+      first_name: driverForm.first_name?.trim() || "",
+      last_name: driverForm.last_name?.trim() || "",
+      nickname: driverForm.nickname || null,
+      birth_date: driverForm.birth_date || null,
+      nationality: driverForm.nationality || null,
+      email: driverForm.email || null,
+      phone: driverForm.phone || null,
+      emergency_contact: driverForm.emergency_contact || null,
+      notes: driverForm.notes || null,
+      is_active: driverForm.is_active ?? true,
+      photo_url: photoUrl,
+    };
 
-    setDocumentForm({ title: "", document_type: "", expires_at: "" });
-    setDocumentFile(null);
+    const { error } = await supabase
+      .from("drivers")
+      .update(payload)
+      .eq("team_id", ctx.teamId)
+      .eq("id", driverId);
+
+    if (error) throw error;
+    setProfilePhotoFile(null);
     await load();
+    showFeedback("success", "Scheda pilota aggiornata correttamente.");
+  } catch (error: any) {
+    console.error(error);
+    showFeedback("error", error?.message || "Errore aggiornamento pilota");
+  } finally {
+    setUploadingPhoto(false);
+    setSavingProfile(false);
   }
+}
+
+async function addLicense() {
+  if (!canEditDrivers) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+  if (!licenseForm.license_type.trim()) {
+    showFeedback("error", "Inserisci almeno il tipo licenza.");
+    return;
+  }
+
+  const { error } = await supabase.from("driver_licenses").insert([
+    {
+      team_id: ctx.teamId,
+      driver_id: driverId,
+      ...licenseForm,
+    },
+  ]);
+
+  if (error) {
+    showFeedback("error", error.message);
+    return;
+  }
+
+  setLicenseForm({
+    license_type: "",
+    license_number: "",
+    expiry_date: "",
+    issued_by: "",
+  });
+  await load();
+  showFeedback("success", "Licenza aggiunta correttamente.");
+}
+
+async function addDocument() {
+  if (!canEditDrivers) return;
+  const ctx = await getCurrentTeamContext();
+  setFeedback(null);
+
+  if (!documentForm.title.trim() && !documentForm.document_type.trim() && !documentFile) {
+    showFeedback("error", "Inserisci almeno titolo o tipo documento, oppure carica un file.");
+    return;
+  }
+
+  let payload: any = {
+    team_id: ctx.teamId,
+    driver_id: driverId,
+    title: documentForm.title || documentForm.document_type || "Documento pilota",
+    document_type: documentForm.document_type || null,
+    expires_at: documentForm.expires_at || null,
+    uploaded_by_team_user_id: ctx.teamUserId,
+  };
+
+  if (documentFile) {
+    const upload = await uploadTeamFile({
+      file: documentFile,
+      area: "driver-documents",
+      recordId: driverId,
+    });
+    payload = {
+      ...payload,
+      file_url: upload.publicUrl,
+      file_name: upload.fileName,
+      storage_path: upload.path,
+      mime_type: upload.mimeType,
+      size_bytes: upload.sizeBytes,
+    };
+  }
+
+  const { error } = await supabase.from("driver_documents").insert([payload]);
+  if (error) {
+    showFeedback("error", error.message);
+    return;
+  }
+
+  setDocumentForm({ title: "", document_type: "", expires_at: "" });
+  setDocumentFile(null);
+  await load();
+  showFeedback("success", "Documento aggiunto correttamente.");
+}
 
   function seedDefaultSafetyItems() {
     setSafetyItems(DEFAULT_SAFETY_ITEMS.map((item) => ({ ...item })));
@@ -299,9 +319,104 @@ export default function DriverDetailPage() {
     setSafetyItems((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   }
 
+  function startEditLicense(row: any) {
+    setEditingLicenseId(row.id);
+    setLicenseDraft({
+      license_type: row.license_type || "",
+      license_number: row.license_number || "",
+      expiry_date: row.expiry_date || "",
+      issued_by: row.issued_by || "",
+    });
+    setFeedback(null);
+  }
+
+  function cancelEditLicense() {
+    setEditingLicenseId(null);
+    setLicenseDraft({
+      license_type: "",
+      license_number: "",
+      expiry_date: "",
+      issued_by: "",
+    });
+  }
+
+  async function saveEditedLicense() {
+    if (!canEditDrivers || !editingLicenseId) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+
+    if (!licenseDraft.license_type.trim()) {
+      showFeedback("error", "Inserisci almeno il tipo licenza.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("driver_licenses")
+      .update({
+        license_type: licenseDraft.license_type,
+        license_number: licenseDraft.license_number || null,
+        expiry_date: licenseDraft.expiry_date || null,
+        issued_by: licenseDraft.issued_by || null,
+      })
+      .eq("team_id", ctx.teamId)
+      .eq("id", editingLicenseId);
+
+    if (error) {
+      showFeedback("error", error.message);
+      return;
+    }
+
+    cancelEditLicense();
+    await load();
+    showFeedback("success", "Licenza aggiornata correttamente.");
+  }
+
+  async function deleteLicense(licenseId: string) {
+    if (!canEditDrivers) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const { error } = await supabase
+      .from("driver_licenses")
+      .delete()
+      .eq("team_id", ctx.teamId)
+      .eq("id", licenseId);
+
+    if (error) {
+      showFeedback("error", error.message);
+      return;
+    }
+
+    if (editingLicenseId === licenseId) {
+      cancelEditLicense();
+    }
+
+    await load();
+    showFeedback("success", "Licenza eliminata.");
+  }
+
+  async function deleteDocument(documentId: string) {
+    if (!canEditDrivers) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const { error } = await supabase
+      .from("driver_documents")
+      .delete()
+      .eq("team_id", ctx.teamId)
+      .eq("id", documentId);
+
+    if (error) {
+      showFeedback("error", error.message);
+      return;
+    }
+
+    await load();
+    showFeedback("success", "Documento eliminato.");
+  }
+
   async function saveSafetyItems() {
     if (!canEditDrivers) return;
     setSavingSafety(true);
+    setFeedback(null);
     try {
       const ctx = await getCurrentTeamContext();
       const normalized = safetyItems
@@ -334,10 +449,10 @@ export default function DriverDetailPage() {
       }
 
       await load();
-      alert("Checklist sicurezza aggiornata");
+      showFeedback("success", "Checklist sicurezza aggiornata correttamente.");
     } catch (error: any) {
       console.error(error);
-      alert(error?.message || "Errore salvataggio checklist sicurezza");
+      showFeedback("error", error?.message || "Errore salvataggio checklist sicurezza");
     } finally {
       setSavingSafety(false);
     }
@@ -421,6 +536,8 @@ export default function DriverDetailPage() {
           Hai accesso in sola lettura alla scheda pilota.
         </div>
       ) : null}
+
+      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       <SectionCard>
         <StatsGrid
@@ -700,27 +817,104 @@ export default function DriverDetailPage() {
               </div>
             </>
           ) : null}
-          <div className="mt-4 space-y-3">
-            {licenses.length === 0 ? (
-              <EmptyState title="Nessuna licenza registrata" />
-            ) : (
-              licenses.map((row) => (
-                <div
-                  key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+<div className="mt-4 space-y-3">
+  {licenses.length === 0 ? (
+    <EmptyState title="Nessuna licenza registrata" />
+  ) : (
+    licenses.map((row) => {
+      const isEditing = editingLicenseId === row.id;
+      return (
+        <div
+          key={row.id}
+          className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+        >
+          {isEditing ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <Field
+                  label="Tipo licenza"
+                  value={licenseDraft.license_type}
+                  onChange={(value) =>
+                    setLicenseDraft({ ...licenseDraft, license_type: value })
+                  }
+                />
+                <Field
+                  label="Numero"
+                  value={licenseDraft.license_number}
+                  onChange={(value) =>
+                    setLicenseDraft({ ...licenseDraft, license_number: value })
+                  }
+                />
+                <Field
+                  label="Ente"
+                  value={licenseDraft.issued_by}
+                  onChange={(value) =>
+                    setLicenseDraft({ ...licenseDraft, issued_by: value })
+                  }
+                />
+                <Field
+                  label="Scadenza"
+                  type="date"
+                  value={licenseDraft.expiry_date}
+                  onChange={(value) =>
+                    setLicenseDraft({ ...licenseDraft, expiry_date: value })
+                  }
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                <button
+                  onClick={cancelEditLicense}
+                  className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                 >
-                  <div className="font-bold text-neutral-900">{row.license_type}</div>
-                  <div className="mt-1 text-sm text-neutral-500">
-                    {row.license_number || "Numero non inserito"}
-                    {row.issued_by ? ` · ${row.issued_by}` : ""}
-                    {row.expiry_date
-                      ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
-                      : ""}
-                  </div>
+                  <X size={15} className="mr-2 inline" />
+                  Annulla
+                </button>
+                <button
+                  onClick={saveEditedLicense}
+                  className="inline-flex rounded-xl bg-yellow-400 px-3 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                >
+                  <Save size={15} className="mr-2 inline" />
+                  Salva licenza
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="font-bold text-neutral-900">{row.license_type}</div>
+                <div className="mt-1 text-sm text-neutral-500">
+                  {row.license_number || "Numero non inserito"}
+                  {row.issued_by ? ` · ${row.issued_by}` : ""}
+                  {row.expiry_date
+                    ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
+                    : ""}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+              {canEditDrivers ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => startEditLicense(row)}
+                    className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                  >
+                    <Pencil size={15} className="mr-2 inline" />
+                    Modifica
+                  </button>
+                  <button
+                    onClick={() => deleteLicense(row.id)}
+                    className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                  >
+                    <Trash2 size={15} className="mr-2 inline" />
+                    Elimina
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      );
+    })
+  )}
+</div>
         </SectionCard>
 
         <SectionCard title="Documenti" subtitle="File pilota, certificati e allegati">
@@ -767,38 +961,53 @@ export default function DriverDetailPage() {
               </div>
             </>
           ) : null}
-          <div className="mt-4 space-y-3">
-            {documents.length === 0 ? (
-              <EmptyState title="Nessun documento registrato" />
-            ) : (
-              documents.map((row) => (
-                <div
-                  key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                >
-                  <div className="font-bold text-neutral-900">
-                    {row.title || row.document_type || "Documento pilota"}
-                  </div>
-                  <div className="mt-1 text-sm text-neutral-500">
-                    {row.expires_at
-                      ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
-                      : "Nessuna scadenza"}
-                    {row.file_name ? ` · ${row.file_name}` : ""}
-                  </div>
-                  {row.file_url ? (
-                    <a
-                      href={row.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
-                    >
-                      Apri file
-                    </a>
-                  ) : null}
-                </div>
-              ))
-            )}
+<div className="mt-4 space-y-3">
+  {documents.length === 0 ? (
+    <EmptyState title="Nessun documento registrato" />
+  ) : (
+    documents.map((row) => (
+      <div
+        key={row.id}
+        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="font-bold text-neutral-900">
+              {row.title || row.document_type || "Documento pilota"}
+            </div>
+            <div className="mt-1 text-sm text-neutral-500">
+              {row.expires_at
+                ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
+                : "Nessuna scadenza"}
+              {row.file_name ? ` · ${row.file_name}` : ""}
+            </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            {row.file_url ? (
+              <a
+                href={row.file_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+              >
+                Apri file
+              </a>
+            ) : null}
+            {canEditDrivers ? (
+              <button
+                onClick={() => deleteDocument(row.id)}
+                className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+              >
+                <Trash2 size={15} className="mr-2 inline" />
+                Elimina
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    ))
+  )}
+</div>
         </SectionCard>
       </div>
     </div>
