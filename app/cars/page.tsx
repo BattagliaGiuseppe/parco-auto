@@ -670,227 +670,204 @@ export default function CarsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  {definitions.map((def) => {
-                    const form =
-                      componentForms[def.code] || defaultComponentForm(def.default_expiry_years);
-                    const options = availableOptions(def.code, editing?.id);
-                    const categoryCopy = getDefinitionCategoryCopy(def);
+<div className="space-y-5">
+  {definitions.map((def) => {
+    const form =
+      componentForms[def.code] || defaultComponentForm(def.default_expiry_years);
+    const options = availableOptions(def.code, editing?.id);
+    const categoryCopy = getDefinitionCategoryCopy(def);
 
-                    return (
-                      <div
-                        key={def.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                      >
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="font-bold text-neutral-900">{def.label}</div>
-                            <div className="mt-1 text-sm text-neutral-500">
-                              {categoryCopy.description}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <StatusBadge label={categoryCopy.label} tone={categoryCopy.tone} />
-                            {def.is_required ? (
-                              <StatusBadge label="Obbligatorio" tone="blue" />
-                            ) : (
-                              <StatusBadge label="Opzionale" tone="neutral" />
-                            )}
-                          </div>
-                        </div>
+    return (
+      <div
+        key={def.id}
+        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-bold text-neutral-900">{def.label}</div>
+            <div className="mt-1 text-sm text-neutral-500">
+              {categoryCopy.description}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge label={categoryCopy.label} tone={categoryCopy.tone} />
+            {def.is_required ? (
+              <StatusBadge label="Obbligatorio" tone="blue" />
+            ) : (
+              <StatusBadge label="Opzionale" tone="neutral" />
+            )}
+          </div>
+        </div>
 
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
-                          <Field label="Azione sul componente">
-                            <select
-                              className="w-full min-w-0 rounded-xl border p-3"
-                              value={form.mode}
-                              onChange={(e) =>
-                                setComponentForms((prev) => ({
-                                  ...prev,
-                                  [def.code]: {
-                                    ...form,
-                                    mode: e.target.value as "existing" | "new",
-                                  },
-                                }))
-                              }
-                            >
-                              <option value="existing">Seleziona componente esistente</option>
-                              <option value="new">Crea nuovo componente</option>
-                            </select>
-                          </Field>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+          <Field label="Azione sul componente">
+            <select
+              className="w-full min-w-0 rounded-xl border p-3"
+              value={form.mode}
+              onChange={(e) =>
+                setComponentForms((prev) => ({
+                  ...prev,
+                  [def.code]: {
+                    ...form,
+                    mode: e.target.value as "existing" | "new",
+                  },
+                }))
+              }
+            >
+              <option value="existing">Seleziona componente esistente</option>
+              <option value="new">Crea nuovo componente</option>
+            </select>
+          </Field>
 
-                          {form.mode === "existing" ? (
-                            <Field label="Componente disponibile">
-                              <select
-                                className="w-full min-w-0 rounded-xl border p-3"
-                                value={form.existingId}
-                                onChange={(e) =>
-                                  setComponentForms((prev) => ({
-                                    ...prev,
-                                    [def.code]: { ...form, existingId: e.target.value },
-                                  }))
-                                }
-                              >
-                                <option value="">Seleziona componente disponibile</option>
-                                {options.map((component) => (
-                                  <option key={component.id} value={component.id}>
-                                    {component.identifier}
-                                    {component.car_id
-                                      ? ` · già su ${normalizeCarName(component.car) || "mezzo"}`
-                                      : " · smontato / disponibile"}
-                                  </option>
-                                ))}
-                              </select>
-                              <FieldHint>
-                                Qui vedi solo componenti liberi oppure già collegati a questo stesso
-                                mezzo.
-                              </FieldHint>
-                            </Field>
-                          ) : (
-                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                              <Field label="Identificativo componente" required>
-                                <input
-                                  className="w-full min-w-0 rounded-xl border p-3"
-                                  value={form.identifier}
-                                  onChange={(e) =>
-                                    setComponentForms((prev) => ({
-                                      ...prev,
-                                      [def.code]: { ...form, identifier: e.target.value },
-                                    }))
-                                  }
-                                />
-                                <FieldHint>
-                                  Codice univoco o riferimento officina, per esempio MOT-01 o DIFF-A.
-                                </FieldHint>
-                              </Field>
+          {form.mode === "existing" ? (
+            <Field label="Componente disponibile">
+              <select
+                className="w-full min-w-0 rounded-xl border p-3"
+                value={form.existingId}
+                onChange={(e) =>
+                  setComponentForms((prev) => ({
+                    ...prev,
+                    [def.code]: { ...form, existingId: e.target.value },
+                  }))
+                }
+              >
+                <option value="">Seleziona componente disponibile</option>
+                {options.map((component) => (
+                  <option key={component.id} value={component.id}>
+                    {component.identifier}
+                    {component.car_id
+                      ? ` · già su ${normalizeCarName(component.car) || "mezzo"}`
+                      : " · smontato / disponibile"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <div className="min-w-0 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+              <Field label="Identificativo componente" required>
+                <input
+                  className="w-full min-w-0 rounded-xl border p-3"
+                  value={form.identifier}
+                  onChange={(e) =>
+                    setComponentForms((prev) => ({
+                      ...prev,
+                      [def.code]: { ...form, identifier: e.target.value },
+                    }))
+                  }
+                />
+              </Field>
 
-                              <Field label="Ore attuali">
-                                <input
-                                  className="w-full min-w-0 rounded-xl border p-3"
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  value={form.hours}
-                                  onChange={(e) =>
-                                    setComponentForms((prev) => ({
-                                      ...prev,
-                                      [def.code]: { ...form, hours: e.target.value },
-                                    }))
-                                  }
-                                />
-                                <FieldHint>Inserisci le ore già accumulate dal componente.</FieldHint>
-                              </Field>
+              <Field label="Ore attuali">
+                <input
+                  className="w-full min-w-0 rounded-xl border p-3"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.hours}
+                  onChange={(e) =>
+                    setComponentForms((prev) => ({
+                      ...prev,
+                      [def.code]: { ...form, hours: e.target.value },
+                    }))
+                  }
+                />
+              </Field>
 
-                              <Field label="Vita totale prevista">
-                                <input
-                                  className="w-full min-w-0 rounded-xl border p-3"
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  value={form.life_hours}
-                                  onChange={(e) =>
-                                    setComponentForms((prev) => ({
-                                      ...prev,
-                                      [def.code]: { ...form, life_hours: e.target.value },
-                                    }))
-                                  }
-                                />
-                                <FieldHint>
-                                  Numero di ore massimo prima di sostituzione o fine vita.
-                                </FieldHint>
-                              </Field>
+              <Field label="Vita totale prevista">
+                <input
+                  className="w-full min-w-0 rounded-xl border p-3"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.life_hours}
+                  onChange={(e) =>
+                    setComponentForms((prev) => ({
+                      ...prev,
+                      [def.code]: { ...form, life_hours: e.target.value },
+                    }))
+                  }
+                />
+              </Field>
 
-                              <Field label="Soglia attenzione">
-                                <input
-                                  className="w-full min-w-0 rounded-xl border p-3"
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  value={form.warning_threshold_hours}
-                                  onChange={(e) =>
-                                    setComponentForms((prev) => ({
-                                      ...prev,
-                                      [def.code]: {
-                                        ...form,
-                                        warning_threshold_hours: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <FieldHint>
-                                  Da qui il componente inizia a comparire come da monitorare.
-                                </FieldHint>
-                              </Field>
+              <Field label="Soglia attenzione">
+                <input
+                  className="w-full min-w-0 rounded-xl border p-3"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.warning_threshold_hours}
+                  onChange={(e) =>
+                    setComponentForms((prev) => ({
+                      ...prev,
+                      [def.code]: {
+                        ...form,
+                        warning_threshold_hours: e.target.value,
+                      },
+                    }))
+                  }
+                />
+              </Field>
 
-                              <Field label="Soglia revisione">
-                                <input
-                                  className="w-full min-w-0 rounded-xl border p-3"
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  value={form.revision_threshold_hours}
-                                  onChange={(e) =>
-                                    setComponentForms((prev) => ({
-                                      ...prev,
-                                      [def.code]: {
-                                        ...form,
-                                        revision_threshold_hours: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <FieldHint>
-                                  Valore oltre il quale il componente va revisionato o fermato.
-                                </FieldHint>
-                              </Field>
+              <Field label="Soglia revisione">
+                <input
+                  className="w-full min-w-0 rounded-xl border p-3"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.revision_threshold_hours}
+                  onChange={(e) =>
+                    setComponentForms((prev) => ({
+                      ...prev,
+                      [def.code]: {
+                        ...form,
+                        revision_threshold_hours: e.target.value,
+                      },
+                    }))
+                  }
+                />
+              </Field>
 
-                              {def.has_expiry ? (
-                                <Field label="Scadenza">
-                                  <input
-                                    className="w-full min-w-0 rounded-xl border p-3"
-                                    type="date"
-                                    value={form.expiry_date}
-                                    onChange={(e) =>
-                                      setComponentForms((prev) => ({
-                                        ...prev,
-                                        [def.code]: { ...form, expiry_date: e.target.value },
-                                      }))
-                                    }
-                                  />
-                                  <FieldHint>
-                                    Campo utile solo per componenti con validità temporale.
-                                  </FieldHint>
-                                </Field>
-                              ) : (
-                                <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-sm text-neutral-500">
-                                  Questo tipo non richiede una scadenza a calendario.
-                                </div>
-                              )}
-
-                              <div className="lg:col-span-2 2xl:col-span-3">
-                                <div className="xl:col-span-2"><Field label="Note componente">
-                                  <textarea
-                                    className="min-h-24 w-full rounded-xl border p-3"
-                                    value={form.notes}
-                                    onChange={(e) =>
-                                      setComponentForms((prev) => ({
-                                        ...prev,
-                                        [def.code]: { ...form, notes: e.target.value },
-                                      }))
-                                    }
-                                  />
-                                  <FieldHint>
-                                    Annotazioni tecniche, omologazioni o indicazioni di montaggio.
-                                  </FieldHint>
-                                </Field>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {def.has_expiry ? (
+                <Field label="Scadenza">
+                  <input
+                    className="w-full min-w-0 rounded-xl border p-3"
+                    type="date"
+                    value={form.expiry_date}
+                    onChange={(e) =>
+                      setComponentForms((prev) => ({
+                        ...prev,
+                        [def.code]: { ...form, expiry_date: e.target.value },
+                      }))
+                    }
+                  />
+                </Field>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-sm text-neutral-500">
+                  Questo tipo non richiede una scadenza a calendario.
                 </div>
+              )}
+
+              <div className="xl:col-span-2 2xl:col-span-3 min-w-0">
+                <Field label="Note componente">
+                  <textarea
+                    className="min-h-24 w-full rounded-xl border p-3"
+                    value={form.notes}
+                    onChange={(e) =>
+                      setComponentForms((prev) => ({
+                        ...prev,
+                        [def.code]: { ...form, notes: e.target.value },
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
               </SectionCard>
             </div>
             <div className="mt-6 flex justify-end gap-3">
