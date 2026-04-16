@@ -702,7 +702,7 @@ export default function CarsPage() {
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                           <Field label="Azione sul componente">
                             <select
-                              className="rounded-xl border p-3"
+                              className="w-full min-w-0 rounded-xl border p-3"
                               value={form.mode}
                               onChange={(e) =>
                                 setComponentForms((prev) => ({
@@ -722,7 +722,7 @@ export default function CarsPage() {
                           {form.mode === "existing" ? (
                             <Field label="Componente disponibile">
                               <select
-                                className="rounded-xl border p-3"
+                                className="w-full min-w-0 rounded-xl border p-3"
                                 value={form.existingId}
                                 onChange={(e) =>
                                   setComponentForms((prev) => ({
@@ -747,10 +747,10 @@ export default function CarsPage() {
                               </FieldHint>
                             </Field>
                           ) : (
-                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                               <Field label="Identificativo componente" required>
                                 <input
-                                  className="rounded-xl border p-3"
+                                  className="w-full min-w-0 rounded-xl border p-3"
                                   value={form.identifier}
                                   onChange={(e) =>
                                     setComponentForms((prev) => ({
@@ -766,7 +766,7 @@ export default function CarsPage() {
 
                               <Field label="Ore attuali">
                                 <input
-                                  className="rounded-xl border p-3"
+                                  className="w-full min-w-0 rounded-xl border p-3"
                                   type="number"
                                   min="0"
                                   step="0.1"
@@ -783,7 +783,7 @@ export default function CarsPage() {
 
                               <Field label="Vita totale prevista">
                                 <input
-                                  className="rounded-xl border p-3"
+                                  className="w-full min-w-0 rounded-xl border p-3"
                                   type="number"
                                   min="0"
                                   step="0.1"
@@ -802,7 +802,7 @@ export default function CarsPage() {
 
                               <Field label="Soglia attenzione">
                                 <input
-                                  className="rounded-xl border p-3"
+                                  className="w-full min-w-0 rounded-xl border p-3"
                                   type="number"
                                   min="0"
                                   step="0.1"
@@ -824,7 +824,7 @@ export default function CarsPage() {
 
                               <Field label="Soglia revisione">
                                 <input
-                                  className="rounded-xl border p-3"
+                                  className="w-full min-w-0 rounded-xl border p-3"
                                   type="number"
                                   min="0"
                                   step="0.1"
@@ -847,7 +847,7 @@ export default function CarsPage() {
                               {def.has_expiry ? (
                                 <Field label="Scadenza">
                                   <input
-                                    className="rounded-xl border p-3"
+                                    className="w-full min-w-0 rounded-xl border p-3"
                                     type="date"
                                     value={form.expiry_date}
                                     onChange={(e) =>
@@ -868,7 +868,7 @@ export default function CarsPage() {
                               )}
 
                               <div className="lg:col-span-2 2xl:col-span-3">
-                                <Field label="Note componente">
+                                <div className="xl:col-span-2"><Field label="Note componente">
                                   <textarea
                                     className="min-h-24 w-full rounded-xl border p-3"
                                     value={form.notes}
@@ -925,7 +925,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="mb-1 block text-sm font-semibold text-neutral-700">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
@@ -935,8 +935,8 @@ function Field({
   );
 }
 
-function FieldHint({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 text-xs leading-5 text-neutral-500">{children}</div>;
+function FieldHint({ children: _children }: { children: React.ReactNode }) {
+  return null;
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
