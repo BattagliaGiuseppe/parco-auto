@@ -494,13 +494,13 @@ async function addDocument() {
   }
 
   if (!driver || !driverForm) {
-    return <div className="p-6 text-neutral-500">Caricamento pilota...</div>;
+    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento pilota...</div>;
   }
 
   const driverFullName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title={driverFullName || "Scheda pilota"}
         subtitle="Anagrafica completa, dotazione sicurezza, documenti e stampa"

@@ -41,6 +41,7 @@ import {
   usePermissionAccess,
 } from "@/lib/permissions";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 type MemberDraft = {
   role: string;
@@ -377,7 +378,7 @@ export default function TeamAccessPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-neutral-500">Caricamento Team & Accessi...</div>;
+    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento Team & Accessi...</div>;
   }
 
   if (!ctx || !settings) {
@@ -415,11 +416,7 @@ export default function TeamAccessPage() {
         }
       />
 
-      {feedback ? (
-        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
-          {feedback}
-        </div>
-      ) : null}
+      {feedback ? <FormStatusBanner type="info" message={feedback} /> : null}
 
       {errorMessage ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

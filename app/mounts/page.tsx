@@ -218,7 +218,7 @@ export default function MountsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 font-sans text-neutral-900">
+    <div className="space-y-6 text-neutral-900">
       <PageHeader
         title="Montaggi"
         subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
@@ -248,7 +248,7 @@ export default function MountsPage() {
               <select
                 value={selectedCar}
                 onChange={(e) => setSelectedCar(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                 required
               >
                 <option value="">Seleziona auto</option>
@@ -267,7 +267,7 @@ export default function MountsPage() {
               <select
                 value={selectedComponent}
                 onChange={(e) => setSelectedComponent(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                 required
               >
                 <option value="">Seleziona componente</option>
@@ -287,7 +287,7 @@ export default function MountsPage() {
                 type="date"
                 value={mountedAt}
                 onChange={(e) => setMountedAt(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
               />
             </div>
 
@@ -299,7 +299,7 @@ export default function MountsPage() {
                 <select
                   value={mountedBy}
                   onChange={(e) => setMountedBy(e.target.value)}
-                  className="w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                 >
                   <option value="">Operatore</option>
                   {teamUsers.map((user) => (
@@ -312,7 +312,7 @@ export default function MountsPage() {
                 <input
                   value="Operatore corrente"
                   disabled
-                  className="w-full rounded-xl border bg-neutral-100 px-4 py-3 text-neutral-500"
+                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm text-neutral-500"
                 />
               )}
             </div>
@@ -320,7 +320,7 @@ export default function MountsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="mt-6 rounded-xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60"
+              className="mt-6 inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500 disabled:opacity-60"
             >
               {saving ? "Montaggio..." : "Monta componente"}
             </button>
@@ -332,7 +332,7 @@ export default function MountsPage() {
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="min-h-24 w-full rounded-xl border px-4 py-3 text-sm text-neutral-900"
+                className="min-h-24 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                 placeholder="Motivo tecnico, weekend gara, sostituzione preventiva..."
               />
             </div>
@@ -346,7 +346,7 @@ export default function MountsPage() {
       >
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr]">
           <select
-            className="rounded-xl border px-4 py-3 text-sm text-neutral-900"
+            className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
           >
@@ -356,7 +356,7 @@ export default function MountsPage() {
           </select>
 
           <select
-            className="rounded-xl border px-4 py-3 text-sm text-neutral-900"
+            className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
             value={carFilter}
             onChange={(e) => setCarFilter(e.target.value)}
           >
@@ -393,7 +393,7 @@ export default function MountsPage() {
             {filteredMounts.map((mount) => (
               <div
                 key={mount.id}
-                className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 lg:flex-row lg:items-center lg:justify-between"
+                className="flex flex-col gap-4 rounded-[28px] border border-neutral-200 bg-neutral-50 p-5 lg:flex-row lg:items-center lg:justify-between"
               >
                 <div>
                   <div className="font-bold text-neutral-900">
@@ -424,7 +424,7 @@ export default function MountsPage() {
                 {!mount.removed_at && canEditMounts ? (
                   <button
                     onClick={() => unmount(mount.id, mount.components?.id)}
-                    className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600"
+                    className="inline-flex items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
                   >
                     <Unlink size={16} className="mr-2 inline" />
                     Smonta

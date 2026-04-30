@@ -15,7 +15,7 @@ export default function FormStatusBanner({
       : "border-blue-200 bg-blue-50 text-blue-800";
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm ${tone} ${className}`.trim()}>
+    <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${tone} ${className}`.trim()}>
       {message}
     </div>
   );

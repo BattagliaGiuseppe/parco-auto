@@ -14,6 +14,7 @@ import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import PrintLetterhead from "@/components/PrintLetterhead";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import InlineConfirmButton from "@/components/InlineConfirmButton";
 
 type TurnRow = {
   id: string;
@@ -229,7 +230,6 @@ async function saveTurn() {
 
   async function deleteTurn(turnId: string) {
     if (!canEditEvents) return;
-    if (!confirm("Eliminare questo turno?")) return;
     const ctx = await getCurrentTeamContext();
     const { error } = await supabase
       .from("event_car_turns")
@@ -280,14 +280,14 @@ async function saveTurn() {
     );
   }
   if (loading) {
-    return <div className="p-6 text-neutral-500">Caricamento turni...</div>;
+    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento turni...</div>;
   }
   if (!eventCar) {
-    return <div className="p-6 text-neutral-500">Console turni non trovata.</div>;
+    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Console turni non trovata.</div>;
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 print:p-0">
+    <div className="space-y-6 print:p-0">
       <div className="print:hidden">
         <PageHeader
           title={`Turni & fuel · ${eventCar.car_id?.name || "Mezzo"}`}
@@ -297,14 +297,14 @@ async function saveTurn() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => window.print()}
-                className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+                inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50
               >
                 <Printer size={16} className="mr-2 inline" />
                 Stampa scheda
               </button>
               <Link
                 href={`/calendar/${eventId}/car/${eventCarId}`}
-                className="rounded-xl bg-neutral-100 px-4 py-2 text-neutral-700 hover:bg-neutral-200"
+                inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50
               >
                 <ArrowLeft size={16} className="mr-2 inline" />
                 Console mezzo
@@ -429,7 +429,7 @@ async function saveTurn() {
                 {editingTurnId ? (
                   <button
                     onClick={resetForm}
-                    className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+                    inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50
                   >
                     Annulla modifica
                   </button>
@@ -561,13 +561,14 @@ async function saveTurn() {
                             >
                               <Pencil size={15} />
                             </button>
-                            <button
-                              onClick={() => deleteTurn(turn.id)}
-                              className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-red-600 hover:bg-red-100"
-                              title="Elimina"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            <InlineConfirmButton
+                              label=""
+                              compact
+                              message="Eliminare questo turno?"
+                              onConfirm={() => deleteTurn(turn.id)}
+                              className="inline-flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-red-600 hover:bg-red-100"
+                              icon={<Trash2 size={15} />}
+                            />
                           </div>
                         ) : null}
                       </td>
@@ -609,7 +610,7 @@ function Field({
       <Label>{label}</Label>
       <input
         type={type}
-        className="w-full rounded-xl border px-4 py-3"
+        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -633,7 +634,7 @@ function SelectField({
     <div>
       <Label>{label}</Label>
       <select
-        className="w-full rounded-xl border px-4 py-3"
+        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

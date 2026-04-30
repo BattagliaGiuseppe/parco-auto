@@ -10,6 +10,7 @@ import SectionCard from "@/components/SectionCard";
 import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 
 export default function InventoryPage() {
   const access = usePermissionAccess();
@@ -57,6 +58,7 @@ export default function InventoryPage() {
     const { error } = await supabase.from('inventory_items').insert([payload]);
     if (!error) {
       setForm({ name: '', category: '', quantity: '0', minimum_quantity: '0', reserved_quantity: '0', unit: 'pz', location: '', notes: '' });
+      setFeedback({ type: "success", message: "Articolo aggiunto correttamente." });
       await load();
     }
   }
@@ -116,7 +118,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Magazzino"
         subtitle="Disponibilità, minimi, riserve e import-export CSV"
@@ -125,11 +127,11 @@ export default function InventoryPage() {
           <div className="flex flex-wrap gap-2">
             {canEditInventory ? (
               <>
-                <button onClick={() => fileInputRef.current?.click()} className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"><Upload size={16} className="mr-2 inline" />Importa CSV</button>
+                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"><Upload size={16} className="mr-2 inline" />Importa CSV</button>
                 <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void importCsv(file); e.currentTarget.value = ''; }} />
               </>
             ) : null}
-            <button onClick={exportCsv} className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"><Download size={16} className="mr-2 inline" />Esporta CSV</button>
+            <button onClick={exportCsv} className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"><Download size={16} className="mr-2 inline" />Esporta CSV</button>
           </div>
         }
       />
@@ -138,17 +140,17 @@ export default function InventoryPage() {
       {canEditInventory ? (
         <SectionCard title="Nuovo articolo" subtitle="Inserimento rapido a singola riga">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <input className="rounded-xl border p-3" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="rounded-xl border p-3" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-            <input className="rounded-xl border p-3" type="number" placeholder="Quantità disponibile" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-            <input className="rounded-xl border p-3" type="number" placeholder="Quantità minima" value={form.minimum_quantity} onChange={(e) => setForm({ ...form, minimum_quantity: e.target.value })} />
-            <input className="rounded-xl border p-3" type="number" placeholder="Quantità impegnata" value={form.reserved_quantity} onChange={(e) => setForm({ ...form, reserved_quantity: e.target.value })} />
-            <input className="rounded-xl border p-3" placeholder="Unità (es. pz, set, L)" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-            <input className="rounded-xl border p-3" placeholder="Posizione" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-            <input className="rounded-xl border p-3" placeholder="Note" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" type="number" placeholder="Quantità disponibile" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" type="number" placeholder="Quantità minima" value={form.minimum_quantity} onChange={(e) => setForm({ ...form, minimum_quantity: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" type="number" placeholder="Quantità impegnata" value={form.reserved_quantity} onChange={(e) => setForm({ ...form, reserved_quantity: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" placeholder="Unità (es. pz, set, L)" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" placeholder="Posizione" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+            <input className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100" placeholder="Note" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
           <div className="mt-4">
-            <button onClick={addItem} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black">
+            <button onClick={addItem} className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500">
               <PlusCircle size={16} className="mr-2 inline" />Aggiungi articolo
             </button>
           </div>

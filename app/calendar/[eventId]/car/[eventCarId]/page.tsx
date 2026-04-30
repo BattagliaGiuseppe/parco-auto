@@ -310,11 +310,11 @@ async function saveCheckup() {
     );
   }
   if (!eventCar) {
-    return <div className="p-6 text-neutral-500">Caricamento console mezzo...</div>;
+    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento console mezzo...</div>;
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title={`${eventCar.car_id?.name || "Mezzo"} · ${eventCar.event_id?.name || "Evento"}`}
         subtitle="Console mezzo in evento: piloti, setup, check-up, turni e fuel"
@@ -323,13 +323,13 @@ async function saveCheckup() {
           <div className="flex flex-wrap gap-3">
             <Link
               href={`/calendar/${eventId}/car/${eventCarId}/turns`}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
             >
               Turni & fuel avanzato
             </Link>
             <Link
               href={`/calendar/${eventId}`}
-              className="rounded-xl bg-neutral-100 px-4 py-2 text-neutral-700 hover:bg-neutral-200"
+              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
               Evento
@@ -358,7 +358,7 @@ async function saveCheckup() {
           {canEditEvents ? (
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px]">
               <select
-                className="rounded-xl border p-3"
+                className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                 value={selectedDriver}
                 onChange={(e) => setSelectedDriver(e.target.value)}
               >
@@ -406,7 +406,7 @@ async function saveCheckup() {
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <select
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   value={turnForm.event_session_id}
                   onChange={(e) => setTurnForm({ ...turnForm, event_session_id: e.target.value })}
                 >
@@ -418,7 +418,7 @@ async function saveCheckup() {
                   ))}
                 </select>
                 <select
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   value={turnForm.driver_id}
                   onChange={(e) => setTurnForm({ ...turnForm, driver_id: e.target.value })}
                 >
@@ -431,21 +431,21 @@ async function saveCheckup() {
                 </select>
                 <input
                   type="number"
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   placeholder="Minuti turno"
                   value={turnForm.minutes}
                   onChange={(e) => setTurnForm({ ...turnForm, minutes: e.target.value })}
                 />
                 <input
                   type="number"
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   placeholder="Giri"
                   value={turnForm.laps}
                   onChange={(e) => setTurnForm({ ...turnForm, laps: e.target.value })}
                 />
                 <input
                   type="number"
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   placeholder="Litri inizio turno"
                   value={turnForm.fuel_start_liters}
                   onChange={(e) =>
@@ -454,7 +454,7 @@ async function saveCheckup() {
                 />
                 <input
                   type="number"
-                  className="rounded-xl border p-3"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
                   placeholder="Litri fine turno"
                   value={turnForm.fuel_end_liters}
                   onChange={(e) =>
@@ -471,7 +471,7 @@ async function saveCheckup() {
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={saveTurn}
-                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                  className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
                 >
                   <Save size={16} className="mr-2 inline" />
                   Salva turno
@@ -536,7 +536,7 @@ async function saveCheckup() {
             <div className="mt-4 flex justify-end">
               <button
                 onClick={saveSetup}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
               >
                 <Settings2 size={16} className="mr-2 inline" />
                 Salva setup
@@ -618,7 +618,7 @@ async function saveCheckup() {
             <div className="mt-4 flex justify-end">
               <button
                 onClick={saveCheckup}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
               >
                 <ClipboardCheck size={16} className="mr-2 inline" />
                 Salva check-up

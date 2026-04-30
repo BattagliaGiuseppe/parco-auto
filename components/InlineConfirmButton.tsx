@@ -1,84 +1,74 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
-type InlineConfirmButtonProps = {
-  onConfirm: () => void | Promise<void>;
-  children?: React.ReactNode;
+export default function InlineConfirmButton({
+  label = "Elimina",
+  message = "Confermi questa operazione?",
+  confirmLabel = "Conferma",
+  cancelLabel = "Annulla",
+  onConfirm,
+  className = "inline-flex items-center justify-center rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100",
+  compact = false,
+  icon,
+}: {
   label?: string;
   message?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  onConfirm: () => void | Promise<void>;
   className?: string;
+  compact?: boolean;
   icon?: React.ReactNode;
-  disabled?: boolean;
-};
-
-export default function InlineConfirmButton({
-  onConfirm,
-  children,
-  label,
-  message,
-  confirmLabel = "Conferma",
-  cancelLabel = "Annulla",
-  className = "",
-  icon,
-  disabled = false,
-}: InlineConfirmButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function handleConfirm() {
-    if (disabled || loading) return;
-
-    setLoading(true);
+    setBusy(true);
     try {
       await onConfirm();
-      setOpen(false);
+      setConfirming(false);
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  if (!open) {
+  if (confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-        className={className}
-      >
-        <span className="inline-flex items-center gap-2">
-          {icon ? icon : null}
-          <span>{children ?? label ?? "Elimina"}</span>
-        </span>
-      </button>
+      <div className={compact ? "flex items-center gap-2" : "flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-3"}>
+        <div className="flex items-center gap-2 text-sm text-red-700">
+          <AlertTriangle size={16} />
+          <span>{message}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={busy}
+            className="inline-flex items-center justify-center rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-70"
+          >
+            {busy ? "Attendi..." : confirmLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+          >
+            {cancelLabel}
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2">
-      {message ? (
-        <span className="text-sm font-medium text-red-700">{message}</span>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={disabled || loading}
-        className="inline-flex items-center justify-center rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
-      >
-        {loading ? "Attendere..." : confirmLabel}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        disabled={loading}
-        className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:bg-neutral-100"
-      >
-        {cancelLabel}
-      </button>
-    </div>
+    <button type="button" onClick={() => setConfirming(true)} className={className}>
+      <span className="inline-flex items-center gap-2">
+        {icon ? icon : null}
+        <span>{label}</span>
+      </span>
+    </button>
   );
 }
