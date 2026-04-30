@@ -22,7 +22,11 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
-import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+import {
+  UiField,
+  uiInputClassName,
+  uiTextareaClassName,
+} from "@/components/UiField";
 
 type MountRow = {
   id: string;
@@ -31,9 +35,39 @@ type MountRow = {
   status: string | null;
   reason: string | null;
   cars?: { id: string; name: string | null } | null;
-  components?: { id: string; type: string | null; identifier: string | null } | null;
-  mounted_by_team_user_id?: { id: string; name: string | null; email: string | null } | null;
-  removed_by_team_user_id?: { id: string; name: string | null; email: string | null } | null;
+  components?:
+    | { id: string; type: string | null; identifier: string | null }
+    | null;
+  mounted_by_team_user_id?:
+    | { id: string; name: string | null; email: string | null }
+    | null;
+  removed_by_team_user_id?:
+    | { id: string; name: string | null; email: string | null }
+    | null;
+};
+
+type MountRowRaw = {
+  id: string;
+  mounted_at: string | null;
+  removed_at: string | null;
+  status: string | null;
+  reason: string | null;
+  cars?:
+    | { id: string; name: string | null }[]
+    | { id: string; name: string | null }
+    | null;
+  components?:
+    | { id: string; type: string | null; identifier: string | null }[]
+    | { id: string; type: string | null; identifier: string | null }
+    | null;
+  mounted_by_team_user_id?:
+    | { id: string; name: string | null; email: string | null }[]
+    | { id: string; name: string | null; email: string | null }
+    | null;
+  removed_by_team_user_id?:
+    | { id: string; name: string | null; email: string | null }[]
+    | { id: string; name: string | null; email: string | null }
+    | null;
 };
 
 type CarRow = {
@@ -64,6 +98,11 @@ function formatUserLabel(user: TeamUserLite) {
   return user.name || user.email || user.role || "Operatore";
 }
 
+function pickOne<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 export default function MountsPage() {
   const access = usePermissionAccess();
   const canViewMounts = access.hasPermission("mounts.view");
@@ -80,11 +119,15 @@ export default function MountsPage() {
 
   const [selectedCar, setSelectedCar] = useState("");
   const [selectedComponent, setSelectedComponent] = useState("");
-  const [mountedAt, setMountedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [mountedAt, setMountedAt] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
   const [mountedBy, setMountedBy] = useState("");
   const [reason, setReason] = useState("");
 
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "history">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "history"
+  >("all");
   const [carFilter, setCarFilter] = useState("");
   const [search, setSearch] = useState("");
 
@@ -126,7 +169,21 @@ export default function MountsPage() {
       if (carsRes.error) throw carsRes.error;
       if (compsRes.error) throw compsRes.error;
 
-      setMounts((mountsRes.data || []) as MountRow[]);
+      const normalizedMounts: MountRow[] = (
+        (mountsRes.data || []) as MountRowRaw[]
+      ).map((row) => ({
+        id: row.id,
+        mounted_at: row.mounted_at,
+        removed_at: row.removed_at,
+        status: row.status,
+        reason: row.reason,
+        cars: pickOne(row.cars),
+        components: pickOne(row.components),
+        mounted_by_team_user_id: pickOne(row.mounted_by_team_user_id),
+        removed_by_team_user_id: pickOne(row.removed_by_team_user_id),
+      }));
+
+      setMounts(normalizedMounts);
       setCars((carsRes.data || []) as CarRow[]);
       setComponents((compsRes.data || []) as ComponentRow[]);
       setTeamUsers((usersRes || []) as TeamUserLite[]);
@@ -162,7 +219,9 @@ export default function MountsPage() {
       if (statusFilter === "history" && !row.removed_at) return false;
       if (carFilter && row.cars?.id !== carFilter) return false;
 
-      const haystack = `${row.components?.identifier || ""} ${row.components?.type || ""} ${row.cars?.name || ""}`
+      const haystack = `${row.components?.identifier || ""} ${
+        row.components?.type || ""
+      } ${row.cars?.name || ""}`
         .toLowerCase()
         .trim();
 
@@ -375,7 +434,10 @@ export default function MountsPage() {
             subtitle="Registra un nuovo montaggio scegliendo auto, componente, data e operatore."
           >
             <form className="grid grid-cols-1 gap-4" onSubmit={addMount}>
-              <UiField label="Auto" hint="Mezzo sul quale installare il componente">
+              <UiField
+                label="Auto"
+                hint="Mezzo sul quale installare il componente"
+              >
                 <select
                   value={selectedCar}
                   onChange={(e) => setSelectedCar(e.target.value)}
@@ -404,7 +466,8 @@ export default function MountsPage() {
                   <option value="">Seleziona componente</option>
                   {components.map((component) => (
                     <option key={component.id} value={component.id}>
-                      {(component.type || "Componente")} · {component.identifier || "senza codice"}
+                      {(component.type || "Componente")} ·{" "}
+                      {component.identifier || "senza codice"}
                     </option>
                   ))}
                 </select>
@@ -485,7 +548,11 @@ export default function MountsPage() {
             <select
               className={uiInputClassName}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "history")}
+              onChange={(e) =>
+                setStatusFilter(
+                  e.target.value as "all" | "active" | "history"
+                )
+              }
             >
               <option value="all">Tutti</option>
               <option value="active">Montaggi attivi</option>
@@ -541,7 +608,11 @@ export default function MountsPage() {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="flex-1">
                     <div className="text-base font-bold uppercase tracking-wide text-neutral-900">
-                      {(mount.components?.type || "Componente").replace(/_/g, " ")} · {mount.components?.identifier || "senza codice"}
+                      {(mount.components?.type || "Componente").replace(
+                        /_/g,
+                        " "
+                      )}{" "}
+                      · {mount.components?.identifier || "senza codice"}
                     </div>
 
                     <div className="mt-2 text-sm text-neutral-500">
