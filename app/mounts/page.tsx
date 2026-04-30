@@ -1,16 +1,15 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
-  CalendarDays,
   CarFront,
   Layers3,
   Link2,
   PlusCircle,
   Search,
   Unlink,
-  UserCircle2,
   Wrench,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -619,4 +618,4 @@ export default function MountsPage() {
       </SectionCard>
     </div>
   );
-}\n
+}
