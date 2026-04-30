@@ -121,7 +121,11 @@ export default function EventCarTurnsPage() {
       });
     }
 
-    const carRow = (ec?.car_id as CarInfo | null) ?? null;
+    const rawCar = ec?.car_id as unknown;
+
+const carRow: CarInfo | null = Array.isArray(rawCar)
+  ? ((rawCar[0] ?? null) as CarInfo | null)
+  : ((rawCar ?? null) as CarInfo | null);
 
     setEventInfo((ev as EventInfo | null) ?? null);
     setCarInfo(carRow);
