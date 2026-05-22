@@ -1,10 +1,11 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { Audiowide } from "next/font/google";
 import {
   CarFront,
+  Info,
   Layers3,
   Link2,
   PlusCircle,
@@ -27,6 +28,8 @@ import {
   uiInputClassName,
   uiTextareaClassName,
 } from "@/components/UiField";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type MountRow = {
   id: string;
@@ -248,7 +251,7 @@ export default function MountsPage() {
         label: "Storico totale",
         value: String(mounts.length),
         icon: <Layers3 size={18} />,
-        helper: "Montaggi e smontaggi registrati",
+        helper: "Interventi di montaggio e smontaggio registrati",
       },
       {
         label: "Auto coinvolte",
@@ -407,7 +410,7 @@ export default function MountsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title="Montaggi"
         subtitle="Workflow tecnico per montare, smontare e consultare lo storico componenti del mezzo."
@@ -415,103 +418,121 @@ export default function MountsPage() {
       />
 
       {!canEditMounts ? (
-        <FormStatusBanner
-          type="info"
-          message="Hai accesso in sola lettura a questo modulo."
-        />
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Hai accesso in sola lettura a questo modulo.
+        </div>
       ) : null}
 
       {feedback ? (
         <FormStatusBanner type={feedback.type} message={feedback.message} />
       ) : null}
 
-      <StatsGrid items={stats} />
+      <SectionCard>
+        <StatsGrid items={stats} />
+      </SectionCard>
+
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Montaggio e smontaggio lavorano insieme in modo più chiaro."
+      >
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+          <div className="flex items-start gap-3">
+            <Info size={18} className="mt-0.5 shrink-0" />
+            <div>
+              Usa <strong>Montaggio rapido</strong> per installare un componente libero su un mezzo.
+              Lo storico mostra tutto il ciclo del componente: quando è stato montato, da chi,
+              su quale auto e quando è stato smontato. Il pulsante <strong>Smonta componente</strong>
+              chiude il montaggio attivo senza alterare il resto della configurazione del modulo.
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         {canEditMounts ? (
           <SectionCard
             title="Montaggio rapido"
-            subtitle="Registra un nuovo montaggio scegliendo auto, componente, data e operatore."
+            subtitle="Seleziona mezzo, componente, data e operatore per registrare il montaggio."
           >
-            <form className="grid grid-cols-1 gap-4" onSubmit={addMount}>
-              <UiField
-                label="Auto"
-                hint="Mezzo sul quale installare il componente"
-              >
-                <select
-                  value={selectedCar}
-                  onChange={(e) => setSelectedCar(e.target.value)}
-                  className={uiInputClassName}
-                  required
-                >
-                  <option value="">Seleziona auto</option>
-                  {cars.map((car) => (
-                    <option key={car.id} value={car.id}>
-                      {car.name || "Auto senza nome"}
-                    </option>
-                  ))}
-                </select>
-              </UiField>
-
-              <UiField
-                label="Componente disponibile"
-                hint="Mostra solo componenti attualmente non montati"
-              >
-                <select
-                  value={selectedComponent}
-                  onChange={(e) => setSelectedComponent(e.target.value)}
-                  className={uiInputClassName}
-                  required
-                >
-                  <option value="">Seleziona componente</option>
-                  {components.map((component) => (
-                    <option key={component.id} value={component.id}>
-                      {(component.type || "Componente")} ·{" "}
-                      {component.identifier || "senza codice"}
-                    </option>
-                  ))}
-                </select>
-              </UiField>
-
-              <UiField
-                label="Data montaggio"
-                hint="La data odierna è precompilata, cambiala solo se necessario"
-              >
-                <input
-                  type="date"
-                  value={mountedAt}
-                  onChange={(e) => setMountedAt(e.target.value)}
-                  className={uiInputClassName}
-                />
-              </UiField>
-
-              <UiField
-                label="Operatore"
-                hint={
-                  canChooseActor
-                    ? "Owner/Admin possono attribuire il montaggio a un membro del team"
-                    : "Utente registrato automaticamente"
-                }
-              >
-                {canChooseActor ? (
+            <form className="grid grid-cols-1 gap-5" onSubmit={addMount}>
+              <div className="grid grid-cols-1 gap-4">
+                <UiField label="Auto" hint="Mezzo sul quale installare il componente">
                   <select
-                    value={mountedBy}
-                    onChange={(e) => setMountedBy(e.target.value)}
+                    value={selectedCar}
+                    onChange={(e) => setSelectedCar(e.target.value)}
                     className={uiInputClassName}
+                    required
                   >
-                    <option value="">Operatore</option>
-                    {teamUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {formatUserLabel(user)}
+                    <option value="">Seleziona auto</option>
+                    {cars.map((car) => (
+                      <option key={car.id} value={car.id}>
+                        {car.name || "Auto senza nome"}
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-medium text-neutral-700">
-                    {teamRole}
-                  </div>
-                )}
-              </UiField>
+                </UiField>
+
+                <UiField
+                  label="Componente disponibile"
+                  hint="Mostra solo componenti attualmente non montati"
+                >
+                  <select
+                    value={selectedComponent}
+                    onChange={(e) => setSelectedComponent(e.target.value)}
+                    className={uiInputClassName}
+                    required
+                  >
+                    <option value="">Seleziona componente</option>
+                    {components.map((component) => (
+                      <option key={component.id} value={component.id}>
+                        {(component.type || "Componente")} · {component.identifier || "senza codice"}
+                      </option>
+                    ))}
+                  </select>
+                </UiField>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UiField
+                  label="Data montaggio"
+                  hint="La data odierna è precompilata"
+                >
+                  <input
+                    type="date"
+                    value={mountedAt}
+                    onChange={(e) => setMountedAt(e.target.value)}
+                    className={uiInputClassName}
+                  />
+                </UiField>
+
+                <UiField
+                  label="Operatore"
+                  hint={
+                    canChooseActor
+                      ? "Owner/Admin possono attribuire il montaggio a un membro del team"
+                      : "Utente registrato automaticamente"
+                  }
+                >
+                  {canChooseActor ? (
+                    <select
+                      value={mountedBy}
+                      onChange={(e) => setMountedBy(e.target.value)}
+                      className={uiInputClassName}
+                    >
+                      <option value="">Operatore</option>
+                      {teamUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {formatUserLabel(user)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-xl border p-3 text-sm text-neutral-700">
+                      {teamRole}
+                    </div>
+                  )}
+                </UiField>
+              </div>
 
               <UiField
                 label="Motivo / note montaggio"
@@ -529,9 +550,9 @@ export default function MountsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
+                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
                 >
-                  <Wrench size={16} className="mr-2" />
+                  <Wrench size={16} className="mr-2 inline" />
                   {saving ? "Montaggio..." : "Monta componente"}
                 </button>
               </div>
@@ -541,7 +562,7 @@ export default function MountsPage() {
 
         <SectionCard
           title="Filtri storico"
-          subtitle="Seleziona stato, auto e ricerca libera per trovare rapidamente un montaggio."
+          subtitle="Riduci lo storico per stato, auto o ricerca libera."
           className={canEditMounts ? "" : "xl:col-span-2"}
         >
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr]">
@@ -549,9 +570,7 @@ export default function MountsPage() {
               className={uiInputClassName}
               value={statusFilter}
               onChange={(e) =>
-                setStatusFilter(
-                  e.target.value as "all" | "active" | "history"
-                )
+                setStatusFilter(e.target.value as "all" | "active" | "history")
               }
             >
               <option value="all">Tutti</option>
@@ -572,7 +591,7 @@ export default function MountsPage() {
               ))}
             </select>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <div className="flex items-center gap-3 rounded-xl border p-3">
               <Search size={18} className="text-neutral-400" />
               <input
                 className="w-full bg-transparent text-sm text-neutral-900 outline-none"
@@ -590,98 +609,84 @@ export default function MountsPage() {
         subtitle="Visione unificata di componenti attivi e storico smontaggi."
       >
         {loading ? (
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
-            Caricamento montaggi...
-          </div>
+          <div className="text-neutral-500">Caricamento...</div>
         ) : filteredMounts.length === 0 ? (
           <EmptyState
             title="Nessun montaggio registrato"
             description="Quando monterai un componente, comparirà qui lo storico completo."
           />
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {filteredMounts.map((mount) => (
               <div
                 key={mount.id}
-                className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm"
+                className="rounded-2xl border p-4 shadow-sm"
               >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="flex-1">
-                    <div className="text-base font-bold uppercase tracking-wide text-neutral-900">
-                      {(mount.components?.type || "Componente").replace(
-                        /_/g,
-                        " "
-                      )}{" "}
-                      · {mount.components?.identifier || "senza codice"}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-bold uppercase text-neutral-900">
+                      {(mount.components?.type || "Componente").replace(/_/g, " ")} · {mount.components?.identifier || "senza codice"}
                     </div>
-
-                    <div className="mt-2 text-sm text-neutral-500">
+                    <div className="mt-1 text-sm text-neutral-500">
                       {mount.cars?.name || "Auto non definita"}
                     </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Montato il
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {formatDate(mount.mounted_at)}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Stato
-                        </div>
-                        <div className="mt-1">
-                          <StatusBadge
-                            label={mount.removed_at ? "Storico" : "Attivo"}
-                            tone={mount.removed_at ? "neutral" : "green"}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Operatore
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {mount.mounted_by_team_user_id?.name ||
-                            mount.mounted_by_team_user_id?.email ||
-                            "—"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Smontato il
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {formatDate(mount.removed_at)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {mount.reason ? (
-                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                        {mount.reason}
-                      </div>
-                    ) : null}
                   </div>
 
-                  {!mount.removed_at && canEditMounts ? (
-                    <div className="xl:w-[220px] xl:pl-4">
-                      <button
-                        type="button"
-                        onClick={() => unmount(mount.id, mount.components?.id)}
-                        className="inline-flex w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                      >
-                        <Unlink size={16} className="mr-2" />
-                        Smonta componente
-                      </button>
-                    </div>
-                  ) : null}
+                  <StatusBadge
+                    label={mount.removed_at ? "Storico" : "Attivo"}
+                    tone={mount.removed_at ? "neutral" : "green"}
+                  />
                 </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border bg-neutral-50 p-3">
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                      Montato il
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                      {formatDate(mount.mounted_at)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-neutral-50 p-3">
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                      Operatore
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                      {mount.mounted_by_team_user_id?.name ||
+                        mount.mounted_by_team_user_id?.email ||
+                        "—"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-neutral-50 p-3 sm:col-span-2">
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                      Smontato il
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                      {formatDate(mount.removed_at)}
+                    </div>
+                  </div>
+                </div>
+
+                {mount.reason ? (
+                  <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm leading-6 text-yellow-900">
+                    {mount.reason}
+                  </div>
+                ) : null}
+
+                {!mount.removed_at && canEditMounts ? (
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => unmount(mount.id, mount.components?.id)}
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
+                    >
+                      <Unlink size={16} className="mr-2 inline" />
+                      Smonta componente
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
