@@ -199,6 +199,51 @@ export default function EventDetailPage() {
     }
   }
 
+
+  async function removeSession(sessionId: string) {
+    if (!canEditEvents) return;
+
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const { count, error: turnsError } = await supabase
+        .from("event_car_turns")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", ctx.teamId)
+        .eq("event_session_id", sessionId);
+
+      if (turnsError) throw turnsError;
+
+      if ((count || 0) > 0) {
+        setFeedback({
+          type: "error",
+          message:
+            "Questa sessione è già collegata a uno o più turni tecnici. Rimuovi o riassegna prima i turni collegati.",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("event_sessions")
+        .delete()
+        .eq("team_id", ctx.teamId)
+        .eq("id", sessionId);
+
+      if (error) throw error;
+
+      await loadAll();
+      setFeedback({
+        type: "success",
+        message: "Sessione eliminata correttamente.",
+      });
+    } catch (error: any) {
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore eliminazione sessione.",
+      });
+    }
+  }
+
   async function removeEventCar(id: string) {
     if (!canEditEvents) return;
 
@@ -492,9 +537,23 @@ export default function EventDetailPage() {
                   key={row.id}
                   className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="font-bold text-neutral-900">{row.name}</div>
-                  <div className="mt-1 text-sm text-neutral-500">
-                    {row.session_type}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="font-bold text-neutral-900">{row.name}</div>
+                      <div className="mt-1 text-sm text-neutral-500">
+                        {row.session_type}
+                      </div>
+                    </div>
+
+                    {canEditEvents ? (
+                      <InlineConfirmButton
+                        label="Elimina"
+                        message="Eliminare questa sessione?"
+                        onConfirm={() => removeSession(row.id)}
+                        className="inline-flex items-center justify-center rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                        icon={<Trash2 size={16} className="mr-2" />}
+                      />
+                    ) : null}
                   </div>
                 </div>
               ))
