@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -9,6 +10,7 @@ import {
   Clock3,
   Droplets,
   Edit2,
+  Info,
   Printer,
   Save,
   Trash2,
@@ -22,6 +24,8 @@ import EmptyState from "@/components/EmptyState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import InlineConfirmButton from "@/components/InlineConfirmButton";
 import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type EventInfo = {
   id: string;
@@ -50,6 +54,11 @@ type TurnForm = {
   notes: string;
 };
 
+function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 function toDateTimeLocal(date: Date) {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -67,6 +76,17 @@ function buildDefaultForm(): TurnForm {
     driver: "",
     notes: "",
   };
+}
+
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function EventCarTurnsPage() {
@@ -121,11 +141,7 @@ export default function EventCarTurnsPage() {
       });
     }
 
-    const rawCar = ec?.car_id as unknown;
-
-const carRow: CarInfo | null = Array.isArray(rawCar)
-  ? ((rawCar[0] ?? null) as CarInfo | null)
-  : ((rawCar ?? null) as CarInfo | null);
+    const carRow = normalizeRelation(ec?.car_id as unknown as CarInfo | CarInfo[] | null);
 
     setEventInfo((ev as EventInfo | null) ?? null);
     setCarInfo(carRow);
@@ -287,7 +303,7 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-100 p-6">
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
         <div className="rounded-3xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500 shadow-sm">
           Caricamento turni in corso...
         </div>
@@ -297,7 +313,7 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
 
   if (!eventInfo || !carInfo) {
     return (
-      <div className="min-h-screen bg-neutral-100 p-6">
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
         <FormStatusBanner
           type="error"
           message="Impossibile trovare i dati dell'evento o del mezzo selezionato."
@@ -307,7 +323,7 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title={`Turni • ${carInfo.name ?? "Mezzo"}`}
         subtitle={`Evento: ${eventInfo.name ?? "Evento"}${eventInfo.date ? ` • ${new Date(eventInfo.date).toLocaleDateString("it-IT")}` : ""}`}
@@ -317,17 +333,17 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
-              <Printer size={16} className="mr-2" />
+              <Printer size={16} className="mr-2 inline" />
               Stampa scheda
             </button>
 
             <Link
               href={`/calendar/${eventId}/car/${eventCarId}`}
-              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
-              <ArrowLeft size={16} className="mr-2" />
+              <ArrowLeft size={16} className="mr-2 inline" />
               Console mezzo
             </Link>
           </div>
@@ -338,34 +354,47 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
         <FormStatusBanner type={feedback.type} message={feedback.message} />
       ) : null}
 
-      <StatsGrid
-        items={[
-          {
-            label: "Turni registrati",
-            value: String(turns.length),
-            icon: <CalendarClock size={18} />,
-            helper: "Sessioni salvate su questo mezzo",
-          },
-          {
-            label: "Minuti totali",
-            value: String(totalMinutes),
-            icon: <Clock3 size={18} />,
-            helper: `${totalHours} ore totali`,
-          },
-          {
-            label: "Durata media",
-            value: `${averageMinutes} min`,
-            icon: <Droplets size={18} />,
-            helper: "Media dei turni registrati",
-          },
-          {
-            label: "Ultimo turno",
-            value: lastTurnDate,
-            icon: <UserRound size={18} />,
-            helper: "Data e ora dell'ultima sessione",
-          },
-        ]}
-      />
+      <SectionCard>
+        <StatsGrid
+          items={[
+            {
+              label: "Turni registrati",
+              value: String(turns.length),
+              icon: <CalendarClock size={18} />,
+              helper: "Sessioni salvate su questo mezzo",
+            },
+            {
+              label: "Minuti totali",
+              value: String(totalMinutes),
+              icon: <Clock3 size={18} />,
+              helper: `${totalHours} ore totali`,
+            },
+            {
+              label: "Durata media",
+              value: `${averageMinutes} min`,
+              icon: <Droplets size={18} />,
+              helper: "Media dei turni registrati",
+            },
+            {
+              label: "Ultimo turno",
+              value: lastTurnDate,
+              icon: <UserRound size={18} />,
+              helper: "Data e ora dell'ultima sessione",
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questa pagina è dedicata alla registrazione e revisione rapida dei turni."
+      >
+        <InfoBlock>
+          Usa questa vista per aggiornare o correggere lo storico dei turni del mezzo.
+          Ogni record registra data, durata, pilota e note tecniche. La stampa scheda ti
+          permette di portare il riepilogo in pista in formato rapido.
+        </InfoBlock>
+      </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         <SectionCard
@@ -417,7 +446,7 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                  className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
                 >
                   Annulla modifica
                 </button>
@@ -427,9 +456,9 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
                 type="button"
                 onClick={saveTurn}
                 disabled={saving}
-                className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
               >
-                <Save size={16} className="mr-2" />
+                <Save size={16} className="mr-2 inline" />
                 {saving ? "Salvataggio..." : editingTurnId ? "Aggiorna turno" : "Aggiungi turno"}
               </button>
             </div>
@@ -450,44 +479,19 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
               {turns.map((turn) => (
                 <div
                   key={turn.id}
-                  className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm"
+                  className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Data e ora
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {formatDateTime(turn.date)}
-                        </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-neutral-900">
+                        {turn.driver || "Pilota non indicato"}
+                      </div>
+                      <div className="mt-1 text-sm text-neutral-500">
+                        {formatDateTime(turn.date)} · {turn.minutes ?? "—"} min
                       </div>
 
-                      <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Durata
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {turn.minutes ?? "—"} min
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-neutral-50 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Pilota
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-neutral-900">
-                          {turn.driver || "Non indicato"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-neutral-50 px-4 py-3 md:col-span-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                          Note
-                        </div>
-                        <div className="mt-1 text-sm leading-6 text-neutral-700">
-                          {turn.notes || "Nessuna nota tecnica registrata."}
-                        </div>
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-700">
+                        {turn.notes || "Nessuna nota tecnica registrata."}
                       </div>
                     </div>
 
@@ -495,9 +499,9 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
                       <button
                         type="button"
                         onClick={() => editTurn(turn)}
-                        className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                        className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
                       >
-                        <Edit2 size={16} className="mr-2" />
+                        <Edit2 size={16} className="mr-2 inline" />
                         Modifica
                       </button>
 
@@ -505,8 +509,8 @@ const carRow: CarInfo | null = Array.isArray(rawCar)
                         label="Elimina"
                         message="Eliminare questo turno?"
                         onConfirm={() => deleteTurn(turn.id)}
-                        className="inline-flex items-center justify-center rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
-                        icon={<Trash2 size={16} className="mr-2" />}
+                        className="rounded-xl bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
+                        icon={<Trash2 size={16} className="mr-2 inline" />}
                       />
                     </div>
                   </div>

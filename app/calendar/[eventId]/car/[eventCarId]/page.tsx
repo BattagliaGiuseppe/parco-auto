@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -8,6 +9,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   Fuel,
+  Info,
   PlusCircle,
   Save,
   Settings2,
@@ -22,6 +24,25 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
+function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function EventCarPage() {
   const { eventId, eventCarId } = useParams() as {
@@ -44,7 +65,10 @@ export default function EventCarPage() {
   const [checkData, setCheckData] = useState<Record<string, { status: string; note: string }>>({});
 
   const [selectedDriver, setSelectedDriver] = useState("");
-  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [turnForm, setTurnForm] = useState({
     event_session_id: "",
     driver_id: "",
@@ -57,6 +81,7 @@ export default function EventCarPage() {
 
   async function loadAll() {
     const ctx = await getCurrentTeamContext();
+
     const [
       eventCarRes,
       driversRes,
@@ -134,9 +159,22 @@ export default function EventCarPage() {
         .maybeSingle(),
     ]);
 
-    setEventCar(eventCarRes.data);
+    setEventCar(
+      eventCarRes.data
+        ? {
+            ...eventCarRes.data,
+            event_id: normalizeRelation(eventCarRes.data.event_id),
+            car_id: normalizeRelation(eventCarRes.data.car_id),
+          }
+        : null
+    );
     setDrivers(driversRes.data || []);
-    setAssignedDrivers(assignedRes.data || []);
+    setAssignedDrivers(
+      (assignedRes.data || []).map((row: any) => ({
+        ...row,
+        driver_id: normalizeRelation(row.driver_id),
+      }))
+    );
     setSessions(sessionsRes.data || []);
     setTurns(turnsRes.data || []);
     setSetupFields(setupFieldsRes.data || []);
@@ -186,96 +224,108 @@ export default function EventCarPage() {
         label: "Piloti associati",
         value: String(assignedDrivers.length),
         icon: <Users size={18} />,
+        helper: "Driver disponibili per il mezzo in evento",
       },
-      { label: "Sessioni", value: String(sessions.length), icon: <CalendarDays size={18} /> },
-      { label: "Turni registrati", value: String(turns.length), icon: <Fuel size={18} /> },
+      {
+        label: "Sessioni",
+        value: String(sessions.length),
+        icon: <CalendarDays size={18} />,
+        helper: "Sessioni collegate al weekend corrente",
+      },
+      {
+        label: "Turni registrati",
+        value: String(turns.length),
+        icon: <Fuel size={18} />,
+        helper: "Turni già salvati per questo mezzo",
+      },
       {
         label: "Consumo medio",
         value: fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/giro` : "—",
         icon: <Fuel size={18} />,
+        helper: fuelSummary.perMinute > 0 ? `${fuelSummary.perMinute.toFixed(2)} L/min` : "Dato non disponibile",
       },
     ],
-    [assignedDrivers.length, sessions.length, turns.length, fuelSummary.perLap]
+    [assignedDrivers.length, sessions.length, turns.length, fuelSummary.perLap, fuelSummary.perMinute]
   );
 
-async function addDriver() {
-  if (!canEditEvents || !selectedDriver) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-  const { error } = await supabase.from("event_car_drivers").insert([
-    {
+  async function addDriver() {
+    if (!canEditEvents || !selectedDriver) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const { error } = await supabase.from("event_car_drivers").insert([
+      {
+        team_id: ctx.teamId,
+        event_car_id: eventCarId,
+        driver_id: selectedDriver,
+        role: "primary",
+      },
+    ]);
+    if (error) {
+      setFeedback({ type: "error", message: error.message });
+      return;
+    }
+    setSelectedDriver("");
+    await loadAll();
+    setFeedback({ type: "success", message: "Pilota associato correttamente all'evento." });
+  }
+
+  async function saveTurn() {
+    if (!canEditEvents) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const payload = {
       team_id: ctx.teamId,
       event_car_id: eventCarId,
-      driver_id: selectedDriver,
-      role: "primary",
-    },
-  ]);
-  if (error) {
-    setFeedback({ type: "error", message: error.message });
-    return;
+      event_session_id: turnForm.event_session_id || null,
+      driver_id: turnForm.driver_id || null,
+      minutes: Number(turnForm.minutes || 0),
+      laps: Number(turnForm.laps || 0),
+      fuel_start_liters: Number(turnForm.fuel_start_liters || 0),
+      fuel_end_liters: Number(turnForm.fuel_end_liters || 0),
+      notes: turnForm.notes || null,
+      created_by_team_user_id: ctx.teamUserId,
+    };
+    const { error } = await supabase.from("event_car_turns").insert([payload]);
+    if (error) {
+      setFeedback({ type: "error", message: error.message });
+      return;
+    }
+    setTurnForm({
+      event_session_id: "",
+      driver_id: "",
+      minutes: "",
+      laps: "",
+      fuel_start_liters: "",
+      fuel_end_liters: "",
+      notes: "",
+    });
+    await loadAll();
+    setFeedback({ type: "success", message: "Turno registrato correttamente." });
   }
-  setSelectedDriver("");
-  await loadAll();
-  setFeedback({ type: "success", message: "Pilota associato correttamente all'evento." });
-}
 
-async function saveTurn() {
-  if (!canEditEvents) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-  const payload = {
-    team_id: ctx.teamId,
-    event_car_id: eventCarId,
-    event_session_id: turnForm.event_session_id || null,
-    driver_id: turnForm.driver_id || null,
-    minutes: Number(turnForm.minutes || 0),
-    laps: Number(turnForm.laps || 0),
-    fuel_start_liters: Number(turnForm.fuel_start_liters || 0),
-    fuel_end_liters: Number(turnForm.fuel_end_liters || 0),
-    notes: turnForm.notes || null,
-    created_by_team_user_id: ctx.teamUserId,
-  };
-  const { error } = await supabase.from("event_car_turns").insert([payload]);
-  if (error) {
-    setFeedback({ type: "error", message: error.message });
-    return;
+  async function saveSetup() {
+    if (!canEditEvents) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const { error } = await supabase
+      .from("event_car_data")
+      .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data: setupData }]);
+
+    if (error) setFeedback({ type: "error", message: error.message });
+    else setFeedback({ type: "success", message: "Setup salvato correttamente." });
   }
-  setTurnForm({
-    event_session_id: "",
-    driver_id: "",
-    minutes: "",
-    laps: "",
-    fuel_start_liters: "",
-    fuel_end_liters: "",
-    notes: "",
-  });
-  await loadAll();
-  setFeedback({ type: "success", message: "Turno registrato correttamente." });
-}
 
-async function saveSetup() {
-  if (!canEditEvents) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-  const { error } = await supabase
-    .from("event_car_data")
-    .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data: setupData }]);
+  async function saveCheckup() {
+    if (!canEditEvents) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    const { error } = await supabase
+      .from("event_car_data")
+      .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "checkup", data: checkData }]);
 
-  if (error) setFeedback({ type: "error", message: error.message });
-  else setFeedback({ type: "success", message: "Setup salvato correttamente." });
-}
-
-async function saveCheckup() {
-  if (!canEditEvents) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-  const { error } = await supabase
-    .from("event_car_data")
-    .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "checkup", data: checkData }]);
-
-  if (error) setFeedback({ type: "error", message: error.message });
-  else setFeedback({ type: "success", message: "Check-up tecnico salvato." });
-}
+    if (error) setFeedback({ type: "error", message: error.message });
+    else setFeedback({ type: "success", message: "Check-up tecnico salvato." });
+  }
 
   if (access.loading) {
     return (
@@ -310,11 +360,17 @@ async function saveCheckup() {
     );
   }
   if (!eventCar) {
-    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento console mezzo...</div>;
+    return (
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+          Caricamento console mezzo...
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title={`${eventCar.car_id?.name || "Mezzo"} · ${eventCar.event_id?.name || "Evento"}`}
         subtitle="Console mezzo in evento: piloti, setup, check-up, turni e fuel"
@@ -323,13 +379,13 @@ async function saveCheckup() {
           <div className="flex flex-wrap gap-3">
             <Link
               href={`/calendar/${eventId}/car/${eventCarId}/turns`}
-              className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
+              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
             >
               Turni & fuel avanzato
             </Link>
             <Link
               href={`/calendar/${eventId}`}
-              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
               Evento
@@ -350,43 +406,67 @@ async function saveCheckup() {
         <StatsGrid items={stats} />
       </SectionCard>
 
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questa è la console tecnica del mezzo dentro l'evento."
+      >
+        <InfoBlock>
+          Qui lavori sul singolo mezzo del weekend: associ i piloti, registri i turni rapidi,
+          salvi il setup e chiudi il check-up tecnico. Quando ti serve una vista più dettagliata
+          su turni, fuel e stampa scheda, usa il modulo <strong>Turni & fuel avanzato</strong>.
+        </InfoBlock>
+      </SectionCard>
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
           title="Piloti associati"
-          subtitle="Qui associ un pilota già registrato nell'anagrafica Piloti. Se devi creare un nuovo pilota usa prima il modulo Piloti."
+          subtitle="Qui associ un pilota già registrato nell'anagrafica Piloti."
         >
           {canEditEvents ? (
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px]">
-              <select
-                className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                value={selectedDriver}
-                onChange={(e) => setSelectedDriver(e.target.value)}
-              >
-                <option value="">Seleziona pilota già registrato</option>
-                {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.first_name} {driver.last_name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={addDriver}
-                disabled={!selectedDriver}
-                className={`rounded-xl px-4 py-3 font-bold transition ${selectedDriver ? "bg-yellow-400 text-black hover:bg-yellow-500" : "cursor-not-allowed bg-neutral-200 text-neutral-500"}`}
-              >
-                <PlusCircle size={16} className="mr-2 inline" />
-                Associa pilota
-              </button>
+              <UiField label="Pilota registrato">
+                <select
+                  className={uiInputClassName}
+                  value={selectedDriver}
+                  onChange={(e) => setSelectedDriver(e.target.value)}
+                >
+                  <option value="">Seleziona pilota già registrato</option>
+                  {drivers.map((driver) => (
+                    <option key={driver.id} value={driver.id}>
+                      {driver.first_name} {driver.last_name}
+                    </option>
+                  ))}
+                </select>
+              </UiField>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={addDriver}
+                  disabled={!selectedDriver}
+                  className={`w-full rounded-xl px-4 py-2 font-bold transition ${
+                    selectedDriver
+                      ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                      : "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                  }`}
+                >
+                  <PlusCircle size={16} className="mr-2 inline" />
+                  Associa pilota
+                </button>
+              </div>
             </div>
           ) : null}
-          <div className="mt-4 space-y-2">
+
+          <div className="mt-5 space-y-3">
             {assignedDrivers.length === 0 ? (
-              <EmptyState title="Nessun pilota associato" />
+              <EmptyState
+                title="Nessun pilota associato"
+                description="Associa almeno un pilota per poterlo usare nelle sessioni del mezzo."
+              />
             ) : (
               assignedDrivers.map((row) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                  className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
                 >
                   <div className="font-bold text-neutral-900">
                     {row.driver_id?.first_name} {row.driver_id?.last_name}
@@ -400,78 +480,102 @@ async function saveCheckup() {
 
         <SectionCard
           title="Turni e fuel rapidi"
-          subtitle="Per calcoli residuo, carburante da aggiungere e stampa usa il modulo dedicato Turni & fuel avanzato."
+          subtitle="Registrazione veloce del turno; per residui, stima rabbocco e stampa usa il modulo avanzato."
         >
           {canEditEvents ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <select
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  value={turnForm.event_session_id}
-                  onChange={(e) => setTurnForm({ ...turnForm, event_session_id: e.target.value })}
-                >
-                  <option value="">Sessione</option>
-                  {sessions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  value={turnForm.driver_id}
-                  onChange={(e) => setTurnForm({ ...turnForm, driver_id: e.target.value })}
-                >
-                  <option value="">Pilota</option>
-                  {assignedDrivers.map((row) => (
-                    <option key={row.id} value={row.driver_id?.id}>
-                      {row.driver_id?.first_name} {row.driver_id?.last_name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  placeholder="Minuti turno"
-                  value={turnForm.minutes}
-                  onChange={(e) => setTurnForm({ ...turnForm, minutes: e.target.value })}
-                />
-                <input
-                  type="number"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  placeholder="Giri"
-                  value={turnForm.laps}
-                  onChange={(e) => setTurnForm({ ...turnForm, laps: e.target.value })}
-                />
-                <input
-                  type="number"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  placeholder="Litri inizio turno"
-                  value={turnForm.fuel_start_liters}
-                  onChange={(e) =>
-                    setTurnForm({ ...turnForm, fuel_start_liters: e.target.value })
-                  }
-                />
-                <input
-                  type="number"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
-                  placeholder="Litri fine turno"
-                  value={turnForm.fuel_end_liters}
-                  onChange={(e) =>
-                    setTurnForm({ ...turnForm, fuel_end_liters: e.target.value })
-                  }
-                />
-                <textarea
-                  className="min-h-24 rounded-xl border p-3 md:col-span-2"
-                  placeholder="Note turno"
-                  value={turnForm.notes}
-                  onChange={(e) => setTurnForm({ ...turnForm, notes: e.target.value })}
-                />
+                <UiField label="Sessione">
+                  <select
+                    className={uiInputClassName}
+                    value={turnForm.event_session_id}
+                    onChange={(e) => setTurnForm({ ...turnForm, event_session_id: e.target.value })}
+                  >
+                    <option value="">Sessione</option>
+                    {sessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {session.name}
+                      </option>
+                    ))}
+                  </select>
+                </UiField>
+
+                <UiField label="Pilota">
+                  <select
+                    className={uiInputClassName}
+                    value={turnForm.driver_id}
+                    onChange={(e) => setTurnForm({ ...turnForm, driver_id: e.target.value })}
+                  >
+                    <option value="">Pilota</option>
+                    {assignedDrivers.map((row) => (
+                      <option key={row.id} value={row.driver_id?.id}>
+                        {row.driver_id?.first_name} {row.driver_id?.last_name}
+                      </option>
+                    ))}
+                  </select>
+                </UiField>
+
+                <UiField label="Minuti turno">
+                  <input
+                    type="number"
+                    className={uiInputClassName}
+                    placeholder="Es. 20"
+                    value={turnForm.minutes}
+                    onChange={(e) => setTurnForm({ ...turnForm, minutes: e.target.value })}
+                  />
+                </UiField>
+
+                <UiField label="Giri">
+                  <input
+                    type="number"
+                    className={uiInputClassName}
+                    placeholder="Es. 12"
+                    value={turnForm.laps}
+                    onChange={(e) => setTurnForm({ ...turnForm, laps: e.target.value })}
+                  />
+                </UiField>
+
+                <UiField label="Litri inizio turno">
+                  <input
+                    type="number"
+                    className={uiInputClassName}
+                    placeholder="Es. 22"
+                    value={turnForm.fuel_start_liters}
+                    onChange={(e) =>
+                      setTurnForm({ ...turnForm, fuel_start_liters: e.target.value })
+                    }
+                  />
+                </UiField>
+
+                <UiField label="Litri fine turno">
+                  <input
+                    type="number"
+                    className={uiInputClassName}
+                    placeholder="Es. 7"
+                    value={turnForm.fuel_end_liters}
+                    onChange={(e) =>
+                      setTurnForm({ ...turnForm, fuel_end_liters: e.target.value })
+                    }
+                  />
+                </UiField>
+
+                <div className="md:col-span-2">
+                  <UiField label="Note turno">
+                    <textarea
+                      className={uiTextareaClassName}
+                      placeholder="Annotazioni su gomme, pista, bilanciamento, problemi o riferimenti utili."
+                      value={turnForm.notes}
+                      onChange={(e) => setTurnForm({ ...turnForm, notes: e.target.value })}
+                    />
+                  </UiField>
+                </div>
               </div>
+
               <div className="mt-4 flex justify-end">
                 <button
+                  type="button"
                   onClick={saveTurn}
-                  className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
+                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
                 >
                   <Save size={16} className="mr-2 inline" />
                   Salva turno
@@ -480,12 +584,25 @@ async function saveCheckup() {
             </>
           ) : null}
 
-          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
             <div className="font-semibold text-neutral-900">Riepilogo fuel evento</div>
-            <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
-              <div>Litri consumati: <span className="font-semibold">{fuelSummary.totalUsed.toFixed(1)} L</span></div>
-              <div>Consumo medio: <span className="font-semibold">{fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/giro` : "—"}</span></div>
-              <div>Per minuto: <span className="font-semibold">{fuelSummary.perMinute > 0 ? `${fuelSummary.perMinute.toFixed(2)} L/min` : "—"}</span></div>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+              <div>
+                Litri consumati:{" "}
+                <span className="font-semibold">{fuelSummary.totalUsed.toFixed(1)} L</span>
+              </div>
+              <div>
+                Consumo medio:{" "}
+                <span className="font-semibold">
+                  {fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/giro` : "—"}
+                </span>
+              </div>
+              <div>
+                Per minuto:{" "}
+                <span className="font-semibold">
+                  {fuelSummary.perMinute > 0 ? `${fuelSummary.perMinute.toFixed(2)} L/min` : "—"}
+                </span>
+              </div>
             </div>
           </div>
         </SectionCard>
@@ -494,23 +611,21 @@ async function saveCheckup() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
           title="Setup dinamico"
-          subtitle="Campi configurabili da Impostazioni, adattabili a mezzo e team"
+          subtitle="Campi configurabili da Impostazioni, adattabili a mezzo e team."
         >
           {setupFields.length === 0 ? (
-            <EmptyState title="Nessun campo setup configurato" />
+            <EmptyState
+              title="Nessun campo setup configurato"
+              description="Configura i campi setup dal Control Center per vederli qui."
+            />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {setupFields.map((field) => (
-                <div key={field.id}>
-                  <label className="mb-1 block text-sm font-semibold text-neutral-700">
-                    {field.label}
-                  </label>
+                <UiField key={field.id} label={field.label}>
                   {field.field_type === "textarea" ? (
                     <textarea
                       disabled={!canEditEvents}
-                      className={`min-h-24 w-full rounded-xl border p-3 ${
-                        !canEditEvents ? "bg-neutral-100 text-neutral-500" : ""
-                      }`}
+                      className={`${uiTextareaClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
                       value={setupData[field.field_key] || ""}
                       onChange={(e) =>
                         setSetupData({ ...setupData, [field.field_key]: e.target.value })
@@ -519,24 +634,23 @@ async function saveCheckup() {
                   ) : (
                     <input
                       disabled={!canEditEvents}
-                      className={`w-full rounded-xl border p-3 ${
-                        !canEditEvents ? "bg-neutral-100 text-neutral-500" : ""
-                      }`}
+                      className={`${uiInputClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
                       value={setupData[field.field_key] || ""}
                       onChange={(e) =>
                         setSetupData({ ...setupData, [field.field_key]: e.target.value })
                       }
                     />
                   )}
-                </div>
+                </UiField>
               ))}
             </div>
           )}
           {canEditEvents ? (
             <div className="mt-4 flex justify-end">
               <button
+                type="button"
                 onClick={saveSetup}
-                className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
               >
                 <Settings2 size={16} className="mr-2 inline" />
                 Salva setup
@@ -547,10 +661,13 @@ async function saveCheckup() {
 
         <SectionCard
           title="Check-up tecnico"
-          subtitle="Checklist configurabile dalle Impostazioni"
+          subtitle="Checklist configurabile dalle Impostazioni."
         >
           {checklists.length === 0 ? (
-            <EmptyState title="Nessuna checklist configurata" />
+            <EmptyState
+              title="Nessuna checklist configurata"
+              description="Configura i gruppi di check-up dal Control Center."
+            />
           ) : (
             <div className="space-y-4">
               {checklists.map((group) => (
@@ -563,7 +680,7 @@ async function saveCheckup() {
                     {group.items.map((item: any) => (
                       <div
                         key={item.id}
-                        className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px]"
+                        className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_200px]"
                       >
                         <div>
                           <div className="text-sm font-semibold text-neutral-800">
@@ -571,9 +688,7 @@ async function saveCheckup() {
                           </div>
                           <textarea
                             disabled={!canEditEvents}
-                            className={`mt-2 min-h-20 w-full rounded-xl border p-3 ${
-                              !canEditEvents ? "bg-neutral-100 text-neutral-500" : ""
-                            }`}
+                            className={`mt-2 min-h-20 w-full rounded-xl border p-3 ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
                             placeholder="Nota tecnica"
                             value={checkData[item.id]?.note || ""}
                             onChange={(e) =>
@@ -587,26 +702,26 @@ async function saveCheckup() {
                             }
                           />
                         </div>
-                        <select
-                          disabled={!canEditEvents}
-                          className={`rounded-xl border p-3 ${
-                            !canEditEvents ? "bg-neutral-100 text-neutral-500" : ""
-                          }`}
-                          value={checkData[item.id]?.status || "ok"}
-                          onChange={(e) =>
-                            setCheckData({
-                              ...checkData,
-                              [item.id]: {
-                                status: e.target.value,
-                                note: checkData[item.id]?.note || "",
-                              },
-                            })
-                          }
-                        >
-                          <option value="ok">OK</option>
-                          <option value="check">Da controllare</option>
-                          <option value="problem">Problema</option>
-                        </select>
+                        <UiField label="Esito">
+                          <select
+                            disabled={!canEditEvents}
+                            className={`${uiInputClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
+                            value={checkData[item.id]?.status || "ok"}
+                            onChange={(e) =>
+                              setCheckData({
+                                ...checkData,
+                                [item.id]: {
+                                  status: e.target.value,
+                                  note: checkData[item.id]?.note || "",
+                                },
+                              })
+                            }
+                          >
+                            <option value="ok">OK</option>
+                            <option value="check">Da controllare</option>
+                            <option value="problem">Problema</option>
+                          </select>
+                        </UiField>
                       </div>
                     ))}
                   </div>
@@ -617,8 +732,9 @@ async function saveCheckup() {
           {canEditEvents ? (
             <div className="mt-4 flex justify-end">
               <button
+                type="button"
                 onClick={saveCheckup}
-                className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500"
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
               >
                 <ClipboardCheck size={16} className="mr-2 inline" />
                 Salva check-up
