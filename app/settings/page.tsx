@@ -289,30 +289,55 @@ function contrastText(hex: string) {
   return luminance > 0.6 ? "#111827" : "#ffffff";
 }
 
-function buildBrandingFromSettings(settings: AppSettingsRow): BrandingPayload {
-  const brandingFromLayout = settings.dashboard_layout?.branding || {};
+function buildBrandingFromSettings(settings?: AppSettingsRow | null): BrandingPayload {
+  const brandingFromLayout = settings?.dashboard_layout?.branding || {};
   return {
     platform_name:
-      settings.branding?.platform_name ||
+      settings?.branding?.platform_name ||
       brandingFromLayout.platform_name ||
-      settings.team_name ||
+      settings?.team_name ||
       "Motorsport Management",
     platform_subtitle:
-      settings.branding?.platform_subtitle ||
+      settings?.branding?.platform_subtitle ||
       brandingFromLayout.platform_subtitle ||
-      settings.team_subtitle ||
+      settings?.team_subtitle ||
       "",
     logo_url:
-      settings.branding?.logo_url || brandingFromLayout.logo_url || "/logo.png",
+      settings?.branding?.logo_url || brandingFromLayout.logo_url || "/logo.png",
     favicon_url:
-      settings.branding?.favicon_url || brandingFromLayout.favicon_url || "/favicon.ico",
+      settings?.branding?.favicon_url || brandingFromLayout.favicon_url || "/favicon.ico",
     language:
-      settings.branding?.language || brandingFromLayout.language || "it",
+      settings?.branding?.language || brandingFromLayout.language || "it",
     branding_config: {
       ...DEFAULT_BRANDING_CONFIG,
       ...(brandingFromLayout.branding_config || {}),
-      ...(settings.branding?.branding_config || {}),
+      ...(settings?.branding?.branding_config || {}),
     },
+  };
+}
+
+function buildDefaultSettings(teamId: string, teamName: string): AppSettingsRow {
+  const base: AppSettingsRow = {
+    id: "",
+    team_id: teamId,
+    team_name: teamName || "Team",
+    team_subtitle: "",
+    primary_color: "#171717",
+    secondary_color: "#262626",
+    accent_color: "#facc15",
+    vehicle_type: "auto",
+    default_warning_hours: 0,
+    default_revision_hours: 0,
+    default_expiry_alert_days: 30,
+    modules: DEFAULT_MODULES,
+    dashboard_layout: {},
+    labels: DEFAULT_LABELS,
+    branding: undefined,
+  };
+
+  return {
+    ...base,
+    branding: buildBrandingFromSettings(base),
   };
 }
 
@@ -519,11 +544,18 @@ export default function SettingsPage() {
             .order("order_index", { ascending: true }),
         ]);
 
-      const settingsData = settingsRes.data as AppSettingsRow;
+      const rawSettings = (settingsRes.data as AppSettingsRow | null) ?? buildDefaultSettings(ctx.teamId, ctx.name || "Team");
+
+      if (settingsRes.error && settingsRes.error.code !== "PGRST116") {
+        console.warn("Errore caricamento app_settings:", settingsRes.error);
+      }
+
       const normalizedSettings: AppSettingsRow = {
-        ...settingsData,
-        labels: { ...DEFAULT_LABELS, ...(settingsData?.labels || {}) },
-        branding: buildBrandingFromSettings(settingsData),
+        ...rawSettings,
+        dashboard_layout: rawSettings.dashboard_layout || {},
+        modules: { ...DEFAULT_MODULES, ...(rawSettings.modules || {}) },
+        labels: { ...DEFAULT_LABELS, ...(rawSettings.labels || {}) },
+        branding: buildBrandingFromSettings(rawSettings),
       };
 
       setSettings(normalizedSettings);
@@ -712,7 +744,9 @@ export default function SettingsPage() {
 
       const { error: settingsError } = await supabase
         .from("app_settings")
-        .update({
+        .upsert({
+          ...(settings.id ? { id: settings.id } : {}),
+          team_id: ctx.teamId,
           team_name: settings.team_name,
           team_subtitle: settings.team_subtitle,
           primary_color: normalizeHex(settings.primary_color, "#171717"),
@@ -725,8 +759,7 @@ export default function SettingsPage() {
           modules: settings.modules,
           dashboard_layout: dashboardLayout,
           labels: settings.labels || DEFAULT_LABELS,
-        })
-        .eq("team_id", ctx.teamId);
+        }, { onConflict: "team_id" });
 
       if (settingsError) throw settingsError;
 
@@ -861,7 +894,7 @@ export default function SettingsPage() {
     }
   }
 
-  const previewBranding = settings?.branding || buildBrandingFromSettings(settings as AppSettingsRow);
+  const previewBranding = settings ? settings.branding || buildBrandingFromSettings(settings) : null;
 
   if (loading || !settings || !previewBranding) {
     return (
@@ -1102,7 +1135,7 @@ export default function SettingsPage() {
                 {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
                   <Field key={key} label={`Etichetta ${key}`}>
                     <Input
-                      value={value || ""}
+                      value={value}
                       onChange={(e) =>
                         patchSetting("labels", {
                           ...(settings.labels || DEFAULT_LABELS),
@@ -1176,7 +1209,7 @@ export default function SettingsPage() {
                     className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3"
                   >
                     <span className="font-semibold capitalize text-neutral-800">
-                      {String(key)}
+                      {key}
                     </span>
                     <input
                       type="checkbox"
