@@ -253,33 +253,31 @@ function getFuelUsed(turn: TurnRow) {
 }
 
 function getFuelPerLap(turn: TurnRow) {
-  const fuelUsed = getFuelUsed(turn);
-  const laps = Number(turn.laps || 0);
-  if (fuelUsed == null || laps <= 0) return null;
-  return round1(fuelUsed / laps);
+  const used = getFuelUsed(turn);
+  if (used == null || !turn.laps || turn.laps <= 0) return null;
+  return round1(used / turn.laps);
 }
 
 function getFuelPerMinute(turn: TurnRow) {
-  const fuelUsed = getFuelUsed(turn);
-  const minutes = Number(turn.minutes || 0);
-  if (fuelUsed == null || minutes <= 0) return null;
-  return round1(fuelUsed / minutes);
+  const used = getFuelUsed(turn);
+  if (used == null || !turn.minutes || turn.minutes <= 0) return null;
+  return round1(used / turn.minutes);
 }
 
 function getPressureDelta(pre: number | null | undefined, post: number | null | undefined) {
-  if (pre == null || post == null || !Number.isFinite(pre) || !Number.isFinite(post)) return null;
+  if (pre == null || post == null) return null;
   return round1(post - pre);
 }
 
 function getTargetDelta(actual: number | null | undefined, target: number | null | undefined) {
-  if (actual == null || target == null || !Number.isFinite(actual) || !Number.isFinite(target)) return null;
+  if (actual == null || target == null) return null;
   return round1(actual - target);
 }
 
-function average(values: Array<number | null | undefined>) {
-  const filtered = values.filter((value): value is number => value != null && Number.isFinite(value));
-  if (filtered.length === 0) return null;
-  return round1(filtered.reduce((sum, value) => sum + value, 0) / filtered.length);
+function averageNumbers(values: Array<number | null | undefined>) {
+  const safe = values.filter((value): value is number => value != null && Number.isFinite(value));
+  if (safe.length === 0) return null;
+  return round1(safe.reduce((sum, value) => sum + value, 0) / safe.length);
 }
 
 function buildDefaultForm(): TurnForm {
@@ -495,8 +493,7 @@ function DetailGrid({
   );
 }
 
-function buildTurnWarnings(turn: TurnRow) {
-  const metrics = turn.metrics;
+function buildTurnWarnings(metrics: TurnMetricsRow | null) {
   const warnings: Array<{ label: string; tone: "warning" | "danger" | "success" }> = [];
 
   const waterDelta = getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c);
@@ -513,34 +510,22 @@ function buildTurnWarnings(turn: TurnRow) {
     else warnings.push({ label: "Olio in target", tone: "success" });
   }
 
-  const targetChecks = [
+  const pressurePairs = [
     ["FL", metrics?.post_pressure_fl, metrics?.target_post_pressure_fl],
     ["FR", metrics?.post_pressure_fr, metrics?.target_post_pressure_fr],
     ["RL", metrics?.post_pressure_rl, metrics?.target_post_pressure_rl],
     ["RR", metrics?.post_pressure_rr, metrics?.target_post_pressure_rr],
   ] as const;
 
-  targetChecks.forEach(([label, actual, target]) => {
+  pressurePairs.forEach(([label, actual, target]) => {
     const delta = getTargetDelta(actual, target);
     if (delta == null) return;
-    if (Math.abs(delta) <= 0.03) {
-      warnings.push({ label: `${label} in target`, tone: "success" });
-    } else if (Math.abs(delta) <= 0.08) {
-      warnings.push({ label: `${label} ${delta > 0 ? "+" : ""}${delta} bar`, tone: "warning" });
-    } else {
-      warnings.push({ label: `${label} ${delta > 0 ? "+" : ""}${delta} bar`, tone: "danger" });
-    }
+    if (delta > 0.05) warnings.push({ label: `${label} +${delta} bar`, tone: "warning" });
+    else if (delta < -0.05) warnings.push({ label: `${label} ${delta} bar`, tone: "warning" });
+    else warnings.push({ label: `${label} in target`, tone: "success" });
   });
 
-  const fuelPerLap = getFuelPerLap(turn);
-  if (fuelPerLap != null) {
-    warnings.push({
-      label: `Fuel/giro ${fuelPerLap} L`,
-      tone: fuelPerLap <= 0.9 ? "success" : fuelPerLap <= 1.2 ? "warning" : "danger",
-    });
-  }
-
-  return warnings.slice(0, 6);
+  return warnings;
 }
 
 function trackConditionLabel(value: string | null | undefined) {
@@ -737,55 +722,47 @@ export default function EventCarTurnsPage() {
     return Math.max(...values);
   }, [turns]);
 
-  const maxOilDay = useMemo(() => {
-    const values = turns
-      .map((turn) => turn.metrics?.max_oil_temp_c)
-      .filter((value): value is number => value != null && Number.isFinite(value));
-    if (values.length === 0) return null;
-    return Math.max(...values);
-  }, [turns]);
+const maxOilDay = useMemo(() => {
+  const values = turns
+    .map((turn) => turn.metrics?.max_oil_temp_c)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  if (values.length === 0) return null;
+  return Math.max(...values);
+}, [turns]);
 
-  const mostEfficientTurn = useMemo(() => {
-    const candidates = turns
-      .map((turn) => ({ turn, fuelPerLap: getFuelPerLap(turn) }))
-      .filter((row): row is { turn: TurnRow; fuelPerLap: number } => row.fuelPerLap != null);
-    if (candidates.length === 0) return null;
-    return candidates.reduce((best, current) =>
-      current.fuelPerLap < best.fuelPerLap ? current : best
-    );
-  }, [turns]);
+const bestFuelPerLapTurn = useMemo(() => {
+  const candidates = turns
+    .map((turn) => ({ turn, value: getFuelPerLap(turn) }))
+    .filter((row): row is { turn: TurnRow; value: number } => row.value != null && Number.isFinite(row.value));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, current) => (current.value < best.value ? current : best));
+}, [turns]);
 
-  const averageFrontPostPressure = useMemo(
-    () =>
-      average(
-        turns.flatMap((turn) => [
-          turn.metrics?.post_pressure_fl ?? null,
-          turn.metrics?.post_pressure_fr ?? null,
-        ])
-      ),
-    [turns]
-  );
+const bestFuelPerMinuteTurn = useMemo(() => {
+  const candidates = turns
+    .map((turn) => ({ turn, value: getFuelPerMinute(turn) }))
+    .filter((row): row is { turn: TurnRow; value: number } => row.value != null && Number.isFinite(row.value));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, current) => (current.value < best.value ? current : best));
+}, [turns]);
 
-  const averageRearPostPressure = useMemo(
-    () =>
-      average(
-        turns.flatMap((turn) => [
-          turn.metrics?.post_pressure_rl ?? null,
-          turn.metrics?.post_pressure_rr ?? null,
-        ])
-      ),
-    [turns]
-  );
+const avgFrontPostPressure = useMemo(
+  () =>
+    averageNumbers(
+      turns.flatMap((turn) => [turn.metrics?.post_pressure_fl, turn.metrics?.post_pressure_fr])
+    ),
+  [turns]
+);
 
-  const bestLapTurn = useMemo(() => {
-    const candidates = turns
-      .map((turn) => ({ turn, bestLap: turn.metrics?.best_lap_ms ?? null }))
-      .filter((row): row is { turn: TurnRow; bestLap: number } => row.bestLap != null);
-    if (candidates.length === 0) return null;
-    return candidates.reduce((best, current) => (current.bestLap < best.bestLap ? current : best));
-  }, [turns]);
+const avgRearPostPressure = useMemo(
+  () =>
+    averageNumbers(
+      turns.flatMap((turn) => [turn.metrics?.post_pressure_rl, turn.metrics?.post_pressure_rr])
+    ),
+  [turns]
+);
 
-  const stats: StatItem[] = [
+const stats: StatItem[] = [
     {
       label: "Turni registrati",
       value: String(totalTurns),
@@ -809,6 +786,18 @@ export default function EventCarTurnsPage() {
       value: formatLapTime(bestLapDay),
       icon: <Clock3 size={18} />,
       helper: `Acqua max ${displayNumber(maxWaterDay, "°C")} • Olio max ${displayNumber(maxOilDay, "°C")}`,
+    },
+    {
+      label: "Turno più efficiente",
+      value: bestFuelPerLapTurn ? `${bestFuelPerLapTurn.value} L/giro` : "—",
+      icon: <Thermometer size={18} />,
+      helper: bestFuelPerLapTurn ? `${formatDateTime(bestFuelPerLapTurn.turn.recorded_at)} • ${driverMap.get(bestFuelPerLapTurn.turn.driver_id || "") || "Pilota"}` : "Servono fuel e giri",
+    },
+    {
+      label: "Fuel/min migliore",
+      value: bestFuelPerMinuteTurn ? `${bestFuelPerMinuteTurn.value} L/min` : "—",
+      icon: <Flame size={18} />,
+      helper: `Ant. ${displayNumber(avgFrontPostPressure, " bar")} • Post. ${displayNumber(avgRearPostPressure, " bar")}`,
     },
   ];
 
@@ -1123,44 +1112,13 @@ export default function EventCarTurnsPage() {
       </SectionCard>
 
       <SectionCard
-        title="KPI evoluti giornata"
-        subtitle="Indicatori automatici derivati dai turni già registrati, utili per leggere efficienza e comportamento del mezzo."
-      >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryBox
-            label="Turno più efficiente"
-            value={
-              mostEfficientTurn
-                ? `${driverMap.get(mostEfficientTurn.turn.driver_id || "") || "Pilota"} • ${mostEfficientTurn.fuelPerLap} L/giro`
-                : "—"
-            }
-          />
-          <SummaryBox
-            label="Fuel/min migliore"
-            value={
-              mostEfficientTurn
-                ? `${displayNumber(getFuelPerMinute(mostEfficientTurn.turn), " L/min")}`
-                : "—"
-            }
-          />
-          <SummaryBox
-            label="Media pressioni asse ant."
-            value={displayNumber(averageFrontPostPressure, " bar")}
-          />
-          <SummaryBox
-            label="Media pressioni asse post."
-            value={displayNumber(averageRearPostPressure, " bar")}
-          />
-        </div>
-      </SectionCard>
-
-      <SectionCard
         title="Lettura operativa"
         subtitle="La console è organizzata per consultazione rapida, dettaglio tecnico e inserimento turno separato."
       >
         <InfoBlock>
           Usa la vista sintetica per avere una timeline leggibile della giornata.
-          Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
+          Passa alla vista dettagliata quando vuoi controllare pressioni, temperature,
+          fuel e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
           così la pagina resta ordinata e facile da leggere in pista.
         </InfoBlock>
       </SectionCard>
@@ -1215,20 +1173,16 @@ export default function EventCarTurnsPage() {
               const fuelUsed = getFuelUsed(turn);
               const fuelPerLap = getFuelPerLap(turn);
               const fuelPerMinute = getFuelPerMinute(turn);
-              const warnings = buildTurnWarnings(turn);
-              const isExpanded = viewMode === "detailed" || expandedTurnId === turn.id;
-
               const pressureDeltaFL = getPressureDelta(metrics?.pre_pressure_fl, metrics?.post_pressure_fl);
               const pressureDeltaFR = getPressureDelta(metrics?.pre_pressure_fr, metrics?.post_pressure_fr);
               const pressureDeltaRL = getPressureDelta(metrics?.pre_pressure_rl, metrics?.post_pressure_rl);
               const pressureDeltaRR = getPressureDelta(metrics?.pre_pressure_rr, metrics?.post_pressure_rr);
-
               const targetDeltaFL = getTargetDelta(metrics?.post_pressure_fl, metrics?.target_post_pressure_fl);
               const targetDeltaFR = getTargetDelta(metrics?.post_pressure_fr, metrics?.target_post_pressure_fr);
               const targetDeltaRL = getTargetDelta(metrics?.post_pressure_rl, metrics?.target_post_pressure_rl);
               const targetDeltaRR = getTargetDelta(metrics?.post_pressure_rr, metrics?.target_post_pressure_rr);
-              const targetDeltaWater = getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c);
-              const targetDeltaOil = getTargetDelta(metrics?.max_oil_temp_c, metrics?.target_oil_temp_c);
+              const warnings = buildTurnWarnings(metrics);
+              const isExpanded = viewMode === "detailed" || expandedTurnId === turn.id;
 
               return (
                 <div
@@ -1251,7 +1205,7 @@ export default function EventCarTurnsPage() {
                         {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, " giri")}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-8">
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <SmallMetric label="Best lap" value={formatLapTime(metrics?.best_lap_ms)} />
                         <SmallMetric label="Fuel usato" value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
                         <SmallMetric label="Fuel/giro" value={fuelPerLap != null ? `${fuelPerLap} L` : "—"} />
@@ -1276,6 +1230,17 @@ export default function EventCarTurnsPage() {
                           : metrics?.technical_notes || turn.notes || "Nessuna nota registrata."}
                       </div>
 
+                      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+                        <SmallMetric label="Δ FL" value={displayNumber(pressureDeltaFL, " bar")} />
+                        <SmallMetric label="Δ FR" value={displayNumber(pressureDeltaFR, " bar")} />
+                        <SmallMetric label="Δ RL" value={displayNumber(pressureDeltaRL, " bar")} />
+                        <SmallMetric label="Δ RR" value={displayNumber(pressureDeltaRR, " bar")} />
+                        <SmallMetric label="Target FL" value={displayNumber(targetDeltaFL, " bar")} />
+                        <SmallMetric label="Target FR" value={displayNumber(targetDeltaFR, " bar")} />
+                        <SmallMetric label="Target RL" value={displayNumber(targetDeltaRL, " bar")} />
+                        <SmallMetric label="Target RR" value={displayNumber(targetDeltaRR, " bar")} />
+                      </div>
+
                       {isExpanded ? (
                         <div className="mt-4 space-y-4">
                           <DetailGrid title="Pre-turno">
@@ -1287,7 +1252,6 @@ export default function EventCarTurnsPage() {
                             <SmallMetric label="Press. FL pre" value={displayNumber(metrics?.pre_pressure_fl, " bar")} />
                             <SmallMetric label="Press. FR pre" value={displayNumber(metrics?.pre_pressure_fr, " bar")} />
                             <SmallMetric label="Press. RL pre" value={displayNumber(metrics?.pre_pressure_rl, " bar")} />
-                            <SmallMetric label="Press. RR pre" value={displayNumber(metrics?.pre_pressure_rr, " bar")} />
                           </DetailGrid>
 
                           <DetailGrid title="Post-turno e consumi">
@@ -1301,26 +1265,26 @@ export default function EventCarTurnsPage() {
                             <SmallMetric label="Temp. olio max" value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
                           </DetailGrid>
 
-                          <DetailGrid title="Pressioni, delta e gomme">
-                            <SmallMetric label="FL post / Δ" value={`${displayNumber(metrics?.post_pressure_fl, " bar")} / ${displayNumber(pressureDeltaFL, " bar")}`} />
-                            <SmallMetric label="FR post / Δ" value={`${displayNumber(metrics?.post_pressure_fr, " bar")} / ${displayNumber(pressureDeltaFR, " bar")}`} />
-                            <SmallMetric label="RL post / Δ" value={`${displayNumber(metrics?.post_pressure_rl, " bar")} / ${displayNumber(pressureDeltaRL, " bar")}`} />
-                            <SmallMetric label="RR post / Δ" value={`${displayNumber(metrics?.post_pressure_rr, " bar")} / ${displayNumber(pressureDeltaRR, " bar")}`} />
-                            <SmallMetric label="Temp. FL" value={displayNumber(metrics?.post_tyre_temp_fl, "°C")} />
-                            <SmallMetric label="Temp. FR" value={displayNumber(metrics?.post_tyre_temp_fr, "°C")} />
-                            <SmallMetric label="Temp. RL" value={displayNumber(metrics?.post_tyre_temp_rl, "°C")} />
-                            <SmallMetric label="Temp. RR" value={displayNumber(metrics?.post_tyre_temp_rr, "°C")} />
+                          <DetailGrid title="Pressioni e delta">
+                            <SmallMetric label="FL post" value={displayNumber(metrics?.post_pressure_fl, " bar")} />
+                            <SmallMetric label="FR post" value={displayNumber(metrics?.post_pressure_fr, " bar")} />
+                            <SmallMetric label="RL post" value={displayNumber(metrics?.post_pressure_rl, " bar")} />
+                            <SmallMetric label="RR post" value={displayNumber(metrics?.post_pressure_rr, " bar")} />
+                            <SmallMetric label="Δ FL" value={displayNumber(pressureDeltaFL, " bar")} />
+                            <SmallMetric label="Δ FR" value={displayNumber(pressureDeltaFR, " bar")} />
+                            <SmallMetric label="Δ RL" value={displayNumber(pressureDeltaRL, " bar")} />
+                            <SmallMetric label="Δ RR" value={displayNumber(pressureDeltaRR, " bar")} />
                           </DetailGrid>
 
-                          <DetailGrid title="Target e scostamenti">
-                            <SmallMetric label="FL target / Δ" value={`${displayNumber(metrics?.target_post_pressure_fl, " bar")} / ${displayNumber(targetDeltaFL, " bar")}`} />
-                            <SmallMetric label="FR target / Δ" value={`${displayNumber(metrics?.target_post_pressure_fr, " bar")} / ${displayNumber(targetDeltaFR, " bar")}`} />
-                            <SmallMetric label="RL target / Δ" value={`${displayNumber(metrics?.target_post_pressure_rl, " bar")} / ${displayNumber(targetDeltaRL, " bar")}`} />
-                            <SmallMetric label="RR target / Δ" value={`${displayNumber(metrics?.target_post_pressure_rr, " bar")} / ${displayNumber(targetDeltaRR, " bar")}`} />
-                            <SmallMetric label="Acqua target / Δ" value={`${displayNumber(metrics?.target_water_temp_c, "°C")} / ${displayNumber(targetDeltaWater, "°C")}`} />
-                            <SmallMetric label="Olio target / Δ" value={`${displayNumber(metrics?.target_oil_temp_c, "°C")} / ${displayNumber(targetDeltaOil, "°C")}`} />
-                            <SmallMetric label="Giro medio" value={formatLapTime(metrics?.avg_lap_ms)} />
-                            <SmallMetric label="Track condition" value={trackConditionLabel(metrics?.track_condition)} />
+                          <DetailGrid title="Target, scostamenti e temperature gomme">
+                            <SmallMetric label="Scost. FL" value={displayNumber(targetDeltaFL, " bar")} />
+                            <SmallMetric label="Scost. FR" value={displayNumber(targetDeltaFR, " bar")} />
+                            <SmallMetric label="Scost. RL" value={displayNumber(targetDeltaRL, " bar")} />
+                            <SmallMetric label="Scost. RR" value={displayNumber(targetDeltaRR, " bar")} />
+                            <SmallMetric label="Target acqua" value={displayNumber(getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c), "°C")} />
+                            <SmallMetric label="Target olio" value={displayNumber(getTargetDelta(metrics?.max_oil_temp_c, metrics?.target_oil_temp_c), "°C")} />
+                            <SmallMetric label="Temp. FL" value={displayNumber(metrics?.post_tyre_temp_fl, "°C")} />
+                            <SmallMetric label="Temp. FR" value={displayNumber(metrics?.post_tyre_temp_fr, "°C")} />
                           </DetailGrid>
                         </div>
                       ) : null}
