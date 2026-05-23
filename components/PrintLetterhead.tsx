@@ -22,7 +22,7 @@ export default function PrintLetterhead({
   const showSubtitle = mode === "logo_title_subtitle";
 
   return (
-    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none print:p-0">
+    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border print:border-[var(--border-default)] print:bg-white print:p-0 print:shadow-none">
       <div className="p-6 print:p-5">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div className="flex items-center gap-4">
