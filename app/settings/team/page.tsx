@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Audiowide } from "next/font/google";
 import {
   CheckCircle2,
   CopyPlus,
+  Info,
   Loader2,
   ShieldCheck,
   Trash2,
@@ -53,6 +55,8 @@ const OVERRIDE_MODES = [
   { value: "deny", label: "Nega" },
 ] as const;
 
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
@@ -78,6 +82,17 @@ function MemberStatusBadge({ active }: { active: boolean }) {
     >
       {active ? "Attivo" : "Disattivo"}
     </span>
+  );
+}
+
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -383,7 +398,7 @@ export default function TeamAccessPage() {
 
   if (!ctx || !settings) {
     return (
-      <div className="space-y-6">
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
         <PageHeader
           title="Team & Accessi"
           subtitle="Modulo di governance team e permessi"
@@ -400,7 +415,7 @@ export default function TeamAccessPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title="Team & Accessi"
         subtitle="Gestione ruoli, membri attivi e override permessi del team"
@@ -408,7 +423,7 @@ export default function TeamAccessPage() {
         actions={
           <button
             onClick={() => void loadAll(true)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
           >
             {reloading ? <Loader2 size={16} className="animate-spin" /> : <CopyPlus size={16} />}
             Aggiorna dati
@@ -418,13 +433,22 @@ export default function TeamAccessPage() {
 
       {feedback ? <FormStatusBanner type="info" message={feedback} /> : null}
 
-      {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <FormStatusBanner type="error" message={errorMessage} /> : null}
 
-      <StatsGrid items={stats} />
+      <SectionCard>
+        <StatsGrid items={stats} />
+      </SectionCard>
+
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questo modulo governa il team attuale: ruoli, stato membri e override puntuali dei permessi."
+      >
+        <InfoBlock>
+          Qui gestisci i membri già collegati al workspace, il loro ruolo operativo e le eventuali eccezioni ai permessi base.
+          Il modulo è pensato per tenere chiara la governance del team prima di introdurre, in un passaggio successivo,
+          inviti email e onboarding guidato dei nuovi utenti.
+        </InfoBlock>
+      </SectionCard>
 
       <SectionCard
         title="Snapshot team"
