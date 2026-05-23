@@ -456,7 +456,7 @@ function BrandPreview({
                 <div className="mt-4">
                   <input
                     readOnly
-                    value={`Esempio campo ${labels.component.toLowerCase()}`}
+                    value={`Esempio campo ${(labels.component || "componente").toLowerCase()}`}
                     className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700"
                   />
                 </div>
@@ -522,7 +522,7 @@ export default function SettingsPage() {
       const settingsData = settingsRes.data as AppSettingsRow;
       const normalizedSettings: AppSettingsRow = {
         ...settingsData,
-        labels: settingsData?.labels || DEFAULT_LABELS,
+        labels: { ...DEFAULT_LABELS, ...(settingsData?.labels || {}) },
         branding: buildBrandingFromSettings(settingsData),
       };
 
@@ -861,9 +861,7 @@ export default function SettingsPage() {
     }
   }
 
-  const previewBranding = settings
-    ? settings.branding || buildBrandingFromSettings(settings)
-    : null;
+  const previewBranding = settings?.branding || buildBrandingFromSettings(settings as AppSettingsRow);
 
   if (loading || !settings || !previewBranding) {
     return (
@@ -1104,7 +1102,7 @@ export default function SettingsPage() {
                 {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
                   <Field key={key} label={`Etichetta ${key}`}>
                     <Input
-                      value={value}
+                      value={value || ""}
                       onChange={(e) =>
                         patchSetting("labels", {
                           ...(settings.labels || DEFAULT_LABELS),
@@ -1126,7 +1124,7 @@ export default function SettingsPage() {
             primaryColor={normalizeHex(settings.primary_color, "#171717")}
             secondaryColor={normalizeHex(settings.secondary_color, "#262626")}
             accentColor={normalizeHex(settings.accent_color, "#facc15")}
-            labels={settings.labels || DEFAULT_LABELS}
+            labels={{ ...DEFAULT_LABELS, ...(settings.labels || {}) }}
             config={previewBranding.branding_config}
           />
         </div>
@@ -1178,7 +1176,7 @@ export default function SettingsPage() {
                     className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3"
                   >
                     <span className="font-semibold capitalize text-neutral-800">
-                      {key}
+                      {String(key)}
                     </span>
                     <input
                       type="checkbox"
