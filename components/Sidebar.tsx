@@ -41,11 +41,8 @@ type NavItem = {
 };
 
 type SettingsShape = {
-  team_name?: string;
-  team_subtitle?: string;
   enable_events?: boolean;
   enable_maintenances?: boolean;
-  enable_notes?: boolean;
   modules?: Record<string, boolean> | null;
 };
 
@@ -55,8 +52,6 @@ export default function Sidebar() {
   const { theme } = useBrandTheme();
 
   const [open, setOpen] = useState(false);
-  const [teamName, setTeamName] = useState(brandConfig.defaultTeamName);
-  const [teamSubtitle, setTeamSubtitle] = useState(brandConfig.defaultTeamSubtitle);
   const [settings, setSettings] = useState<SettingsShape | null>(null);
   const [teamRole, setTeamRole] = useState<string | null>(null);
   const [permissionCodes, setPermissionCodes] = useState<string[]>([]);
@@ -75,19 +70,12 @@ export default function Sidebar() {
 
         const normalizedSettings: SettingsShape | null = appSettings
           ? {
-              team_name: appSettings.team_name ?? undefined,
-              team_subtitle: appSettings.team_subtitle ?? undefined,
               enable_events: appSettings.enable_events ?? undefined,
               enable_maintenances: appSettings.enable_maintenances ?? undefined,
-              enable_notes: appSettings.enable_notes ?? undefined,
               modules: appSettings.modules ?? null,
             }
           : null;
 
-        setTeamName(normalizedSettings?.team_name || ctx.name || brandConfig.defaultTeamName);
-        setTeamSubtitle(
-          normalizedSettings?.team_subtitle || brandConfig.defaultTeamSubtitle
-        );
         setSettings(normalizedSettings);
         setTeamRole(ctx.role);
 
@@ -103,8 +91,6 @@ export default function Sidebar() {
       } catch {
         if (!active) return;
         setSettings(null);
-        setTeamName(brandConfig.defaultTeamName);
-        setTeamSubtitle(brandConfig.defaultTeamSubtitle);
         setTeamRole(null);
         setPermissionCodes([]);
       }
@@ -112,8 +98,15 @@ export default function Sidebar() {
 
     void load();
 
+    const refreshHandler = () => {
+      void load();
+    };
+
+    window.addEventListener("branding:refresh", refreshHandler);
+
     return () => {
       active = false;
+      window.removeEventListener("branding:refresh", refreshHandler);
     };
   }, []);
 
@@ -192,10 +185,6 @@ export default function Sidebar() {
     borderColor: "rgba(255,255,255,0.12)",
   };
 
-  const navItemHoverStyle: CSSProperties = {
-    backgroundColor: "rgba(255,255,255,0.08)",
-  };
-
   const secondaryBadgeStyle: CSSProperties = {
     backgroundColor: "var(--brand-secondary-soft)",
     borderColor: "var(--brand-secondary-soft)",
@@ -230,29 +219,28 @@ export default function Sidebar() {
                 {theme.brandingConfig.showLogoInSidebar ? (
                   <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
                     <img
-                      src={theme.logoUrl || brandConfig.logoPath}
-                      alt={theme.platformName}
+                      src={theme.sidebarLogoUrl || "/logo.png"}
+                      alt={theme.teamName}
                       className="h-11 w-11 object-contain"
                     />
                   </div>
                 ) : null}
                 <div className="min-w-0">
-                  <div
-                    className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-                    style={{ color: "var(--brand-accent)" }}
-                  >
-                    {theme.vendorName}
-                  </div>
-                  {theme.brandingConfig.showPlatformName ? (
-                    <div className="mt-1 truncate text-sm text-white/70">
-                      {theme.platformName}
+                  {theme.brandingConfig.showPlatformNameInSidebar ? (
+                    <div
+                      className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
+                      style={{ color: "var(--brand-accent)" }}
+                    >
+                      {brandConfig.appName}
                     </div>
                   ) : null}
+                  <div className="mt-1 truncate text-lg font-bold text-white">{theme.teamName}</div>
                 </div>
               </div>
 
-              <div className="mt-4 text-xl font-bold text-white">{teamName}</div>
-              <div className="mt-1 text-sm text-white/70">{teamSubtitle}</div>
+              {theme.teamSubtitle ? (
+                <div className="mt-2 text-sm text-white/70">{theme.teamSubtitle}</div>
+              ) : null}
 
               {teamRole ? (
                 <div
@@ -285,10 +273,16 @@ export default function Sidebar() {
                       style={active ? activeItemStyle : inactiveItemStyle}
                       onClick={() => setOpen(false)}
                       onMouseEnter={(e) => {
-                        if (!active) Object.assign((e.currentTarget as HTMLAnchorElement).style, navItemHoverStyle);
+                        if (!active) {
+                          (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
+                            "rgba(255,255,255,0.08)";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        if (!active) (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent";
+                        if (!active) {
+                          (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
+                            "transparent";
+                        }
                       }}
                     >
                       {link.icon}

@@ -13,14 +13,13 @@ import {
   Trash2,
   Info,
   Image as ImageIcon,
-  Palette,
-  Languages,
   MonitorSmartphone,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { uploadTeamFile } from "@/lib/storage";
 import { dispatchBrandingRefresh } from "@/lib/brandingTheme";
+import { brandConfig } from "@/lib/brand";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
@@ -34,17 +33,17 @@ const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 type BrandingConfig = {
   showLogoInHeader: boolean;
   showLogoInSidebar: boolean;
-  showPlatformName: boolean;
-  useTeamNameAsPlatformName: boolean;
+  showLogoInPrint: boolean;
+  showPlatformNameInHeader: boolean;
+  showPlatformNameInSidebar: boolean;
   compactHeader: boolean;
   printLetterheadMode: string;
 };
 
 type BrandingPayload = {
-  platform_name: string;
-  platform_subtitle: string;
-  logo_url: string;
-  favicon_url: string;
+  sidebar_logo_url: string;
+  header_logo_url: string;
+  print_logo_url: string;
   language: string;
   branding_config: BrandingConfig;
 };
@@ -138,8 +137,9 @@ const DEFAULT_LABELS = {
 const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
   showLogoInHeader: true,
   showLogoInSidebar: true,
-  showPlatformName: true,
-  useTeamNameAsPlatformName: false,
+  showLogoInPrint: true,
+  showPlatformNameInHeader: true,
+  showPlatformNameInSidebar: true,
   compactHeader: false,
   printLetterheadMode: "logo_title_subtitle",
 };
@@ -292,20 +292,26 @@ function contrastText(hex: string) {
 function buildBrandingFromSettings(settings?: AppSettingsRow | null): BrandingPayload {
   const brandingFromLayout = settings?.dashboard_layout?.branding || {};
   return {
-    platform_name:
-      settings?.branding?.platform_name ||
-      brandingFromLayout.platform_name ||
-      settings?.team_name ||
-      "Motorsport Management",
-    platform_subtitle:
-      settings?.branding?.platform_subtitle ||
-      brandingFromLayout.platform_subtitle ||
-      settings?.team_subtitle ||
-      "",
-    logo_url:
-      settings?.branding?.logo_url || brandingFromLayout.logo_url || "/logo.png",
-    favicon_url:
-      settings?.branding?.favicon_url || brandingFromLayout.favicon_url || "/favicon.ico",
+    sidebar_logo_url:
+      settings?.branding?.sidebar_logo_url ||
+      brandingFromLayout.sidebar_logo_url ||
+      settings?.branding?.header_logo_url ||
+      brandingFromLayout.header_logo_url ||
+      "/logo.png",
+    header_logo_url:
+      settings?.branding?.header_logo_url ||
+      brandingFromLayout.header_logo_url ||
+      settings?.branding?.sidebar_logo_url ||
+      brandingFromLayout.sidebar_logo_url ||
+      "/logo.png",
+    print_logo_url:
+      settings?.branding?.print_logo_url ||
+      brandingFromLayout.print_logo_url ||
+      settings?.branding?.header_logo_url ||
+      brandingFromLayout.header_logo_url ||
+      settings?.branding?.sidebar_logo_url ||
+      brandingFromLayout.sidebar_logo_url ||
+      "/logo.png",
     language:
       settings?.branding?.language || brandingFromLayout.language || "it",
     branding_config: {
@@ -342,78 +348,72 @@ function buildDefaultSettings(teamId: string, teamName: string): AppSettingsRow 
 }
 
 function BrandPreview({
-  platformName,
-  platformSubtitle,
   teamName,
-  logoUrl,
+  teamSubtitle,
+  sidebarLogoUrl,
+  headerLogoUrl,
+  printLogoUrl,
   primaryColor,
   secondaryColor,
   accentColor,
   labels,
   config,
 }: {
-  platformName: string;
-  platformSubtitle: string;
   teamName: string;
-  logoUrl: string;
+  teamSubtitle: string;
+  sidebarLogoUrl: string;
+  headerLogoUrl: string;
+  printLogoUrl: string;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   labels: Record<string, string>;
   config: BrandingConfig;
 }) {
-  const effectiveTitle = config.useTeamNameAsPlatformName
-    ? teamName || platformName
-    : platformName;
   const onAccent = contrastText(accentColor);
-  const sidebarBg = primaryColor;
-  const sidebarPanelBg = "rgba(255,255,255,0.08)";
-  const sidebarItemBg = "rgba(255,255,255,0.08)";
   const secondarySoft = hexToRgba(secondaryColor, 0.16);
   const accentSoft = hexToRgba(accentColor, 0.18);
 
   return (
     <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-        Anteprima realistica branding
+        Anteprima branding team
       </div>
       <div className="mt-2 text-sm leading-6 text-neutral-600">
-        Questa anteprima replica solo ciò che il brand governa davvero adesso:
-        sidebar, header, pulsante primario, badge accent e carta intestata stampa.
+        Il nome e il logo piattaforma restano definiti centralmente. Qui vedi solo ciò che il team può personalizzare davvero:
+        sidebar, header, colori, terminologia e stampa.
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[28px] border border-neutral-200 shadow-sm">
         <div className="grid grid-cols-[240px_1fr]">
-          <div className="min-h-[320px] p-4 text-white" style={{ backgroundColor: sidebarBg }}>
+          <div className="min-h-[320px] p-4 text-white" style={{ backgroundColor: primaryColor }}>
             <div
               className="rounded-3xl p-4"
-              style={{ backgroundColor: sidebarPanelBg, border: "1px solid rgba(255,255,255,0.12)" }}
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
             >
               <div className="flex items-center gap-3">
                 {config.showLogoInSidebar ? (
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
                     <img
-                      src={logoUrl || "/logo.png"}
-                      alt={effectiveTitle}
+                      src={sidebarLogoUrl || "/logo.png"}
+                      alt={teamName || "Team"}
                       className="h-10 w-10 object-contain"
                     />
                   </div>
                 ) : null}
                 <div className="min-w-0">
-                  <div
-                    className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]"
-                    style={{ color: accentColor }}
-                  >
-                    branding core
-                  </div>
-                  {config.showPlatformName ? (
-                    <div className="mt-1 truncate text-sm text-white/75">{effectiveTitle}</div>
+                  {config.showPlatformNameInSidebar ? (
+                    <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                      {brandConfig.appName}
+                    </div>
                   ) : null}
+                  <div className="mt-1 truncate text-lg font-bold text-white">
+                    {teamName || "Nome team"}
+                  </div>
                 </div>
               </div>
-              <div className="mt-4 text-lg font-bold text-white">{teamName || "Team Demo"}</div>
-              <div className="mt-1 text-sm text-white/70">
-                {platformSubtitle || "Sottotitolo piattaforma"}
+              <div className="mt-2 text-sm text-white/70">
+                {teamSubtitle || "Sottotitolo team"}
               </div>
               <div
                 className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
@@ -428,7 +428,7 @@ function BrandPreview({
                 <div
                   key={label}
                   className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/90"
-                  style={{ backgroundColor: sidebarItemBg }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                 >
                   {label}
                 </div>
@@ -441,19 +441,23 @@ function BrandPreview({
               <div className={`rounded-[24px] border border-neutral-200 bg-white shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    {(config.showLogoInHeader || config.showPlatformName) ? (
+                    {(config.showLogoInHeader || config.showPlatformNameInHeader) ? (
                       <div className="mb-3 flex items-center gap-3">
                         {config.showLogoInHeader ? (
                           <div
                             className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                            style={{ backgroundColor: accentSoft, color: accentColor }}
+                            style={{ backgroundColor: accentSoft }}
                           >
-                            <img src={logoUrl || "/logo.png"} alt={effectiveTitle} className="h-7 w-7 object-contain" />
+                            <img
+                              src={headerLogoUrl || "/logo.png"}
+                              alt={teamName || "Team"}
+                              className="h-7 w-7 object-contain"
+                            />
                           </div>
                         ) : null}
-                        {config.showPlatformName ? (
-                          <div className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-                            {effectiveTitle}
+                        {config.showPlatformNameInHeader ? (
+                          <div className="truncate text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                            {brandConfig.appName}
                           </div>
                         ) : null}
                       </div>
@@ -462,7 +466,7 @@ function BrandPreview({
                       {labels.event} · Preview
                     </div>
                     <div className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-                      Header reale con branding centrale e pulsante primario governato dall&apos;accent.
+                      Header reale con logo team, eventuale nome piattaforma fisso e pulsante primario governato dall&apos;accent.
                     </div>
                   </div>
 
@@ -506,20 +510,20 @@ function BrandPreview({
 
                 <div className="mt-4 rounded-[24px] border border-neutral-200 bg-white p-4">
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                    Carta intestata stampa
+                    Stampa scheda
                   </div>
                   <div className="mt-3 flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      {config.printLetterheadMode !== "title_only" ? (
+                      {config.showLogoInPrint && config.printLetterheadMode !== "title_only" ? (
                         <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
-                          <img src={logoUrl || "/logo.png"} alt={effectiveTitle} className="h-9 w-9 object-contain" />
+                          <img src={printLogoUrl || "/logo.png"} alt={teamName || "Team"} className="h-9 w-9 object-contain" />
                         </div>
                       ) : null}
                       <div>
-                        <div className="text-lg font-black text-neutral-900">{effectiveTitle}</div>
+                        <div className="text-lg font-black text-neutral-900">{teamName || "Nome team"}</div>
                         {config.printLetterheadMode === "logo_title_subtitle" ? (
                           <div className="mt-1 text-sm text-neutral-500">
-                            {platformSubtitle || "Sottotitolo stampa"}
+                            {teamSubtitle || "Sottotitolo team"}
                           </div>
                         ) : null}
                       </div>
@@ -547,7 +551,7 @@ export default function SettingsPage() {
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingAsset, setUploadingAsset] = useState<"logo" | "favicon" | null>(null);
+  const [uploadingAsset, setUploadingAsset] = useState<"sidebar" | "header" | "print" | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
     message: string;
@@ -731,38 +735,58 @@ export default function SettingsPage() {
     });
   }
 
-  async function uploadBrandAsset(kind: "logo" | "favicon", file: File) {
-    if (!settings) return;
-    setUploadingAsset(kind);
-    setFeedback(null);
+async function uploadBrandAsset(kind: "sidebar" | "header" | "print", file: File) {
+  if (!settings) return;
+  setUploadingAsset(kind);
+  setFeedback(null);
 
-    try {
-      const upload = await uploadTeamFile({
-        file,
-        area: kind === "logo" ? "branding-logo" : "branding-favicon",
-        recordId: "team-branding",
-      });
+  try {
+    const upload = await uploadTeamFile({
+      file,
+      area:
+        kind === "sidebar"
+          ? "team-sidebar-logo"
+          : kind === "header"
+          ? "team-header-logo"
+          : "team-print-logo",
+      recordId: "team-branding",
+    });
 
-      patchBranding(kind === "logo" ? "logo_url" : "favicon_url", upload.publicUrl);
-      setFeedback({
-        type: "success",
-        message:
-          kind === "logo"
-            ? "Logo caricato. Ricorda di salvare le impostazioni."
-            : "Favicon caricata. Ricorda di salvare le impostazioni.",
-      });
-    } catch (error) {
-      console.error(error);
-      setFeedback({
-        type: "error",
-        message: `Errore caricamento ${kind === "logo" ? "logo" : "favicon"}.`,
-      });
-    } finally {
-      setUploadingAsset(null);
-    }
+    patchBranding(
+      kind === "sidebar"
+        ? "sidebar_logo_url"
+        : kind === "header"
+        ? "header_logo_url"
+        : "print_logo_url",
+      upload.publicUrl
+    );
+
+    setFeedback({
+      type: "success",
+      message:
+        kind === "sidebar"
+          ? "Logo sidebar caricato. Ricorda di salvare le impostazioni."
+          : kind === "header"
+          ? "Logo header caricato. Ricorda di salvare le impostazioni."
+          : "Logo stampa caricato. Ricorda di salvare le impostazioni.",
+    });
+  } catch (error) {
+    console.error(error);
+    setFeedback({
+      type: "error",
+      message:
+        kind === "sidebar"
+          ? "Errore caricamento logo sidebar."
+          : kind === "header"
+          ? "Errore caricamento logo header."
+          : "Errore caricamento logo stampa.",
+    });
+  } finally {
+    setUploadingAsset(null);
   }
+}
 
-  async function saveAll() {
+async function saveAll() {
     if (!settings) return;
     setSaving(true);
     setFeedback(null);
@@ -773,11 +797,9 @@ export default function SettingsPage() {
       const dashboardLayout = {
         ...(settings.dashboard_layout || {}),
         branding: {
-          platform_name: settings.branding?.platform_name || settings.team_name,
-          platform_subtitle:
-            settings.branding?.platform_subtitle || settings.team_subtitle || "",
-          logo_url: settings.branding?.logo_url || "",
-          favicon_url: settings.branding?.favicon_url || "",
+          sidebar_logo_url: settings.branding?.sidebar_logo_url || "",
+          header_logo_url: settings.branding?.header_logo_url || "",
+          print_logo_url: settings.branding?.print_logo_url || "",
           language: settings.branding?.language || "it",
           branding_config: {
             ...DEFAULT_BRANDING_CONFIG,
@@ -982,7 +1004,8 @@ export default function SettingsPage() {
       >
         <InfoBlock>
           Qui definisci branding, moduli attivi, componenti standard, checklist, setup dinamico
-          e dashboard. Le impostazioni salvate diventano la base operativa del team. Il branding applica davvero sidebar, header, stampa, badge, accenti e labels supportate.
+          e dashboard. Le impostazioni salvate diventano la base operativa del team e influenzano
+          direttamente il lavoro su auto, componenti, eventi e check-up.
         </InfoBlock>
       </SectionCard>
 
@@ -994,253 +1017,292 @@ export default function SettingsPage() {
       </SectionCard>
 
       {section === "branding" ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <SectionCard
-              title="Identità piattaforma"
-              subtitle="Nome piattaforma, lingua, asset grafici e comportamento del brand."
+  <div className="space-y-6">
+    <SectionCard
+      title="Branding team"
+      subtitle="Il brand della piattaforma è fisso. Qui il team può personalizzare nome, loghi, colori e terminologia."
+    >
+      <InfoBlock>
+        Il nome e il logo della piattaforma sono gestiti centralmente. In questa sezione il cliente personalizza solo il proprio team:
+        nome, sottotitolo, loghi dedicati, colori e lessico operativo.
+      </InfoBlock>
+    </SectionCard>
+
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <SectionCard
+        title="Identità team"
+        subtitle="Nome team, sottotitolo e loghi dedicati per sidebar, header e stampa."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Nome team" hint="Titolo principale mostrato nella sidebar e nelle stampe.">
+            <Input
+              value={settings.team_name}
+              onChange={(e) => patchSetting("team_name", e.target.value)}
+              placeholder="Es. Battaglia Racing Car"
+            />
+          </Field>
+
+          <Field label="Sottotitolo team">
+            <Input
+              value={settings.team_subtitle || ""}
+              onChange={(e) => patchSetting("team_subtitle", e.target.value)}
+              placeholder="Es. Racing Team · SuperF1000"
+            />
+          </Field>
+
+          <Field label="Lingua piattaforma">
+            <Select
+              value={previewBranding.language}
+              onChange={(e) => patchBranding("language", e.target.value)}
             >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Nome piattaforma" hint="Nome commerciale mostrato nella webapp.">
-                  <Input
-                    value={previewBranding.platform_name}
-                    onChange={(e) => patchBranding("platform_name", e.target.value)}
-                    placeholder="Es. Motorsport Management"
-                  />
-                </Field>
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
+            </Select>
+          </Field>
+        </div>
 
-                <Field label="Sottotitolo piattaforma">
-                  <Input
-                    value={previewBranding.platform_subtitle}
-                    onChange={(e) => patchBranding("platform_subtitle", e.target.value)}
-                    placeholder="Es. Operations Platform"
-                  />
-                </Field>
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Field label="Logo sidebar" hint="Fallback: logo header o logo base.">
+            <Input
+              value={previewBranding.sidebar_logo_url}
+              onChange={(e) => patchBranding("sidebar_logo_url", e.target.value)}
+              placeholder="/logo-sidebar.png"
+            />
+          </Field>
 
-                <Field label="Lingua piattaforma">
-                  <Select
-                    value={previewBranding.language}
-                    onChange={(e) => patchBranding("language", e.target.value)}
-                  >
-                    <option value="it">Italiano</option>
-                    <option value="en">English</option>
-                  </Select>
-                </Field>
+          <Field label="Logo header" hint="Usato nelle intestazioni delle pagine.">
+            <Input
+              value={previewBranding.header_logo_url}
+              onChange={(e) => patchBranding("header_logo_url", e.target.value)}
+              placeholder="/logo-header.png"
+            />
+          </Field>
 
-                <Field label="Usa nome team come titolo piattaforma">
-                  <ToggleBox
-                    label="Sincronizza titolo"
-                    checked={previewBranding.branding_config.useTeamNameAsPlatformName}
-                    onChange={(checked) =>
-                      patchBrandingConfig("useTeamNameAsPlatformName", checked)
-                    }
-                  />
-                </Field>
-              </div>
+          <Field label="Logo stampa" hint="Usato nelle pagine stampabili.">
+            <Input
+              value={previewBranding.print_logo_url}
+              onChange={(e) => patchBranding("print_logo_url", e.target.value)}
+              placeholder="/logo-print.png"
+            />
+          </Field>
+        </div>
 
-              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="URL logo" hint="Puoi anche caricarlo dal pulsante qui sotto.">
-                  <Input
-                    value={previewBranding.logo_url}
-                    onChange={(e) => patchBranding("logo_url", e.target.value)}
-                    placeholder="/logo.png"
-                  />
-                </Field>
-
-                <Field label="URL favicon">
-                  <Input
-                    value={previewBranding.favicon_url}
-                    onChange={(e) => patchBranding("favicon_url", e.target.value)}
-                    placeholder="/favicon.ico"
-                  />
-                </Field>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
-                    <ImageIcon size={16} />
-                    Logo piattaforma
-                  </div>
-                  <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
-                    Carica logo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void uploadBrandAsset("logo", file);
-                        e.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <div className="mt-3 text-xs text-neutral-500">
-                    {uploadingAsset === "logo" ? "Caricamento logo..." : previewBranding.logo_url || "Nessun logo selezionato"}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
-                    <MonitorSmartphone size={16} />
-                    Favicon piattaforma
-                  </div>
-                  <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
-                    Carica favicon
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void uploadBrandAsset("favicon", file);
-                        e.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <div className="mt-3 text-xs text-neutral-500">
-                    {uploadingAsset === "favicon" ? "Caricamento favicon..." : previewBranding.favicon_url || "Nessuna favicon selezionata"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <ToggleBox
-                  label="Logo in header"
-                  checked={previewBranding.branding_config.showLogoInHeader}
-                  onChange={(checked) => patchBrandingConfig("showLogoInHeader", checked)}
-                />
-                <ToggleBox
-                  label="Logo in sidebar"
-                  checked={previewBranding.branding_config.showLogoInSidebar}
-                  onChange={(checked) => patchBrandingConfig("showLogoInSidebar", checked)}
-                />
-                <ToggleBox
-                  label="Nome piattaforma"
-                  checked={previewBranding.branding_config.showPlatformName}
-                  onChange={(checked) => patchBrandingConfig("showPlatformName", checked)}
-                />
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <ToggleBox
-                  label="Header compatto"
-                  checked={previewBranding.branding_config.compactHeader}
-                  onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
-                />
-                <Field label="Carta intestata stampa">
-                  <Select
-                    value={previewBranding.branding_config.printLetterheadMode}
-                    onChange={(e) =>
-                      patchBrandingConfig("printLetterheadMode", e.target.value)
-                    }
-                  >
-                    <option value="logo_title_subtitle">Logo + titolo + sottotitolo</option>
-                    <option value="logo_title">Logo + titolo</option>
-                    <option value="title_only">Solo titolo</option>
-                  </Select>
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Colori e terminologia"
-              subtitle="Primary governa soprattutto la sidebar, accent governa le azioni principali, secondary i dettagli brand secondari."
-            >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Field label="Primary color" hint="Controlla soprattutto la sidebar e le superfici brand strutturali.">
-                  <Input
-                    type="color"
-                    className="h-12 p-1"
-                    value={normalizeHex(settings.primary_color, "#171717")}
-                    onChange={(e) => patchSetting("primary_color", e.target.value)}
-                  />
-                </Field>
-                <Field label="Secondary color" hint="Usato per dettagli brand secondari, badge e superfici soft.">
-                  <Input
-                    type="color"
-                    className="h-12 p-1"
-                    value={normalizeHex(settings.secondary_color, "#262626")}
-                    onChange={(e) => patchSetting("secondary_color", e.target.value)}
-                  />
-                </Field>
-                <Field label="Accent color" hint="Governa pulsanti primari, evidenziazioni e highlight principali.">
-                  <Input
-                    type="color"
-                    className="h-12 p-1"
-                    value={normalizeHex(settings.accent_color, "#facc15")}
-                    onChange={(e) => patchSetting("accent_color", e.target.value)}
-                  />
-                </Field>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
-                  <Field key={key} label={`Etichetta ${key}`}>
-                    <Input
-                      value={value}
-                      onChange={(e) =>
-                        patchSetting("labels", {
-                          ...(settings.labels || DEFAULT_LABELS),
-                          [key]: e.target.value,
-                        })
-                      }
-                    />
-                  </Field>
-                ))}
-              </div>
-            </SectionCard>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+              <ImageIcon size={16} />
+              Upload logo sidebar
+            </div>
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+              Carica logo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadBrandAsset("sidebar", file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <div className="mt-3 text-xs text-neutral-500">
+              {uploadingAsset === "sidebar"
+                ? "Caricamento logo sidebar..."
+                : previewBranding.sidebar_logo_url || "Nessun logo sidebar selezionato"}
+            </div>
           </div>
 
-          <BrandPreview
-            platformName={previewBranding.platform_name}
-            platformSubtitle={previewBranding.platform_subtitle}
-            teamName={settings.team_name}
-            logoUrl={previewBranding.logo_url}
-            primaryColor={normalizeHex(settings.primary_color, "#171717")}
-            secondaryColor={normalizeHex(settings.secondary_color, "#262626")}
-            accentColor={normalizeHex(settings.accent_color, "#facc15")}
-            labels={{ ...DEFAULT_LABELS, ...(settings.labels || {}) }}
-            config={previewBranding.branding_config}
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+              <MonitorSmartphone size={16} />
+              Upload logo header
+            </div>
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+              Carica logo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadBrandAsset("header", file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <div className="mt-3 text-xs text-neutral-500">
+              {uploadingAsset === "header"
+                ? "Caricamento logo header..."
+                : previewBranding.header_logo_url || "Nessun logo header selezionato"}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+              <ImageIcon size={16} />
+              Upload logo stampa
+            </div>
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+              Carica logo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadBrandAsset("print", file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <div className="mt-3 text-xs text-neutral-500">
+              {uploadingAsset === "print"
+                ? "Caricamento logo stampa..."
+                : previewBranding.print_logo_url || "Nessun logo stampa selezionato"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <ToggleBox
+            label="Logo in sidebar"
+            checked={previewBranding.branding_config.showLogoInSidebar}
+            onChange={(checked) => patchBrandingConfig("showLogoInSidebar", checked)}
+          />
+          <ToggleBox
+            label="Logo in header"
+            checked={previewBranding.branding_config.showLogoInHeader}
+            onChange={(checked) => patchBrandingConfig("showLogoInHeader", checked)}
+          />
+          <ToggleBox
+            label="Logo in stampa"
+            checked={previewBranding.branding_config.showLogoInPrint}
+            onChange={(checked) => patchBrandingConfig("showLogoInPrint", checked)}
           />
         </div>
-      ) : null}
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <ToggleBox
+            label="Nome piattaforma in sidebar"
+            checked={previewBranding.branding_config.showPlatformNameInSidebar}
+            onChange={(checked) => patchBrandingConfig("showPlatformNameInSidebar", checked)}
+          />
+          <ToggleBox
+            label="Nome piattaforma in header"
+            checked={previewBranding.branding_config.showPlatformNameInHeader}
+            onChange={(checked) => patchBrandingConfig("showPlatformNameInHeader", checked)}
+          />
+          <ToggleBox
+            label="Header compatto"
+            checked={previewBranding.branding_config.compactHeader}
+            onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
+          />
+        </div>
+
+        <div className="mt-4">
+          <Field label="Carta intestata stampa">
+            <Select
+              value={previewBranding.branding_config.printLetterheadMode}
+              onChange={(e) =>
+                patchBrandingConfig("printLetterheadMode", e.target.value)
+              }
+            >
+              <option value="logo_title_subtitle">Logo + nome team + sottotitolo</option>
+              <option value="logo_title">Logo + nome team</option>
+              <option value="title_only">Solo nome team</option>
+            </Select>
+          </Field>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Colori e terminologia"
+        subtitle="Primary governa soprattutto la sidebar, accent governa le azioni principali, secondary i dettagli brand secondari."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Field label="Primary color" hint="Controlla soprattutto la sidebar e le superfici brand strutturali.">
+            <Input
+              type="color"
+              className="h-12 p-1"
+              value={normalizeHex(settings.primary_color, "#171717")}
+              onChange={(e) => patchSetting("primary_color", e.target.value)}
+            />
+          </Field>
+          <Field label="Secondary color" hint="Usato per dettagli brand secondari, badge e superfici soft.">
+            <Input
+              type="color"
+              className="h-12 p-1"
+              value={normalizeHex(settings.secondary_color, "#262626")}
+              onChange={(e) => patchSetting("secondary_color", e.target.value)}
+            />
+          </Field>
+          <Field label="Accent color" hint="Governa pulsanti primari, evidenziazioni e highlight principali.">
+            <Input
+              type="color"
+              className="h-12 p-1"
+              value={normalizeHex(settings.accent_color, "#facc15")}
+              onChange={(e) => patchSetting("accent_color", e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
+            <Field key={key} label={`Etichetta ${key}`}>
+              <Input
+                value={value}
+                onChange={(e) =>
+                  patchSetting("labels", {
+                    ...(settings.labels || DEFAULT_LABELS),
+                    [key]: e.target.value,
+                  })
+                }
+              />
+            </Field>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+
+    <BrandPreview
+      teamName={settings.team_name}
+      teamSubtitle={settings.team_subtitle || ""}
+      sidebarLogoUrl={previewBranding.sidebar_logo_url}
+      headerLogoUrl={previewBranding.header_logo_url}
+      printLogoUrl={previewBranding.print_logo_url}
+      primaryColor={normalizeHex(settings.primary_color, "#171717")}
+      secondaryColor={normalizeHex(settings.secondary_color, "#262626")}
+      accentColor={normalizeHex(settings.accent_color, "#facc15")}
+      labels={{ ...DEFAULT_LABELS, ...(settings.labels || {}) }}
+      config={previewBranding.branding_config}
+    />
+  </div>
+) : null}
 
       {section === "general" ? (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <SectionCard
-            title="Brand e identità team"
-            subtitle="Configura nome interno del team e terminologia base del contesto."
+  <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <SectionCard
+      title="Configurazione operativa"
+      subtitle="Impostazioni base del mezzo e del comportamento generale del team."
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tipo mezzo">
+          <Select
+            value={settings.vehicle_type}
+            onChange={(e) => patchSetting("vehicle_type", e.target.value)}
           >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Nome team">
-                <Input
-                  value={settings.team_name}
-                  onChange={(e) => patchSetting("team_name", e.target.value)}
-                />
-              </Field>
-              <Field label="Sottotitolo team">
-                <Input
-                  value={settings.team_subtitle || ""}
-                  onChange={(e) => patchSetting("team_subtitle", e.target.value)}
-                />
-              </Field>
-              <Field label="Tipo mezzo">
-                <Select
-                  value={settings.vehicle_type}
-                  onChange={(e) => patchSetting("vehicle_type", e.target.value)}
-                >
-                  <option value="auto">Auto</option>
-                  <option value="moto">Moto</option>
-                  <option value="kart">Kart</option>
-                  <option value="formula">Formula</option>
-                  <option value="custom">Custom</option>
-                </Select>
-              </Field>
-            </div>
-          </SectionCard>
+            <option value="auto">Auto</option>
+            <option value="moto">Moto</option>
+            <option value="kart">Kart</option>
+            <option value="formula">Formula</option>
+            <option value="custom">Custom</option>
+          </Select>
+        </Field>
+      </div>
+    </SectionCard>
 
-          <SectionCard
+    <SectionCard
             title="Moduli e soglie"
             subtitle="Attiva i moduli e governa alert e soglie di default."
           >

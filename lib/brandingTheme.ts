@@ -13,8 +13,9 @@ export type BrandingLabels = {
 export type BrandingConfig = {
   showLogoInHeader: boolean;
   showLogoInSidebar: boolean;
-  showPlatformName: boolean;
-  useTeamNameAsPlatformName: boolean;
+  showLogoInPrint: boolean;
+  showPlatformNameInHeader: boolean;
+  showPlatformNameInSidebar: boolean;
   compactHeader: boolean;
   printLetterheadMode: string;
 };
@@ -23,9 +24,13 @@ export type BrandingTheme = {
   platformName: string;
   platformSubtitle: string | null;
   vendorName: string;
-  logoUrl: string | null;
   faviconUrl: string | null;
   language: string;
+  teamName: string;
+  teamSubtitle: string | null;
+  sidebarLogoUrl: string | null;
+  headerLogoUrl: string | null;
+  printLogoUrl: string | null;
   labels: BrandingLabels;
   brandingConfig: BrandingConfig;
   colors: {
@@ -48,24 +53,18 @@ export type BrandingTheme = {
 export type RawBrandingSettings = {
   team_name?: string | null;
   team_subtitle?: string | null;
-  platform_name?: string | null;
-  platform_subtitle?: string | null;
-  logo_url?: string | null;
-  favicon_url?: string | null;
   language?: string | null;
   primary_color?: string | null;
   secondary_color?: string | null;
   accent_color?: string | null;
   labels?: Partial<BrandingLabels> | null;
-  branding_config?: Partial<BrandingConfig> | null;
   branding?: Record<string, unknown> | null;
   theme_tokens?: Record<string, string> | null;
   dashboard_layout?: {
     branding?: {
-      platform_name?: string;
-      platform_subtitle?: string;
-      logo_url?: string;
-      favicon_url?: string;
+      sidebar_logo_url?: string;
+      header_logo_url?: string;
+      print_logo_url?: string;
       language?: string;
       branding_config?: Partial<BrandingConfig>;
     };
@@ -86,8 +85,9 @@ const DEFAULT_LABELS: BrandingLabels = {
 const DEFAULT_CONFIG: BrandingConfig = {
   showLogoInHeader: true,
   showLogoInSidebar: true,
-  showPlatformName: true,
-  useTeamNameAsPlatformName: false,
+  showLogoInPrint: true,
+  showPlatformNameInHeader: true,
+  showPlatformNameInSidebar: true,
   compactHeader: false,
   printLetterheadMode: "logo_title_subtitle",
 };
@@ -143,9 +143,13 @@ export const DEFAULT_BRANDING_THEME: BrandingTheme = {
   platformName: brandConfig.appName,
   platformSubtitle: brandConfig.appDescription,
   vendorName: brandConfig.vendorName,
-  logoUrl: brandConfig.logoPath,
   faviconUrl: brandConfig.faviconPath,
   language: "it",
+  teamName: brandConfig.defaultTeamName,
+  teamSubtitle: brandConfig.defaultTeamSubtitle,
+  sidebarLogoUrl: brandConfig.logoPath,
+  headerLogoUrl: brandConfig.logoPath,
+  printLogoUrl: brandConfig.logoPath,
   labels: DEFAULT_LABELS,
   brandingConfig: DEFAULT_CONFIG,
   colors: {
@@ -171,66 +175,55 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
   const brandingConfig = {
     ...DEFAULT_CONFIG,
     ...(layoutBranding.branding_config || {}),
-    ...(raw?.branding_config || {}),
     ...(branding.branding_config as Partial<BrandingConfig> | undefined),
   };
 
-  const accent = normalizeHex(
-    readString(raw?.accent_color || (branding as any).accent_color),
-    DEFAULT_BRANDING_THEME.colors.accent
-  );
-  const primary = normalizeHex(
-    readString(raw?.primary_color || (branding as any).primary_color),
-    DEFAULT_BRANDING_THEME.colors.primary
-  );
-  const secondary = normalizeHex(
-    readString(raw?.secondary_color || (branding as any).secondary_color),
-    DEFAULT_BRANDING_THEME.colors.secondary
-  );
+  const accent = normalizeHex(readString(raw?.accent_color), DEFAULT_BRANDING_THEME.colors.accent);
+  const primary = normalizeHex(readString(raw?.primary_color), DEFAULT_BRANDING_THEME.colors.primary);
+  const secondary = normalizeHex(readString(raw?.secondary_color), DEFAULT_BRANDING_THEME.colors.secondary);
 
   const labels = {
     ...DEFAULT_LABELS,
-    ...((raw?.labels || (branding as any).labels || {}) as Partial<BrandingLabels>),
+    ...((raw?.labels || {}) as Partial<BrandingLabels>),
   };
 
-  const platformName =
-    readString(raw?.platform_name || (branding as any).platform_name) ||
-    (readBoolean(brandingConfig.useTeamNameAsPlatformName, false)
-      ? readString(raw?.team_name)
-      : "") ||
-    DEFAULT_BRANDING_THEME.platformName;
+  const sidebarLogoUrl = normalizeAssetPath(
+    readString((branding as any).sidebar_logo_url) || readString((branding as any).header_logo_url),
+    DEFAULT_BRANDING_THEME.sidebarLogoUrl
+  );
 
-  const platformSubtitle =
-    readString(raw?.platform_subtitle || (branding as any).platform_subtitle) ||
-    readString(raw?.team_subtitle) ||
-    DEFAULT_BRANDING_THEME.platformSubtitle ||
-    null;
+  const headerLogoUrl = normalizeAssetPath(
+    readString((branding as any).header_logo_url) || readString((branding as any).sidebar_logo_url),
+    DEFAULT_BRANDING_THEME.headerLogoUrl
+  );
+
+  const printLogoUrl = normalizeAssetPath(
+    readString((branding as any).print_logo_url) ||
+      readString((branding as any).header_logo_url) ||
+      readString((branding as any).sidebar_logo_url),
+    DEFAULT_BRANDING_THEME.printLogoUrl
+  );
 
   return {
-    platformName,
-    platformSubtitle,
+    platformName: brandConfig.appName,
+    platformSubtitle: brandConfig.appDescription,
     vendorName: brandConfig.vendorName,
-    logoUrl: normalizeAssetPath(
-      readString(raw?.logo_url || (branding as any).logo_url) || null,
-      DEFAULT_BRANDING_THEME.logoUrl
-    ),
-    faviconUrl: normalizeAssetPath(
-      readString(raw?.favicon_url || (branding as any).favicon_url) || null,
-      DEFAULT_BRANDING_THEME.faviconUrl
-    ),
-    language: readString(raw?.language || (branding as any).language, "it"),
+    faviconUrl: brandConfig.faviconPath,
+    language: readString((branding as any).language || raw?.language, "it"),
+    teamName: readString(raw?.team_name, brandConfig.defaultTeamName),
+    teamSubtitle: readString(raw?.team_subtitle, brandConfig.defaultTeamSubtitle),
+    sidebarLogoUrl,
+    headerLogoUrl,
+    printLogoUrl,
     labels,
     brandingConfig: {
       showLogoInHeader: readBoolean(brandingConfig.showLogoInHeader, true),
       showLogoInSidebar: readBoolean(brandingConfig.showLogoInSidebar, true),
-      showPlatformName: readBoolean(brandingConfig.showPlatformName, true),
-      useTeamNameAsPlatformName: readBoolean(
-        brandingConfig.useTeamNameAsPlatformName,
-        false
-      ),
+      showLogoInPrint: readBoolean(brandingConfig.showLogoInPrint, true),
+      showPlatformNameInHeader: readBoolean(brandingConfig.showPlatformNameInHeader, true),
+      showPlatformNameInSidebar: readBoolean(brandingConfig.showPlatformNameInSidebar, true),
       compactHeader: readBoolean(brandingConfig.compactHeader, false),
-      printLetterheadMode:
-        readString(brandingConfig.printLetterheadMode, "logo_title_subtitle"),
+      printLetterheadMode: readString(brandingConfig.printLetterheadMode, "logo_title_subtitle"),
     },
     colors: {
       primary,
@@ -281,15 +274,12 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
   root.style.setProperty("--border-default", theme.colors.borderDefault);
   root.lang = theme.language || "it";
 
-  if (theme.faviconUrl) {
-    const link =
-      (document.querySelector("link[rel='icon']") as HTMLLinkElement | null) ||
-      document.createElement("link");
-
-    link.rel = "icon";
-    link.href = theme.faviconUrl;
-    if (!link.parentNode) document.head.appendChild(link);
-  }
+  const link =
+    (document.querySelector("link[rel='icon']") as HTMLLinkElement | null) ||
+    document.createElement("link");
+  link.rel = "icon";
+  link.href = theme.faviconUrl || brandConfig.faviconPath;
+  if (!link.parentNode) document.head.appendChild(link);
 
   let metaTheme = document.querySelector("meta[name='theme-color']") as HTMLMetaElement | null;
   if (!metaTheme) {
@@ -298,15 +288,6 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
     document.head.appendChild(metaTheme);
   }
   metaTheme.content = theme.colors.primary;
-
-  if (document.title) {
-    document.title = document.title
-      .replace(brandConfig.appName, theme.platformName)
-      .replace("Parco Auto", theme.platformName)
-      .replace("Motorsport Management", theme.platformName);
-  } else {
-    document.title = theme.platformName;
-  }
 }
 
 export function dispatchBrandingRefresh() {

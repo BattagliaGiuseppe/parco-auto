@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { brandConfig } from "@/lib/brand";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 export default function PageHeader({
@@ -39,30 +40,27 @@ export default function PageHeader({
         ) : null}
 
         <div className="min-w-0">
-          {(theme.brandingConfig.showLogoInHeader || theme.brandingConfig.showPlatformName) ? (
+          {(theme.brandingConfig.showLogoInHeader || theme.brandingConfig.showPlatformNameInHeader) ? (
             <div className="mb-3 flex items-center gap-3">
               {theme.brandingConfig.showLogoInHeader ? (
                 <div
                   className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                  style={{
-                    backgroundColor: "var(--brand-accent-soft)",
-                    color: "var(--brand-accent)",
-                  }}
+                  style={{ backgroundColor: "var(--brand-accent-soft)" }}
                 >
                   <img
-                    src={theme.logoUrl || "/logo.png"}
-                    alt={theme.platformName}
+                    src={theme.headerLogoUrl || "/logo.png"}
+                    alt={theme.teamName}
                     className="h-7 w-7 object-contain"
                   />
                 </div>
               ) : null}
 
-              {theme.brandingConfig.showPlatformName ? (
+              {theme.brandingConfig.showPlatformNameInHeader ? (
                 <div
                   className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
                   style={{ color: "var(--brand-accent)" }}
                 >
-                  {theme.platformName}
+                  {brandConfig.appName}
                 </div>
               ) : null}
             </div>

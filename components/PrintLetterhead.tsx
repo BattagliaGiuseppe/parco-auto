@@ -1,5 +1,6 @@
 "use client";
 
+import { brandConfig } from "@/lib/brand";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 type PrintLetterheadProps = {
@@ -16,7 +17,7 @@ export default function PrintLetterhead({
   const today = new Date().toLocaleDateString("it-IT");
   const { theme } = useBrandTheme();
   const mode = theme.brandingConfig.printLetterheadMode || "logo_title_subtitle";
-  const showLogo = mode !== "title_only";
+  const showLogo = theme.brandingConfig.showLogoInPrint && mode !== "title_only";
   const showSubtitle = mode === "logo_title_subtitle";
 
   return (
@@ -26,25 +27,22 @@ export default function PrintLetterhead({
           {showLogo ? (
             <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
               <img
-                src={theme.logoUrl || "/logo.png"}
-                alt={theme.platformName}
+                src={theme.printLogoUrl || theme.headerLogoUrl || theme.sidebarLogoUrl || "/logo.png"}
+                alt={theme.teamName}
                 className="h-16 w-16 object-contain p-2"
               />
             </div>
           ) : null}
-
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-              {theme.vendorName}
+              {brandConfig.appName}
             </div>
-            {theme.brandingConfig.showPlatformName ? (
-              <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
-                {theme.platformName}
-              </div>
-            ) : null}
+            <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
+              {theme.teamName}
+            </div>
             {showSubtitle ? (
               <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                {subtitle || theme.platformSubtitle || ""}
+                {subtitle || theme.teamSubtitle || ""}
               </div>
             ) : null}
           </div>
