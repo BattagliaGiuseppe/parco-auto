@@ -60,6 +60,17 @@ export type RawBrandingSettings = {
   branding_config?: Partial<BrandingConfig> | null;
   branding?: Record<string, unknown> | null;
   theme_tokens?: Record<string, string> | null;
+  dashboard_layout?: {
+    branding?: {
+      platform_name?: string;
+      platform_subtitle?: string;
+      logo_url?: string;
+      favicon_url?: string;
+      language?: string;
+      branding_config?: Partial<BrandingConfig>;
+    };
+    [key: string]: unknown;
+  } | null;
 };
 
 const DEFAULT_LABELS: BrandingLabels = {
@@ -155,39 +166,42 @@ export const DEFAULT_BRANDING_THEME: BrandingTheme = {
 };
 
 export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTheme {
-  const branding = (raw?.branding || {}) as Record<string, unknown>;
+  const layoutBranding = (raw?.dashboard_layout?.branding || {}) as Record<string, unknown>;
+  const branding = (raw?.branding || layoutBranding || {}) as Record<string, unknown>;
   const brandingConfig = {
     ...DEFAULT_CONFIG,
+    ...(layoutBranding.branding_config || {}),
     ...(raw?.branding_config || {}),
+    ...(branding.branding_config as Partial<BrandingConfig> | undefined),
   };
 
   const accent = normalizeHex(
-    readString(raw?.accent_color || branding.accent_color),
+    readString(raw?.accent_color || (branding as any).accent_color),
     DEFAULT_BRANDING_THEME.colors.accent
   );
   const primary = normalizeHex(
-    readString(raw?.primary_color || branding.primary_color),
+    readString(raw?.primary_color || (branding as any).primary_color),
     DEFAULT_BRANDING_THEME.colors.primary
   );
   const secondary = normalizeHex(
-    readString(raw?.secondary_color || branding.secondary_color),
+    readString(raw?.secondary_color || (branding as any).secondary_color),
     DEFAULT_BRANDING_THEME.colors.secondary
   );
 
   const labels = {
     ...DEFAULT_LABELS,
-    ...((raw?.labels || branding.labels || {}) as Partial<BrandingLabels>),
+    ...((raw?.labels || (branding as any).labels || {}) as Partial<BrandingLabels>),
   };
 
   const platformName =
-    readString(raw?.platform_name || branding.platform_name) ||
+    readString(raw?.platform_name || (branding as any).platform_name) ||
     (readBoolean(brandingConfig.useTeamNameAsPlatformName, false)
       ? readString(raw?.team_name)
       : "") ||
     DEFAULT_BRANDING_THEME.platformName;
 
   const platformSubtitle =
-    readString(raw?.platform_subtitle || branding.platform_subtitle) ||
+    readString(raw?.platform_subtitle || (branding as any).platform_subtitle) ||
     readString(raw?.team_subtitle) ||
     DEFAULT_BRANDING_THEME.platformSubtitle ||
     null;
@@ -197,14 +211,14 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
     platformSubtitle,
     vendorName: brandConfig.vendorName,
     logoUrl: normalizeAssetPath(
-      readString(raw?.logo_url || branding.logo_url) || null,
+      readString(raw?.logo_url || (branding as any).logo_url) || null,
       DEFAULT_BRANDING_THEME.logoUrl
     ),
     faviconUrl: normalizeAssetPath(
-      readString(raw?.favicon_url || branding.favicon_url) || null,
+      readString(raw?.favicon_url || (branding as any).favicon_url) || null,
       DEFAULT_BRANDING_THEME.faviconUrl
     ),
-    language: readString(raw?.language || branding.language, "it"),
+    language: readString(raw?.language || (branding as any).language, "it"),
     labels,
     brandingConfig: {
       showLogoInHeader: readBoolean(brandingConfig.showLogoInHeader, true),

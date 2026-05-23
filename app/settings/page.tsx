@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Audiowide } from "next/font/google";
 import {
   Save,
@@ -12,9 +12,15 @@ import {
   PlusCircle,
   Trash2,
   Info,
+  Image as ImageIcon,
+  Palette,
+  Languages,
+  MonitorSmartphone,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
+import { uploadTeamFile } from "@/lib/storage";
+import { dispatchBrandingRefresh } from "@/lib/brandingTheme";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
@@ -24,6 +30,24 @@ import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
+
+type BrandingConfig = {
+  showLogoInHeader: boolean;
+  showLogoInSidebar: boolean;
+  showPlatformName: boolean;
+  useTeamNameAsPlatformName: boolean;
+  compactHeader: boolean;
+  printLetterheadMode: string;
+};
+
+type BrandingPayload = {
+  platform_name: string;
+  platform_subtitle: string;
+  logo_url: string;
+  favicon_url: string;
+  language: string;
+  branding_config: BrandingConfig;
+};
 
 type AppSettingsRow = {
   id: string;
@@ -40,6 +64,7 @@ type AppSettingsRow = {
   modules: Record<string, boolean> | null;
   dashboard_layout: any;
   labels?: Record<string, string> | null;
+  branding?: BrandingPayload;
 };
 
 type ComponentDefinition = {
@@ -91,7 +116,7 @@ type DashboardWidget = {
   order_index: number;
 };
 
-const emptyModuleState = {
+const DEFAULT_MODULES = {
   drivers: true,
   performance: true,
   inventory: true,
@@ -100,11 +125,23 @@ const emptyModuleState = {
   mounts: true,
 };
 
-const emptyLabels = {
+const DEFAULT_LABELS = {
   vehicle: "Auto",
   driver: "Pilota",
   event: "Evento",
   turn: "Turno",
+  component: "Componente",
+  maintenance: "Manutenzione",
+  inventory: "Magazzino",
+};
+
+const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
+  showLogoInHeader: true,
+  showLogoInSidebar: true,
+  showPlatformName: true,
+  useTeamNameAsPlatformName: false,
+  compactHeader: false,
+  printLetterheadMode: "logo_title_subtitle",
 };
 
 function SectionTabs({
@@ -115,6 +152,7 @@ function SectionTabs({
   onChange: (v: string) => void;
 }) {
   const tabs = [
+    ["branding", "Branding"],
     ["general", "Generale"],
     ["components", "Componenti standard"],
     ["checklists", "Check-up"],
@@ -153,14 +191,17 @@ function Label({ children }: { children: React.ReactNode }) {
 function Field({
   label,
   children,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <div>
       <Label>{label}</Label>
       {children}
+      {hint ? <div className="mt-2 text-xs leading-5 text-neutral-500">{hint}</div> : null}
     </div>
   );
 }
@@ -219,6 +260,215 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
   );
 }
 
+function normalizeHex(value: string, fallback: string) {
+  if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(value || "")) return fallback;
+  if (value.length === 4) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+  }
+  return value.toLowerCase();
+}
+
+function hexToRgb(hex: string) {
+  const safe = normalizeHex(hex, "#000000").replace("#", "");
+  const bigint = parseInt(safe, 16);
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255,
+  };
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function contrastText(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#111827" : "#ffffff";
+}
+
+function buildBrandingFromSettings(settings: AppSettingsRow): BrandingPayload {
+  const brandingFromLayout = settings.dashboard_layout?.branding || {};
+  return {
+    platform_name:
+      settings.branding?.platform_name ||
+      brandingFromLayout.platform_name ||
+      settings.team_name ||
+      "Motorsport Management",
+    platform_subtitle:
+      settings.branding?.platform_subtitle ||
+      brandingFromLayout.platform_subtitle ||
+      settings.team_subtitle ||
+      "",
+    logo_url:
+      settings.branding?.logo_url || brandingFromLayout.logo_url || "/logo.png",
+    favicon_url:
+      settings.branding?.favicon_url || brandingFromLayout.favicon_url || "/favicon.ico",
+    language:
+      settings.branding?.language || brandingFromLayout.language || "it",
+    branding_config: {
+      ...DEFAULT_BRANDING_CONFIG,
+      ...(brandingFromLayout.branding_config || {}),
+      ...(settings.branding?.branding_config || {}),
+    },
+  };
+}
+
+function BrandPreview({
+  platformName,
+  platformSubtitle,
+  teamName,
+  logoUrl,
+  primaryColor,
+  secondaryColor,
+  accentColor,
+  labels,
+  config,
+}: {
+  platformName: string;
+  platformSubtitle: string;
+  teamName: string;
+  logoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  labels: Record<string, string>;
+  config: BrandingConfig;
+}) {
+  const effectiveTitle = config.useTeamNameAsPlatformName ? teamName || platformName : platformName;
+  const onAccent = contrastText(accentColor);
+
+  return (
+    <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+        Anteprima branding
+      </div>
+
+      <div
+        className="mt-4 overflow-hidden rounded-[28px] border shadow-sm"
+        style={{ borderColor: hexToRgba(primaryColor, 0.12) }}
+      >
+        <div className="grid grid-cols-[230px_1fr]">
+          <div
+            className="min-h-[260px] p-4 text-white"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-3">
+                {config.showLogoInSidebar ? (
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
+                    <img
+                      src={logoUrl || "/logo.png"}
+                      alt={effectiveTitle}
+                      className="h-10 w-10 object-contain"
+                    />
+                  </div>
+                ) : null}
+                <div className="min-w-0">
+                  {config.showPlatformName ? (
+                    <div className="truncate text-sm font-bold">
+                      {effectiveTitle}
+                    </div>
+                  ) : null}
+                  <div className="truncate text-xs text-white/70">
+                    {platformSubtitle || "Sottotitolo piattaforma"}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 text-sm font-semibold text-white/80">{teamName || "Team Demo"}</div>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              {[labels.vehicle, labels.driver, labels.event].map((label) => (
+                <div
+                  key={label}
+                  className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="p-4"
+            style={{ backgroundColor: "#f5f5f5" }}
+          >
+            <div className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {config.showLogoInHeader ? (
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                      style={{ backgroundColor: hexToRgba(accentColor, 0.18), color: accentColor }}
+                    >
+                      <ImageIcon size={18} />
+                    </div>
+                  ) : null}
+                  <div>
+                    <div className="text-xl font-black text-neutral-900">{effectiveTitle}</div>
+                    <div className="mt-1 text-sm text-neutral-500">
+                      {platformSubtitle || "Anteprima piattaforma"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="rounded-xl px-4 py-2 text-sm font-bold"
+                  style={{ backgroundColor: accentColor, color: onAccent }}
+                >
+                  Pulsante primario
+                </button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {["Card KPI", "Card KPI", "Card KPI"].map((label, index) => (
+                  <div
+                    key={`${label}-${index}`}
+                    className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      {label}
+                    </div>
+                    <div className="mt-2 text-2xl font-black text-neutral-900">{index + 2}</div>
+                    <div className="mt-1 text-xs text-neutral-500">Preview</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                    style={{ backgroundColor: hexToRgba(accentColor, 0.18), color: accentColor }}
+                  >
+                    Badge accent
+                  </span>
+                  <span
+                    className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                    style={{ backgroundColor: hexToRgba(secondaryColor, 0.12), color: secondaryColor }}
+                  >
+                    Badge secondary
+                  </span>
+                </div>
+
+                <div className="mt-4">
+                  <input
+                    readOnly
+                    value={`Esempio campo ${labels.component.toLowerCase()}`}
+                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const access = usePermissionAccess();
   const [settings, setSettings] = useState<AppSettingsRow | null>(null);
@@ -228,11 +478,12 @@ export default function SettingsPage() {
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAsset, setUploadingAsset] = useState<"logo" | "favicon" | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
-  const [section, setSection] = useState("general");
+  const [section, setSection] = useState("branding");
 
   async function loadAll() {
     setLoading(true);
@@ -269,7 +520,13 @@ export default function SettingsPage() {
         ]);
 
       const settingsData = settingsRes.data as AppSettingsRow;
-      setSettings({ ...settingsData, labels: settingsData?.labels || emptyLabels });
+      const normalizedSettings: AppSettingsRow = {
+        ...settingsData,
+        labels: settingsData?.labels || DEFAULT_LABELS,
+        branding: buildBrandingFromSettings(settingsData),
+      };
+
+      setSettings(normalizedSettings);
       setDefinitions((defsRes.data || []) as ComponentDefinition[]);
       setSetupFields((setupRes.data || []) as SetupField[]);
       setWidgets((widgetsRes.data || []) as DashboardWidget[]);
@@ -350,7 +607,7 @@ export default function SettingsPage() {
     {
       label: "Moduli attivi",
       value: String(
-        Object.values(settings?.modules || emptyModuleState).filter(Boolean).length
+        Object.values(settings?.modules || DEFAULT_MODULES).filter(Boolean).length
       ),
       icon: <ShieldCheck size={18} />,
       helper: "Funzioni abilitate nel team",
@@ -365,6 +622,70 @@ export default function SettingsPage() {
     setSettings({ ...settings, [key]: value });
   }
 
+  function patchBranding<K extends keyof BrandingPayload>(
+    key: K,
+    value: BrandingPayload[K]
+  ) {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      branding: {
+        ...(settings.branding || buildBrandingFromSettings(settings)),
+        [key]: value,
+      },
+    });
+  }
+
+  function patchBrandingConfig<K extends keyof BrandingConfig>(
+    key: K,
+    value: BrandingConfig[K]
+  ) {
+    if (!settings) return;
+    const currentBranding = settings.branding || buildBrandingFromSettings(settings);
+    setSettings({
+      ...settings,
+      branding: {
+        ...currentBranding,
+        branding_config: {
+          ...DEFAULT_BRANDING_CONFIG,
+          ...currentBranding.branding_config,
+          [key]: value,
+        },
+      },
+    });
+  }
+
+  async function uploadBrandAsset(kind: "logo" | "favicon", file: File) {
+    if (!settings) return;
+    setUploadingAsset(kind);
+    setFeedback(null);
+
+    try {
+      const upload = await uploadTeamFile({
+        file,
+        area: kind === "logo" ? "branding-logo" : "branding-favicon",
+        recordId: "team-branding",
+      });
+
+      patchBranding(kind === "logo" ? "logo_url" : "favicon_url", upload.publicUrl);
+      setFeedback({
+        type: "success",
+        message:
+          kind === "logo"
+            ? "Logo caricato. Ricorda di salvare le impostazioni."
+            : "Favicon caricata. Ricorda di salvare le impostazioni.",
+      });
+    } catch (error) {
+      console.error(error);
+      setFeedback({
+        type: "error",
+        message: `Errore caricamento ${kind === "logo" ? "logo" : "favicon"}.`,
+      });
+    } finally {
+      setUploadingAsset(null);
+    }
+  }
+
   async function saveAll() {
     if (!settings) return;
     setSaving(true);
@@ -373,21 +694,37 @@ export default function SettingsPage() {
     try {
       const ctx = await getCurrentTeamContext();
 
+      const dashboardLayout = {
+        ...(settings.dashboard_layout || {}),
+        branding: {
+          platform_name: settings.branding?.platform_name || settings.team_name,
+          platform_subtitle:
+            settings.branding?.platform_subtitle || settings.team_subtitle || "",
+          logo_url: settings.branding?.logo_url || "",
+          favicon_url: settings.branding?.favicon_url || "",
+          language: settings.branding?.language || "it",
+          branding_config: {
+            ...DEFAULT_BRANDING_CONFIG,
+            ...(settings.branding?.branding_config || {}),
+          },
+        },
+      };
+
       const { error: settingsError } = await supabase
         .from("app_settings")
         .update({
           team_name: settings.team_name,
           team_subtitle: settings.team_subtitle,
-          primary_color: settings.primary_color,
-          secondary_color: settings.secondary_color,
-          accent_color: settings.accent_color,
+          primary_color: normalizeHex(settings.primary_color, "#171717"),
+          secondary_color: normalizeHex(settings.secondary_color, "#262626"),
+          accent_color: normalizeHex(settings.accent_color, "#facc15"),
           vehicle_type: settings.vehicle_type,
           default_warning_hours: settings.default_warning_hours,
           default_revision_hours: settings.default_revision_hours,
           default_expiry_alert_days: settings.default_expiry_alert_days,
           modules: settings.modules,
-          dashboard_layout: settings.dashboard_layout || {},
-          labels: settings.labels || emptyLabels,
+          dashboard_layout: dashboardLayout,
+          labels: settings.labels || DEFAULT_LABELS,
         })
         .eq("team_id", ctx.teamId);
 
@@ -506,6 +843,8 @@ export default function SettingsPage() {
         if (error) throw error;
       }
 
+      dispatchBrandingRefresh();
+
       setFeedback({
         type: "success",
         message: "Control Center aggiornato correttamente.",
@@ -522,7 +861,9 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading || !settings) {
+  const previewBranding = settings?.branding || buildBrandingFromSettings(settings as AppSettingsRow);
+
+  if (loading || !settings || !previewBranding) {
     return (
       <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
@@ -576,11 +917,224 @@ export default function SettingsPage() {
         <SectionTabs value={section} onChange={setSection} />
       </SectionCard>
 
+      {section === "branding" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <SectionCard
+              title="Identità piattaforma"
+              subtitle="Nome piattaforma, lingua, asset grafici e comportamento del brand."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="Nome piattaforma" hint="Nome commerciale mostrato nella webapp.">
+                  <Input
+                    value={previewBranding.platform_name}
+                    onChange={(e) => patchBranding("platform_name", e.target.value)}
+                    placeholder="Es. Motorsport Management"
+                  />
+                </Field>
+
+                <Field label="Sottotitolo piattaforma">
+                  <Input
+                    value={previewBranding.platform_subtitle}
+                    onChange={(e) => patchBranding("platform_subtitle", e.target.value)}
+                    placeholder="Es. Operations Platform"
+                  />
+                </Field>
+
+                <Field label="Lingua piattaforma">
+                  <Select
+                    value={previewBranding.language}
+                    onChange={(e) => patchBranding("language", e.target.value)}
+                  >
+                    <option value="it">Italiano</option>
+                    <option value="en">English</option>
+                  </Select>
+                </Field>
+
+                <Field label="Usa nome team come titolo piattaforma">
+                  <ToggleBox
+                    label="Sincronizza titolo"
+                    checked={previewBranding.branding_config.useTeamNameAsPlatformName}
+                    onChange={(checked) =>
+                      patchBrandingConfig("useTeamNameAsPlatformName", checked)
+                    }
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="URL logo" hint="Puoi anche caricarlo dal pulsante qui sotto.">
+                  <Input
+                    value={previewBranding.logo_url}
+                    onChange={(e) => patchBranding("logo_url", e.target.value)}
+                    placeholder="/logo.png"
+                  />
+                </Field>
+
+                <Field label="URL favicon">
+                  <Input
+                    value={previewBranding.favicon_url}
+                    onChange={(e) => patchBranding("favicon_url", e.target.value)}
+                    placeholder="/favicon.ico"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+                    <ImageIcon size={16} />
+                    Logo piattaforma
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+                    Carica logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadBrandAsset("logo", file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <div className="mt-3 text-xs text-neutral-500">
+                    {uploadingAsset === "logo" ? "Caricamento logo..." : previewBranding.logo_url || "Nessun logo selezionato"}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+                    <MonitorSmartphone size={16} />
+                    Favicon piattaforma
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+                    Carica favicon
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadBrandAsset("favicon", file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <div className="mt-3 text-xs text-neutral-500">
+                    {uploadingAsset === "favicon" ? "Caricamento favicon..." : previewBranding.favicon_url || "Nessuna favicon selezionata"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <ToggleBox
+                  label="Logo in header"
+                  checked={previewBranding.branding_config.showLogoInHeader}
+                  onChange={(checked) => patchBrandingConfig("showLogoInHeader", checked)}
+                />
+                <ToggleBox
+                  label="Logo in sidebar"
+                  checked={previewBranding.branding_config.showLogoInSidebar}
+                  onChange={(checked) => patchBrandingConfig("showLogoInSidebar", checked)}
+                />
+                <ToggleBox
+                  label="Nome piattaforma"
+                  checked={previewBranding.branding_config.showPlatformName}
+                  onChange={(checked) => patchBrandingConfig("showPlatformName", checked)}
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <ToggleBox
+                  label="Header compatto"
+                  checked={previewBranding.branding_config.compactHeader}
+                  onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
+                />
+                <Field label="Carta intestata stampa">
+                  <Select
+                    value={previewBranding.branding_config.printLetterheadMode}
+                    onChange={(e) =>
+                      patchBrandingConfig("printLetterheadMode", e.target.value)
+                    }
+                  >
+                    <option value="logo_title_subtitle">Logo + titolo + sottotitolo</option>
+                    <option value="logo_title">Logo + titolo</option>
+                    <option value="title_only">Solo titolo</option>
+                  </Select>
+                </Field>
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Colori e terminologia"
+              subtitle="Controlla palette e lessico della piattaforma."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <Field label="Primary color">
+                  <Input
+                    type="color"
+                    className="h-12 p-1"
+                    value={normalizeHex(settings.primary_color, "#171717")}
+                    onChange={(e) => patchSetting("primary_color", e.target.value)}
+                  />
+                </Field>
+                <Field label="Secondary color">
+                  <Input
+                    type="color"
+                    className="h-12 p-1"
+                    value={normalizeHex(settings.secondary_color, "#262626")}
+                    onChange={(e) => patchSetting("secondary_color", e.target.value)}
+                  />
+                </Field>
+                <Field label="Accent color">
+                  <Input
+                    type="color"
+                    className="h-12 p-1"
+                    value={normalizeHex(settings.accent_color, "#facc15")}
+                    onChange={(e) => patchSetting("accent_color", e.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
+                  <Field key={key} label={`Etichetta ${key}`}>
+                    <Input
+                      value={value}
+                      onChange={(e) =>
+                        patchSetting("labels", {
+                          ...(settings.labels || DEFAULT_LABELS),
+                          [key]: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+
+          <BrandPreview
+            platformName={previewBranding.platform_name}
+            platformSubtitle={previewBranding.platform_subtitle}
+            teamName={settings.team_name}
+            logoUrl={previewBranding.logo_url}
+            primaryColor={normalizeHex(settings.primary_color, "#171717")}
+            secondaryColor={normalizeHex(settings.secondary_color, "#262626")}
+            accentColor={normalizeHex(settings.accent_color, "#facc15")}
+            labels={settings.labels || DEFAULT_LABELS}
+            config={previewBranding.branding_config}
+          />
+        </div>
+      ) : null}
+
       {section === "general" ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <SectionCard
-            title="Branding e identità"
-            subtitle="Configura il team e la terminologia della piattaforma."
+            title="Brand e identità team"
+            subtitle="Configura nome interno del team e terminologia base del contesto."
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Nome team">
@@ -589,34 +1143,10 @@ export default function SettingsPage() {
                   onChange={(e) => patchSetting("team_name", e.target.value)}
                 />
               </Field>
-              <Field label="Sottotitolo">
+              <Field label="Sottotitolo team">
                 <Input
                   value={settings.team_subtitle || ""}
                   onChange={(e) => patchSetting("team_subtitle", e.target.value)}
-                />
-              </Field>
-              <Field label="Colore primario">
-                <Input
-                  type="color"
-                  className="h-12 p-1"
-                  value={settings.primary_color}
-                  onChange={(e) => patchSetting("primary_color", e.target.value)}
-                />
-              </Field>
-              <Field label="Colore secondario">
-                <Input
-                  type="color"
-                  className="h-12 p-1"
-                  value={settings.secondary_color}
-                  onChange={(e) => patchSetting("secondary_color", e.target.value)}
-                />
-              </Field>
-              <Field label="Accent color">
-                <Input
-                  type="color"
-                  className="h-12 p-1"
-                  value={settings.accent_color}
-                  onChange={(e) => patchSetting("accent_color", e.target.value)}
                 />
               </Field>
               <Field label="Tipo mezzo">
@@ -632,22 +1162,6 @@ export default function SettingsPage() {
                 </Select>
               </Field>
             </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-              {Object.entries(settings.labels || emptyLabels).map(([key, value]) => (
-                <Field key={key} label={`Etichetta ${key}`}>
-                  <Input
-                    value={value}
-                    onChange={(e) =>
-                      patchSetting("labels", {
-                        ...(settings.labels || emptyLabels),
-                        [key]: e.target.value,
-                      })
-                    }
-                  />
-                </Field>
-              ))}
-            </div>
           </SectionCard>
 
           <SectionCard
@@ -655,7 +1169,7 @@ export default function SettingsPage() {
             subtitle="Attiva i moduli e governa alert e soglie di default."
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {Object.entries({ ...(settings.modules || emptyModuleState) }).map(
+              {Object.entries({ ...(settings.modules || DEFAULT_MODULES) }).map(
                 ([key, enabled]) => (
                   <label
                     key={key}
@@ -669,7 +1183,7 @@ export default function SettingsPage() {
                       checked={!!enabled}
                       onChange={(e) =>
                         patchSetting("modules", {
-                          ...(settings.modules || emptyModuleState),
+                          ...(settings.modules || DEFAULT_MODULES),
                           [key]: e.target.checked,
                         })
                       }
