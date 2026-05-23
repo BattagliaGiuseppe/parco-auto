@@ -289,6 +289,31 @@ function formatSigned(value: number | null | undefined, suffix = "") {
   return `${sign}${value}${suffix}`;
 }
 
+
+function getTurnTargetScore(turn: TurnRow) {
+  const metrics = turn.metrics;
+  if (!metrics) return null;
+
+  const deltas = [
+    getTargetDelta(metrics.post_pressure_fl, metrics.target_post_pressure_fl),
+    getTargetDelta(metrics.post_pressure_fr, metrics.target_post_pressure_fr),
+    getTargetDelta(metrics.post_pressure_rl, metrics.target_post_pressure_rl),
+    getTargetDelta(metrics.post_pressure_rr, metrics.target_post_pressure_rr),
+    getTargetDelta(metrics.max_water_temp_c, metrics.target_water_temp_c),
+    getTargetDelta(metrics.max_oil_temp_c, metrics.target_oil_temp_c),
+  ].filter((value): value is number => value != null && Number.isFinite(value));
+
+  if (deltas.length === 0) return null;
+  return round1(deltas.reduce((sum, value) => sum + Math.abs(value), 0));
+}
+
+function getConsistencyGapMs(turn: TurnRow) {
+  const best = turn.metrics?.best_lap_ms;
+  const avg = turn.metrics?.avg_lap_ms;
+  if (best == null || avg == null || !Number.isFinite(best) || !Number.isFinite(avg)) return null;
+  return Math.max(0, avg - best);
+}
+
 function buildDefaultForm(): TurnForm {
   return {
     event_session_id: "",
@@ -676,6 +701,9 @@ export default function EventCarTurnsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("synthetic");
   const [expandedTurnId, setExpandedTurnId] = useState<string | null>(null);
   const [compareTurnIds, setCompareTurnIds] = useState<string[]>([]);
+  const [predictorLaps, setPredictorLaps] = useState("10");
+  const [predictorMinutes, setPredictorMinutes] = useState("20");
+  const [predictorReservePct, setPredictorReservePct] = useState("10");
   const [form, setForm] = useState<TurnForm>(buildDefaultForm());
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
@@ -892,6 +920,48 @@ export default function EventCarTurnsPage() {
     if (candidates.length === 0) return null;
     return candidates.reduce((best, current) => (current.bestLap < best.bestLap ? current : best));
   }, [turns]);
+
+  const closestToTargetTurn = useMemo(() => {
+    const candidates = turns
+      .map((turn) => ({ turn, score: getTurnTargetScore(turn) }))
+      .filter((row): row is { turn: TurnRow; score: number } => row.score != null);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, current) => (current.score < best.score ? current : best));
+  }, [turns]);
+
+  const mostConsistentTurn = useMemo(() => {
+    const candidates = turns
+      .map((turn) => ({ turn, gap: getConsistencyGapMs(turn) }))
+      .filter((row): row is { turn: TurnRow; gap: number } => row.gap != null);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, current) => (current.gap < best.gap ? current : best));
+  }, [turns]);
+
+  const averageFuelPerLap = useMemo(
+    () => average(turns.map((turn) => getFuelPerLap(turn))),
+    [turns]
+  );
+
+  const averageFuelPerMinute = useMemo(
+    () => average(turns.map((turn) => getFuelPerMinute(turn))),
+    [turns]
+  );
+
+  const predictorLapsValue = parseOptionalInteger(predictorLaps) ?? 0;
+  const predictorMinutesValue = parseOptionalNumber(predictorMinutes) ?? 0;
+  const predictorReservePctValue = parseOptionalNumber(predictorReservePct) ?? 0;
+
+  const predictedFuelForLaps = useMemo(() => {
+    if (averageFuelPerLap == null || predictorLapsValue <= 0) return null;
+    const base = averageFuelPerLap * predictorLapsValue;
+    return round1(base * (1 + Math.max(0, predictorReservePctValue) / 100));
+  }, [averageFuelPerLap, predictorLapsValue, predictorReservePctValue]);
+
+  const predictedFuelForMinutes = useMemo(() => {
+    if (averageFuelPerMinute == null || predictorMinutesValue <= 0) return null;
+    const base = averageFuelPerMinute * predictorMinutesValue;
+    return round1(base * (1 + Math.max(0, predictorReservePctValue) / 100));
+  }, [averageFuelPerMinute, predictorMinutesValue, predictorReservePctValue]);
 
   const stats: StatItem[] = [
     {
@@ -1273,6 +1343,134 @@ export default function EventCarTurnsPage() {
             label="Media pressioni asse post."
             value={displayNumber(averageRearPostPressure, " bar")}
           />
+        </div>
+      </SectionCard>
+
+
+      <SectionCard
+        title="Turn intelligence"
+        subtitle="Insight automatici e stima fuel rapida basati sullo storico tecnico già registrato."
+      >
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <SummaryBox
+                label="Turno più vicino ai target"
+                value={
+                  closestToTargetTurn
+                    ? `${driverMap.get(closestToTargetTurn.turn.driver_id || "") || "Pilota"} • score ${closestToTargetTurn.score}`
+                    : "—"
+                }
+              />
+              <SummaryBox
+                label="Turno più costante"
+                value={
+                  mostConsistentTurn
+                    ? `${driverMap.get(mostConsistentTurn.turn.driver_id || "") || "Pilota"} • gap ${formatSigned(round1(mostConsistentTurn.gap / 1000), " s")}`
+                    : "—"
+                }
+              />
+              <SummaryBox
+                label="Media fuel / giro"
+                value={displayNumber(averageFuelPerLap, " L")}
+              />
+              <SummaryBox
+                label="Media fuel / min"
+                value={displayNumber(averageFuelPerMinute, " L")}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
+              <div className="text-sm font-bold text-[var(--text-primary)]">Lettura rapida storico</div>
+              <div className="mt-3 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
+                <div>
+                  {bestLapTurn
+                    ? `Il miglior riferimento prestazionale della giornata è ${formatLapTime(bestLapTurn.bestLap)} con ${driverMap.get(bestLapTurn.turn.driver_id || "") || "pilota non assegnato"}.`
+                    : "Non ci sono ancora best lap sufficienti per costruire un riferimento prestazionale."}
+                </div>
+                <div>
+                  {closestToTargetTurn
+                    ? `Il turno più vicino ai target attuali è quello di ${driverMap.get(closestToTargetTurn.turn.driver_id || "") || "pilota non assegnato"}: utile come base per setup e fuel planning.`
+                    : "Non ci sono ancora abbastanza target compilati per individuare un turno di riferimento."}
+                </div>
+                <div>
+                  {mostEfficientTurn
+                    ? `Il miglior riferimento consumo/giro è ${mostEfficientTurn.fuelPerLap} L/giro.`
+                    : "Compila fuel pre e post su più turni per ottenere un riferimento consumo attendibile."}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
+            <div className="text-base font-bold text-[var(--text-primary)]">Fuel prediction rapido</div>
+            <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+              Inserisci giri o minuti previsti e il sistema calcola un suggerimento rapido usando la media storica del mezzo, con margine di sicurezza.
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <UiField label="Giri previsti">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={predictorLaps}
+                  onChange={(e) => setPredictorLaps(e.target.value)}
+                  className={uiInputClassName}
+                  placeholder="Es. 12"
+                />
+              </UiField>
+              <UiField label="Minuti previsti">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={predictorMinutes}
+                  onChange={(e) => setPredictorMinutes(e.target.value)}
+                  className={uiInputClassName}
+                  placeholder="Es. 20"
+                />
+              </UiField>
+              <UiField label="Margine sicurezza (%)">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={predictorReservePct}
+                  onChange={(e) => setPredictorReservePct(e.target.value)}
+                  className={uiInputClassName}
+                  placeholder="Es. 10"
+                />
+              </UiField>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <SummaryBox
+                label="Fuel suggerito per giri"
+                value={displayNumber(predictedFuelForLaps, " L")}
+              />
+              <SummaryBox
+                label="Fuel suggerito per minuti"
+                value={displayNumber(predictedFuelForMinutes, " L")}
+              />
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
+              {averageFuelPerLap != null || averageFuelPerMinute != null ? (
+                <>
+                  <div>Media storica fuel/giro: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerLap, " L")}</span></div>
+                  <div>Media storica fuel/min: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerMinute, " L")}</span></div>
+                  <div className="mt-2">
+                    Usa il valore più prudente tra giri e minuti quando le sessioni hanno molto traffico o tempi non costanti.
+                  </div>
+                </>
+              ) : (
+                <div>
+                  Non ci sono ancora abbastanza dati fuel completi per generare una previsione attendibile. Compila fuel pre e post su almeno un turno completo.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </SectionCard>
 
