@@ -861,7 +861,9 @@ export default function SettingsPage() {
     }
   }
 
-  const previewBranding = settings?.branding || buildBrandingFromSettings(settings as AppSettingsRow);
+  const previewBranding = settings
+    ? settings.branding || buildBrandingFromSettings(settings)
+    : null;
 
   if (loading || !settings || !previewBranding) {
     return (
