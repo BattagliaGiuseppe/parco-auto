@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Camera,
   FileText,
+  Info,
   Pencil,
   PlusCircle,
   Printer,
@@ -26,6 +28,8 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type SafetyItem = {
   id?: string;
@@ -61,6 +65,17 @@ function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
   );
 }
 
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function DriverDetailPage() {
   const params = useParams();
   const driverId = params?.id as string;
@@ -90,7 +105,10 @@ export default function DriverDetailPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSafety, setSavingSafety] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [editingLicenseId, setEditingLicenseId] = useState<string | null>(null);
   const [licenseDraft, setLicenseDraft] = useState({
     license_type: "",
@@ -160,135 +178,135 @@ export default function DriverDetailPage() {
     [safetyItems]
   );
 
-async function saveProfile() {
-  if (!canEditDrivers || !driverForm) return;
-  setSavingProfile(true);
-  setFeedback(null);
-  try {
-    const ctx = await getCurrentTeamContext();
-    let photoUrl = driverForm.photo_url || null;
+  async function saveProfile() {
+    if (!canEditDrivers || !driverForm) return;
+    setSavingProfile(true);
+    setFeedback(null);
+    try {
+      const ctx = await getCurrentTeamContext();
+      let photoUrl = driverForm.photo_url || null;
 
-    if (profilePhotoFile) {
-      setUploadingPhoto(true);
-      const upload = await uploadTeamFile({
-        file: profilePhotoFile,
-        area: "driver-profile",
-        recordId: driverId,
-      });
-      photoUrl = upload.publicUrl;
+      if (profilePhotoFile) {
+        setUploadingPhoto(true);
+        const upload = await uploadTeamFile({
+          file: profilePhotoFile,
+          area: "driver-profile",
+          recordId: driverId,
+        });
+        photoUrl = upload.publicUrl;
+      }
+
+      const payload = {
+        first_name: driverForm.first_name?.trim() || "",
+        last_name: driverForm.last_name?.trim() || "",
+        nickname: driverForm.nickname || null,
+        birth_date: driverForm.birth_date || null,
+        nationality: driverForm.nationality || null,
+        email: driverForm.email || null,
+        phone: driverForm.phone || null,
+        emergency_contact: driverForm.emergency_contact || null,
+        notes: driverForm.notes || null,
+        is_active: driverForm.is_active ?? true,
+        photo_url: photoUrl,
+      };
+
+      const { error } = await supabase
+        .from("drivers")
+        .update(payload)
+        .eq("team_id", ctx.teamId)
+        .eq("id", driverId);
+
+      if (error) throw error;
+      setProfilePhotoFile(null);
+      await load();
+      showFeedback("success", "Scheda pilota aggiornata correttamente.");
+    } catch (error: any) {
+      console.error(error);
+      showFeedback("error", error?.message || "Errore aggiornamento pilota");
+    } finally {
+      setUploadingPhoto(false);
+      setSavingProfile(false);
+    }
+  }
+
+  async function addLicense() {
+    if (!canEditDrivers) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+    if (!licenseForm.license_type.trim()) {
+      showFeedback("error", "Inserisci almeno il tipo licenza.");
+      return;
     }
 
-    const payload = {
-      first_name: driverForm.first_name?.trim() || "",
-      last_name: driverForm.last_name?.trim() || "",
-      nickname: driverForm.nickname || null,
-      birth_date: driverForm.birth_date || null,
-      nationality: driverForm.nationality || null,
-      email: driverForm.email || null,
-      phone: driverForm.phone || null,
-      emergency_contact: driverForm.emergency_contact || null,
-      notes: driverForm.notes || null,
-      is_active: driverForm.is_active ?? true,
-      photo_url: photoUrl,
-    };
+    const { error } = await supabase.from("driver_licenses").insert([
+      {
+        team_id: ctx.teamId,
+        driver_id: driverId,
+        ...licenseForm,
+      },
+    ]);
 
-    const { error } = await supabase
-      .from("drivers")
-      .update(payload)
-      .eq("team_id", ctx.teamId)
-      .eq("id", driverId);
+    if (error) {
+      showFeedback("error", error.message);
+      return;
+    }
 
-    if (error) throw error;
-    setProfilePhotoFile(null);
+    setLicenseForm({
+      license_type: "",
+      license_number: "",
+      expiry_date: "",
+      issued_by: "",
+    });
     await load();
-    showFeedback("success", "Scheda pilota aggiornata correttamente.");
-  } catch (error: any) {
-    console.error(error);
-    showFeedback("error", error?.message || "Errore aggiornamento pilota");
-  } finally {
-    setUploadingPhoto(false);
-    setSavingProfile(false);
-  }
-}
-
-async function addLicense() {
-  if (!canEditDrivers) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-  if (!licenseForm.license_type.trim()) {
-    showFeedback("error", "Inserisci almeno il tipo licenza.");
-    return;
+    showFeedback("success", "Licenza aggiunta correttamente.");
   }
 
-  const { error } = await supabase.from("driver_licenses").insert([
-    {
+  async function addDocument() {
+    if (!canEditDrivers) return;
+    const ctx = await getCurrentTeamContext();
+    setFeedback(null);
+
+    if (!documentForm.title.trim() && !documentForm.document_type.trim() && !documentFile) {
+      showFeedback("error", "Inserisci almeno titolo o tipo documento, oppure carica un file.");
+      return;
+    }
+
+    let payload: any = {
       team_id: ctx.teamId,
       driver_id: driverId,
-      ...licenseForm,
-    },
-  ]);
-
-  if (error) {
-    showFeedback("error", error.message);
-    return;
-  }
-
-  setLicenseForm({
-    license_type: "",
-    license_number: "",
-    expiry_date: "",
-    issued_by: "",
-  });
-  await load();
-  showFeedback("success", "Licenza aggiunta correttamente.");
-}
-
-async function addDocument() {
-  if (!canEditDrivers) return;
-  const ctx = await getCurrentTeamContext();
-  setFeedback(null);
-
-  if (!documentForm.title.trim() && !documentForm.document_type.trim() && !documentFile) {
-    showFeedback("error", "Inserisci almeno titolo o tipo documento, oppure carica un file.");
-    return;
-  }
-
-  let payload: any = {
-    team_id: ctx.teamId,
-    driver_id: driverId,
-    title: documentForm.title || documentForm.document_type || "Documento pilota",
-    document_type: documentForm.document_type || null,
-    expires_at: documentForm.expires_at || null,
-    uploaded_by_team_user_id: ctx.teamUserId,
-  };
-
-  if (documentFile) {
-    const upload = await uploadTeamFile({
-      file: documentFile,
-      area: "driver-documents",
-      recordId: driverId,
-    });
-    payload = {
-      ...payload,
-      file_url: upload.publicUrl,
-      file_name: upload.fileName,
-      storage_path: upload.path,
-      mime_type: upload.mimeType,
-      size_bytes: upload.sizeBytes,
+      title: documentForm.title || documentForm.document_type || "Documento pilota",
+      document_type: documentForm.document_type || null,
+      expires_at: documentForm.expires_at || null,
+      uploaded_by_team_user_id: ctx.teamUserId,
     };
-  }
 
-  const { error } = await supabase.from("driver_documents").insert([payload]);
-  if (error) {
-    showFeedback("error", error.message);
-    return;
-  }
+    if (documentFile) {
+      const upload = await uploadTeamFile({
+        file: documentFile,
+        area: "driver-documents",
+        recordId: driverId,
+      });
+      payload = {
+        ...payload,
+        file_url: upload.publicUrl,
+        file_name: upload.fileName,
+        storage_path: upload.path,
+        mime_type: upload.mimeType,
+        size_bytes: upload.sizeBytes,
+      };
+    }
 
-  setDocumentForm({ title: "", document_type: "", expires_at: "" });
-  setDocumentFile(null);
-  await load();
-  showFeedback("success", "Documento aggiunto correttamente.");
-}
+    const { error } = await supabase.from("driver_documents").insert([payload]);
+    if (error) {
+      showFeedback("error", error.message);
+      return;
+    }
+
+    setDocumentForm({ title: "", document_type: "", expires_at: "" });
+    setDocumentFile(null);
+    await load();
+    showFeedback("success", "Documento aggiunto correttamente.");
+  }
 
   function seedDefaultSafetyItems() {
     setSafetyItems(DEFAULT_SAFETY_ITEMS.map((item) => ({ ...item })));
@@ -494,16 +512,22 @@ async function addDocument() {
   }
 
   if (!driver || !driverForm) {
-    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento pilota...</div>;
+    return (
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+          Caricamento pilota...
+        </div>
+      </div>
+    );
   }
 
   const driverFullName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title={driverFullName || "Scheda pilota"}
-        subtitle="Anagrafica completa, dotazione sicurezza, documenti e stampa"
+        subtitle="Anagrafica completa, sicurezza, documenti e strumenti di stampa."
         icon={<UserRound size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -522,7 +546,7 @@ async function addDocument() {
             </Link>
             <Link
               href="/drivers"
-              className="rounded-xl bg-neutral-100 px-4 py-2 text-neutral-700 hover:bg-neutral-200"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
               Indietro
@@ -537,27 +561,41 @@ async function addDocument() {
         </div>
       ) : null}
 
-      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
+      {feedback ? (
+        <FormStatusBanner type={feedback.type} message={feedback.message} />
+      ) : null}
 
       <SectionCard>
         <StatsGrid
           items={[
-            { label: "Licenze", value: String(licenses.length), icon: <ShieldCheck size={18} /> },
-            { label: "Documenti", value: String(documents.length), icon: <FileText size={18} /> },
+            { label: "Licenze", value: String(licenses.length), icon: <ShieldCheck size={18} />, helper: "Licenze registrate nella scheda pilota" },
+            { label: "Documenti", value: String(documents.length), icon: <FileText size={18} />, helper: "Allegati e certificati caricati" },
             {
               label: "Dotazione sicurezza",
               value: String(activeSafetyItems.length),
               icon: <ShieldCheck size={18} />,
+              helper: "Elementi presenti nella checklist sicurezza",
             },
-            { label: "Email", value: driver.email || "—" },
+            { label: "Email", value: driver.email || "—", icon: <UserRound size={18} />, helper: "Contatto principale del pilota" },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questa è la console pilota: anagrafica, sicurezza, documenti e strumenti di stampa."
+      >
+        <InfoBlock>
+          Usa questa pagina per mantenere aggiornata la scheda del pilota nel tempo. Qui convivono dati anagrafici,
+          licenze, documenti, checklist sicurezza e foto profilo. L&apos;obiettivo è avere una sola scheda completa
+          e affidabile da usare poi negli eventi e nella stampa operativa.
+        </InfoBlock>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
         <SectionCard
           title="Profilo pilota"
-          subtitle="Dati anagrafici principali, note e foto profilo"
+          subtitle="Dati anagrafici principali, note e foto profilo."
         >
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
             {driverForm.photo_url ? (
@@ -672,7 +710,7 @@ async function addDocument() {
 
         <SectionCard
           title="Checklist sicurezza pilota"
-          subtitle="Indumenti e dispositivi con omologazione, scadenza e note"
+          subtitle="Indumenti e dispositivi con omologazione, scadenza e note."
         >
           {safetyItems.length === 0 ? (
             <EmptySafetyState onPrefill={canEditDrivers ? seedDefaultSafetyItems : undefined} />
@@ -774,7 +812,7 @@ async function addDocument() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Licenze" subtitle="Storico e scadenze">
+        <SectionCard title="Licenze" subtitle="Storico, scadenze e modifica rapida della licenza.">
           {canEditDrivers ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -817,107 +855,108 @@ async function addDocument() {
               </div>
             </>
           ) : null}
-<div className="mt-4 space-y-3">
-  {licenses.length === 0 ? (
-    <EmptyState title="Nessuna licenza registrata" />
-  ) : (
-    licenses.map((row) => {
-      const isEditing = editingLicenseId === row.id;
-      return (
-        <div
-          key={row.id}
-          className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-        >
-          {isEditing ? (
-            <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <Field
-                  label="Tipo licenza"
-                  value={licenseDraft.license_type}
-                  onChange={(value) =>
-                    setLicenseDraft({ ...licenseDraft, license_type: value })
-                  }
-                />
-                <Field
-                  label="Numero"
-                  value={licenseDraft.license_number}
-                  onChange={(value) =>
-                    setLicenseDraft({ ...licenseDraft, license_number: value })
-                  }
-                />
-                <Field
-                  label="Ente"
-                  value={licenseDraft.issued_by}
-                  onChange={(value) =>
-                    setLicenseDraft({ ...licenseDraft, issued_by: value })
-                  }
-                />
-                <Field
-                  label="Scadenza"
-                  type="date"
-                  value={licenseDraft.expiry_date}
-                  onChange={(value) =>
-                    setLicenseDraft({ ...licenseDraft, expiry_date: value })
-                  }
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
-                <button
-                  onClick={cancelEditLicense}
-                  className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
-                >
-                  <X size={15} className="mr-2 inline" />
-                  Annulla
-                </button>
-                <button
-                  onClick={saveEditedLicense}
-                  className="inline-flex rounded-xl bg-yellow-400 px-3 py-2 text-sm font-bold text-black hover:bg-yellow-500"
-                >
-                  <Save size={15} className="mr-2 inline" />
-                  Salva licenza
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="font-bold text-neutral-900">{row.license_type}</div>
-                <div className="mt-1 text-sm text-neutral-500">
-                  {row.license_number || "Numero non inserito"}
-                  {row.issued_by ? ` · ${row.issued_by}` : ""}
-                  {row.expiry_date
-                    ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
-                    : ""}
-                </div>
-              </div>
-              {canEditDrivers ? (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => startEditLicense(row)}
-                    className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+
+          <div className="mt-4 space-y-3">
+            {licenses.length === 0 ? (
+              <EmptyState title="Nessuna licenza registrata" description="Aggiungi le licenze del pilota per mantenerne scadenze e riferimenti." />
+            ) : (
+              licenses.map((row) => {
+                const isEditing = editingLicenseId === row.id;
+                return (
+                  <div
+                    key={row.id}
+                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
                   >
-                    <Pencil size={15} className="mr-2 inline" />
-                    Modifica
-                  </button>
-                  <button
-                    onClick={() => deleteLicense(row.id)}
-                    className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
-                  >
-                    <Trash2 size={15} className="mr-2 inline" />
-                    Elimina
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      );
-    })
-  )}
-</div>
+                    {isEditing ? (
+                      <>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                          <Field
+                            label="Tipo licenza"
+                            value={licenseDraft.license_type}
+                            onChange={(value) =>
+                              setLicenseDraft({ ...licenseDraft, license_type: value })
+                            }
+                          />
+                          <Field
+                            label="Numero"
+                            value={licenseDraft.license_number}
+                            onChange={(value) =>
+                              setLicenseDraft({ ...licenseDraft, license_number: value })
+                            }
+                          />
+                          <Field
+                            label="Ente"
+                            value={licenseDraft.issued_by}
+                            onChange={(value) =>
+                              setLicenseDraft({ ...licenseDraft, issued_by: value })
+                            }
+                          />
+                          <Field
+                            label="Scadenza"
+                            type="date"
+                            value={licenseDraft.expiry_date}
+                            onChange={(value) =>
+                              setLicenseDraft({ ...licenseDraft, expiry_date: value })
+                            }
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <button
+                            onClick={cancelEditLicense}
+                            className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                          >
+                            <X size={15} className="mr-2 inline" />
+                            Annulla
+                          </button>
+                          <button
+                            onClick={saveEditedLicense}
+                            className="inline-flex rounded-xl bg-yellow-400 px-3 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                          >
+                            <Save size={15} className="mr-2 inline" />
+                            Salva licenza
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="font-bold text-neutral-900">{row.license_type}</div>
+                          <div className="mt-1 text-sm text-neutral-500">
+                            {row.license_number || "Numero non inserito"}
+                            {row.issued_by ? ` · ${row.issued_by}` : ""}
+                            {row.expiry_date
+                              ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
+                              : ""}
+                          </div>
+                        </div>
+                        {canEditDrivers ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => startEditLicense(row)}
+                              className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                            >
+                              <Pencil size={15} className="mr-2 inline" />
+                              Modifica
+                            </button>
+                            <button
+                              onClick={() => deleteLicense(row.id)}
+                              className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                            >
+                              <Trash2 size={15} className="mr-2 inline" />
+                              Elimina
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </SectionCard>
 
-        <SectionCard title="Documenti" subtitle="File pilota, certificati e allegati">
+        <SectionCard title="Documenti" subtitle="File pilota, certificati e allegati operativi.">
           {canEditDrivers ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -961,53 +1000,54 @@ async function addDocument() {
               </div>
             </>
           ) : null}
-<div className="mt-4 space-y-3">
-  {documents.length === 0 ? (
-    <EmptyState title="Nessun documento registrato" />
-  ) : (
-    documents.map((row) => (
-      <div
-        key={row.id}
-        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="font-bold text-neutral-900">
-              {row.title || row.document_type || "Documento pilota"}
-            </div>
-            <div className="mt-1 text-sm text-neutral-500">
-              {row.expires_at
-                ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
-                : "Nessuna scadenza"}
-              {row.file_name ? ` · ${row.file_name}` : ""}
-            </div>
+
+          <div className="mt-4 space-y-3">
+            {documents.length === 0 ? (
+              <EmptyState title="Nessun documento registrato" description="Carica allegati, certificati o file utili per la gestione del pilota." />
+            ) : (
+              documents.map((row) => (
+                <div
+                  key={row.id}
+                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="font-bold text-neutral-900">
+                        {row.title || row.document_type || "Documento pilota"}
+                      </div>
+                      <div className="mt-1 text-sm text-neutral-500">
+                        {row.expires_at
+                          ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
+                          : "Nessuna scadenza"}
+                        {row.file_name ? ` · ${row.file_name}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {row.file_url ? (
+                        <a
+                          href={row.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                        >
+                          Apri file
+                        </a>
+                      ) : null}
+                      {canEditDrivers ? (
+                        <button
+                          onClick={() => deleteDocument(row.id)}
+                          className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                        >
+                          <Trash2 size={15} className="mr-2 inline" />
+                          Elimina
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {row.file_url ? (
-              <a
-                href={row.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
-              >
-                Apri file
-              </a>
-            ) : null}
-            {canEditDrivers ? (
-              <button
-                onClick={() => deleteDocument(row.id)}
-                className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
-              >
-                <Trash2 size={15} className="mr-2 inline" />
-                Elimina
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    ))
-  )}
-</div>
         </SectionCard>
       </div>
     </div>
