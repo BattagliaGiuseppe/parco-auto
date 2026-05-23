@@ -253,31 +253,40 @@ function getFuelUsed(turn: TurnRow) {
 }
 
 function getFuelPerLap(turn: TurnRow) {
-  const used = getFuelUsed(turn);
-  if (used == null || !turn.laps || turn.laps <= 0) return null;
-  return round1(used / turn.laps);
+  const fuelUsed = getFuelUsed(turn);
+  const laps = Number(turn.laps || 0);
+  if (fuelUsed == null || laps <= 0) return null;
+  return round1(fuelUsed / laps);
 }
 
 function getFuelPerMinute(turn: TurnRow) {
-  const used = getFuelUsed(turn);
-  if (used == null || !turn.minutes || turn.minutes <= 0) return null;
-  return round1(used / turn.minutes);
+  const fuelUsed = getFuelUsed(turn);
+  const minutes = Number(turn.minutes || 0);
+  if (fuelUsed == null || minutes <= 0) return null;
+  return round1(fuelUsed / minutes);
 }
 
 function getPressureDelta(pre: number | null | undefined, post: number | null | undefined) {
-  if (pre == null || post == null) return null;
+  if (pre == null || post == null || !Number.isFinite(pre) || !Number.isFinite(post)) return null;
   return round1(post - pre);
 }
 
 function getTargetDelta(actual: number | null | undefined, target: number | null | undefined) {
-  if (actual == null || target == null) return null;
+  if (actual == null || target == null || !Number.isFinite(actual) || !Number.isFinite(target)) return null;
   return round1(actual - target);
 }
 
-function averageNumbers(values: Array<number | null | undefined>) {
-  const safe = values.filter((value): value is number => value != null && Number.isFinite(value));
-  if (safe.length === 0) return null;
-  return round1(safe.reduce((sum, value) => sum + value, 0) / safe.length);
+function average(values: Array<number | null | undefined>) {
+  const filtered = values.filter((value): value is number => value != null && Number.isFinite(value));
+  if (filtered.length === 0) return null;
+  return round1(filtered.reduce((sum, value) => sum + value, 0) / filtered.length);
+}
+
+
+function formatSigned(value: number | null | undefined, suffix = "") {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value}${suffix}`;
 }
 
 function buildDefaultForm(): TurnForm {
@@ -478,6 +487,97 @@ function SmallMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
+
+function CompareSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
+      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function CompareRow({
+  label,
+  left,
+  right,
+  delta,
+}: {
+  label: string;
+  left: string;
+  right: string;
+  delta?: string;
+}) {
+  return (
+    <div className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3 text-sm">
+      <div className="font-semibold text-[var(--text-primary)]">{label}</div>
+      <div className="text-[var(--text-secondary)]">{left}</div>
+      <div className="text-[var(--text-secondary)]">{right}</div>
+      <div className="text-right font-semibold text-[var(--text-primary)]">{delta || "—"}</div>
+    </div>
+  );
+}
+
+function TurnComparePanel({
+  leftTurn,
+  rightTurn,
+  leftLabel,
+  rightLabel,
+}: {
+  leftTurn: TurnRow;
+  rightTurn: TurnRow;
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  const leftMetrics = leftTurn.metrics;
+  const rightMetrics = rightTurn.metrics;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+        <div>Voce</div>
+        <div>{leftLabel}</div>
+        <div>{rightLabel}</div>
+        <div className="text-right">Delta</div>
+      </div>
+
+      <CompareSection title="Base e performance">
+        <CompareRow label="Data / ora" left={formatDateTime(leftTurn.recorded_at)} right={formatDateTime(rightTurn.recorded_at)} />
+        <CompareRow label="Minuti" left={displayNumber(leftTurn.minutes, " min")} right={displayNumber(rightTurn.minutes, " min")} delta={formatSigned(round1((rightTurn.minutes ?? 0) - (leftTurn.minutes ?? 0)), " min")} />
+        <CompareRow label="Giri" left={displayNumber(leftTurn.laps, "")} right={displayNumber(rightTurn.laps, "")} delta={formatSigned(round1((rightTurn.laps ?? 0) - (leftTurn.laps ?? 0)))} />
+        <CompareRow label="Best lap" left={formatLapTime(leftMetrics?.best_lap_ms)} right={formatLapTime(rightMetrics?.best_lap_ms)} delta={leftMetrics?.best_lap_ms != null && rightMetrics?.best_lap_ms != null ? formatSigned(round1((rightMetrics.best_lap_ms - leftMetrics.best_lap_ms) / 1000), " s") : "—"} />
+        <CompareRow label="Giro medio" left={formatLapTime(leftMetrics?.avg_lap_ms)} right={formatLapTime(rightMetrics?.avg_lap_ms)} delta={leftMetrics?.avg_lap_ms != null && rightMetrics?.avg_lap_ms != null ? formatSigned(round1((rightMetrics.avg_lap_ms - leftMetrics.avg_lap_ms) / 1000), " s") : "—"} />
+      </CompareSection>
+
+      <CompareSection title="Fuel">
+        <CompareRow label="Fuel usato" left={displayNumber(getFuelUsed(leftTurn), " L")} right={displayNumber(getFuelUsed(rightTurn), " L")} delta={formatSigned(round1((getFuelUsed(rightTurn) ?? 0) - (getFuelUsed(leftTurn) ?? 0)), " L")} />
+        <CompareRow label="Fuel / giro" left={displayNumber(getFuelPerLap(leftTurn), " L")} right={displayNumber(getFuelPerLap(rightTurn), " L")} delta={formatSigned(round1((getFuelPerLap(rightTurn) ?? 0) - (getFuelPerLap(leftTurn) ?? 0)), " L")} />
+        <CompareRow label="Fuel / min" left={displayNumber(getFuelPerMinute(leftTurn), " L")} right={displayNumber(getFuelPerMinute(rightTurn), " L")} delta={formatSigned(round1((getFuelPerMinute(rightTurn) ?? 0) - (getFuelPerMinute(leftTurn) ?? 0)), " L")} />
+      </CompareSection>
+
+      <CompareSection title="Pressioni post-turno">
+        <CompareRow label="FL post" left={displayNumber(leftMetrics?.post_pressure_fl, " bar")} right={displayNumber(rightMetrics?.post_pressure_fl, " bar")} delta={formatSigned(getTargetDelta(rightMetrics?.post_pressure_fl, leftMetrics?.post_pressure_fl), " bar")} />
+        <CompareRow label="FR post" left={displayNumber(leftMetrics?.post_pressure_fr, " bar")} right={displayNumber(rightMetrics?.post_pressure_fr, " bar")} delta={formatSigned(getTargetDelta(rightMetrics?.post_pressure_fr, leftMetrics?.post_pressure_fr), " bar")} />
+        <CompareRow label="RL post" left={displayNumber(leftMetrics?.post_pressure_rl, " bar")} right={displayNumber(rightMetrics?.post_pressure_rl, " bar")} delta={formatSigned(getTargetDelta(rightMetrics?.post_pressure_rl, leftMetrics?.post_pressure_rl), " bar")} />
+        <CompareRow label="RR post" left={displayNumber(leftMetrics?.post_pressure_rr, " bar")} right={displayNumber(rightMetrics?.post_pressure_rr, " bar")} delta={formatSigned(getTargetDelta(rightMetrics?.post_pressure_rr, leftMetrics?.post_pressure_rr), " bar")} />
+      </CompareSection>
+
+      <CompareSection title="Temperature e target">
+        <CompareRow label="Acqua max" left={displayNumber(leftMetrics?.max_water_temp_c, "°C")} right={displayNumber(rightMetrics?.max_water_temp_c, "°C")} delta={formatSigned(getTargetDelta(rightMetrics?.max_water_temp_c, leftMetrics?.max_water_temp_c), "°C")} />
+        <CompareRow label="Olio max" left={displayNumber(leftMetrics?.max_oil_temp_c, "°C")} right={displayNumber(rightMetrics?.max_oil_temp_c, "°C")} delta={formatSigned(getTargetDelta(rightMetrics?.max_oil_temp_c, leftMetrics?.max_oil_temp_c), "°C")} />
+        <CompareRow label="Temp. FL" left={displayNumber(leftMetrics?.post_tyre_temp_fl, "°C")} right={displayNumber(rightMetrics?.post_tyre_temp_fl, "°C")} delta={formatSigned(getTargetDelta(rightMetrics?.post_tyre_temp_fl, leftMetrics?.post_tyre_temp_fl), "°C")} />
+        <CompareRow label="Temp. FR" left={displayNumber(leftMetrics?.post_tyre_temp_fr, "°C")} right={displayNumber(rightMetrics?.post_tyre_temp_fr, "°C")} delta={formatSigned(getTargetDelta(rightMetrics?.post_tyre_temp_fr, leftMetrics?.post_tyre_temp_fr), "°C")} />
+      </CompareSection>
+    </div>
+  );
+}
+
 function DetailGrid({
   title,
   children,
@@ -493,7 +593,8 @@ function DetailGrid({
   );
 }
 
-function buildTurnWarnings(metrics: TurnMetricsRow | null) {
+function buildTurnWarnings(turn: TurnRow) {
+  const metrics = turn.metrics;
   const warnings: Array<{ label: string; tone: "warning" | "danger" | "success" }> = [];
 
   const waterDelta = getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c);
@@ -510,22 +611,34 @@ function buildTurnWarnings(metrics: TurnMetricsRow | null) {
     else warnings.push({ label: "Olio in target", tone: "success" });
   }
 
-  const pressurePairs = [
+  const targetChecks = [
     ["FL", metrics?.post_pressure_fl, metrics?.target_post_pressure_fl],
     ["FR", metrics?.post_pressure_fr, metrics?.target_post_pressure_fr],
     ["RL", metrics?.post_pressure_rl, metrics?.target_post_pressure_rl],
     ["RR", metrics?.post_pressure_rr, metrics?.target_post_pressure_rr],
   ] as const;
 
-  pressurePairs.forEach(([label, actual, target]) => {
+  targetChecks.forEach(([label, actual, target]) => {
     const delta = getTargetDelta(actual, target);
     if (delta == null) return;
-    if (delta > 0.05) warnings.push({ label: `${label} +${delta} bar`, tone: "warning" });
-    else if (delta < -0.05) warnings.push({ label: `${label} ${delta} bar`, tone: "warning" });
-    else warnings.push({ label: `${label} in target`, tone: "success" });
+    if (Math.abs(delta) <= 0.03) {
+      warnings.push({ label: `${label} in target`, tone: "success" });
+    } else if (Math.abs(delta) <= 0.08) {
+      warnings.push({ label: `${label} ${delta > 0 ? "+" : ""}${delta} bar`, tone: "warning" });
+    } else {
+      warnings.push({ label: `${label} ${delta > 0 ? "+" : ""}${delta} bar`, tone: "danger" });
+    }
   });
 
-  return warnings;
+  const fuelPerLap = getFuelPerLap(turn);
+  if (fuelPerLap != null) {
+    warnings.push({
+      label: `Fuel/giro ${fuelPerLap} L`,
+      tone: fuelPerLap <= 0.9 ? "success" : fuelPerLap <= 1.2 ? "warning" : "danger",
+    });
+  }
+
+  return warnings.slice(0, 6);
 }
 
 function trackConditionLabel(value: string | null | undefined) {
@@ -562,6 +675,7 @@ export default function EventCarTurnsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("synthetic");
   const [expandedTurnId, setExpandedTurnId] = useState<string | null>(null);
+  const [compareTurnIds, setCompareTurnIds] = useState<string[]>([]);
   const [form, setForm] = useState<TurnForm>(buildDefaultForm());
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
@@ -686,6 +800,15 @@ export default function EventCarTurnsPage() {
     [availableDrivers]
   );
 
+  const compareTurns = useMemo(
+    () =>
+      compareTurnIds
+        .map((id) => turns.find((turn) => turn.id === id) || null)
+        .filter((turn): turn is TurnRow => Boolean(turn)),
+    [compareTurnIds, turns]
+  );
+
+
   const totalTurns = turns.length;
   const totalMinutes = useMemo(
     () => turns.reduce((sum, turn) => sum + Number(turn.minutes || 0), 0),
@@ -722,47 +845,55 @@ export default function EventCarTurnsPage() {
     return Math.max(...values);
   }, [turns]);
 
-const maxOilDay = useMemo(() => {
-  const values = turns
-    .map((turn) => turn.metrics?.max_oil_temp_c)
-    .filter((value): value is number => value != null && Number.isFinite(value));
-  if (values.length === 0) return null;
-  return Math.max(...values);
-}, [turns]);
+  const maxOilDay = useMemo(() => {
+    const values = turns
+      .map((turn) => turn.metrics?.max_oil_temp_c)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    if (values.length === 0) return null;
+    return Math.max(...values);
+  }, [turns]);
 
-const bestFuelPerLapTurn = useMemo(() => {
-  const candidates = turns
-    .map((turn) => ({ turn, value: getFuelPerLap(turn) }))
-    .filter((row): row is { turn: TurnRow; value: number } => row.value != null && Number.isFinite(row.value));
-  if (candidates.length === 0) return null;
-  return candidates.reduce((best, current) => (current.value < best.value ? current : best));
-}, [turns]);
+  const mostEfficientTurn = useMemo(() => {
+    const candidates = turns
+      .map((turn) => ({ turn, fuelPerLap: getFuelPerLap(turn) }))
+      .filter((row): row is { turn: TurnRow; fuelPerLap: number } => row.fuelPerLap != null);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, current) =>
+      current.fuelPerLap < best.fuelPerLap ? current : best
+    );
+  }, [turns]);
 
-const bestFuelPerMinuteTurn = useMemo(() => {
-  const candidates = turns
-    .map((turn) => ({ turn, value: getFuelPerMinute(turn) }))
-    .filter((row): row is { turn: TurnRow; value: number } => row.value != null && Number.isFinite(row.value));
-  if (candidates.length === 0) return null;
-  return candidates.reduce((best, current) => (current.value < best.value ? current : best));
-}, [turns]);
+  const averageFrontPostPressure = useMemo(
+    () =>
+      average(
+        turns.flatMap((turn) => [
+          turn.metrics?.post_pressure_fl ?? null,
+          turn.metrics?.post_pressure_fr ?? null,
+        ])
+      ),
+    [turns]
+  );
 
-const avgFrontPostPressure = useMemo(
-  () =>
-    averageNumbers(
-      turns.flatMap((turn) => [turn.metrics?.post_pressure_fl, turn.metrics?.post_pressure_fr])
-    ),
-  [turns]
-);
+  const averageRearPostPressure = useMemo(
+    () =>
+      average(
+        turns.flatMap((turn) => [
+          turn.metrics?.post_pressure_rl ?? null,
+          turn.metrics?.post_pressure_rr ?? null,
+        ])
+      ),
+    [turns]
+  );
 
-const avgRearPostPressure = useMemo(
-  () =>
-    averageNumbers(
-      turns.flatMap((turn) => [turn.metrics?.post_pressure_rl, turn.metrics?.post_pressure_rr])
-    ),
-  [turns]
-);
+  const bestLapTurn = useMemo(() => {
+    const candidates = turns
+      .map((turn) => ({ turn, bestLap: turn.metrics?.best_lap_ms ?? null }))
+      .filter((row): row is { turn: TurnRow; bestLap: number } => row.bestLap != null);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, current) => (current.bestLap < best.bestLap ? current : best));
+  }, [turns]);
 
-const stats: StatItem[] = [
+  const stats: StatItem[] = [
     {
       label: "Turni registrati",
       value: String(totalTurns),
@@ -786,18 +917,6 @@ const stats: StatItem[] = [
       value: formatLapTime(bestLapDay),
       icon: <Clock3 size={18} />,
       helper: `Acqua max ${displayNumber(maxWaterDay, "°C")} • Olio max ${displayNumber(maxOilDay, "°C")}`,
-    },
-    {
-      label: "Turno più efficiente",
-      value: bestFuelPerLapTurn ? `${bestFuelPerLapTurn.value} L/giro` : "—",
-      icon: <Thermometer size={18} />,
-      helper: bestFuelPerLapTurn ? `${formatDateTime(bestFuelPerLapTurn.turn.recorded_at)} • ${driverMap.get(bestFuelPerLapTurn.turn.driver_id || "") || "Pilota"}` : "Servono fuel e giri",
-    },
-    {
-      label: "Fuel/min migliore",
-      value: bestFuelPerMinuteTurn ? `${bestFuelPerMinuteTurn.value} L/min` : "—",
-      icon: <Flame size={18} />,
-      helper: `Ant. ${displayNumber(avgFrontPostPressure, " bar")} • Post. ${displayNumber(avgRearPostPressure, " bar")}`,
     },
   ];
 
@@ -828,6 +947,19 @@ const stats: StatItem[] = [
     setDrawerOpen(true);
     setFeedback(null);
   }
+
+  function toggleCompareTurn(turnId: string) {
+    setCompareTurnIds((current) => {
+      if (current.includes(turnId)) {
+        return current.filter((id) => id !== turnId);
+      }
+      if (current.length < 2) {
+        return [...current, turnId];
+      }
+      return [current[1], turnId];
+    });
+  }
+
 
   async function saveTurn() {
     setFeedback(null);
@@ -1006,6 +1138,7 @@ const stats: StatItem[] = [
     }
 
     setFeedback({ type: "success", message: "Turno eliminato correttamente." });
+    setCompareTurnIds((current) => current.filter((id) => id !== turnId));
     if (editingTurnId === turnId) closeDrawer();
     await fetchAll();
   }
@@ -1112,16 +1245,81 @@ const stats: StatItem[] = [
       </SectionCard>
 
       <SectionCard
+        title="KPI evoluti giornata"
+        subtitle="Indicatori automatici derivati dai turni già registrati, utili per leggere efficienza e comportamento del mezzo."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SummaryBox
+            label="Turno più efficiente"
+            value={
+              mostEfficientTurn
+                ? `${driverMap.get(mostEfficientTurn.turn.driver_id || "") || "Pilota"} • ${mostEfficientTurn.fuelPerLap} L/giro`
+                : "—"
+            }
+          />
+          <SummaryBox
+            label="Fuel/min migliore"
+            value={
+              mostEfficientTurn
+                ? `${displayNumber(getFuelPerMinute(mostEfficientTurn.turn), " L/min")}`
+                : "—"
+            }
+          />
+          <SummaryBox
+            label="Media pressioni asse ant."
+            value={displayNumber(averageFrontPostPressure, " bar")}
+          />
+          <SummaryBox
+            label="Media pressioni asse post."
+            value={displayNumber(averageRearPostPressure, " bar")}
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard
         title="Lettura operativa"
         subtitle="La console è organizzata per consultazione rapida, dettaglio tecnico e inserimento turno separato."
       >
         <InfoBlock>
           Usa la vista sintetica per avere una timeline leggibile della giornata.
-          Passa alla vista dettagliata quando vuoi controllare pressioni, temperature,
-          fuel e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
+          Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
           così la pagina resta ordinata e facile da leggere in pista.
         </InfoBlock>
       </SectionCard>
+
+
+      {compareTurns.length > 0 ? (
+        <SectionCard
+          title="Confronto turni"
+          subtitle={
+            compareTurns.length === 2
+              ? "Lettura affiancata di due turni selezionati."
+              : "Seleziona un secondo turno dalla timeline per attivare il confronto completo."
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => setCompareTurnIds([])}
+              className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+            >
+              Pulisci confronto
+            </button>
+          }
+        >
+          {compareTurns.length === 2 ? (
+            <TurnComparePanel
+              leftTurn={compareTurns[0]}
+              rightTurn={compareTurns[1]}
+              leftLabel={driverMap.get(compareTurns[0].driver_id || "") || "Turno A"}
+              rightLabel={driverMap.get(compareTurns[1].driver_id || "") || "Turno B"}
+            />
+          ) : (
+            <InfoBlock>
+              Hai selezionato un turno per il confronto. Selezionane un secondo dalla timeline per confrontare tempi, fuel, pressioni e temperature.
+            </InfoBlock>
+          )}
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Timeline turni"
@@ -1173,16 +1371,20 @@ const stats: StatItem[] = [
               const fuelUsed = getFuelUsed(turn);
               const fuelPerLap = getFuelPerLap(turn);
               const fuelPerMinute = getFuelPerMinute(turn);
+              const warnings = buildTurnWarnings(turn);
+              const isExpanded = viewMode === "detailed" || expandedTurnId === turn.id;
+
               const pressureDeltaFL = getPressureDelta(metrics?.pre_pressure_fl, metrics?.post_pressure_fl);
               const pressureDeltaFR = getPressureDelta(metrics?.pre_pressure_fr, metrics?.post_pressure_fr);
               const pressureDeltaRL = getPressureDelta(metrics?.pre_pressure_rl, metrics?.post_pressure_rl);
               const pressureDeltaRR = getPressureDelta(metrics?.pre_pressure_rr, metrics?.post_pressure_rr);
+
               const targetDeltaFL = getTargetDelta(metrics?.post_pressure_fl, metrics?.target_post_pressure_fl);
               const targetDeltaFR = getTargetDelta(metrics?.post_pressure_fr, metrics?.target_post_pressure_fr);
               const targetDeltaRL = getTargetDelta(metrics?.post_pressure_rl, metrics?.target_post_pressure_rl);
               const targetDeltaRR = getTargetDelta(metrics?.post_pressure_rr, metrics?.target_post_pressure_rr);
-              const warnings = buildTurnWarnings(metrics);
-              const isExpanded = viewMode === "detailed" || expandedTurnId === turn.id;
+              const targetDeltaWater = getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c);
+              const targetDeltaOil = getTargetDelta(metrics?.max_oil_temp_c, metrics?.target_oil_temp_c);
 
               return (
                 <div
@@ -1199,13 +1401,16 @@ const stats: StatItem[] = [
                         {metrics?.track_condition ? (
                           <StatusChip label={trackConditionLabel(metrics.track_condition)} />
                         ) : null}
+                        {compareTurnIds.includes(turn.id) ? (
+                          <StatusChip label="Nel confronto" tone="success" />
+                        ) : null}
                       </div>
 
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
                         {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, " giri")}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-8">
                         <SmallMetric label="Best lap" value={formatLapTime(metrics?.best_lap_ms)} />
                         <SmallMetric label="Fuel usato" value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
                         <SmallMetric label="Fuel/giro" value={fuelPerLap != null ? `${fuelPerLap} L` : "—"} />
@@ -1230,17 +1435,6 @@ const stats: StatItem[] = [
                           : metrics?.technical_notes || turn.notes || "Nessuna nota registrata."}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-                        <SmallMetric label="Δ FL" value={displayNumber(pressureDeltaFL, " bar")} />
-                        <SmallMetric label="Δ FR" value={displayNumber(pressureDeltaFR, " bar")} />
-                        <SmallMetric label="Δ RL" value={displayNumber(pressureDeltaRL, " bar")} />
-                        <SmallMetric label="Δ RR" value={displayNumber(pressureDeltaRR, " bar")} />
-                        <SmallMetric label="Target FL" value={displayNumber(targetDeltaFL, " bar")} />
-                        <SmallMetric label="Target FR" value={displayNumber(targetDeltaFR, " bar")} />
-                        <SmallMetric label="Target RL" value={displayNumber(targetDeltaRL, " bar")} />
-                        <SmallMetric label="Target RR" value={displayNumber(targetDeltaRR, " bar")} />
-                      </div>
-
                       {isExpanded ? (
                         <div className="mt-4 space-y-4">
                           <DetailGrid title="Pre-turno">
@@ -1252,6 +1446,7 @@ const stats: StatItem[] = [
                             <SmallMetric label="Press. FL pre" value={displayNumber(metrics?.pre_pressure_fl, " bar")} />
                             <SmallMetric label="Press. FR pre" value={displayNumber(metrics?.pre_pressure_fr, " bar")} />
                             <SmallMetric label="Press. RL pre" value={displayNumber(metrics?.pre_pressure_rl, " bar")} />
+                            <SmallMetric label="Press. RR pre" value={displayNumber(metrics?.pre_pressure_rr, " bar")} />
                           </DetailGrid>
 
                           <DetailGrid title="Post-turno e consumi">
@@ -1265,32 +1460,32 @@ const stats: StatItem[] = [
                             <SmallMetric label="Temp. olio max" value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
                           </DetailGrid>
 
-                          <DetailGrid title="Pressioni e delta">
-                            <SmallMetric label="FL post" value={displayNumber(metrics?.post_pressure_fl, " bar")} />
-                            <SmallMetric label="FR post" value={displayNumber(metrics?.post_pressure_fr, " bar")} />
-                            <SmallMetric label="RL post" value={displayNumber(metrics?.post_pressure_rl, " bar")} />
-                            <SmallMetric label="RR post" value={displayNumber(metrics?.post_pressure_rr, " bar")} />
-                            <SmallMetric label="Δ FL" value={displayNumber(pressureDeltaFL, " bar")} />
-                            <SmallMetric label="Δ FR" value={displayNumber(pressureDeltaFR, " bar")} />
-                            <SmallMetric label="Δ RL" value={displayNumber(pressureDeltaRL, " bar")} />
-                            <SmallMetric label="Δ RR" value={displayNumber(pressureDeltaRR, " bar")} />
-                          </DetailGrid>
-
-                          <DetailGrid title="Target, scostamenti e temperature gomme">
-                            <SmallMetric label="Scost. FL" value={displayNumber(targetDeltaFL, " bar")} />
-                            <SmallMetric label="Scost. FR" value={displayNumber(targetDeltaFR, " bar")} />
-                            <SmallMetric label="Scost. RL" value={displayNumber(targetDeltaRL, " bar")} />
-                            <SmallMetric label="Scost. RR" value={displayNumber(targetDeltaRR, " bar")} />
-                            <SmallMetric label="Target acqua" value={displayNumber(getTargetDelta(metrics?.max_water_temp_c, metrics?.target_water_temp_c), "°C")} />
-                            <SmallMetric label="Target olio" value={displayNumber(getTargetDelta(metrics?.max_oil_temp_c, metrics?.target_oil_temp_c), "°C")} />
+                          <DetailGrid title="Pressioni, delta e gomme">
+                            <SmallMetric label="FL post / Δ" value={`${displayNumber(metrics?.post_pressure_fl, " bar")} / ${displayNumber(pressureDeltaFL, " bar")}`} />
+                            <SmallMetric label="FR post / Δ" value={`${displayNumber(metrics?.post_pressure_fr, " bar")} / ${displayNumber(pressureDeltaFR, " bar")}`} />
+                            <SmallMetric label="RL post / Δ" value={`${displayNumber(metrics?.post_pressure_rl, " bar")} / ${displayNumber(pressureDeltaRL, " bar")}`} />
+                            <SmallMetric label="RR post / Δ" value={`${displayNumber(metrics?.post_pressure_rr, " bar")} / ${displayNumber(pressureDeltaRR, " bar")}`} />
                             <SmallMetric label="Temp. FL" value={displayNumber(metrics?.post_tyre_temp_fl, "°C")} />
                             <SmallMetric label="Temp. FR" value={displayNumber(metrics?.post_tyre_temp_fr, "°C")} />
+                            <SmallMetric label="Temp. RL" value={displayNumber(metrics?.post_tyre_temp_rl, "°C")} />
+                            <SmallMetric label="Temp. RR" value={displayNumber(metrics?.post_tyre_temp_rr, "°C")} />
+                          </DetailGrid>
+
+                          <DetailGrid title="Target e scostamenti">
+                            <SmallMetric label="FL target / Δ" value={`${displayNumber(metrics?.target_post_pressure_fl, " bar")} / ${displayNumber(targetDeltaFL, " bar")}`} />
+                            <SmallMetric label="FR target / Δ" value={`${displayNumber(metrics?.target_post_pressure_fr, " bar")} / ${displayNumber(targetDeltaFR, " bar")}`} />
+                            <SmallMetric label="RL target / Δ" value={`${displayNumber(metrics?.target_post_pressure_rl, " bar")} / ${displayNumber(targetDeltaRL, " bar")}`} />
+                            <SmallMetric label="RR target / Δ" value={`${displayNumber(metrics?.target_post_pressure_rr, " bar")} / ${displayNumber(targetDeltaRR, " bar")}`} />
+                            <SmallMetric label="Acqua target / Δ" value={`${displayNumber(metrics?.target_water_temp_c, "°C")} / ${displayNumber(targetDeltaWater, "°C")}`} />
+                            <SmallMetric label="Olio target / Δ" value={`${displayNumber(metrics?.target_oil_temp_c, "°C")} / ${displayNumber(targetDeltaOil, "°C")}`} />
+                            <SmallMetric label="Giro medio" value={formatLapTime(metrics?.avg_lap_ms)} />
+                            <SmallMetric label="Track condition" value={trackConditionLabel(metrics?.track_condition)} />
                           </DetailGrid>
                         </div>
                       ) : null}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 xl:w-[260px] xl:justify-end">
+                    <div className="flex flex-wrap gap-2 xl:w-[380px] xl:justify-end">
                       {viewMode === "synthetic" ? (
                         <button
                           type="button"
@@ -1301,6 +1496,16 @@ const stats: StatItem[] = [
                           {expandedTurnId === turn.id ? "Chiudi dettagli" : "Apri dettagli"}
                         </button>
                       ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleCompareTurn(turn.id)}
+                        className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+                        style={compareTurnIds.includes(turn.id) ? { backgroundColor: "var(--brand-accent-soft)", color: "var(--brand-accent)" } : undefined}
+                      >
+                        <ListFilter size={16} className="mr-2 inline" />
+                        {compareTurnIds.includes(turn.id) ? "Rimuovi confronto" : compareTurnIds.length === 0 ? "Confronta" : "Seleziona confronto"}
+                      </button>
 
                       <button
                         type="button"
