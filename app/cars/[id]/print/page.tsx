@@ -134,7 +134,6 @@ export default function CarPrintPage() {
                   className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm"
                 >
                   {doc.title || doc.type || "Documento"}
-                  {doc.file_url ? ` · ${doc.file_url}` : ""}
                 </div>
               ))
             )}

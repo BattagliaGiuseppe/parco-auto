@@ -12,13 +12,9 @@ export default function PrintDocumentFooter() {
             alt={brandConfig.appName}
             className="h-4 w-4 object-contain"
           />
-          <span className="font-semibold text-[var(--text-primary)]">
-            {brandConfig.appName}
-          </span>
+          <span className="font-semibold text-[var(--text-primary)]">{brandConfig.appName}</span>
         </div>
-        <div>
-          © {new Date().getFullYear()} {brandConfig.appName}. Tutti i diritti riservati.
-        </div>
+        <div>© {new Date().getFullYear()} {brandConfig.appName}. Tutti i diritti riservati.</div>
       </div>
     </div>
   );
