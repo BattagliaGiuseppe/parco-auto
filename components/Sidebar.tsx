@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import Image from "next/image";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -30,6 +29,7 @@ import {
   canManageTeamRole,
 } from "@/lib/teamContext";
 import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -52,6 +52,7 @@ type SettingsShape = {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme } = useBrandTheme();
 
   const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState(brandConfig.defaultTeamName);
@@ -84,10 +85,10 @@ export default function Sidebar() {
           : null;
 
         setTeamName(
-          normalizedSettings?.team_name || ctx.name || brandConfig.defaultTeamName
+          normalizedSettings?.team_name || ctx.name || theme.platformName || brandConfig.defaultTeamName
         );
         setTeamSubtitle(
-          normalizedSettings?.team_subtitle || brandConfig.defaultTeamSubtitle
+          normalizedSettings?.team_subtitle || theme.platformSubtitle || brandConfig.defaultTeamSubtitle
         );
         setSettings(normalizedSettings);
         setTeamRole(ctx.role);
@@ -104,8 +105,8 @@ export default function Sidebar() {
       } catch {
         if (!active) return;
         setSettings(null);
-        setTeamName(brandConfig.defaultTeamName);
-        setTeamSubtitle(brandConfig.defaultTeamSubtitle);
+        setTeamName(theme.platformName || brandConfig.defaultTeamName);
+        setTeamSubtitle(theme.platformSubtitle || brandConfig.defaultTeamSubtitle);
         setTeamRole(null);
         setPermissionCodes([]);
       }
@@ -116,7 +117,7 @@ export default function Sidebar() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [theme.platformName, theme.platformSubtitle]);
 
   const modules = settings?.modules ?? {};
   const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
@@ -132,19 +133,19 @@ export default function Sidebar() {
       },
       {
         href: "/cars",
-        label: "Auto",
+        label: theme.labels.vehicle,
         icon: <CarFront size={18} />,
         enabled: has("cars.view"),
       },
       {
         href: "/components",
-        label: "Componenti",
+        label: theme.labels.component,
         icon: <Boxes size={18} />,
         enabled: has("components.view"),
       },
       {
         href: "/maintenances",
-        label: "Manutenzioni",
+        label: theme.labels.maintenance,
         icon: <Wrench size={18} />,
         enabled:
           settings?.enable_maintenances !== false && has("maintenances.view"),
@@ -157,19 +158,19 @@ export default function Sidebar() {
       },
       {
         href: "/calendar",
-        label: "Eventi",
+        label: theme.labels.event,
         icon: <CalendarDays size={18} />,
         enabled: settings?.enable_events !== false && has("events.view"),
       },
       {
         href: "/drivers",
-        label: "Piloti",
+        label: theme.labels.driver,
         icon: <Users size={18} />,
         enabled: modules.drivers !== false && has("drivers.view"),
       },
       {
         href: "/inventory",
-        label: "Magazzino",
+        label: theme.labels.inventory,
         icon: <Package size={18} />,
         enabled: modules.inventory !== false && has("inventory.view"),
       },
@@ -202,6 +203,12 @@ export default function Sidebar() {
       permissionCodes,
       settings?.enable_events,
       settings?.enable_maintenances,
+      theme.labels.component,
+      theme.labels.driver,
+      theme.labels.event,
+      theme.labels.inventory,
+      theme.labels.maintenance,
+      theme.labels.vehicle,
     ]
   );
 
@@ -212,23 +219,23 @@ export default function Sidebar() {
 
   const visibleLinks = links.filter((item) => item.enabled !== false);
 
-  const itemClass = (href: string) => {
-    const active =
-      pathname === href ||
-      (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+  const activeItemStyle: CSSProperties = {
+    backgroundColor: "var(--brand-accent)",
+    color: "var(--brand-on-accent)",
+  };
 
-    return `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-      active
-        ? "bg-yellow-400 text-black shadow-sm"
-        : "text-neutral-300 hover:bg-white/10 hover:text-white"
-    }`;
+  const roleBadgeStyle: CSSProperties = {
+    borderColor: "var(--brand-accent-soft)",
+    backgroundColor: "var(--brand-accent-soft)",
+    color: "var(--brand-accent)",
   };
 
   return (
     <>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed left-4 top-4 z-50 rounded-lg bg-black p-2 text-yellow-500 shadow-lg lg:hidden"
+        className="fixed left-4 top-4 z-50 rounded-lg bg-black p-2 shadow-lg lg:hidden"
+        style={{ color: "var(--brand-accent)" }}
         aria-label="Apri menu"
       >
         {open ? <X size={20} /> : <Menu size={20} />}
@@ -250,29 +257,36 @@ export default function Sidebar() {
           <div className="mb-6 px-2">
             <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-                  <Image
-                    src={brandConfig.logoPath}
-                    alt={brandConfig.appName}
-                    width={44}
-                    height={44}
-                    className="h-11 w-11 object-contain"
-                    unoptimized
-                  />
-                </div>
+                {theme.brandingConfig.showLogoInSidebar ? (
+                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+                    <img
+                      src={theme.logoUrl || brandConfig.logoPath}
+                      alt={theme.platformName}
+                      className="h-11 w-11 object-contain"
+                    />
+                  </div>
+                ) : null}
                 <div className="min-w-0">
-                  <div className="truncate text-xs font-semibold uppercase tracking-[0.18em] text-yellow-400/80">
-                    {brandConfig.vendorName}
+                  <div
+                    className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
+                    style={{ color: "var(--brand-accent)" }}
+                  >
+                    {theme.vendorName}
                   </div>
-                  <div className="mt-1 truncate text-sm text-neutral-400">
-                    {brandConfig.appName}
-                  </div>
+                  {theme.brandingConfig.showPlatformName ? (
+                    <div className="mt-1 truncate text-sm text-neutral-400">
+                      {theme.platformName}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 text-xl font-bold text-white">{teamName}</div>
               <div className="mt-1 text-sm text-neutral-400">{teamSubtitle}</div>
               {teamRole ? (
-                <div className="mt-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                <div
+                  className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                  style={roleBadgeStyle}
+                >
                   Ruolo: {TEAM_ROLE_LABELS[teamRole as keyof typeof TEAM_ROLE_LABELS] || teamRole}
                 </div>
               ) : null}
@@ -286,17 +300,28 @@ export default function Sidebar() {
               </div>
 
               <nav className="space-y-1">
-                {visibleLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={itemClass(link.href)}
-                    onClick={() => setOpen(false)}
-                  >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </Link>
-                ))}
+                {visibleLinks.map((link) => {
+                  const active =
+                    pathname === link.href ||
+                    (link.href !== "/dashboard" && pathname.startsWith(`${link.href}/`));
+
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                        active
+                          ? ""
+                          : "text-neutral-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                      style={active ? activeItemStyle : undefined}
+                      onClick={() => setOpen(false)}
+                    >
+                      {link.icon}
+                      <span>{link.label}</span>
+                    </Link>
+                  );
+                })}
               </nav>
             </div>
           </div>

@@ -1,5 +1,6 @@
-import Image from "next/image";
-import { brandConfig } from "@/lib/brand";
+"use client";
+
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 type PrintLetterheadProps = {
   title: string;
@@ -13,34 +14,37 @@ export default function PrintLetterhead({
   rightMeta = [],
 }: PrintLetterheadProps) {
   const today = new Date().toLocaleDateString("it-IT");
+  const { theme } = useBrandTheme();
 
   return (
-    <div className="rounded-[28px] border border-neutral-200 bg-white p-6 shadow-sm print:rounded-none print:border-b print:border-x-0 print:border-t-0 print:shadow-none print:p-0 print:pb-5">
+    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border-b print:border-x-0 print:border-t-0 print:shadow-none print:p-0 print:pb-5">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
-            <Image
-              src={brandConfig.logoPath}
-              alt={brandConfig.appName}
-              fill
-              sizes="64px"
-              className="object-contain p-2"
-            />
-          </div>
+          {theme.brandingConfig.showLogoInHeader ? (
+            <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
+              <img
+                src={theme.logoUrl || "/logo.png"}
+                alt={theme.platformName}
+                className="h-16 w-16 object-contain p-2"
+              />
+            </div>
+          ) : null}
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">
-              {brandConfig.vendorName}
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+              {theme.vendorName}
             </div>
-            <div className="mt-1 text-2xl font-black text-neutral-950">
-              {brandConfig.appName}
-            </div>
-            <div className="mt-1 text-sm text-neutral-600">
-              {subtitle || brandConfig.appDescription}
+            {theme.brandingConfig.showPlatformName ? (
+              <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
+                {theme.platformName}
+              </div>
+            ) : null}
+            <div className="mt-1 text-sm text-[var(--text-secondary)]">
+              {subtitle || theme.platformSubtitle || ""}
             </div>
           </div>
         </div>
 
-        <div className="grid min-w-[220px] grid-cols-1 gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+        <div className="grid min-w-[220px] grid-cols-1 gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-secondary)]">
           <MetaRow label="Documento" value={title} />
           <MetaRow label="Data stampa" value={today} />
           {rightMeta.map((item) => (
@@ -54,11 +58,11 @@ export default function PrintLetterhead({
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-dashed border-neutral-200 pb-2 last:border-b-0 last:pb-0">
-      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+    <div className="flex items-start justify-between gap-3 border-b border-dashed border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
+      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
         {label}
       </span>
-      <span className="text-right font-semibold text-neutral-900">{value}</span>
+      <span className="text-right font-semibold text-[var(--text-primary)]">{value}</span>
     </div>
   );
 }

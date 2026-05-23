@@ -2,104 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ------------------------- */
-/*  STILI BASE DEL PROGETTO  */
-/* ------------------------- */
+:root {
+  --brand-primary: #171717;
+  --brand-secondary: #262626;
+  --brand-accent: #facc15;
+  --brand-on-accent: #111827;
+  --brand-primary-soft: rgba(23, 23, 23, 0.08);
+  --brand-secondary-soft: rgba(38, 38, 38, 0.08);
+  --brand-accent-soft: rgba(250, 204, 21, 0.18);
+  --surface-page: #f5f5f5;
+  --surface-card: #ffffff;
+  --surface-muted: #fafafa;
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --border-default: #e5e5e5;
+  --state-success: #059669;
+  --state-warning: #d97706;
+  --state-danger: #dc2626;
+}
 
 @layer base {
+  html,
   body {
-    @apply bg-gray-100 text-gray-900 font-sans;
+    min-height: 100%;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--surface-page);
+    color: var(--text-primary);
+  }
+
+  * {
+    border-color: var(--border-default);
   }
 }
 
-/* Variabili di colore */
-:root {
-  --color-primary: #d4af37; /* Oro */
-  --color-primary-dark: #b58e2f;
-  --racing-gold: #FFD700;
-  --racing-gold-dark: #E6C200;
-  --racing-gray: #1F1F1F;
-}
-
-/* Sfondo generale */
-body {
-  background-color: #f9f9f9;
-  color: #1F1F1F;
-}
-
-/* ------------------------- */
-/*  BOTTONI                 */
-/* ------------------------- */
-
 .btn-primary {
-  background-color: var(--racing-gold);
-  color: white;
+  background-color: var(--brand-accent);
+  color: var(--brand-on-accent);
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-weight: bold;
-  transition: background 0.2s;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  transition: filter 0.2s ease;
 }
 
 .btn-primary:hover {
-  background-color: var(--racing-gold-dark);
+  filter: brightness(0.96);
 }
 
-/* ------------------------- */
-/*  CARD BASE               */
-/* ------------------------- */
-
 .card {
-  background: white;
+  background: var(--surface-card);
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
-/* ------------------------- */
-/*  MEDIA QUERY: STAMPA      */
-/* ------------------------- */
-
 @media print {
-  /* Nasconde sidebar e pulsante menu */
   aside,
   button[aria-label="Apri menu"] {
     display: none !important;
   }
 
-  /* Rimuove ombre e sfondi solo dal body principale */
   body,
   main {
     background: white !important;
+    color: #111827 !important;
     box-shadow: none !important;
   }
 
-  /* Mantiene struttura griglia e proporzioni */
   section,
   div {
-    background: transparent !important;
     box-shadow: none !important;
   }
 
-  /* Centra e compatta la scheda tecnica */
   .print-container {
     margin: 0 auto !important;
     width: 95% !important;
     max-width: 1100px !important;
   }
 
-  /* Nasconde elementi non rilevanti per la stampa */
   nav,
   footer {
     display: none !important;
   }
 
-  /* Migliora resa colori e evita tagli */
   html,
   body {
     -webkit-print-color-adjust: exact !important;

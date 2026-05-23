@@ -12,17 +12,27 @@ export default function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-[28px] border border-neutral-200 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-4 rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 items-start gap-4">
         {icon ? (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-yellow-100 text-neutral-900 shadow-sm">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl shadow-sm"
+            style={{
+              backgroundColor: "var(--brand-accent-soft)",
+              color: "var(--brand-accent)",
+            }}
+          >
             {icon}
           </div>
         ) : null}
         <div className="min-w-0">
-          <h1 className="text-3xl font-black tracking-tight text-neutral-950">{title}</h1>
+          <h1 className="text-3xl font-black tracking-tight text-[var(--text-primary)]">
+            {title}
+          </h1>
           {subtitle ? (
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600">{subtitle}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">
+              {subtitle}
+            </p>
           ) : null}
         </div>
       </div>
