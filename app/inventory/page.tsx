@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Package, PlusCircle, Upload } from "lucide-react";
+import { Audiowide } from "next/font/google";
+import {
+  Download,
+  Info,
+  Package,
+  PlusCircle,
+  Upload,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { usePermissionAccess } from "@/lib/permissions";
@@ -11,6 +18,8 @@ import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type InventoryItem = {
   id: string;
@@ -71,6 +80,17 @@ function Field({
       </div>
       {children}
     </label>
+  );
+}
+
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -339,7 +359,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title="Magazzino"
         subtitle="Controlla disponibilità, soglie minime, materiale impegnato e import/export CSV."
@@ -351,9 +371,9 @@ export default function InventoryPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                  className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
                 >
-                  <Upload size={16} className="mr-2" />
+                  <Upload size={16} className="mr-2 inline" />
                   Importa CSV
                 </button>
 
@@ -374,9 +394,9 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={exportCsv}
-              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
-              <Download size={16} className="mr-2" />
+              <Download size={16} className="mr-2 inline" />
               Esporta CSV
             </button>
           </div>
@@ -386,13 +406,25 @@ export default function InventoryPage() {
       {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       {!canEditInventory ? (
-        <FormStatusBanner
-          type="info"
-          message="Hai accesso in sola lettura a questo modulo."
-        />
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Hai accesso in sola lettura a questo modulo.
+        </div>
       ) : null}
 
-      <StatsGrid items={stats} />
+      <SectionCard>
+        <StatsGrid items={stats} />
+      </SectionCard>
+
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Il magazzino ti aiuta a tenere sotto controllo disponibilità, soglie e materiale già impegnato."
+      >
+        <InfoBlock>
+          Usa il form per registrare nuovi articoli e la tabella per controllare rapidamente le quantità disponibili,
+          le scorte minime e il materiale già riservato. Import ed export CSV servono per allineare il magazzino con file esterni
+          senza perdere la struttura della webapp.
+        </InfoBlock>
+      </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         {canEditInventory ? (
@@ -488,9 +520,9 @@ export default function InventoryPage() {
                 <button
                   type="button"
                   onClick={addItem}
-                  className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-yellow-500"
+                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
                 >
-                  <PlusCircle size={16} className="mr-2" />
+                  <PlusCircle size={16} className="mr-2 inline" />
                   Aggiungi articolo
                 </button>
               </div>
