@@ -377,20 +377,37 @@ function BrandPreview({
   return (
     <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-        Anteprima branding team
+        Anteprima realistica branding team
       </div>
       <div className="mt-2 text-sm leading-6 text-neutral-600">
-        Il nome e il logo piattaforma restano definiti centralmente. Qui vedi solo ciò che il team può personalizzare davvero:
-        sidebar, header, colori, terminologia e stampa.
+        Il brand piattaforma resta fisso e sempre visibile. Qui vedi cosa cambia davvero per il team:
+        logo sidebar, logo header, logo stampa, nome team, colori e labels.
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[28px] border border-neutral-200 shadow-sm">
         <div className="grid grid-cols-[240px_1fr]">
-          <div className="min-h-[320px] p-4 text-white" style={{ backgroundColor: primaryColor }}>
-            <div
-              className="rounded-3xl p-4"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-            >
+          <div className="min-h-[340px] p-4 text-white" style={{ backgroundColor: primaryColor }}>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
+                  <img
+                    src={brandConfig.logoPath}
+                    alt={brandConfig.appName}
+                    className="h-10 w-10 object-contain"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                    piattaforma
+                  </div>
+                  <div className="truncate text-sm font-bold text-white">
+                    {brandConfig.appName}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-3xl border p-4" style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.12)" }}>
               <div className="flex items-center gap-3">
                 {config.showLogoInSidebar ? (
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
@@ -402,24 +419,24 @@ function BrandPreview({
                   </div>
                 ) : null}
                 <div className="min-w-0">
-                  {config.showPlatformNameInSidebar ? (
-                    <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-                      {brandConfig.appName}
-                    </div>
-                  ) : null}
+                  <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                    team
+                  </div>
                   <div className="mt-1 truncate text-lg font-bold text-white">
                     {teamName || "Nome team"}
                   </div>
                 </div>
               </div>
+
               <div className="mt-2 text-sm text-white/70">
                 {teamSubtitle || "Sottotitolo team"}
               </div>
+
               <div
                 className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
                 style={{ backgroundColor: secondarySoft, borderColor: secondarySoft, color: "#fff" }}
               >
-                Badge secondario brand
+                Badge secondario team
               </div>
             </div>
 
@@ -441,32 +458,47 @@ function BrandPreview({
               <div className={`rounded-[24px] border border-neutral-200 bg-white shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    {(config.showLogoInHeader || config.showPlatformNameInHeader) ? (
-                      <div className="mb-3 flex items-center gap-3">
-                        {config.showLogoInHeader ? (
-                          <div
-                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                            style={{ backgroundColor: accentSoft }}
-                          >
-                            <img
-                              src={headerLogoUrl || "/logo.png"}
-                              alt={teamName || "Team"}
-                              className="h-7 w-7 object-contain"
-                            />
+                    <div className="mb-3 flex items-center gap-3">
+                      <div
+                        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
+                        style={{ backgroundColor: accentSoft }}
+                      >
+                        <img
+                          src={brandConfig.logoPath}
+                          alt={brandConfig.appName}
+                          className="h-7 w-7 object-contain"
+                        />
+                      </div>
+                      <div className="truncate text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                        {brandConfig.appName}
+                      </div>
+                    </div>
+
+                    {config.showLogoInHeader ? (
+                      <div className="mb-3 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white">
+                          <img
+                            src={headerLogoUrl || "/logo.png"}
+                            alt={teamName || "Team"}
+                            className="h-6 w-6 object-contain"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                            team header
                           </div>
-                        ) : null}
-                        {config.showPlatformNameInHeader ? (
-                          <div className="truncate text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-                            {brandConfig.appName}
+                          <div className="truncate text-sm font-bold text-neutral-900">
+                            {teamName || "Nome team"}
                           </div>
-                        ) : null}
+                        </div>
                       </div>
                     ) : null}
+
                     <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-neutral-900`}>
                       {labels.event} · Preview
                     </div>
                     <div className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-                      Header reale con logo team, eventuale nome piattaforma fisso e pulsante primario governato dall&apos;accent.
+                      Header con brand piattaforma fisso in alto e branding team opzionale subito sotto.
                     </div>
                   </div>
 
@@ -537,7 +569,7 @@ function BrandPreview({
             </div>
           </div>
         </div>
-      </div>
+      </div> 
     </div>
   );
 }
@@ -1020,12 +1052,25 @@ async function saveAll() {
   <div className="space-y-6">
     <SectionCard
       title="Branding team"
-      subtitle="Il brand della piattaforma è fisso. Qui il team può personalizzare nome, loghi, colori e terminologia."
+      subtitle="Il brand della piattaforma resta fisso e sempre visibile. Qui il team personalizza solo nome, loghi, colori e terminologia."
     >
       <InfoBlock>
-        Il nome e il logo della piattaforma sono gestiti centralmente. In questa sezione il cliente personalizza solo il proprio team:
-        nome, sottotitolo, loghi dedicati, colori e lessico operativo.
+        Il nome e il logo della piattaforma sono gestiti centralmente e restano sempre visibili. In questa sezione il cliente personalizza solo il proprio team: nome, sottotitolo, loghi dedicati, colori e lessico operativo.
       </InfoBlock>
+      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          Brand piattaforma fisso
+        </div>
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+            <img src={brandConfig.logoPath} alt={brandConfig.appName} className="h-9 w-9 object-contain" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-neutral-900">{brandConfig.appName}</div>
+            <div className="text-xs text-neutral-500">{brandConfig.appDescription}</div>
+          </div>
+        </div>
+      </div>
     </SectionCard>
 
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -1034,7 +1079,7 @@ async function saveAll() {
         subtitle="Nome team, sottotitolo e loghi dedicati per sidebar, header e stampa."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Nome team" hint="Titolo principale mostrato nella sidebar e nelle stampe.">
+          <Field label="Nome team" hint="Titolo principale mostrato nella sidebar, nell’header team e nelle stampe.">
             <Input
               value={settings.team_name}
               onChange={(e) => patchSetting("team_name", e.target.value)}
@@ -1166,38 +1211,30 @@ async function saveAll() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
           <ToggleBox
-            label="Logo in sidebar"
+            label="Logo team in sidebar"
             checked={previewBranding.branding_config.showLogoInSidebar}
             onChange={(checked) => patchBrandingConfig("showLogoInSidebar", checked)}
           />
           <ToggleBox
-            label="Logo in header"
+            label="Logo team in header"
             checked={previewBranding.branding_config.showLogoInHeader}
             onChange={(checked) => patchBrandingConfig("showLogoInHeader", checked)}
           />
           <ToggleBox
-            label="Logo in stampa"
+            label="Logo team in stampa"
             checked={previewBranding.branding_config.showLogoInPrint}
             onChange={(checked) => patchBrandingConfig("showLogoInPrint", checked)}
           />
         </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ToggleBox
-            label="Nome piattaforma in sidebar"
-            checked={previewBranding.branding_config.showPlatformNameInSidebar}
-            onChange={(checked) => patchBrandingConfig("showPlatformNameInSidebar", checked)}
-          />
-          <ToggleBox
-            label="Nome piattaforma in header"
-            checked={previewBranding.branding_config.showPlatformNameInHeader}
-            onChange={(checked) => patchBrandingConfig("showPlatformNameInHeader", checked)}
-          />
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <ToggleBox
             label="Header compatto"
             checked={previewBranding.branding_config.compactHeader}
             onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
           />
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+            Il nome e il logo della piattaforma restano sempre visibili sopra. Qui controlli solo il branding del team.
+          </div>
         </div>
 
         <div className="mt-4">

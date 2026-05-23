@@ -40,29 +40,42 @@ export default function PageHeader({
         ) : null}
 
         <div className="min-w-0">
-          {(theme.brandingConfig.showLogoInHeader || theme.brandingConfig.showPlatformNameInHeader) ? (
-            <div className="mb-3 flex items-center gap-3">
-              {theme.brandingConfig.showLogoInHeader ? (
-                <div
-                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                  style={{ backgroundColor: "var(--brand-accent-soft)" }}
-                >
-                  <img
-                    src={theme.headerLogoUrl || "/logo.png"}
-                    alt={theme.teamName}
-                    className="h-7 w-7 object-contain"
-                  />
-                </div>
-              ) : null}
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
+              style={{ backgroundColor: "var(--brand-accent-soft)" }}
+            >
+              <img
+                src={brandConfig.logoPath}
+                alt={brandConfig.appName}
+                className="h-7 w-7 object-contain"
+              />
+            </div>
+            <div
+              className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
+              style={{ color: "var(--brand-accent)" }}
+            >
+              {brandConfig.appName}
+            </div>
+          </div>
 
-              {theme.brandingConfig.showPlatformNameInHeader ? (
-                <div
-                  className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-                  style={{ color: "var(--brand-accent)" }}
-                >
-                  {brandConfig.appName}
+          {theme.brandingConfig.showLogoInHeader ? (
+            <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-3 py-2">
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[var(--surface-card)]">
+                <img
+                  src={theme.headerLogoUrl || "/logo.png"}
+                  alt={theme.teamName}
+                  className="h-6 w-6 object-contain"
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
+                  team
                 </div>
-              ) : null}
+                <div className="truncate text-sm font-bold text-[var(--text-primary)]">
+                  {theme.teamName}
+                </div>
+              </div>
             </div>
           ) : null}
 

@@ -180,7 +180,12 @@ export default function Sidebar() {
     color: "rgba(255,255,255,0.82)",
   };
 
-  const brandCardStyle: CSSProperties = {
+  const fixedBrandCardStyle: CSSProperties = {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.12)",
+  };
+
+  const teamCardStyle: CSSProperties = {
     backgroundColor: "rgba(255,255,255,0.08)",
     borderColor: "rgba(255,255,255,0.12)",
   };
@@ -213,8 +218,30 @@ export default function Sidebar() {
         style={asideStyle}
       >
         <div className={`flex h-full flex-col px-4 py-5 ${audiowide.className}`}>
+          <div className="mb-4 px-2">
+            <div className="rounded-2xl border px-4 py-3" style={fixedBrandCardStyle}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
+                  <img
+                    src={brandConfig.logoPath}
+                    alt={brandConfig.appName}
+                    className="h-11 w-11 object-contain"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                    piattaforma
+                  </div>
+                  <div className="truncate text-sm font-bold text-white">
+                    {brandConfig.appName}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mb-6 px-2">
-            <div className="rounded-3xl border px-4 py-4" style={brandCardStyle}>
+            <div className="rounded-3xl border px-4 py-4" style={teamCardStyle}>
               <div className="flex items-center gap-3">
                 {theme.brandingConfig.showLogoInSidebar ? (
                   <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
@@ -226,14 +253,12 @@ export default function Sidebar() {
                   </div>
                 ) : null}
                 <div className="min-w-0">
-                  {theme.brandingConfig.showPlatformNameInSidebar ? (
-                    <div
-                      className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-                      style={{ color: "var(--brand-accent)" }}
-                    >
-                      {brandConfig.appName}
-                    </div>
-                  ) : null}
+                  <div
+                    className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
+                    style={{ color: "var(--brand-accent)" }}
+                  >
+                    team
+                  </div>
                   <div className="mt-1 truncate text-lg font-bold text-white">{theme.teamName}</div>
                 </div>
               </div>
