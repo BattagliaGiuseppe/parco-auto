@@ -16,33 +16,35 @@ export default function PrintLetterhead({
   const today = new Date().toLocaleDateString("it-IT");
   const { theme } = useBrandTheme();
   const mode = theme.brandingConfig.printLetterheadMode || "logo_title_subtitle";
-  const showLogo = mode !== "title_only" && !!theme.logoUrl;
+  const logoSrc =
+    theme.printLogoUrl || theme.headerLogoUrl || theme.sidebarLogoUrl || "/logo.png";
+  const showLogo = theme.brandingConfig.showLogoInPrint && mode !== "title_only";
   const showSubtitle = mode === "logo_title_subtitle";
 
   return (
-    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border print:shadow-none print:p-0">
+    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none print:p-0">
       <div className="p-6 print:p-5">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div className="flex items-center gap-4">
             {showLogo ? (
               <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
                 <img
-                  src={theme.logoUrl || "/logo.png"}
-                  alt={theme.platformName}
+                  src={logoSrc}
+                  alt={theme.teamName}
                   className="h-16 w-16 object-contain p-2"
                 />
               </div>
             ) : null}
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                Team
+                team
               </div>
               <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
-                {theme.platformName}
+                {theme.teamName}
               </div>
               {showSubtitle ? (
                 <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {subtitle || theme.platformSubtitle || ""}
+                  {subtitle || theme.teamSubtitle || ""}
                 </div>
               ) : null}
             </div>
