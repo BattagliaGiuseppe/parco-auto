@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -18,6 +19,7 @@ import {
   Unlink,
   Save,
   X,
+  Info,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
@@ -27,7 +29,10 @@ import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
+import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type ComponentRow = {
   id: string;
@@ -129,6 +134,17 @@ function parseNullableNumber(value: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function ComponentDetailPage() {
   const params = useParams();
   const componentId = params?.id as string;
@@ -174,7 +190,10 @@ export default function ComponentDetailPage() {
   const [selectedCarId, setSelectedCarId] = useState("");
   const [mountDate, setMountDate] = useState(new Date().toISOString().slice(0, 10));
   const [mountReason, setMountReason] = useState("");
-  const [toast, setToast] = useState("");
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
 
   async function loadAll() {
     setLoading(true);
@@ -271,33 +290,35 @@ export default function ComponentDetailPage() {
   );
 
   const stats: StatItem[] = [
-    { label: "Ore attuali", value: formatHours(component?.hours), icon: <Clock3 size={18} /> },
+    { label: "Ore attuali", value: formatHours(component?.hours), icon: <Clock3 size={18} />, helper: "Ore già maturate dal componente" },
     {
       label: "Vita componente",
       value: formatHours(component?.life_hours),
       icon: <ShieldAlert size={18} />,
+      helper: "Durata operativa prevista",
     },
     {
       label: "Manutenzioni",
       value: String(maintenances.length),
       icon: <Wrench size={18} />,
+      helper: "Interventi tecnici registrati",
     },
     {
       label: "Revisioni",
       value: String(revisions.length),
       icon: <CalendarClock size={18} />,
+      helper: "Revisioni salvate nello storico",
     },
   ];
 
-  function showToast(message: string) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 2500);
+  function showFeedback(type: "success" | "error" | "info", message: string) {
+    setFeedback({ type, message });
   }
 
   async function saveComponentEdits() {
     if (!canEditComponents || !component) return;
     if (!editForm.type.trim() || !editForm.identifier.trim()) {
-      alert("Tipo e identificativo sono obbligatori");
+      showFeedback("error", "Tipo e identificativo sono obbligatori.");
       return;
     }
 
@@ -323,11 +344,11 @@ export default function ComponentDetailPage() {
 
       if (error) throw error;
       setOpenEdit(false);
-      showToast("Componente aggiornato");
+      showFeedback("success", "Componente aggiornato.");
       await loadAll();
     } catch (error) {
       console.error(error);
-      alert("Errore durante il salvataggio del componente");
+      showFeedback("error", "Errore durante il salvataggio del componente.");
     } finally {
       setSavingEdit(false);
     }
@@ -384,11 +405,16 @@ export default function ComponentDetailPage() {
         notes: "",
         reset_hours: false,
       });
-      showToast(revisionForm.reset_hours ? "Revisione registrata con reset ore" : "Revisione registrata");
+      showFeedback(
+        "success",
+        revisionForm.reset_hours
+          ? "Revisione registrata con reset ore."
+          : "Revisione registrata."
+      );
       await loadAll();
     } catch (error) {
       console.error(error);
-      alert("Errore durante la registrazione della revisione");
+      showFeedback("error", "Errore durante la registrazione della revisione.");
     } finally {
       setSavingRevision(false);
     }
@@ -423,11 +449,11 @@ export default function ComponentDetailPage() {
 
       if (componentError) throw componentError;
 
-      showToast("Componente smontato");
+      showFeedback("success", "Componente smontato.");
       await loadAll();
     } catch (error) {
       console.error(error);
-      alert("Errore durante lo smontaggio del componente");
+      showFeedback("error", "Errore durante lo smontaggio del componente.");
     } finally {
       setSavingMount(false);
     }
@@ -470,11 +496,11 @@ export default function ComponentDetailPage() {
       setSelectedCarId("");
       setMountReason("");
       setMountDate(new Date().toISOString().slice(0, 10));
-      showToast("Componente montato");
+      showFeedback("success", "Componente montato.");
       await loadAll();
     } catch (error) {
       console.error(error);
-      alert("Errore durante il montaggio del componente");
+      showFeedback("error", "Errore durante il montaggio del componente.");
     } finally {
       setSavingMount(false);
     }
@@ -516,20 +542,26 @@ export default function ComponentDetailPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-neutral-500">Caricamento componente...</div>;
+    return (
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+          Caricamento componente...
+        </div>
+      </div>
+    );
   }
 
   if (!component) {
-    return <div className="p-6 font-semibold text-red-600">Componente non trovato.</div>;
+    return (
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <FormStatusBanner type="error" message="Componente non trovato." />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {toast ? (
-        <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       <PageHeader
         title={`${component.type} · ${component.identifier}`}
@@ -557,7 +589,7 @@ export default function ComponentDetailPage() {
                   <button
                     onClick={() => void unmountComponent()}
                     disabled={savingMount}
-                    className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                    className="rounded-xl bg-red-50 px-4 py-2 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <Unlink size={16} className="mr-2 inline" />
                     {savingMount ? "Smontaggio..." : "Smonta componente"}
@@ -573,7 +605,7 @@ export default function ComponentDetailPage() {
                 )}
               </>
             ) : null}
-            <Link href="/components" className="rounded-xl bg-neutral-100 px-4 py-2">
+            <Link href="/components" className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50">
               <ArrowLeft size={16} className="mr-2 inline" />
               Componenti
             </Link>
@@ -585,23 +617,27 @@ export default function ComponentDetailPage() {
         <StatsGrid items={stats} />
       </SectionCard>
 
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questa pagina riunisce stato tecnico, montaggio e storico del componente."
+      >
+        <InfoBlock>
+          Usa la scheda componente per controllare ore, soglie, revisioni e posizione attuale sul mezzo.
+          Le manutenzioni restano nello storico dedicato, mentre da qui puoi intervenire su revisione, montaggio e dati tecnici del componente.
+        </InfoBlock>
+      </SectionCard>
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
           title="Stato tecnico"
           subtitle="Dati del componente, soglie e indicazioni operative"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Info label="Tipo" value={component.type} />
-            <Info label="Identificativo" value={component.identifier} />
-            <Info
-              label="Ultima manutenzione"
-              value={formatDate(component.last_maintenance_date)}
-            />
-            <Info
-              label="Scadenza"
-              value={formatDate(component.expiry_date)}
-            />
-            <Info
+            <InfoCard label="Tipo" value={component.type} />
+            <InfoCard label="Identificativo" value={component.identifier} />
+            <InfoCard label="Ultima manutenzione" value={formatDate(component.last_maintenance_date)} />
+            <InfoCard label="Scadenza" value={formatDate(component.expiry_date)} />
+            <InfoCard
               label="Soglia attenzione"
               value={
                 component.warning_threshold_hours !== null &&
@@ -610,7 +646,7 @@ export default function ComponentDetailPage() {
                   : "—"
               }
             />
-            <Info
+            <InfoCard
               label="Soglia revisione"
               value={
                 component.revision_threshold_hours !== null &&
@@ -619,9 +655,9 @@ export default function ComponentDetailPage() {
                   : "—"
               }
             />
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <div className="text-sm text-neutral-500">Stato</div>
-              <div className="mt-2 flex items-center gap-3">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:col-span-2">
+              <div className="text-sm text-neutral-500">Stato operativo</div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StatusBadge label={status.label} tone={status.tone} />
                 <StatusBadge
                   label={mountedCar ? "Montato" : "Smontato"}
@@ -629,8 +665,8 @@ export default function ComponentDetailPage() {
                 />
               </div>
               <div className="mt-3 text-xs leading-5 text-neutral-500">
-                Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del
-                componente. Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.
+                Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del componente.
+                Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.
               </div>
             </div>
           </div>
@@ -658,13 +694,13 @@ export default function ComponentDetailPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
                   href={`/cars/${mountedCar.id}`}
-                  className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
                 >
                   Apri scheda mezzo
                 </Link>
                 <Link
                   href="/mounts"
-                  className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
                 >
                   Storico montaggi
                 </Link>
@@ -811,7 +847,7 @@ export default function ComponentDetailPage() {
                           href={row.file_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold"
+                          className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
                         >
                           Apri file
                         </a>
@@ -1149,7 +1185,7 @@ function FieldHint({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 text-xs leading-5 text-neutral-500">{children}</div>;
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
       <div className="text-sm text-neutral-500">{label}</div>

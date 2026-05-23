@@ -1,10 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Audiowide } from "next/font/google";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import {
+  CarFront,
+  FileText,
+  GaugeCircle,
+  Info,
+  Printer,
+  Wrench,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { CarFront, FileText, Printer, Wrench, GaugeCircle } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
+import SectionCard from "@/components/SectionCard";
+import StatsGrid from "@/components/StatsGrid";
+import EmptyState from "@/components/EmptyState";
+import FormStatusBanner from "@/components/FormStatusBanner";
+
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarComponent = {
   id: string;
@@ -79,6 +94,17 @@ function getThresholdBadge(component: CarComponent) {
   };
 }
 
+function InfoBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+      <div className="flex items-start gap-3">
+        <Info size={18} className="mt-0.5 shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function CarDetailPage() {
   const { id } = useParams<{ id: string }>();
 
@@ -94,24 +120,26 @@ export default function CarDetailPage() {
 
       const { data, error: carError } = await supabase
         .from("cars")
-        .select(`
-          id,
-          name,
-          chassis_number,
-          hours,
-          components (
+        .select(
+          `
             id,
-            type,
-            identifier,
-            expiry_date,
-            is_active,
+            name,
+            chassis_number,
             hours,
-            life_hours,
-            warning_threshold_hours,
-            revision_threshold_hours,
-            last_maintenance_date
-          )
-        `)
+            components (
+              id,
+              type,
+              identifier,
+              expiry_date,
+              is_active,
+              hours,
+              life_hours,
+              warning_threshold_hours,
+              revision_threshold_hours,
+              last_maintenance_date
+            )
+          `
+        )
         .eq("id", id)
         .single();
 
@@ -155,7 +183,7 @@ export default function CarDetailPage() {
   };
 
   useEffect(() => {
-    if (id) loadCar();
+    if (id) void loadCar();
   }, [id]);
 
   const componentSummary = useMemo(() => {
@@ -170,90 +198,115 @@ export default function CarDetailPage() {
   }, [car]);
 
   if (loading) {
-    return <div className="p-6">Caricamento…</div>;
-  }
-
-  if (error || !car) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error || "Vettura non trovata"}
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+          Caricamento mezzo...
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <CarFront className="text-yellow-500" size={30} />
-              {car.name}
-            </h1>
-            <p className="text-gray-600">
-              <span className="font-semibold">Telaio:</span>{" "}
-              {car.chassis_number || "—"}
-            </p>
-            <p className="text-gray-600 flex items-center gap-2">
-              <GaugeCircle size={18} className="text-yellow-500" />
-              <span className="font-semibold">Ore vettura:</span>{" "}
-              {formatHours(car.hours)}
-            </p>
-          </div>
+  if (error || !car) {
+    return (
+      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+        <FormStatusBanner
+          type="error"
+          message={error || "Vettura non trovata"}
+        />
+      </div>
+    );
+  }
 
-          <div className="flex gap-2 flex-wrap">
+  const stats = [
+    {
+      label: "Ore auto",
+      value: formatHours(car.hours),
+      icon: <GaugeCircle size={18} />,
+      helper: "Ore complessive registrate sul mezzo",
+    },
+    {
+      label: "Componenti montati",
+      value: String(componentSummary.mounted),
+      icon: <Wrench size={18} />,
+      helper: "Componenti attualmente installati",
+    },
+    {
+      label: "Da controllare",
+      value: String(componentSummary.critical),
+      icon: <Info size={18} />,
+      helper: "Componenti in attenzione o fuori soglia",
+    },
+    {
+      label: "Telaio",
+      value: car.chassis_number || "—",
+      icon: <CarFront size={18} />,
+      helper: "Codice telaio del mezzo",
+    },
+  ];
+
+  return (
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <PageHeader
+        title={car.name}
+        subtitle="Scheda mezzo con componenti montati, soglie e storico revisioni"
+        icon={<CarFront size={22} />}
+        actions={
+          <div className="flex flex-wrap gap-3">
             <Link
               href={`/cars/${id}/documents`}
-              className="px-4 py-2 rounded-lg bg-gray-900 text-yellow-500 flex items-center gap-2"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
-              <FileText size={16} />
+              <FileText size={16} className="mr-2 inline" />
               Documenti
             </Link>
             <Link
               href={`/cars/${id}/print`}
-              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-800 flex items-center gap-2"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
-              <Printer size={16} />
+              <Printer size={16} className="mr-2 inline" />
               Stampa
             </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Riepilogo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Ore auto</p>
-          <p className="text-2xl font-bold text-gray-900">{formatHours(car.hours)}</p>
-        </div>
+      <SectionCard>
+        <StatsGrid items={stats} />
+      </SectionCard>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Componenti montati</p>
-          <p className="text-2xl font-bold text-gray-900">{componentSummary.mounted}</p>
-        </div>
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="Questa pagina riassume lo stato tecnico del mezzo e dei componenti attualmente montati."
+      >
+        <InfoBlock>
+          Usa la scheda mezzo per avere una vista sintetica delle ore auto, dei componenti installati e delle soglie di attenzione.
+          Quando ti serve intervenire su un singolo componente, apri la relativa scheda tecnica direttamente da qui.
+        </InfoBlock>
+      </SectionCard>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Componenti da controllare</p>
-          <p className="text-2xl font-bold text-gray-900">{componentSummary.critical}</p>
+      <SectionCard
+        title="Panoramica mezzo"
+        subtitle="Identità del mezzo e ore complessive registrate"
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <InfoCard label="Mezzo" value={car.name} />
+          <InfoCard label="Telaio" value={car.chassis_number || "—"} />
+          <InfoCard label="Ore vettura" value={`${formatHours(car.hours)} h`} />
         </div>
-      </div>
+      </SectionCard>
 
-      {/* Componenti */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Wrench className="text-yellow-500" size={20} />
-          <h2 className="text-xl font-bold text-gray-900">Componenti montati</h2>
-        </div>
-
+      <SectionCard
+        title="Componenti montati"
+        subtitle="Controlla ore, soglie, scadenze e ultima revisione dei componenti attivi sul mezzo."
+      >
         {car.components.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 p-6 text-gray-500">
-            Nessun componente montato su questa vettura.
-          </div>
+          <EmptyState
+            title="Nessun componente montato"
+            description="Monta un componente sulla vettura per visualizzarlo qui."
+          />
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {car.components.map((component) => {
               const badge = getThresholdBadge(component);
               const latestRevision = revisions[component.id]?.[0];
@@ -261,14 +314,14 @@ export default function CarDetailPage() {
               return (
                 <div
                   key={component.id}
-                  className="rounded-2xl border border-gray-200 p-5 bg-gray-50 space-y-3"
+                  className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 capitalize">
+                      <h3 className="text-lg font-bold capitalize text-neutral-900">
                         {component.type}
                       </h3>
-                      <p className="text-sm text-gray-600">{component.identifier}</p>
+                      <p className="text-sm text-neutral-600">{component.identifier}</p>
                     </div>
 
                     <span
@@ -278,67 +331,54 @@ export default function CarDetailPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg bg-white border border-gray-200 p-3">
-                      <span className="block text-gray-500">Ore attuali</span>
-                      <span className="font-bold text-gray-900">
-                        {formatHours(component.hours)}
-                      </span>
-                    </div>
-
-                    <div className="rounded-lg bg-white border border-gray-200 p-3">
-                      <span className="block text-gray-500">Ore vita totale</span>
-                      <span className="font-bold text-gray-900">
-                        {formatHours(component.life_hours)}
-                      </span>
-                    </div>
-
-                    <div className="rounded-lg bg-white border border-gray-200 p-3">
-                      <span className="block text-gray-500">Soglia attenzione</span>
-                      <span className="font-bold text-gray-900">
-                        {component.warning_threshold_hours !== null &&
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+                    <MetricCard label="Ore attuali" value={`${formatHours(component.hours)} h`} />
+                    <MetricCard label="Ore vita totale" value={`${formatHours(component.life_hours)} h`} />
+                    <MetricCard
+                      label="Soglia attenzione"
+                      value={
+                        component.warning_threshold_hours !== null &&
                         component.warning_threshold_hours !== undefined
-                          ? formatHours(component.warning_threshold_hours)
-                          : "—"}
-                      </span>
-                    </div>
-
-                    <div className="rounded-lg bg-white border border-gray-200 p-3">
-                      <span className="block text-gray-500">Soglia revisione</span>
-                      <span className="font-bold text-gray-900">
-                        {component.revision_threshold_hours !== null &&
+                          ? `${formatHours(component.warning_threshold_hours)} h`
+                          : "—"
+                      }
+                    />
+                    <MetricCard
+                      label="Soglia revisione"
+                      value={
+                        component.revision_threshold_hours !== null &&
                         component.revision_threshold_hours !== undefined
-                          ? formatHours(component.revision_threshold_hours)
-                          : "—"}
-                      </span>
-                    </div>
+                          ? `${formatHours(component.revision_threshold_hours)} h`
+                          : "—"
+                      }
+                    />
                   </div>
 
                   {component.expiry_date && (
-                    <p className={`text-sm ${getExpiryColor(component.expiry_date)}`}>
+                    <p className={`mt-4 text-sm ${getExpiryColor(component.expiry_date)}`}>
                       <span className="font-semibold">Scadenza:</span>{" "}
                       {new Date(component.expiry_date).toLocaleDateString("it-IT")}
                     </p>
                   )}
 
-                  <p className="text-sm text-gray-700">
+                  <div className="mt-2 text-sm text-neutral-700">
                     <span className="font-semibold">Ultima revisione:</span>{" "}
                     {latestRevision?.date
                       ? new Date(latestRevision.date).toLocaleDateString("it-IT")
                       : "—"}
-                  </p>
+                  </div>
 
-                  <p className="text-sm text-gray-700">
+                  <div className="mt-1 text-sm text-neutral-700">
                     <span className="font-semibold">Ultima manutenzione:</span>{" "}
                     {component.last_maintenance_date
                       ? new Date(component.last_maintenance_date).toLocaleDateString("it-IT")
                       : "—"}
-                  </p>
+                  </div>
 
-                  <div className="flex justify-end">
+                  <div className="mt-4 flex justify-end">
                     <Link
                       href={`/components/${component.id}`}
-                      className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black font-semibold text-sm"
+                      className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
                     >
                       Apri componente
                     </Link>
@@ -348,7 +388,25 @@ export default function CarDetailPage() {
             })}
           </div>
         )}
-      </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function InfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+      <div className="text-sm text-neutral-500">{label}</div>
+      <div className="mt-1 text-base font-bold text-neutral-900">{value}</div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-3">
+      <span className="block text-neutral-500">{label}</span>
+      <span className="font-bold text-neutral-900">{value}</span>
     </div>
   );
 }
