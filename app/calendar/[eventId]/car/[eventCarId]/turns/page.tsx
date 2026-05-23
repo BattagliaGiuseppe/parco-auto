@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   CalendarClock,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
   Edit2,
   Flame,
   Gauge,
   Info,
+  ListFilter,
+  PlusCircle,
   Printer,
   Save,
+  Thermometer,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
@@ -57,12 +64,10 @@ type SessionRow = {
   id: string;
   name: string;
   starts_at: string | null;
-  created_at?: string | null;
 };
 
 type TurnBaseRow = {
   id: string;
-  team_id?: string;
   event_car_id: string;
   event_session_id: string | null;
   driver_id: string | null;
@@ -159,6 +164,8 @@ type TurnForm = {
   target_oil_temp_c: string;
   technical_notes: string;
 };
+
+type ViewMode = "synthetic" | "detailed";
 
 function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -329,7 +336,7 @@ function buildFormFromTurn(turn: TurnRow): TurnForm {
   };
 }
 
-function InfoBlock({ children }: { children: React.ReactNode }) {
+function InfoBlock({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
       <div className="flex items-start gap-3">
@@ -347,7 +354,7 @@ function FormSection({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
@@ -380,14 +387,14 @@ function WheelGrid({
       <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">{title}</div>
       {hint ? <div className="mb-3 text-xs text-[var(--text-secondary)]">{hint}</div> : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {(["fl", "fr", "rl", "rr"] as const).map((key) => (
+        {(["fl","fr","rl","rr"] as const).map((key) => (
           <UiField key={key} label={key.toUpperCase()}>
             <input
               type="number"
               step="0.01"
               value={values[key]}
               onChange={(e) => onChange(key, e.target.value)}
-              placeholder={placeholders?.[key] || (key === "fl" || key === "fr" ? "Es. 1.20" : "Es. 1.18")}
+              placeholder={placeholders?.[key] || (key.startsWith("f") ? "Es. 1.20" : "Es. 1.18")}
               className={uiInputClassName}
             />
           </UiField>
@@ -416,6 +423,81 @@ function StatusChip({
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{label}</span>;
 }
 
+function SummaryBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">{value}</div>
+    </div>
+  );
+}
+
+function SmallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{value}</div>
+    </div>
+  );
+}
+
+function DetailGrid({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
+      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">{children}</div>
+    </div>
+  );
+}
+
+function buildTurnWarnings(metrics: TurnMetricsRow | null) {
+  const warnings: Array<{ label: string; tone: "warning" | "danger" | "success" }> = [];
+
+  const waterDelta =
+    metrics?.max_water_temp_c != null && metrics?.target_water_temp_c != null
+      ? round1(metrics.max_water_temp_c - metrics.target_water_temp_c)
+      : null;
+  if (waterDelta != null) {
+    if (waterDelta > 3) warnings.push({ label: `Acqua +${waterDelta}°C`, tone: "danger" });
+    else if (waterDelta > 0) warnings.push({ label: `Acqua +${waterDelta}°C`, tone: "warning" });
+    else warnings.push({ label: "Acqua in target", tone: "success" });
+  }
+
+  const oilDelta =
+    metrics?.max_oil_temp_c != null && metrics?.target_oil_temp_c != null
+      ? round1(metrics.max_oil_temp_c - metrics.target_oil_temp_c)
+      : null;
+  if (oilDelta != null) {
+    if (oilDelta > 3) warnings.push({ label: `Olio +${oilDelta}°C`, tone: "danger" });
+    else if (oilDelta > 0) warnings.push({ label: `Olio +${oilDelta}°C`, tone: "warning" });
+    else warnings.push({ label: "Olio in target", tone: "success" });
+  }
+
+  return warnings;
+}
+
+function trackConditionLabel(value: string | null | undefined) {
+  return value === "dry"
+    ? "Asciutta"
+    : value === "damp"
+    ? "Umida"
+    : value === "wet"
+    ? "Bagnata"
+    : value === "mixed"
+    ? "Mista"
+    : "—";
+}
+
 export default function EventCarTurnsPage() {
   const { eventId, eventCarId } = useParams() as {
     eventId: string;
@@ -435,6 +517,9 @@ export default function EventCarTurnsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingTurnId, setEditingTurnId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("synthetic");
+  const [expandedTurnId, setExpandedTurnId] = useState<string | null>(null);
   const [form, setForm] = useState<TurnForm>(buildDefaultForm());
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
@@ -448,45 +533,50 @@ export default function EventCarTurnsPage() {
     try {
       const ctx = await getCurrentTeamContext();
 
-      const [eventRes, eventCarRes, sessionsRes, driversRes, assignedRes, turnsRes, metricsRes] =
-        await Promise.all([
-          supabase.from("events").select("id,name,date").eq("id", eventId).single(),
-          supabase
-            .from("event_cars")
-            .select("id,event_id,car_id(id,name)")
-            .eq("team_id", ctx.teamId)
-            .eq("id", eventCarId)
-            .single(),
-          supabase
-            .from("event_sessions")
-            .select("id,name,starts_at,created_at")
-            .eq("team_id", ctx.teamId)
-            .eq("event_id", eventId)
-            .order("created_at", { ascending: true }),
-          supabase
-            .from("drivers")
-            .select("id,first_name,last_name")
-            .eq("team_id", ctx.teamId)
-            .order("last_name", { ascending: true }),
-          supabase
-            .from("event_car_drivers")
-            .select("id,role,driver_id(id,first_name,last_name)")
-            .eq("team_id", ctx.teamId)
-            .eq("event_car_id", eventCarId),
-          supabase
-            .from("event_car_turns")
-            .select(
-              "id,team_id,event_car_id,event_session_id,driver_id,recorded_at,minutes,laps,fuel_start_liters,fuel_end_liters,notes,created_at"
-            )
-            .eq("team_id", ctx.teamId)
-            .eq("event_car_id", eventCarId)
-            .order("recorded_at", { ascending: true }),
-          supabase
-            .from("event_car_turn_metrics")
-            .select("*")
-            .eq("team_id", ctx.teamId)
-            .eq("event_car_id", eventCarId),
-        ]);
+      const [
+        eventRes,
+        eventCarRes,
+        sessionsRes,
+        driversRes,
+        assignedRes,
+        turnsRes,
+        metricsRes,
+      ] = await Promise.all([
+        supabase.from("events").select("id,name,date").eq("id", eventId).single(),
+        supabase
+          .from("event_cars")
+          .select("id, event_id, car_id ( id, name )")
+          .eq("team_id", ctx.teamId)
+          .eq("id", eventCarId)
+          .single(),
+        supabase
+          .from("event_sessions")
+          .select("id,name,starts_at")
+          .eq("team_id", ctx.teamId)
+          .eq("event_id", eventId)
+          .order("starts_at", { ascending: true }),
+        supabase
+          .from("drivers")
+          .select("id,first_name,last_name")
+          .eq("team_id", ctx.teamId)
+          .order("last_name", { ascending: true }),
+        supabase
+          .from("event_car_drivers")
+          .select("id,role,driver_id(id,first_name,last_name)")
+          .eq("team_id", ctx.teamId)
+          .eq("event_car_id", eventCarId),
+        supabase
+          .from("event_car_turns")
+          .select("id,event_car_id,event_session_id,driver_id,recorded_at,minutes,laps,fuel_start_liters,fuel_end_liters,notes,created_at")
+          .eq("team_id", ctx.teamId)
+          .eq("event_car_id", eventCarId)
+          .order("recorded_at", { ascending: false }),
+        supabase
+          .from("event_car_turn_metrics")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .eq("event_car_id", eventCarId),
+      ]);
 
       const firstError =
         eventRes.error ||
@@ -505,16 +595,18 @@ export default function EventCarTurnsPage() {
       }
 
       setEventInfo((eventRes.data as EventInfo | null) ?? null);
+
       const carRow = normalizeRelation(eventCarRes.data?.car_id as unknown as CarInfo | CarInfo[] | null);
       setCarInfo(carRow);
-      setSessions((sessionsRes.data || []) as SessionRow[]);
-      setDrivers((driversRes.data || []) as DriverOption[]);
 
       const assignedRows = (assignedRes.data || []) as AssignedDriverRow[];
       const assignedDriverList = assignedRows
         .map((row) => normalizeRelation(row.driver_id))
         .filter(Boolean) as DriverOption[];
+
+      setDrivers((driversRes.data || []) as DriverOption[]);
       setAssignedDrivers(assignedDriverList);
+      setSessions((sessionsRes.data || []) as SessionRow[]);
 
       const metricsMap = new Map(
         ((metricsRes.data || []) as TurnMetricsRow[]).map((row) => [row.turn_id, row])
@@ -537,19 +629,30 @@ export default function EventCarTurnsPage() {
     }
   }, [eventId, eventCarId, access.loading, canViewEvents]);
 
-  const sessionMap = useMemo(() => new Map(sessions.map((row) => [row.id, row])), [sessions]);
-  const availableDrivers = useMemo(() => (assignedDrivers.length > 0 ? assignedDrivers : drivers), [assignedDrivers, drivers]);
+  const sessionMap = useMemo(
+    () => new Map(sessions.map((row) => [row.id, row])),
+    [sessions]
+  );
+
+  const availableDrivers = useMemo(() => {
+    if (assignedDrivers.length > 0) return assignedDrivers;
+    return drivers;
+  }, [assignedDrivers, drivers]);
+
   const driverMap = useMemo(
-    () =>
-      new Map(
-        availableDrivers.map((row) => [row.id, `${row.first_name || ""} ${row.last_name || ""}`.trim()])
-      ),
+    () => new Map(availableDrivers.map((row) => [row.id, `${row.first_name || ""} ${row.last_name || ""}`.trim()])),
     [availableDrivers]
   );
 
   const totalTurns = turns.length;
-  const totalMinutes = useMemo(() => turns.reduce((sum, turn) => sum + Number(turn.minutes || 0), 0), [turns]);
-  const totalLaps = useMemo(() => turns.reduce((sum, turn) => sum + Number(turn.laps || 0), 0), [turns]);
+  const totalMinutes = useMemo(
+    () => turns.reduce((sum, turn) => sum + Number(turn.minutes || 0), 0),
+    [turns]
+  );
+  const totalLaps = useMemo(
+    () => turns.reduce((sum, turn) => sum + Number(turn.laps || 0), 0),
+    [turns]
+  );
   const totalFuelUsed = useMemo(
     () =>
       round1(
@@ -560,6 +663,30 @@ export default function EventCarTurnsPage() {
       ) ?? 0,
     [turns]
   );
+
+  const bestLapDay = useMemo(() => {
+    const values = turns
+      .map((turn) => turn.metrics?.best_lap_ms)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    if (values.length === 0) return null;
+    return Math.min(...values);
+  }, [turns]);
+
+  const maxWaterDay = useMemo(() => {
+    const values = turns
+      .map((turn) => turn.metrics?.max_water_temp_c)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    if (values.length === 0) return null;
+    return Math.max(...values);
+  }, [turns]);
+
+  const maxOilDay = useMemo(() => {
+    const values = turns
+      .map((turn) => turn.metrics?.max_oil_temp_c)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    if (values.length === 0) return null;
+    return Math.max(...values);
+  }, [turns]);
 
   const stats: StatItem[] = [
     {
@@ -578,28 +705,30 @@ export default function EventCarTurnsPage() {
       label: "Fuel consumato",
       value: `${displayNumber(totalFuelUsed, " L")}`,
       icon: <Flame size={18} />,
-      helper:
-        totalLaps > 0 ? `${displayNumber(round1(totalFuelUsed / totalLaps), " L/giro")}` : "Consumo medio non disponibile",
+      helper: totalLaps > 0 ? `${displayNumber(round1(totalFuelUsed / totalLaps), " L/giro")}` : "Consumo medio non disponibile",
     },
     {
-      label: "Ultimo turno",
-      value:
-        turns.length > 0
-          ? formatDateTime(
-              [...turns].sort(
-                (a, b) => new Date(b.recorded_at || 0).getTime() - new Date(a.recorded_at || 0).getTime()
-              )[0]?.recorded_at || null
-            )
-          : "Nessun turno",
-      icon: <UserRound size={18} />,
-      helper: "Data e ora ultima sessione",
+      label: "Best lap giornata",
+      value: formatLapTime(bestLapDay),
+      icon: <Clock3 size={18} />,
+      helper: `Acqua max ${displayNumber(maxWaterDay, "°C")} • Olio max ${displayNumber(maxOilDay, "°C")}`,
     },
   ];
 
   function resetForm() {
     setEditingTurnId(null);
     setForm(buildDefaultForm());
+  }
+
+  function openCreate() {
+    resetForm();
+    setDrawerOpen(true);
     setFeedback(null);
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+    resetForm();
   }
 
   function patchForm<K extends keyof TurnForm>(key: K, value: TurnForm[K]) {
@@ -609,8 +738,8 @@ export default function EventCarTurnsPage() {
   function editTurn(turn: TurnRow) {
     setEditingTurnId(turn.id);
     setForm(buildFormFromTurn(turn));
+    setDrawerOpen(true);
     setFeedback(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveTurn() {
@@ -635,24 +764,35 @@ export default function EventCarTurnsPage() {
 
     const bestLapMs = parseLapTimeToMs(form.best_lap);
     if (form.best_lap.trim() && bestLapMs == null) {
-      setFeedback({ type: "error", message: "Il formato del miglior giro non è valido. Usa ad esempio 1:42.350." });
+      setFeedback({
+        type: "error",
+        message: "Il formato del miglior giro non è valido. Usa ad esempio 1:42.350.",
+      });
       return;
     }
 
     const avgLapMs = parseLapTimeToMs(form.avg_lap);
     if (form.avg_lap.trim() && avgLapMs == null) {
-      setFeedback({ type: "error", message: "Il formato del giro medio non è valido. Usa ad esempio 1:43.120." });
+      setFeedback({
+        type: "error",
+        message: "Il formato del giro medio non è valido. Usa ad esempio 1:43.120.",
+      });
       return;
     }
 
     const fuelStart = parseOptionalNumber(form.fuel_start_liters);
     const fuelEnd = parseOptionalNumber(form.fuel_end_liters);
+
     if (fuelStart != null && fuelEnd != null && fuelEnd > fuelStart) {
-      setFeedback({ type: "error", message: "Il carburante finale non può essere superiore al carburante iniziale in questo blocco base." });
+      setFeedback({
+        type: "error",
+        message: "Il carburante finale non può essere superiore al carburante iniziale in questo blocco base.",
+      });
       return;
     }
 
     setSaving(true);
+
     try {
       const ctx = await getCurrentTeamContext();
 
@@ -664,26 +804,27 @@ export default function EventCarTurnsPage() {
         recorded_at: new Date(form.recorded_at).toISOString(),
         minutes,
         laps,
-        fuel_start_liters: fuelStart ?? 0,
-        fuel_end_liters: fuelEnd ?? 0,
+        fuel_start_liters: fuelStart,
+        fuel_end_liters: fuelEnd,
         notes: form.notes.trim() || null,
       };
 
       let turnId = editingTurnId;
 
       if (editingTurnId) {
-        const { error } = await supabase.from("event_car_turns").update(turnPayload).eq("id", editingTurnId);
+        const { error } = await supabase
+          .from("event_car_turns")
+          .update(turnPayload)
+          .eq("id", editingTurnId);
+
         if (error) throw error;
       } else {
-        const insertPayload = {
-          ...turnPayload,
-          created_by_team_user_id: ctx.teamUserId,
-        };
         const { data, error } = await supabase
           .from("event_car_turns")
-          .insert([insertPayload])
+          .insert([turnPayload])
           .select("id")
           .single();
+
         if (error) throw error;
         turnId = data.id;
       }
@@ -728,16 +869,23 @@ export default function EventCarTurnsPage() {
       const { error: metricsError } = await supabase
         .from("event_car_turn_metrics")
         .upsert(metricsPayload, { onConflict: "turn_id" });
+
       if (metricsError) throw metricsError;
 
       setFeedback({
         type: "success",
-        message: editingTurnId ? "Turno tecnico aggiornato correttamente." : "Turno tecnico aggiunto correttamente.",
+        message: editingTurnId
+          ? "Turno tecnico aggiornato correttamente."
+          : "Turno tecnico aggiunto correttamente.",
       });
+
       await fetchAll();
-      resetForm();
+      closeDrawer();
     } catch (error: any) {
-      setFeedback({ type: "error", message: error?.message || "Errore salvataggio turno tecnico." });
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore salvataggio turno tecnico.",
+      });
     } finally {
       setSaving(false);
     }
@@ -745,38 +893,74 @@ export default function EventCarTurnsPage() {
 
   async function deleteTurn(turnId: string) {
     setFeedback(null);
+
     const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
+
     if (error) {
-      setFeedback({ type: "error", message: `Errore eliminazione turno: ${error.message}` });
+      setFeedback({
+        type: "error",
+        message: `Errore eliminazione turno: ${error.message}`,
+      });
       return;
     }
+
     setFeedback({ type: "success", message: "Turno eliminato correttamente." });
-    if (editingTurnId === turnId) resetForm();
+    if (editingTurnId === turnId) closeDrawer();
     await fetchAll();
   }
 
   if (access.loading) {
-    return <PagePermissionState title="Turni tecnici" subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo" icon={<Gauge size={20} />} state="loading" />;
+    return (
+      <PagePermissionState
+        title="Turni tecnici"
+        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        icon={<Gauge size={20} />}
+        state="loading"
+      />
+    );
   }
+
   if (access.error) {
-    return <PagePermissionState title="Turni tecnici" subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo" icon={<Gauge size={20} />} state="error" message={access.error} />;
+    return (
+      <PagePermissionState
+        title="Turni tecnici"
+        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        icon={<Gauge size={20} />}
+        state="error"
+        message={access.error}
+      />
+    );
   }
+
   if (!canViewEvents) {
-    return <PagePermissionState title="Turni tecnici" subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo" icon={<Gauge size={20} />} state="denied" message="Il tuo ruolo non ha accesso al modulo eventi / turni." />;
+    return (
+      <PagePermissionState
+        title="Turni tecnici"
+        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        icon={<Gauge size={20} />}
+        state="denied"
+        message="Il tuo ruolo non ha accesso al modulo eventi / turni."
+      />
+    );
   }
+
   if (loading) {
     return (
       <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
         <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)] shadow-sm">
-          Caricamento turni tecnici in corso...
+          Caricamento console turni in corso...
         </div>
       </div>
     );
   }
+
   if (!eventInfo || !carInfo) {
     return (
       <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
-        <FormStatusBanner type="error" message="Impossibile trovare i dati dell'evento o del mezzo selezionato." />
+        <FormStatusBanner
+          type="error"
+          message="Impossibile trovare i dati dell'evento o del mezzo selezionato."
+        />
       </div>
     );
   }
@@ -784,16 +968,35 @@ export default function EventCarTurnsPage() {
   return (
     <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
-        title={`Turni tecnici • ${carInfo.name ?? "Mezzo"}`}
+        title={`Console turni • ${carInfo.name ?? "Mezzo"}`}
         subtitle={`Evento: ${eventInfo.name ?? "Evento"}${eventInfo.date ? ` • ${new Date(eventInfo.date).toLocaleDateString("it-IT")}` : ""}`}
         icon={<Gauge size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => window.print()} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]">
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={!canEditEvents}
+              className="rounded-xl px-4 py-2 font-bold disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
+            >
+              <PlusCircle size={16} className="mr-2 inline" />
+              Nuovo turno
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+            >
               <Printer size={16} className="mr-2 inline" />
               Stampa scheda
             </button>
-            <Link href={`/calendar/${eventId}/car/${eventCarId}`} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]">
+
+            <Link
+              href={`/calendar/${eventId}/car/${eventCarId}`}
+              className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+            >
               <ArrowLeft size={16} className="mr-2 inline" />
               Console mezzo
             </Link>
@@ -807,234 +1010,487 @@ export default function EventCarTurnsPage() {
         <StatsGrid items={stats} />
       </SectionCard>
 
-      <SectionCard title="Lettura operativa" subtitle="Questa vista registra il turno come scheda tecnica completa, utile in pista e per confronti futuri.">
+      <SectionCard
+        title="Lettura operativa"
+        subtitle="La console è organizzata per consultazione rapida, dettaglio tecnico e inserimento turno separato."
+      >
         <InfoBlock>
-          In questo blocco puoi salvare condizioni pre-turno, rilevazioni post-turno, consumo fuel, tempi, target e note tecniche.
-          La struttura è già pronta per statistiche, confronti tra turni simili e suggerimenti futuri basati sullo storico.
+          Usa la vista sintetica per avere una timeline leggibile della giornata.
+          Passa alla vista dettagliata quando vuoi controllare pressioni, temperature,
+          fuel e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
+          così la pagina resta ordinata e facile da leggere in pista.
         </InfoBlock>
       </SectionCard>
 
       <SectionCard
-        title={editingTurnId ? "Modifica turno tecnico" : "Nuovo turno tecnico"}
-        subtitle="Compila i dati base del turno e le rilevazioni tecniche di pre e post-sessione."
+        title="Timeline turni"
+        subtitle="Consulta lo storico in modalità sintetica o dettagliata senza appesantire la console."
         actions={
-          editingTurnId ? (
-            <button type="button" onClick={resetForm} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]">
-              Annulla modifica
+          <div className="inline-flex rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("synthetic")}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                viewMode === "synthetic" ? "" : "text-[var(--text-secondary)]"
+              }`}
+              style={
+                viewMode === "synthetic"
+                  ? { backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }
+                  : undefined
+              }
+            >
+              Vista sintetica
             </button>
-          ) : null
-        }
-      >
-        <div className="space-y-6">
-          <FormSection title="Dati base turno" subtitle="Sessione, pilota, durata, giri e dati carburante della sessione.">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <UiField label="Data e ora turno">
-                <input type="datetime-local" value={form.recorded_at} onChange={(e) => patchForm("recorded_at", e.target.value)} className={uiInputClassName} />
-              </UiField>
-              <UiField label="Sessione">
-                <select value={form.event_session_id} onChange={(e) => patchForm("event_session_id", e.target.value)} className={uiInputClassName}>
-                  <option value="">Nessuna sessione collegata</option>
-                  {sessions.map((session) => (
-                    <option key={session.id} value={session.id}>
-                      {session.name}
-                      {session.starts_at ? ` • ${new Date(session.starts_at).toLocaleString("it-IT")}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </UiField>
-              <UiField label="Pilota">
-                <select value={form.driver_id} onChange={(e) => patchForm("driver_id", e.target.value)} className={uiInputClassName}>
-                  <option value="">Seleziona pilota</option>
-                  {availableDrivers.map((driver) => (
-                    <option key={driver.id} value={driver.id}>
-                      {driver.first_name} {driver.last_name}
-                    </option>
-                  ))}
-                </select>
-              </UiField>
-              <UiField label="Condizione pista">
-                <select value={form.track_condition} onChange={(e) => patchForm("track_condition", e.target.value)} className={uiInputClassName}>
-                  <option value="dry">Asciutta</option>
-                  <option value="damp">Umida</option>
-                  <option value="wet">Bagnata</option>
-                  <option value="mixed">Mista</option>
-                </select>
-              </UiField>
-              <UiField label="Durata turno (min)">
-                <input type="number" min="1" step="1" value={form.minutes} onChange={(e) => patchForm("minutes", e.target.value)} placeholder="Es. 20" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Giri effettuati">
-                <input type="number" min="0" step="1" value={form.laps} onChange={(e) => patchForm("laps", e.target.value)} placeholder="Es. 12" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Miglior giro" hint="Formato consigliato 1:42.350">
-                <input value={form.best_lap} onChange={(e) => patchForm("best_lap", e.target.value)} placeholder="Es. 1:42.350" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Giro medio" hint="Formato consigliato 1:43.120">
-                <input value={form.avg_lap} onChange={(e) => patchForm("avg_lap", e.target.value)} placeholder="Es. 1:43.120" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Fuel pre-turno (L)">
-                <input type="number" step="0.1" value={form.fuel_start_liters} onChange={(e) => patchForm("fuel_start_liters", e.target.value)} placeholder="Es. 18.5" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Fuel post-turno (L)">
-                <input type="number" step="0.1" value={form.fuel_end_liters} onChange={(e) => patchForm("fuel_end_liters", e.target.value)} placeholder="Es. 10.8" className={uiInputClassName} />
-              </UiField>
-            </div>
-            <div className="mt-4">
-              <UiField label="Note generali turno" hint="Annotazioni di sessione, feedback pilota o condizioni particolari.">
-                <textarea value={form.notes} onChange={(e) => patchForm("notes", e.target.value)} placeholder="Es. Turno con pista in gommatura, traffico nel secondo stint..." className={uiTextareaClassName} />
-              </UiField>
-            </div>
-          </FormSection>
-
-          <FormSection title="Pre-turno" subtitle="Condizioni e configurazione di partenza prima di entrare in pista.">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <UiField label="Temperatura aria pre (°C)">
-                <input type="number" step="0.1" value={form.pre_air_temp_c} onChange={(e) => patchForm("pre_air_temp_c", e.target.value)} placeholder="Es. 24.5" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Temperatura asfalto pre (°C)">
-                <input type="number" step="0.1" value={form.pre_track_temp_c} onChange={(e) => patchForm("pre_track_temp_c", e.target.value)} placeholder="Es. 33.0" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Apertura aria (cm)">
-                <input type="number" step="0.1" value={form.air_opening_cm} onChange={(e) => patchForm("air_opening_cm", e.target.value)} placeholder="Es. 2.5" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Apertura olio (cm)">
-                <input type="number" step="0.1" value={form.oil_opening_cm} onChange={(e) => patchForm("oil_opening_cm", e.target.value)} placeholder="Es. 1.8" className={uiInputClassName} />
-              </UiField>
-            </div>
-            <div className="mt-4">
-              <WheelGrid title="Pressioni a freddo" hint="Inserisci le pressioni pre-turno per singola ruota." values={{ fl: form.pre_pressure_fl, fr: form.pre_pressure_fr, rl: form.pre_pressure_rl, rr: form.pre_pressure_rr }} onChange={(key, value) => patchForm(({ fl: "pre_pressure_fl", fr: "pre_pressure_fr", rl: "pre_pressure_rl", rr: "pre_pressure_rr" } as const)[key], value)} />
-            </div>
-          </FormSection>
-
-          <FormSection title="Post-turno" subtitle="Rilevazioni a caldo, temperature gomme e temperature massime registrate.">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <UiField label="Temperatura aria post (°C)">
-                <input type="number" step="0.1" value={form.post_air_temp_c} onChange={(e) => patchForm("post_air_temp_c", e.target.value)} placeholder="Es. 26.0" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Temperatura asfalto post (°C)">
-                <input type="number" step="0.1" value={form.post_track_temp_c} onChange={(e) => patchForm("post_track_temp_c", e.target.value)} placeholder="Es. 35.2" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Temperatura max acqua (°C)">
-                <input type="number" step="0.1" value={form.max_water_temp_c} onChange={(e) => patchForm("max_water_temp_c", e.target.value)} placeholder="Es. 92.0" className={uiInputClassName} />
-              </UiField>
-              <UiField label="Temperatura max olio (°C)">
-                <input type="number" step="0.1" value={form.max_oil_temp_c} onChange={(e) => patchForm("max_oil_temp_c", e.target.value)} placeholder="Es. 108.0" className={uiInputClassName} />
-              </UiField>
-            </div>
-            <div className="mt-4 space-y-4">
-              <WheelGrid title="Pressioni a caldo" hint="Rilevazioni post-turno per singola ruota." values={{ fl: form.post_pressure_fl, fr: form.post_pressure_fr, rl: form.post_pressure_rl, rr: form.post_pressure_rr }} onChange={(key, value) => patchForm(({ fl: "post_pressure_fl", fr: "post_pressure_fr", rl: "post_pressure_rl", rr: "post_pressure_rr" } as const)[key], value)} />
-              <WheelGrid title="Temperature gomme post-turno (°C)" hint="Versione base: una temperatura per ruota." values={{ fl: form.post_tyre_temp_fl, fr: form.post_tyre_temp_fr, rl: form.post_tyre_temp_rl, rr: form.post_tyre_temp_rr }} onChange={(key, value) => patchForm(({ fl: "post_tyre_temp_fl", fr: "post_tyre_temp_fr", rl: "post_tyre_temp_rl", rr: "post_tyre_temp_rr" } as const)[key], value)} placeholders={{ fl: "Es. 72", fr: "Es. 73", rl: "Es. 68", rr: "Es. 69" }} />
-            </div>
-            <div className="mt-4">
-              <UiField label="Note tecniche turno" hint="Annotazioni tecniche post-turno, comportamento vettura, assetto, usura o bilanciamento.">
-                <textarea value={form.technical_notes} onChange={(e) => patchForm("technical_notes", e.target.value)} placeholder="Es. Pressione anteriore destra leggermente alta a fine turno, inserimento migliorato con aria più aperta..." className={uiTextareaClassName} />
-              </UiField>
-            </div>
-          </FormSection>
-
-          <FormSection title="Target tecnici" subtitle="Obiettivi post-turno per confrontare immediatamente le rilevazioni reali.">
-            <div className="space-y-4">
-              <WheelGrid title="Target pressioni post-turno" values={{ fl: form.target_post_pressure_fl, fr: form.target_post_pressure_fr, rl: form.target_post_pressure_rl, rr: form.target_post_pressure_rr }} onChange={(key, value) => patchForm(({ fl: "target_post_pressure_fl", fr: "target_post_pressure_fr", rl: "target_post_pressure_rl", rr: "target_post_pressure_rr" } as const)[key], value)} />
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <UiField label="Target acqua (°C)">
-                  <input type="number" step="0.1" value={form.target_water_temp_c} onChange={(e) => patchForm("target_water_temp_c", e.target.value)} placeholder="Es. 90" className={uiInputClassName} />
-                </UiField>
-                <UiField label="Target olio (°C)">
-                  <input type="number" step="0.1" value={form.target_oil_temp_c} onChange={(e) => patchForm("target_oil_temp_c", e.target.value)} placeholder="Es. 105" className={uiInputClassName} />
-                </UiField>
-              </div>
-            </div>
-          </FormSection>
-
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" onClick={saveTurn} disabled={!canEditEvents || saving} className="rounded-xl px-4 py-2 font-bold disabled:cursor-not-allowed disabled:opacity-60" style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}>
-              <Save size={16} className="mr-2 inline" />
-              {saving ? "Salvataggio..." : editingTurnId ? "Aggiorna turno tecnico" : "Salva turno tecnico"}
+            <button
+              type="button"
+              onClick={() => setViewMode("detailed")}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                viewMode === "detailed" ? "" : "text-[var(--text-secondary)]"
+              }`}
+              style={
+                viewMode === "detailed"
+                  ? { backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }
+                  : undefined
+              }
+            >
+              Vista dettagliata
             </button>
           </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Turni registrati" subtitle="Storico completo con riepilogo tecnico rapido per ogni sessione.">
+        }
+      >
         {turns.length === 0 ? (
-          <EmptyState title="Nessun turno registrato" description="Salva il primo turno tecnico con il modulo qui sopra." />
+          <EmptyState
+            title="Nessun turno registrato"
+            description="Apri il drawer Nuovo turno e salva la prima sessione tecnica del mezzo."
+          />
         ) : (
           <div className="space-y-4">
-            {turns
-              .slice()
-              .sort((a, b) => new Date(b.recorded_at || 0).getTime() - new Date(a.recorded_at || 0).getTime())
-              .map((turn) => {
-                const metrics = turn.metrics;
-                const driverName = turn.driver_id ? driverMap.get(turn.driver_id) : null;
-                const sessionName = turn.event_session_id ? sessionMap.get(turn.event_session_id)?.name : null;
-                const fuelUsed = turn.fuel_start_liters != null && turn.fuel_end_liters != null ? round1(Math.max(0, Number(turn.fuel_start_liters) - Number(turn.fuel_end_liters))) : null;
-                const warnings: Array<{ label: string; tone: "warning" | "danger" | "success" }> = [];
-                const waterDelta = metrics?.max_water_temp_c != null && metrics?.target_water_temp_c != null ? round1(metrics.max_water_temp_c - metrics.target_water_temp_c) : null;
-                if (waterDelta != null) {
-                  if (waterDelta > 3) warnings.push({ label: `Acqua +${waterDelta}°C`, tone: "danger" });
-                  else if (waterDelta > 0) warnings.push({ label: `Acqua +${waterDelta}°C`, tone: "warning" });
-                  else warnings.push({ label: "Acqua in target", tone: "success" });
-                }
-                const oilDelta = metrics?.max_oil_temp_c != null && metrics?.target_oil_temp_c != null ? round1(metrics.max_oil_temp_c - metrics.target_oil_temp_c) : null;
-                if (oilDelta != null) {
-                  if (oilDelta > 3) warnings.push({ label: `Olio +${oilDelta}°C`, tone: "danger" });
-                  else if (oilDelta > 0) warnings.push({ label: `Olio +${oilDelta}°C`, tone: "warning" });
-                  else warnings.push({ label: "Olio in target", tone: "success" });
-                }
-                return (
-                  <div key={turn.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-base font-bold text-[var(--text-primary)]">{driverName || "Pilota non assegnato"}</div>
-                          {sessionName ? <StatusChip label={sessionName} /> : null}
-                          {metrics?.track_condition ? <StatusChip label={metrics.track_condition === "dry" ? "Asciutta" : metrics.track_condition === "damp" ? "Umida" : metrics.track_condition === "wet" ? "Bagnata" : "Mista"} /> : null}
+            {turns.map((turn) => {
+              const metrics = turn.metrics;
+              const driverName = turn.driver_id ? driverMap.get(turn.driver_id) : null;
+              const sessionName = turn.event_session_id ? sessionMap.get(turn.event_session_id)?.name : null;
+              const fuelUsed =
+                turn.fuel_start_liters != null && turn.fuel_end_liters != null
+                  ? round1(Math.max(0, Number(turn.fuel_start_liters) - Number(turn.fuel_end_liters)))
+                  : null;
+              const warnings = buildTurnWarnings(metrics);
+              const isExpanded = viewMode === "detailed" || expandedTurnId === turn.id;
+
+              return (
+                <div
+                  key={turn.id}
+                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-base font-bold text-[var(--text-primary)]">
+                          {driverName || "Pilota non assegnato"}
                         </div>
-                        <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                          {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, " giri")}
-                        </div>
-                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          <SummaryBox label="Best lap" value={formatLapTime(metrics?.best_lap_ms)} />
-                          <SummaryBox label="Fuel usato" value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
-                          <SummaryBox label="Acqua max" value={displayNumber(metrics?.max_water_temp_c, "°C")} />
-                          <SummaryBox label="Olio max" value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
-                        </div>
-                        {warnings.length > 0 ? (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {warnings.map((warning) => (
-                              <StatusChip key={warning.label} label={warning.label} tone={warning.tone} />
-                            ))}
-                          </div>
+                        {sessionName ? <StatusChip label={sessionName} /> : null}
+                        {metrics?.track_condition ? (
+                          <StatusChip label={trackConditionLabel(metrics.track_condition)} />
                         ) : null}
-                        <div className="mt-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
-                          {metrics?.technical_notes || turn.notes || "Nessuna nota registrata."}
-                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 xl:w-[240px] xl:justify-end">
-                        <button type="button" onClick={() => editTurn(turn)} disabled={!canEditEvents} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-60">
-                          <Edit2 size={16} className="mr-2 inline" />
-                          Modifica
+
+                      <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                        {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, " giri")}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                        <SmallMetric label="Best lap" value={formatLapTime(metrics?.best_lap_ms)} />
+                        <SmallMetric label="Fuel usato" value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
+                        <SmallMetric label="Acqua max" value={displayNumber(metrics?.max_water_temp_c, "°C")} />
+                        <SmallMetric label="Olio max" value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
+                        <SmallMetric label="Aria post" value={displayNumber(metrics?.post_air_temp_c, "°C")} />
+                        <SmallMetric label="Asfalto post" value={displayNumber(metrics?.post_track_temp_c, "°C")} />
+                      </div>
+
+                      {warnings.length > 0 ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {warnings.map((warning) => (
+                            <StatusChip key={warning.label} label={warning.label} tone={warning.tone} />
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div className="mt-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
+                        {viewMode === "synthetic"
+                          ? metrics?.technical_notes || turn.notes || "Nessuna nota registrata."
+                          : metrics?.technical_notes || turn.notes || "Nessuna nota registrata."}
+                      </div>
+
+                      {isExpanded ? (
+                        <div className="mt-4 space-y-4">
+                          <DetailGrid title="Pre-turno">
+                            <SmallMetric label="Aria pre" value={displayNumber(metrics?.pre_air_temp_c, "°C")} />
+                            <SmallMetric label="Asfalto pre" value={displayNumber(metrics?.pre_track_temp_c, "°C")} />
+                            <SmallMetric label="Fuel pre" value={displayNumber(turn.fuel_start_liters, " L")} />
+                            <SmallMetric label="Apertura aria" value={displayNumber(metrics?.air_opening_cm, " cm")} />
+                            <SmallMetric label="Apertura olio" value={displayNumber(metrics?.oil_opening_cm, " cm")} />
+                            <SmallMetric label="Press. FL pre" value={displayNumber(metrics?.pre_pressure_fl, " bar")} />
+                            <SmallMetric label="Press. FR pre" value={displayNumber(metrics?.pre_pressure_fr, " bar")} />
+                            <SmallMetric label="Press. RL pre" value={displayNumber(metrics?.pre_pressure_rl, " bar")} />
+                          </DetailGrid>
+
+                          <DetailGrid title="Post-turno">
+                            <SmallMetric label="Aria post" value={displayNumber(metrics?.post_air_temp_c, "°C")} />
+                            <SmallMetric label="Asfalto post" value={displayNumber(metrics?.post_track_temp_c, "°C")} />
+                            <SmallMetric label="Fuel post" value={displayNumber(turn.fuel_end_liters, " L")} />
+                            <SmallMetric label="Temp. FL" value={displayNumber(metrics?.post_tyre_temp_fl, "°C")} />
+                            <SmallMetric label="Temp. FR" value={displayNumber(metrics?.post_tyre_temp_fr, "°C")} />
+                            <SmallMetric label="Temp. RL" value={displayNumber(metrics?.post_tyre_temp_rl, "°C")} />
+                            <SmallMetric label="Temp. RR" value={displayNumber(metrics?.post_tyre_temp_rr, "°C")} />
+                            <SmallMetric label="Press. FL post" value={displayNumber(metrics?.post_pressure_fl, " bar")} />
+                          </DetailGrid>
+
+                          <DetailGrid title="Target e riferimenti">
+                            <SmallMetric label="Target FL" value={displayNumber(metrics?.target_post_pressure_fl, " bar")} />
+                            <SmallMetric label="Target FR" value={displayNumber(metrics?.target_post_pressure_fr, " bar")} />
+                            <SmallMetric label="Target RL" value={displayNumber(metrics?.target_post_pressure_rl, " bar")} />
+                            <SmallMetric label="Target RR" value={displayNumber(metrics?.target_post_pressure_rr, " bar")} />
+                            <SmallMetric label="Target acqua" value={displayNumber(metrics?.target_water_temp_c, "°C")} />
+                            <SmallMetric label="Target olio" value={displayNumber(metrics?.target_oil_temp_c, "°C")} />
+                            <SmallMetric label="Giro medio" value={formatLapTime(metrics?.avg_lap_ms)} />
+                            <SmallMetric label="Track condition" value={trackConditionLabel(metrics?.track_condition)} />
+                          </DetailGrid>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 xl:w-[260px] xl:justify-end">
+                      {viewMode === "synthetic" ? (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedTurnId(expandedTurnId === turn.id ? null : turn.id)}
+                          className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+                        >
+                          <ListFilter size={16} className="mr-2 inline" />
+                          {expandedTurnId === turn.id ? "Chiudi dettagli" : "Apri dettagli"}
                         </button>
-                        {canEditEvents ? (
-                          <InlineConfirmButton label="Elimina" message="Eliminare questo turno tecnico?" onConfirm={() => deleteTurn(turn.id)} className="rounded-xl bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100" icon={<Trash2 size={16} className="mr-2 inline" />} />
-                        ) : null}
-                      </div>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => editTurn(turn)}
+                        disabled={!canEditEvents}
+                        className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Edit2 size={16} className="mr-2 inline" />
+                        Modifica
+                      </button>
+
+                      <InlineConfirmButton
+                        label="Elimina"
+                        message="Eliminare questo turno tecnico?"
+                        onConfirm={() => deleteTurn(turn.id)}
+                        className="rounded-xl bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
+                        icon={<Trash2 size={16} className="mr-2 inline" />}
+                      />
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
           </div>
         )}
       </SectionCard>
-    </div>
-  );
-}
 
-function SummaryBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">{label}</div>
-      <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">{value}</div>
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
+          <div className={`h-full w-full max-w-[860px] overflow-y-auto bg-[var(--surface-page)] p-4 md:p-6 ${audiowide.className}`}>
+            <div className="mx-auto flex max-w-4xl flex-col gap-6">
+              <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-2xl font-black text-[var(--text-primary)]">
+                      {editingTurnId ? "Modifica turno tecnico" : "Nuovo turno tecnico"}
+                    </div>
+                    <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                      Compila il turno senza perdere il contesto della console. Il salvataggio aggiorna subito la timeline.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2 hover:bg-[var(--surface-muted)]"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <FormSection
+                  title="Dati base turno"
+                  subtitle="Sessione, pilota, durata, giri e dati carburante della sessione."
+                >
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <UiField label="Data e ora turno">
+                      <input
+                        type="datetime-local"
+                        value={form.recorded_at}
+                        onChange={(e) => patchForm("recorded_at", e.target.value)}
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Sessione">
+                      <select
+                        value={form.event_session_id}
+                        onChange={(e) => patchForm("event_session_id", e.target.value)}
+                        className={uiInputClassName}
+                      >
+                        <option value="">Nessuna sessione collegata</option>
+                        {sessions.map((session) => (
+                          <option key={session.id} value={session.id}>
+                            {session.name}
+                            {session.starts_at
+                              ? ` • ${new Date(session.starts_at).toLocaleString("it-IT")}`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </UiField>
+
+                    <UiField label="Pilota">
+                      <select
+                        value={form.driver_id}
+                        onChange={(e) => patchForm("driver_id", e.target.value)}
+                        className={uiInputClassName}
+                      >
+                        <option value="">Seleziona pilota</option>
+                        {availableDrivers.map((driver) => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.first_name} {driver.last_name}
+                          </option>
+                        ))}
+                      </select>
+                    </UiField>
+
+                    <UiField label="Condizione pista">
+                      <select
+                        value={form.track_condition}
+                        onChange={(e) => patchForm("track_condition", e.target.value)}
+                        className={uiInputClassName}
+                      >
+                        <option value="dry">Asciutta</option>
+                        <option value="damp">Umida</option>
+                        <option value="wet">Bagnata</option>
+                        <option value="mixed">Mista</option>
+                      </select>
+                    </UiField>
+
+                    <UiField label="Durata turno (min)">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.minutes}
+                        onChange={(e) => patchForm("minutes", e.target.value)}
+                        placeholder="Es. 20"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Giri effettuati">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={form.laps}
+                        onChange={(e) => patchForm("laps", e.target.value)}
+                        placeholder="Es. 12"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Miglior giro" hint="Formato consigliato 1:42.350">
+                      <input
+                        value={form.best_lap}
+                        onChange={(e) => patchForm("best_lap", e.target.value)}
+                        placeholder="Es. 1:42.350"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Giro medio" hint="Formato consigliato 1:43.120">
+                      <input
+                        value={form.avg_lap}
+                        onChange={(e) => patchForm("avg_lap", e.target.value)}
+                        placeholder="Es. 1:43.120"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Fuel pre-turno (L)">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={form.fuel_start_liters}
+                        onChange={(e) => patchForm("fuel_start_liters", e.target.value)}
+                        placeholder="Es. 18.5"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+
+                    <UiField label="Fuel post-turno (L)">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={form.fuel_end_liters}
+                        onChange={(e) => patchForm("fuel_end_liters", e.target.value)}
+                        placeholder="Es. 10.8"
+                        className={uiInputClassName}
+                      />
+                    </UiField>
+                  </div>
+
+                  <div className="mt-4">
+                    <UiField label="Note generali turno">
+                      <textarea
+                        value={form.notes}
+                        onChange={(e) => patchForm("notes", e.target.value)}
+                        placeholder="Es. Traffico nella seconda parte, pista più gommata, pilota soddisfatto del bilanciamento..."
+                        className={uiTextareaClassName}
+                      />
+                    </UiField>
+                  </div>
+                </FormSection>
+
+                <FormSection
+                  title="Pre-turno"
+                  subtitle="Condizioni e configurazione di partenza prima di entrare in pista."
+                >
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <UiField label="Temperatura aria pre (°C)">
+                      <input type="number" step="0.1" value={form.pre_air_temp_c} onChange={(e) => patchForm("pre_air_temp_c", e.target.value)} placeholder="Es. 24.5" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Temperatura asfalto pre (°C)">
+                      <input type="number" step="0.1" value={form.pre_track_temp_c} onChange={(e) => patchForm("pre_track_temp_c", e.target.value)} placeholder="Es. 33.0" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Apertura aria (cm)">
+                      <input type="number" step="0.1" value={form.air_opening_cm} onChange={(e) => patchForm("air_opening_cm", e.target.value)} placeholder="Es. 2.5" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Apertura olio (cm)">
+                      <input type="number" step="0.1" value={form.oil_opening_cm} onChange={(e) => patchForm("oil_opening_cm", e.target.value)} placeholder="Es. 1.8" className={uiInputClassName} />
+                    </UiField>
+                  </div>
+
+                  <div className="mt-4">
+                    <WheelGrid
+                      title="Pressioni a freddo"
+                      hint="Inserisci le pressioni pre-turno per singola ruota."
+                      values={{ fl: form.pre_pressure_fl, fr: form.pre_pressure_fr, rl: form.pre_pressure_rl, rr: form.pre_pressure_rr }}
+                      onChange={(key, value) =>
+                        patchForm(({ fl: "pre_pressure_fl", fr: "pre_pressure_fr", rl: "pre_pressure_rl", rr: "pre_pressure_rr" } as const)[key], value)
+                      }
+                    />
+                  </div>
+                </FormSection>
+
+                <FormSection
+                  title="Post-turno"
+                  subtitle="Rilevazioni a caldo, temperature gomme e temperature massime registrate."
+                >
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <UiField label="Temperatura aria post (°C)">
+                      <input type="number" step="0.1" value={form.post_air_temp_c} onChange={(e) => patchForm("post_air_temp_c", e.target.value)} placeholder="Es. 26.0" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Temperatura asfalto post (°C)">
+                      <input type="number" step="0.1" value={form.post_track_temp_c} onChange={(e) => patchForm("post_track_temp_c", e.target.value)} placeholder="Es. 35.2" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Temperatura max acqua (°C)">
+                      <input type="number" step="0.1" value={form.max_water_temp_c} onChange={(e) => patchForm("max_water_temp_c", e.target.value)} placeholder="Es. 92.0" className={uiInputClassName} />
+                    </UiField>
+                    <UiField label="Temperatura max olio (°C)">
+                      <input type="number" step="0.1" value={form.max_oil_temp_c} onChange={(e) => patchForm("max_oil_temp_c", e.target.value)} placeholder="Es. 108.0" className={uiInputClassName} />
+                    </UiField>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <WheelGrid
+                      title="Pressioni a caldo"
+                      hint="Rilevazioni post-turno per singola ruota."
+                      values={{ fl: form.post_pressure_fl, fr: form.post_pressure_fr, rl: form.post_pressure_rl, rr: form.post_pressure_rr }}
+                      onChange={(key, value) =>
+                        patchForm(({ fl: "post_pressure_fl", fr: "post_pressure_fr", rl: "post_pressure_rl", rr: "post_pressure_rr" } as const)[key], value)
+                      }
+                    />
+
+                    <WheelGrid
+                      title="Temperature gomme post-turno (°C)"
+                      hint="Versione base: una temperatura per ruota."
+                      values={{ fl: form.post_tyre_temp_fl, fr: form.post_tyre_temp_fr, rl: form.post_tyre_temp_rl, rr: form.post_tyre_temp_rr }}
+                      onChange={(key, value) =>
+                        patchForm(({ fl: "post_tyre_temp_fl", fr: "post_tyre_temp_fr", rl: "post_tyre_temp_rl", rr: "post_tyre_temp_rr" } as const)[key], value)
+                      }
+                      placeholders={{ fl: "Es. 72", fr: "Es. 73", rl: "Es. 68", rr: "Es. 69" }}
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <UiField label="Note tecniche turno">
+                      <textarea
+                        value={form.technical_notes}
+                        onChange={(e) => patchForm("technical_notes", e.target.value)}
+                        placeholder="Es. Pressione anteriore destra leggermente alta, vettura migliorata in inserimento, posteriore più stabile..."
+                        className={uiTextareaClassName}
+                      />
+                    </UiField>
+                  </div>
+                </FormSection>
+
+                <FormSection
+                  title="Target tecnici"
+                  subtitle="Obiettivi post-turno per confrontare immediatamente le rilevazioni reali."
+                >
+                  <div className="space-y-4">
+                    <WheelGrid
+                      title="Target pressioni post-turno"
+                      values={{ fl: form.target_post_pressure_fl, fr: form.target_post_pressure_fr, rl: form.target_post_pressure_rl, rr: form.target_post_pressure_rr }}
+                      onChange={(key, value) =>
+                        patchForm(({ fl: "target_post_pressure_fl", fr: "target_post_pressure_fr", rl: "target_post_pressure_rl", rr: "target_post_pressure_rr" } as const)[key], value)
+                      }
+                    />
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <UiField label="Target acqua (°C)">
+                        <input type="number" step="0.1" value={form.target_water_temp_c} onChange={(e) => patchForm("target_water_temp_c", e.target.value)} placeholder="Es. 90" className={uiInputClassName} />
+                      </UiField>
+                      <UiField label="Target olio (°C)">
+                        <input type="number" step="0.1" value={form.target_oil_temp_c} onChange={(e) => patchForm("target_oil_temp_c", e.target.value)} placeholder="Es. 105" className={uiInputClassName} />
+                      </UiField>
+                    </div>
+                  </div>
+                </FormSection>
+              </div>
+
+              <div className="sticky bottom-0 z-10 rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-lg">
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveTurn}
+                    disabled={!canEditEvents || saving}
+                    className="rounded-xl px-4 py-2 font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
+                  >
+                    <Save size={16} className="mr-2 inline" />
+                    {saving ? "Salvataggio..." : editingTurnId ? "Aggiorna turno" : "Salva turno"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
