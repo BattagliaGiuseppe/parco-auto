@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { brandConfig } from "@/lib/brand";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 export default function PageHeader({
@@ -40,25 +39,6 @@ export default function PageHeader({
         ) : null}
 
         <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-              style={{ backgroundColor: "var(--brand-accent-soft)" }}
-            >
-              <img
-                src={brandConfig.logoPath}
-                alt={brandConfig.appName}
-                className="h-7 w-7 object-contain"
-              />
-            </div>
-            <div
-              className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-              style={{ color: "var(--brand-accent)" }}
-            >
-              {brandConfig.appName}
-            </div>
-          </div>
-
           {theme.brandingConfig.showLogoInHeader ? (
             <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-3 py-2">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[var(--surface-card)]">

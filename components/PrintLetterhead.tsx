@@ -21,39 +21,55 @@ export default function PrintLetterhead({
   const showSubtitle = mode === "logo_title_subtitle";
 
   return (
-    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border-b print:border-x-0 print:border-t-0 print:shadow-none print:p-0 print:pb-5">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex items-center gap-4">
-          {showLogo ? (
-            <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
-              <img
-                src={theme.printLogoUrl || theme.headerLogoUrl || theme.sidebarLogoUrl || "/logo.png"}
-                alt={theme.teamName}
-                className="h-16 w-16 object-contain p-2"
-              />
-            </div>
-          ) : null}
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-              {brandConfig.appName}
-            </div>
-            <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
-              {theme.teamName}
-            </div>
-            {showSubtitle ? (
-              <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                {subtitle || theme.teamSubtitle || ""}
+    <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none print:p-0">
+      <div className="p-6 print:p-5">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-center gap-4">
+            {showLogo ? (
+              <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
+                <img
+                  src={theme.printLogoUrl || theme.headerLogoUrl || theme.sidebarLogoUrl || "/logo.png"}
+                  alt={theme.teamName}
+                  className="h-16 w-16 object-contain p-2"
+                />
               </div>
             ) : null}
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+                team
+              </div>
+              <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
+                {theme.teamName}
+              </div>
+              {showSubtitle ? (
+                <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {subtitle || theme.teamSubtitle || ""}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid min-w-[220px] grid-cols-1 gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-secondary)]">
+            <MetaRow label="Documento" value={title} />
+            <MetaRow label="Data stampa" value={today} />
+            {rightMeta.map((item) => (
+              <MetaRow key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="grid min-w-[220px] grid-cols-1 gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-secondary)]">
-          <MetaRow label="Documento" value={title} />
-          <MetaRow label="Data stampa" value={today} />
-          {rightMeta.map((item) => (
-            <MetaRow key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
-          ))}
+      <div className="border-t border-dashed border-[var(--border-default)] px-6 py-4 print:px-5">
+        <div className="flex flex-col gap-2 text-xs text-[var(--text-secondary)] md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <img
+              src={brandConfig.logoPath}
+              alt={brandConfig.appName}
+              className="h-4 w-4 object-contain"
+            />
+            <span className="font-semibold text-[var(--text-primary)]">{brandConfig.appName}</span>
+          </div>
+          <div>© {new Date().getFullYear()} {brandConfig.appName}. Tutti i diritti riservati.</div>
         </div>
       </div>
     </div>

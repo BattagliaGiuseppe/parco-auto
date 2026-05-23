@@ -380,8 +380,8 @@ function BrandPreview({
         Anteprima realistica branding team
       </div>
       <div className="mt-2 text-sm leading-6 text-neutral-600">
-        Il brand piattaforma resta fisso e sempre visibile. Qui vedi cosa cambia davvero per il team:
-        logo sidebar, logo header, logo stampa, nome team, colori e labels.
+        Il brand piattaforma compare solo nella sidebar e nel piè di pagina delle stampe.
+        Nell&apos;header pagina compare solo il branding del team, se attivato.
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[28px] border border-neutral-200 shadow-sm">
@@ -458,24 +458,8 @@ function BrandPreview({
               <div className={`rounded-[24px] border border-neutral-200 bg-white shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    <div className="mb-3 flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                        style={{ backgroundColor: accentSoft }}
-                      >
-                        <img
-                          src={brandConfig.logoPath}
-                          alt={brandConfig.appName}
-                          className="h-7 w-7 object-contain"
-                        />
-                      </div>
-                      <div className="truncate text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-                        {brandConfig.appName}
-                      </div>
-                    </div>
-
                     {config.showLogoInHeader ? (
-                      <div className="mb-3 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                      <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2">
                         <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white">
                           <img
                             src={headerLogoUrl || "/logo.png"}
@@ -485,7 +469,7 @@ function BrandPreview({
                         </div>
                         <div className="min-w-0">
                           <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                            team header
+                            team
                           </div>
                           <div className="truncate text-sm font-bold text-neutral-900">
                             {teamName || "Nome team"}
@@ -498,7 +482,7 @@ function BrandPreview({
                       {labels.event} · Preview
                     </div>
                     <div className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-                      Header con brand piattaforma fisso in alto e branding team opzionale subito sotto.
+                      Header pagina con solo branding team, senza brand piattaforma.
                     </div>
                   </div>
 
@@ -511,40 +495,12 @@ function BrandPreview({
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                {[labels.vehicle, labels.component, labels.maintenance].map((label, index) => (
-                  <div
-                    key={`${label}-${index}`}
-                    className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="text-sm font-semibold text-neutral-500">{label}</div>
-                    <div className="mt-2 text-2xl font-black text-neutral-900">{index + 2}</div>
-                    <div className="mt-1 text-xs text-neutral-500">Card KPI</div>
-                  </div>
-                ))}
-              </div>
-
               <div className="mt-5 rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ backgroundColor: accentSoft, color: accentColor }}
-                  >
-                    Badge accent
-                  </span>
-                  <span
-                    className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ backgroundColor: secondarySoft, color: secondaryColor }}
-                  >
-                    Badge secondary
-                  </span>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                  Stampa scheda
                 </div>
-
                 <div className="mt-4 rounded-[24px] border border-neutral-200 bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                    Stampa scheda
-                  </div>
-                  <div className="mt-3 flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                       {config.showLogoInPrint && config.printLetterheadMode !== "title_only" ? (
                         <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
@@ -564,7 +520,28 @@ function BrandPreview({
                       {config.printLetterheadMode}
                     </div>
                   </div>
+
+                  <div className="mt-5 border-t border-dashed border-neutral-200 pt-3 text-xs text-neutral-500">
+                    <div className="flex items-center gap-2">
+                      <img src={brandConfig.logoPath} alt={brandConfig.appName} className="h-4 w-4 object-contain" />
+                      <span className="font-semibold">{brandConfig.appName}</span>
+                      <span>· Tutti i diritti riservati.</span>
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                {[labels.vehicle, labels.component, labels.maintenance].map((label, index) => (
+                  <div
+                    key={`${label}-${index}`}
+                    className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="text-sm font-semibold text-neutral-500">{label}</div>
+                    <div className="mt-2 text-2xl font-black text-neutral-900">{index + 2}</div>
+                    <div className="mt-1 text-xs text-neutral-500">Card KPI</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1052,10 +1029,10 @@ async function saveAll() {
   <div className="space-y-6">
     <SectionCard
       title="Branding team"
-      subtitle="Il brand della piattaforma resta fisso e sempre visibile. Qui il team personalizza solo nome, loghi, colori e terminologia."
+      subtitle="Il brand della piattaforma resta fisso: compare solo nella sidebar e nel piè di pagina delle stampe. Qui il team personalizza solo nome, loghi, colori e terminologia."
     >
       <InfoBlock>
-        Il nome e il logo della piattaforma sono gestiti centralmente e restano sempre visibili. In questa sezione il cliente personalizza solo il proprio team: nome, sottotitolo, loghi dedicati, colori e lessico operativo.
+        Il nome e il logo della piattaforma sono gestiti centralmente. Restano visibili solo nella sidebar e nel piè di pagina delle stampe. In questa sezione il cliente personalizza solo il proprio team: nome, sottotitolo, loghi dedicati, colori e lessico operativo.
       </InfoBlock>
       <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
@@ -1233,7 +1210,7 @@ async function saveAll() {
             onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
           />
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-            Il nome e il logo della piattaforma restano sempre visibili sopra. Qui controlli solo il branding del team.
+            Il brand piattaforma non compare nelle intestazioni pagina: resta fisso solo nella sidebar e nel piè di pagina delle stampe.
           </div>
         </div>
 
