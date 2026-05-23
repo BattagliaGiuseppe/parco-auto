@@ -15,12 +15,15 @@ export default function PrintLetterhead({
 }: PrintLetterheadProps) {
   const today = new Date().toLocaleDateString("it-IT");
   const { theme } = useBrandTheme();
+  const mode = theme.brandingConfig.printLetterheadMode || "logo_title_subtitle";
+  const showLogo = mode !== "title_only";
+  const showSubtitle = mode === "logo_title_subtitle";
 
   return (
     <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm print:rounded-none print:border-b print:border-x-0 print:border-t-0 print:shadow-none print:p-0 print:pb-5">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex items-center gap-4">
-          {theme.brandingConfig.showLogoInHeader ? (
+          {showLogo ? (
             <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)]">
               <img
                 src={theme.logoUrl || "/logo.png"}
@@ -29,6 +32,7 @@ export default function PrintLetterhead({
               />
             </div>
           ) : null}
+
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
               {theme.vendorName}
@@ -38,9 +42,11 @@ export default function PrintLetterhead({
                 {theme.platformName}
               </div>
             ) : null}
-            <div className="mt-1 text-sm text-[var(--text-secondary)]">
-              {subtitle || theme.platformSubtitle || ""}
-            </div>
+            {showSubtitle ? (
+              <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                {subtitle || theme.platformSubtitle || ""}
+              </div>
+            ) : null}
           </div>
         </div>
 

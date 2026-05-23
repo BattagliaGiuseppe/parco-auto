@@ -290,6 +290,23 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
     link.href = theme.faviconUrl;
     if (!link.parentNode) document.head.appendChild(link);
   }
+
+  let metaTheme = document.querySelector("meta[name='theme-color']") as HTMLMetaElement | null;
+  if (!metaTheme) {
+    metaTheme = document.createElement("meta");
+    metaTheme.name = "theme-color";
+    document.head.appendChild(metaTheme);
+  }
+  metaTheme.content = theme.colors.primary;
+
+  if (document.title) {
+    document.title = document.title
+      .replace(brandConfig.appName, theme.platformName)
+      .replace("Parco Auto", theme.platformName)
+      .replace("Motorsport Management", theme.platformName);
+  } else {
+    document.title = theme.platformName;
+  }
 }
 
 export function dispatchBrandingRefresh() {

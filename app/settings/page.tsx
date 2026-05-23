@@ -362,25 +362,33 @@ function BrandPreview({
   labels: Record<string, string>;
   config: BrandingConfig;
 }) {
-  const effectiveTitle = config.useTeamNameAsPlatformName ? teamName || platformName : platformName;
+  const effectiveTitle = config.useTeamNameAsPlatformName
+    ? teamName || platformName
+    : platformName;
   const onAccent = contrastText(accentColor);
+  const sidebarBg = primaryColor;
+  const sidebarPanelBg = "rgba(255,255,255,0.08)";
+  const sidebarItemBg = "rgba(255,255,255,0.08)";
+  const secondarySoft = hexToRgba(secondaryColor, 0.16);
+  const accentSoft = hexToRgba(accentColor, 0.18);
 
   return (
     <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-        Anteprima branding
+        Anteprima realistica branding
+      </div>
+      <div className="mt-2 text-sm leading-6 text-neutral-600">
+        Questa anteprima replica solo ciò che il brand governa davvero adesso:
+        sidebar, header, pulsante primario, badge accent e carta intestata stampa.
       </div>
 
-      <div
-        className="mt-4 overflow-hidden rounded-[28px] border shadow-sm"
-        style={{ borderColor: hexToRgba(primaryColor, 0.12) }}
-      >
-        <div className="grid grid-cols-[230px_1fr]">
-          <div
-            className="min-h-[260px] p-4 text-white"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+      <div className="mt-5 overflow-hidden rounded-[28px] border border-neutral-200 shadow-sm">
+        <div className="grid grid-cols-[240px_1fr]">
+          <div className="min-h-[320px] p-4 text-white" style={{ backgroundColor: sidebarBg }}>
+            <div
+              className="rounded-3xl p-4"
+              style={{ backgroundColor: sidebarPanelBg, border: "1px solid rgba(255,255,255,0.12)" }}
+            >
               <div className="flex items-center gap-3">
                 {config.showLogoInSidebar ? (
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
@@ -392,24 +400,35 @@ function BrandPreview({
                   </div>
                 ) : null}
                 <div className="min-w-0">
-                  {config.showPlatformName ? (
-                    <div className="truncate text-sm font-bold">
-                      {effectiveTitle}
-                    </div>
-                  ) : null}
-                  <div className="truncate text-xs text-white/70">
-                    {platformSubtitle || "Sottotitolo piattaforma"}
+                  <div
+                    className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]"
+                    style={{ color: accentColor }}
+                  >
+                    branding core
                   </div>
+                  {config.showPlatformName ? (
+                    <div className="mt-1 truncate text-sm text-white/75">{effectiveTitle}</div>
+                  ) : null}
                 </div>
               </div>
-              <div className="mt-4 text-sm font-semibold text-white/80">{teamName || "Team Demo"}</div>
+              <div className="mt-4 text-lg font-bold text-white">{teamName || "Team Demo"}</div>
+              <div className="mt-1 text-sm text-white/70">
+                {platformSubtitle || "Sottotitolo piattaforma"}
+              </div>
+              <div
+                className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                style={{ backgroundColor: secondarySoft, borderColor: secondarySoft, color: "#fff" }}
+              >
+                Badge secondario brand
+              </div>
             </div>
 
             <div className="mt-5 space-y-2">
-              {[labels.vehicle, labels.driver, labels.event].map((label) => (
+              {[labels.vehicle, labels.driver, labels.event, labels.component].map((label) => (
                 <div
                   key={label}
-                  className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold"
+                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/90"
+                  style={{ backgroundColor: sidebarItemBg }}
                 >
                   {label}
                 </div>
@@ -417,73 +436,98 @@ function BrandPreview({
             </div>
           </div>
 
-          <div
-            className="p-4"
-            style={{ backgroundColor: "#f5f5f5" }}
-          >
-            <div className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  {config.showLogoInHeader ? (
-                    <div
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl"
-                      style={{ backgroundColor: hexToRgba(accentColor, 0.18), color: accentColor }}
-                    >
-                      <ImageIcon size={18} />
+          <div className="bg-[var(--surface-page)] p-4">
+            <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className={`rounded-[24px] border border-neutral-200 bg-white shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    {(config.showLogoInHeader || config.showPlatformName) ? (
+                      <div className="mb-3 flex items-center gap-3">
+                        {config.showLogoInHeader ? (
+                          <div
+                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
+                            style={{ backgroundColor: accentSoft, color: accentColor }}
+                          >
+                            <img src={logoUrl || "/logo.png"} alt={effectiveTitle} className="h-7 w-7 object-contain" />
+                          </div>
+                        ) : null}
+                        {config.showPlatformName ? (
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                            {effectiveTitle}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-neutral-900`}>
+                      {labels.event} · Preview
                     </div>
-                  ) : null}
-                  <div>
-                    <div className="text-xl font-black text-neutral-900">{effectiveTitle}</div>
-                    <div className="mt-1 text-sm text-neutral-500">
-                      {platformSubtitle || "Anteprima piattaforma"}
+                    <div className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+                      Header reale con branding centrale e pulsante primario governato dall&apos;accent.
                     </div>
                   </div>
+
+                  <button
+                    className="rounded-xl px-4 py-2 text-sm font-bold"
+                    style={{ backgroundColor: accentColor, color: onAccent }}
+                  >
+                    Azione primaria
+                  </button>
                 </div>
-                <button
-                  className="rounded-xl px-4 py-2 text-sm font-bold"
-                  style={{ backgroundColor: accentColor, color: onAccent }}
-                >
-                  Pulsante primario
-                </button>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-3">
-                {["Card KPI", "Card KPI", "Card KPI"].map((label, index) => (
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                {[labels.vehicle, labels.component, labels.maintenance].map((label, index) => (
                   <div
                     key={`${label}-${index}`}
-                    className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                    className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm"
                   >
-                    <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                      {label}
-                    </div>
+                    <div className="text-sm font-semibold text-neutral-500">{label}</div>
                     <div className="mt-2 text-2xl font-black text-neutral-900">{index + 2}</div>
-                    <div className="mt-1 text-xs text-neutral-500">Preview</div>
+                    <div className="mt-1 text-xs text-neutral-500">Card KPI</div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <div className="mt-5 rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ backgroundColor: hexToRgba(accentColor, 0.18), color: accentColor }}
+                    style={{ backgroundColor: accentSoft, color: accentColor }}
                   >
                     Badge accent
                   </span>
                   <span
                     className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ backgroundColor: hexToRgba(secondaryColor, 0.12), color: secondaryColor }}
+                    style={{ backgroundColor: secondarySoft, color: secondaryColor }}
                   >
                     Badge secondary
                   </span>
                 </div>
 
-                <div className="mt-4">
-                  <input
-                    readOnly
-                    value={`Esempio campo ${(labels.component || "componente").toLowerCase()}`}
-                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700"
-                  />
+                <div className="mt-4 rounded-[24px] border border-neutral-200 bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                    Carta intestata stampa
+                  </div>
+                  <div className="mt-3 flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      {config.printLetterheadMode !== "title_only" ? (
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+                          <img src={logoUrl || "/logo.png"} alt={effectiveTitle} className="h-9 w-9 object-contain" />
+                        </div>
+                      ) : null}
+                      <div>
+                        <div className="text-lg font-black text-neutral-900">{effectiveTitle}</div>
+                        {config.printLetterheadMode === "logo_title_subtitle" ? (
+                          <div className="mt-1 text-sm text-neutral-500">
+                            {platformSubtitle || "Sottotitolo stampa"}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-600">
+                      {config.printLetterheadMode}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -938,8 +982,7 @@ export default function SettingsPage() {
       >
         <InfoBlock>
           Qui definisci branding, moduli attivi, componenti standard, checklist, setup dinamico
-          e dashboard. Le impostazioni salvate diventano la base operativa del team e influenzano
-          direttamente il lavoro su auto, componenti, eventi e check-up.
+          e dashboard. Le impostazioni salvate diventano la base operativa del team. Il branding applica davvero sidebar, header, stampa, badge, accenti e labels supportate.
         </InfoBlock>
       </SectionCard>
 
@@ -1102,10 +1145,10 @@ export default function SettingsPage() {
 
             <SectionCard
               title="Colori e terminologia"
-              subtitle="Controlla palette e lessico della piattaforma."
+              subtitle="Primary governa soprattutto la sidebar, accent governa le azioni principali, secondary i dettagli brand secondari."
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Field label="Primary color">
+                <Field label="Primary color" hint="Controlla soprattutto la sidebar e le superfici brand strutturali.">
                   <Input
                     type="color"
                     className="h-12 p-1"
@@ -1113,7 +1156,7 @@ export default function SettingsPage() {
                     onChange={(e) => patchSetting("primary_color", e.target.value)}
                   />
                 </Field>
-                <Field label="Secondary color">
+                <Field label="Secondary color" hint="Usato per dettagli brand secondari, badge e superfici soft.">
                   <Input
                     type="color"
                     className="h-12 p-1"
@@ -1121,7 +1164,7 @@ export default function SettingsPage() {
                     onChange={(e) => patchSetting("secondary_color", e.target.value)}
                   />
                 </Field>
-                <Field label="Accent color">
+                <Field label="Accent color" hint="Governa pulsanti primari, evidenziazioni e highlight principali.">
                   <Input
                     type="color"
                     className="h-12 p-1"

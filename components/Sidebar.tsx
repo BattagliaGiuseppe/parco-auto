@@ -84,11 +84,9 @@ export default function Sidebar() {
             }
           : null;
 
-        setTeamName(
-          normalizedSettings?.team_name || ctx.name || theme.platformName || brandConfig.defaultTeamName
-        );
+        setTeamName(normalizedSettings?.team_name || ctx.name || brandConfig.defaultTeamName);
         setTeamSubtitle(
-          normalizedSettings?.team_subtitle || theme.platformSubtitle || brandConfig.defaultTeamSubtitle
+          normalizedSettings?.team_subtitle || brandConfig.defaultTeamSubtitle
         );
         setSettings(normalizedSettings);
         setTeamRole(ctx.role);
@@ -105,8 +103,8 @@ export default function Sidebar() {
       } catch {
         if (!active) return;
         setSettings(null);
-        setTeamName(theme.platformName || brandConfig.defaultTeamName);
-        setTeamSubtitle(theme.platformSubtitle || brandConfig.defaultTeamSubtitle);
+        setTeamName(brandConfig.defaultTeamName);
+        setTeamSubtitle(brandConfig.defaultTeamSubtitle);
         setTeamRole(null);
         setPermissionCodes([]);
       }
@@ -117,7 +115,7 @@ export default function Sidebar() {
     return () => {
       active = false;
     };
-  }, [theme.platformName, theme.platformSubtitle]);
+  }, []);
 
   const modules = settings?.modules ?? {};
   const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
@@ -126,72 +124,22 @@ export default function Sidebar() {
 
   const links: NavItem[] = useMemo(
     () => [
-      {
-        href: "/dashboard",
-        label: "Dashboard",
-        icon: <LayoutDashboard size={18} />,
-      },
-      {
-        href: "/cars",
-        label: theme.labels.vehicle,
-        icon: <CarFront size={18} />,
-        enabled: has("cars.view"),
-      },
-      {
-        href: "/components",
-        label: theme.labels.component,
-        icon: <Boxes size={18} />,
-        enabled: has("components.view"),
-      },
+      { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+      { href: "/cars", label: theme.labels.vehicle, icon: <CarFront size={18} />, enabled: has("cars.view") },
+      { href: "/components", label: theme.labels.component, icon: <Boxes size={18} />, enabled: has("components.view") },
       {
         href: "/maintenances",
         label: theme.labels.maintenance,
         icon: <Wrench size={18} />,
-        enabled:
-          settings?.enable_maintenances !== false && has("maintenances.view"),
+        enabled: settings?.enable_maintenances !== false && has("maintenances.view"),
       },
-      {
-        href: "/mounts",
-        label: "Montaggi",
-        icon: <Layers3 size={18} />,
-        enabled: modules.mounts !== false && has("mounts.view"),
-      },
-      {
-        href: "/calendar",
-        label: theme.labels.event,
-        icon: <CalendarDays size={18} />,
-        enabled: settings?.enable_events !== false && has("events.view"),
-      },
-      {
-        href: "/drivers",
-        label: theme.labels.driver,
-        icon: <Users size={18} />,
-        enabled: modules.drivers !== false && has("drivers.view"),
-      },
-      {
-        href: "/inventory",
-        label: theme.labels.inventory,
-        icon: <Package size={18} />,
-        enabled: modules.inventory !== false && has("inventory.view"),
-      },
-      {
-        href: "/telemetry",
-        label: "Telemetria",
-        icon: <Activity size={18} />,
-        enabled: modules.telemetry !== false && has("telemetry.view"),
-      },
-      {
-        href: "/settings",
-        label: "Impostazioni",
-        icon: <Settings size={18} />,
-        enabled: canManageSettings,
-      },
-      {
-        href: "/settings/team",
-        label: "Team & Accessi",
-        icon: <ShieldCheck size={18} />,
-        enabled: canManageTeam,
-      },
+      { href: "/mounts", label: "Montaggi", icon: <Layers3 size={18} />, enabled: modules.mounts !== false && has("mounts.view") },
+      { href: "/calendar", label: theme.labels.event, icon: <CalendarDays size={18} />, enabled: settings?.enable_events !== false && has("events.view") },
+      { href: "/drivers", label: theme.labels.driver, icon: <Users size={18} />, enabled: modules.drivers !== false && has("drivers.view") },
+      { href: "/inventory", label: theme.labels.inventory, icon: <Package size={18} />, enabled: modules.inventory !== false && has("inventory.view") },
+      { href: "/telemetry", label: "Telemetria", icon: <Activity size={18} />, enabled: modules.telemetry !== false && has("telemetry.view") },
+      { href: "/settings", label: "Impostazioni", icon: <Settings size={18} />, enabled: canManageSettings },
+      { href: "/settings/team", label: "Team & Accessi", icon: <ShieldCheck size={18} />, enabled: canManageTeam },
     ],
     [
       canManageSettings,
@@ -200,9 +148,9 @@ export default function Sidebar() {
       modules.inventory,
       modules.mounts,
       modules.telemetry,
-      permissionCodes,
       settings?.enable_events,
       settings?.enable_maintenances,
+      permissionCodes,
       theme.labels.component,
       theme.labels.driver,
       theme.labels.event,
@@ -219,46 +167,68 @@ export default function Sidebar() {
 
   const visibleLinks = links.filter((item) => item.enabled !== false);
 
+  const asideStyle: CSSProperties = {
+    backgroundColor: "var(--brand-primary)",
+    borderRightColor: "var(--brand-primary-soft)",
+    color: "#ffffff",
+  };
+
+  const mobileButtonStyle: CSSProperties = {
+    backgroundColor: "var(--brand-primary)",
+    color: "var(--brand-accent)",
+  };
+
   const activeItemStyle: CSSProperties = {
     backgroundColor: "var(--brand-accent)",
     color: "var(--brand-on-accent)",
   };
 
-  const roleBadgeStyle: CSSProperties = {
-    borderColor: "var(--brand-accent-soft)",
-    backgroundColor: "var(--brand-accent-soft)",
-    color: "var(--brand-accent)",
+  const inactiveItemStyle: CSSProperties = {
+    color: "rgba(255,255,255,0.82)",
+  };
+
+  const brandCardStyle: CSSProperties = {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+  };
+
+  const navItemHoverStyle: CSSProperties = {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  };
+
+  const secondaryBadgeStyle: CSSProperties = {
+    backgroundColor: "var(--brand-secondary-soft)",
+    borderColor: "var(--brand-secondary-soft)",
+    color: "#ffffff",
   };
 
   return (
     <>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed left-4 top-4 z-50 rounded-lg bg-black p-2 shadow-lg lg:hidden"
-        style={{ color: "var(--brand-accent)" }}
+        className="fixed left-4 top-4 z-50 rounded-lg p-2 shadow-lg lg:hidden"
+        style={mobileButtonStyle}
         aria-label="Apri menu"
       >
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {open ? (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
       ) : null}
 
       <aside
-        className={`fixed left-0 top-0 z-50 h-screen w-[280px] border-r border-neutral-800 bg-neutral-950 transition-transform lg:sticky lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-50 h-screen w-[280px] border-r transition-transform lg:sticky lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={asideStyle}
       >
         <div className={`flex h-full flex-col px-4 py-5 ${audiowide.className}`}>
           <div className="mb-6 px-2">
-            <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
+            <div className="rounded-3xl border px-4 py-4" style={brandCardStyle}>
               <div className="flex items-center gap-3">
                 {theme.brandingConfig.showLogoInSidebar ? (
-                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
                     <img
                       src={theme.logoUrl || brandConfig.logoPath}
                       alt={theme.platformName}
@@ -274,18 +244,20 @@ export default function Sidebar() {
                     {theme.vendorName}
                   </div>
                   {theme.brandingConfig.showPlatformName ? (
-                    <div className="mt-1 truncate text-sm text-neutral-400">
+                    <div className="mt-1 truncate text-sm text-white/70">
                       {theme.platformName}
                     </div>
                   ) : null}
                 </div>
               </div>
+
               <div className="mt-4 text-xl font-bold text-white">{teamName}</div>
-              <div className="mt-1 text-sm text-neutral-400">{teamSubtitle}</div>
+              <div className="mt-1 text-sm text-white/70">{teamSubtitle}</div>
+
               {teamRole ? (
                 <div
                   className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
-                  style={roleBadgeStyle}
+                  style={secondaryBadgeStyle}
                 >
                   Ruolo: {TEAM_ROLE_LABELS[teamRole as keyof typeof TEAM_ROLE_LABELS] || teamRole}
                 </div>
@@ -295,7 +267,7 @@ export default function Sidebar() {
 
           <div className="flex-1 space-y-6 overflow-y-auto">
             <div>
-              <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+              <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
                 Core
               </div>
 
@@ -309,13 +281,15 @@ export default function Sidebar() {
                     <Link
                       key={link.href}
                       href={link.href}
-                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                        active
-                          ? ""
-                          : "text-neutral-300 hover:bg-white/10 hover:text-white"
-                      }`}
-                      style={active ? activeItemStyle : undefined}
+                      className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                      style={active ? activeItemStyle : inactiveItemStyle}
                       onClick={() => setOpen(false)}
+                      onMouseEnter={(e) => {
+                        if (!active) Object.assign((e.currentTarget as HTMLAnchorElement).style, navItemHoverStyle);
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent";
+                      }}
                     >
                       {link.icon}
                       <span>{link.label}</span>
@@ -329,7 +303,7 @@ export default function Sidebar() {
           <div className="mt-6 space-y-3">
             <button
               onClick={logout}
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-white"
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               <LogOut size={18} />
               Logout

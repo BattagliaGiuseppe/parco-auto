@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 
 export default function PageHeader({
   title,
@@ -11,12 +14,21 @@ export default function PageHeader({
   icon?: ReactNode;
   actions?: ReactNode;
 }) {
+  const { theme } = useBrandTheme();
+  const compact = theme.brandingConfig.compactHeader;
+
   return (
-    <div className="flex flex-col gap-4 rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <div
+      className={`flex flex-col gap-4 rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] shadow-sm lg:flex-row lg:items-center lg:justify-between ${
+        compact ? "p-5" : "p-6"
+      }`}
+    >
       <div className="flex min-w-0 items-start gap-4">
         {icon ? (
           <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl shadow-sm"
+            className={`flex shrink-0 items-center justify-center rounded-3xl shadow-sm ${
+              compact ? "h-12 w-12" : "h-14 w-14"
+            }`}
             style={{
               backgroundColor: "var(--brand-accent-soft)",
               color: "var(--brand-accent)",
@@ -25,10 +37,45 @@ export default function PageHeader({
             {icon}
           </div>
         ) : null}
+
         <div className="min-w-0">
-          <h1 className="text-3xl font-black tracking-tight text-[var(--text-primary)]">
+          {(theme.brandingConfig.showLogoInHeader || theme.brandingConfig.showPlatformName) ? (
+            <div className="mb-3 flex items-center gap-3">
+              {theme.brandingConfig.showLogoInHeader ? (
+                <div
+                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
+                  style={{
+                    backgroundColor: "var(--brand-accent-soft)",
+                    color: "var(--brand-accent)",
+                  }}
+                >
+                  <img
+                    src={theme.logoUrl || "/logo.png"}
+                    alt={theme.platformName}
+                    className="h-7 w-7 object-contain"
+                  />
+                </div>
+              ) : null}
+
+              {theme.brandingConfig.showPlatformName ? (
+                <div
+                  className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
+                  style={{ color: "var(--brand-accent)" }}
+                >
+                  {theme.platformName}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <h1
+            className={`font-black tracking-tight text-[var(--text-primary)] ${
+              compact ? "text-[28px]" : "text-3xl"
+            }`}
+          >
             {title}
           </h1>
+
           {subtitle ? (
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">
               {subtitle}
