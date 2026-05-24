@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
   Download,
   FileSpreadsheet,
   Info,
   Package,
   PlusCircle,
   Upload,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
@@ -79,6 +82,25 @@ type ImportSummary = {
   errors: string[];
 };
 
+type ImportMappingValue = CanonicalInventoryField | "ignore";
+
+type ImportWizardState = {
+  fileName: string;
+  headers: string[];
+  rows: string[][];
+  delimiter: string;
+  mapping: Record<number, ImportMappingValue>;
+};
+
+type ImportValidationResult = {
+  records: ImportRecord[];
+  validRows: number;
+  errorRows: number;
+  warningRows: number;
+  errors: string[];
+  warnings: string[];
+};
+
 type CanonicalInventoryField =
   | "sku"
   | "name"
@@ -123,6 +145,35 @@ const templateHeaders: CanonicalInventoryField[] = [
   "currency",
   "notes",
 ];
+
+const importFieldOptions: { value: ImportMappingValue; label: string; required?: boolean }[] = [
+  { value: "ignore", label: "Ignora colonna" },
+  { value: "sku", label: "SKU / codice interno" },
+  { value: "name", label: "Nome articolo", required: true },
+  { value: "category", label: "Categoria" },
+  { value: "brand", label: "Marca" },
+  { value: "supplier_name", label: "Fornitore" },
+  { value: "supplier_code", label: "Codice fornitore" },
+  { value: "manufacturer_code", label: "Codice produttore / OEM" },
+  { value: "barcode", label: "Barcode / EAN" },
+  { value: "quantity", label: "Quantità disponibile" },
+  { value: "minimum_quantity", label: "Scorta minima" },
+  { value: "reserved_quantity", label: "Quantità impegnata" },
+  { value: "reorder_quantity", label: "Quantità riordino" },
+  { value: "unit", label: "Unità di misura" },
+  { value: "location", label: "Posizione / ubicazione" },
+  { value: "unit_cost", label: "Costo unitario" },
+  { value: "currency", label: "Valuta" },
+  { value: "notes", label: "Note" },
+];
+
+const numericImportFields = new Set<CanonicalInventoryField>([
+  "quantity",
+  "minimum_quantity",
+  "reserved_quantity",
+  "reorder_quantity",
+  "unit_cost",
+]);
 
 const headerAliases: Record<string, CanonicalInventoryField> = {
   sku: "sku",
@@ -427,6 +478,137 @@ function parseCsv(text: string) {
   return { records, ignoredHeaders };
 }
 
+function parseCsvForWizard(text: string) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter).map((header) =>
+    header.trim().replace(/^\ufeff/, "")
+  );
+
+  const rows = lines.slice(1).map((line) => parseCsvLine(line, delimiter));
+  return { headers, rows, delimiter };
+}
+
+function detectImportMapping(headers: string[]) {
+  return headers.reduce<Record<number, ImportMappingValue>>((mapping, header, index) => {
+    const detected = canonicalHeader(header);
+    mapping[index] = detected ?? "ignore";
+    return mapping;
+  }, {});
+}
+
+function buildRecordsFromMapping(
+  rows: string[][],
+  mapping: Record<number, ImportMappingValue>
+) {
+  return rows
+    .map((row) => {
+      const record: ImportRecord = {};
+
+      Object.entries(mapping).forEach(([indexValue, field]) => {
+        if (field === "ignore") return;
+        const index = Number(indexValue);
+        record[field] = row[index] ?? "";
+      });
+
+      return record;
+    })
+    .filter((record) => Object.values(record).some((value) => normalizeText(value)));
+}
+
+function hasValidNumberFormat(value: string | undefined) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return true;
+
+  const cleaned = raw.replace(/\s/g, "").replace(/[^0-9,.-]/g, "");
+  if (!cleaned || cleaned === "," || cleaned === "." || cleaned === "-" || cleaned === "-") {
+    return false;
+  }
+
+  return Number.isFinite(parseNumber(raw, Number.NaN));
+}
+
+function validateImportRecords(records: ImportRecord[]): ImportValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const skuCounter = new Map<string, number[]>();
+  const barcodeCounter = new Map<string, number[]>();
+  let errorRows = 0;
+  let warningRows = 0;
+
+  records.forEach((record, index) => {
+    const rowNumber = index + 2;
+    let rowHasError = false;
+    let rowHasWarning = false;
+
+    if (!normalizeText(record.name)) {
+      errors.push(`Riga ${rowNumber}: manca il nome articolo.`);
+      rowHasError = true;
+    }
+
+    numericImportFields.forEach((field) => {
+      if (!hasValidNumberFormat(record[field])) {
+        errors.push(`Riga ${rowNumber}: il campo ${field} non è numerico.`);
+        rowHasError = true;
+      }
+    });
+
+    const sku = normalizeText(record.sku)?.toLowerCase();
+    const barcode = normalizeText(record.barcode)?.toLowerCase();
+
+    if (sku) {
+      skuCounter.set(sku, [...(skuCounter.get(sku) ?? []), rowNumber]);
+    }
+
+    if (barcode) {
+      barcodeCounter.set(barcode, [...(barcodeCounter.get(barcode) ?? []), rowNumber]);
+    }
+
+    if (!normalizeText(record.sku) && !normalizeText(record.barcode)) {
+      warnings.push(`Riga ${rowNumber}: nessuno SKU/barcode, non potrà aggiornare articoli esistenti.`);
+      rowHasWarning = true;
+    }
+
+    if (rowHasError) errorRows += 1;
+    else if (rowHasWarning) warningRows += 1;
+  });
+
+  skuCounter.forEach((rows, sku) => {
+    if (rows.length > 1) {
+      errors.push(`SKU duplicato nel file (${sku}) alle righe ${rows.join(", ")}.`);
+      errorRows += rows.length;
+    }
+  });
+
+  barcodeCounter.forEach((rows, barcode) => {
+    if (rows.length > 1) {
+      errors.push(`Barcode duplicato nel file (${barcode}) alle righe ${rows.join(", ")}.`);
+      errorRows += rows.length;
+    }
+  });
+
+  return {
+    records,
+    validRows: Math.max(records.length - errorRows, 0),
+    errorRows,
+    warningRows,
+    errors,
+    warnings,
+  };
+}
+
+function getImportFieldLabel(field: ImportMappingValue) {
+  return importFieldOptions.find((option) => option.value === field)?.label ?? field;
+}
+
 function buildInventoryPayload(form: InventoryForm, teamId: string, quantityOverride?: number) {
   return {
     team_id: teamId,
@@ -495,6 +677,7 @@ export default function InventoryPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [form, setForm] = useState<InventoryForm>(buildDefaultForm());
   const [formOpen, setFormOpen] = useState(false);
+  const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -572,6 +755,17 @@ export default function InventoryPage() {
       },
     ];
   }, [rows]);
+
+  const importValidation = useMemo(() => {
+    if (!importWizard) return null;
+    const records = buildRecordsFromMapping(importWizard.rows, importWizard.mapping);
+    return validateImportRecords(records);
+  }, [importWizard]);
+
+  const mappedFields = useMemo(() => {
+    if (!importWizard) return [] as ImportMappingValue[];
+    return Object.values(importWizard.mapping).filter((field) => field !== "ignore");
+  }, [importWizard]);
 
   async function createMovement(params: {
     itemId: string;
@@ -738,7 +932,7 @@ export default function InventoryPage() {
     return rows.find((item) => itemMatchesImport(item, record)) ?? null;
   }
 
-  async function importCsv(file: File) {
+  async function importMappedRecords(records: ImportRecord[], sourceFileName: string) {
     if (!canEditInventory || importing) return;
     setFeedback(null);
     setImporting(true);
@@ -752,11 +946,8 @@ export default function InventoryPage() {
     };
 
     try {
-      const text = await file.text();
-      const { records, ignoredHeaders } = parseCsv(text);
-
       if (!records.length) {
-        setFeedback({ type: "error", message: "Il file CSV è vuoto o non valido." });
+        setFeedback({ type: "error", message: "Il file non contiene righe importabili." });
         return;
       }
 
@@ -813,10 +1004,10 @@ export default function InventoryPage() {
                 itemId: existing.id,
                 quantityDelta,
                 movementType: "correction",
-                reason: "Rettifica quantità da import CSV",
+                reason: "Rettifica quantità da import guidato",
                 unitCost: payload.unit_cost,
                 currency: payload.currency,
-                notes: `Import file ${file.name}`,
+                notes: `Import file ${sourceFileName}`,
               });
               summary.movements += 1;
             }
@@ -839,10 +1030,10 @@ export default function InventoryPage() {
                 itemId,
                 quantityDelta: importedQuantity,
                 movementType: "import",
-                reason: "Carico iniziale da import CSV",
+                reason: "Carico iniziale da import guidato",
                 unitCost: payload.unit_cost,
                 currency: payload.currency,
-                notes: `Import file ${file.name}`,
+                notes: `Import file ${sourceFileName}`,
               });
               summary.movements += 1;
             }
@@ -857,9 +1048,6 @@ export default function InventoryPage() {
         }
       }
 
-      const ignoredCopy = ignoredHeaders.length
-        ? ` Colonne ignorate: ${ignoredHeaders.join(", ")}.`
-        : "";
       const errorsCopy = summary.errors.length
         ? ` Errori: ${summary.errors.slice(0, 5).join(" | ")}${
             summary.errors.length > 5 ? " ..." : ""
@@ -868,19 +1056,89 @@ export default function InventoryPage() {
 
       setFeedback({
         type: summary.errors.length ? "info" : "success",
-        message: `Import completato. Creati: ${summary.inserted}. Aggiornati: ${summary.updated}. Saltati: ${summary.skipped}. Movimenti: ${summary.movements}.${ignoredCopy}${errorsCopy}`,
+        message: `Import completato. Creati: ${summary.inserted}. Aggiornati: ${summary.updated}. Saltati: ${summary.skipped}. Movimenti: ${summary.movements}.${errorsCopy}`,
       });
 
+      setImportWizard(null);
       await load();
     } finally {
       setImporting(false);
     }
   }
 
+  async function prepareImportWizard(file: File) {
+    if (!canEditInventory || importing) return;
+    setFeedback(null);
+
+    try {
+      const text = await file.text();
+      const parsed = parseCsvForWizard(text);
+
+      if (!parsed || !parsed.headers.length || !parsed.rows.length) {
+        setFeedback({ type: "error", message: "Il file CSV è vuoto o non valido." });
+        return;
+      }
+
+      setImportWizard({
+        fileName: file.name,
+        headers: parsed.headers,
+        rows: parsed.rows,
+        delimiter: parsed.delimiter,
+        mapping: detectImportMapping(parsed.headers),
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Errore lettura file: ${error.message}`
+            : "Errore lettura file CSV.",
+      });
+    }
+  }
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (file) void importCsv(file);
+    if (file) void prepareImportWizard(file);
     event.currentTarget.value = "";
+  }
+
+  function updateImportMapping(columnIndex: number, value: ImportMappingValue) {
+    setImportWizard((current) => {
+      if (!current) return current;
+
+      const nextMapping = { ...current.mapping };
+
+      if (value !== "ignore") {
+        Object.entries(nextMapping).forEach(([index, mappedValue]) => {
+          if (Number(index) !== columnIndex && mappedValue === value) {
+            nextMapping[Number(index)] = "ignore";
+          }
+        });
+      }
+
+      nextMapping[columnIndex] = value;
+      return { ...current, mapping: nextMapping };
+    });
+  }
+
+  async function confirmGuidedImport() {
+    if (!importWizard || !importValidation) return;
+
+    if (!mappedFields.includes("name")) {
+      setFeedback({ type: "error", message: "Associa almeno una colonna al campo Nome articolo." });
+      return;
+    }
+
+    if (importValidation.errors.length > 0) {
+      setFeedback({
+        type: "error",
+        message: "Correggi gli errori di validazione prima di confermare l'import.",
+      });
+      return;
+    }
+
+    await importMappedRecords(importValidation.records, importWizard.fileName);
   }
 
   if (access.loading) {
@@ -986,8 +1244,8 @@ export default function InventoryPage() {
 
       <InfoBlock>
         Il magazzino è pronto per un caricamento iniziale pulito: puoi usare il template CSV oppure
-        importare file con intestazioni comuni italiane/inglesi. Il sistema riconosce separatori con
-        virgola, punto e virgola e numeri europei con decimali a virgola.
+        importare file con intestazioni comuni italiane/inglesi. L’import ora è guidato: dopo il
+        caricamento puoi verificare e correggere l’associazione colonne prima di scrivere nel database.
       </InfoBlock>
 
       <SectionCard
@@ -1304,6 +1562,220 @@ export default function InventoryPage() {
           </div>
         </div>
       ) : null}
+
+      {importWizard ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">Import guidato magazzino</h3>
+                <div className="mt-1 text-sm text-neutral-500">
+                  File: <span className="font-semibold text-neutral-700">{importWizard.fileName}</span> ·
+                  Righe lette: {importWizard.rows.length} · Separatore rilevato: {importWizard.delimiter === "\t" ? "TAB" : importWizard.delimiter}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportWizard(null)}
+                disabled={importing}
+                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+                  <CheckCircle2 size={16} />
+                  Righe valide
+                </div>
+                <div className="mt-2 text-2xl font-black text-neutral-900">
+                  {importValidation?.validRows ?? 0}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+                  <AlertTriangle size={16} />
+                  Avvisi
+                </div>
+                <div className="mt-2 text-2xl font-black text-neutral-900">
+                  {importValidation?.warnings.length ?? 0}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+                  <XCircle size={16} />
+                  Errori
+                </div>
+                <div className="mt-2 text-2xl font-black text-neutral-900">
+                  {importValidation?.errors.length ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {!mappedFields.includes("name") ? (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                Per importare devi associare almeno una colonna al campo “Nome articolo”.
+              </div>
+            ) : null}
+
+            <div className="mt-6">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
+                Associazione colonne
+              </h4>
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-neutral-200">
+                <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
+                  <thead className="bg-neutral-50">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      <th className="px-4 py-3">Colonna file</th>
+                      <th className="px-4 py-3">Esempio dati</th>
+                      <th className="px-4 py-3">Campo da importare</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {importWizard.headers.map((header, index) => {
+                      const exampleValues = importWizard.rows
+                        .slice(0, 3)
+                        .map((row) => row[index])
+                        .filter(Boolean);
+
+                      return (
+                        <tr key={`${header}-${index}`} className="align-top">
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-neutral-900">{header || `Colonna ${index + 1}`}</div>
+                            <div className="mt-1 text-xs text-neutral-500">
+                              Proposta: {getImportFieldLabel(importWizard.mapping[index] ?? "ignore")}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs leading-5 text-neutral-600">
+                            {exampleValues.length ? exampleValues.join(" · ") : "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={importWizard.mapping[index] ?? "ignore"}
+                              onChange={(event) =>
+                                updateImportMapping(index, event.target.value as ImportMappingValue)
+                              }
+                              className={inputClassName}
+                            >
+                              {importFieldOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                  {option.required ? " *" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <h4 className="font-bold text-neutral-900">Anteprima prime righe</h4>
+                <div className="mt-3 max-h-72 overflow-auto rounded-xl border border-neutral-200">
+                  <table className="min-w-full divide-y divide-neutral-200 text-xs">
+                    <thead className="bg-neutral-50">
+                      <tr>
+                        {templateHeaders
+                          .filter((field) => mappedFields.includes(field))
+                          .slice(0, 8)
+                          .map((field) => (
+                            <th key={field} className="px-3 py-2 text-left font-semibold text-neutral-500">
+                              {getImportFieldLabel(field)}
+                            </th>
+                          ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {(importValidation?.records ?? []).slice(0, 5).map((record, index) => (
+                        <tr key={index}>
+                          {templateHeaders
+                            .filter((field) => mappedFields.includes(field))
+                            .slice(0, 8)
+                            .map((field) => (
+                              <td key={field} className="px-3 py-2 text-neutral-700">
+                                {record[field] || "—"}
+                              </td>
+                            ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <h4 className="font-bold text-neutral-900">Validazione</h4>
+                <div className="mt-3 space-y-3 text-sm">
+                  {importValidation?.errors.length ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
+                      <div className="font-bold">Errori da correggere</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {importValidation.errors.slice(0, 6).map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                      {importValidation.errors.length > 6 ? (
+                        <div className="mt-2 text-xs">Altri errori non mostrati: {importValidation.errors.length - 6}</div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-green-700">
+                      Nessun errore bloccante rilevato.
+                    </div>
+                  )}
+
+                  {importValidation?.warnings.length ? (
+                    <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-yellow-800">
+                      <div className="font-bold">Avvisi</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {importValidation.warnings.slice(0, 5).map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                      {importValidation.warnings.length > 5 ? (
+                        <div className="mt-2 text-xs">Altri avvisi non mostrati: {importValidation.warnings.length - 5}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setImportWizard(null)}
+                disabled={importing}
+                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={confirmGuidedImport}
+                disabled={
+                  importing ||
+                  !mappedFields.includes("name") ||
+                  Boolean(importValidation?.errors.length) ||
+                  !(importValidation?.records.length ?? 0)
+                }
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Upload size={16} className="mr-2 inline" />
+                {importing ? "Importazione..." : "Conferma e importa"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }
