@@ -551,11 +551,35 @@ export default function DriversPage() {
     ];
   }, [drivers, documents]);
 
-  if (access.loading) return <PagePermissionState state="loading" />;
-  if (access.error) return <PagePermissionState state="error" message={access.error} />;
+  if (access.loading) {
+    return (
+      <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        icon={<Users className="h-6 w-6" />}
+        state="loading"
+      />
+    );
+  }
+
+  if (access.error) {
+    return (
+      <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        icon={<Users className="h-6 w-6" />}
+        state="error"
+        message={access.error}
+      />
+    );
+  }
+
   if (!canViewDrivers) {
     return (
       <PagePermissionState
+        title="Piloti"
+        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        icon={<Users className="h-6 w-6" />}
         state="denied"
         message="Il tuo ruolo non ha accesso al modulo piloti. Chiedi a un owner o admin di abilitare il permesso drivers.view."
       />
