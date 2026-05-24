@@ -7,11 +7,13 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
+  ImageIcon,
   Info,
   Loader2,
   Package,
   PlusCircle,
   Settings2,
+  Trash2,
   Upload,
   XCircle,
 } from "lucide-react";
@@ -46,6 +48,8 @@ type InventoryItem = {
   unit_cost: number | null;
   currency: string | null;
   notes: string | null;
+  image_path: string | null;
+  image_updated_at?: string | null;
   updated_at?: string | null;
 };
 
@@ -123,6 +127,7 @@ type CanonicalInventoryField =
   | "notes";
 
 type InventoryTableColumnKey =
+  | "photo"
   | "article"
   | "codes"
   | "category"
@@ -170,6 +175,7 @@ const templateHeaders: CanonicalInventoryField[] = [
 ];
 
 const defaultTableColumnOrder: InventoryTableColumnKey[] = [
+  "photo",
   "article",
   "codes",
   "category",
@@ -182,6 +188,7 @@ const defaultTableColumnOrder: InventoryTableColumnKey[] = [
 ];
 
 const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
+  photo: "Foto",
   article: "Articolo",
   codes: "Codici",
   category: "Categoria",
@@ -194,6 +201,8 @@ const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
 };
 
 const tableColumnStorageKey = "inventory.tableColumnOrder.v1";
+const inventoryImageBucket = "inventory-images";
+const maxInventoryImageBytes = 5 * 1024 * 1024;
 
 const importFieldOptions: { value: ImportMappingValue; label: string; required?: boolean }[] = [
   { value: "ignore", label: "Ignora colonna" },
@@ -714,6 +723,41 @@ function itemMatchesImport(item: InventoryItem, record: ImportRecord) {
   return false;
 }
 
+
+function getInventoryImageUrl(imagePath: string | null | undefined) {
+  if (!imagePath) return null;
+  const { data } = supabase.storage.from(inventoryImageBucket).getPublicUrl(imagePath);
+  return data.publicUrl || null;
+}
+
+function sanitizeFileName(filename: string) {
+  const parts = filename.split(".");
+  const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : "jpg";
+  const base = parts
+    .join(".")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+
+  return `${base || "foto-articolo"}.${extension || "jpg"}`;
+}
+
+function validateInventoryImageFile(file: File) {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowedTypes.includes(file.type)) {
+    return "Formato foto non supportato. Usa JPG, PNG, WEBP o GIF.";
+  }
+
+  if (file.size > maxInventoryImageBytes) {
+    return "La foto è troppo grande. Dimensione massima: 5 MB.";
+  }
+
+  return null;
+}
+
 function formatSupabaseImportError(error: unknown) {
   if (error instanceof Error) return error.message;
 
@@ -755,9 +799,12 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [form, setForm] = useState<InventoryForm>(buildDefaultForm());
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [imageUploadingId, setImageUploadingId] = useState<string | null>(null);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [columnOrder, setColumnOrder] = useState<InventoryTableColumnKey[]>([
     ...defaultTableColumnOrder,
@@ -832,6 +879,19 @@ export default function InventoryPage() {
     window.localStorage.setItem(tableColumnStorageKey, JSON.stringify(columnOrder));
   }, [columnOrder]);
 
+
+  useEffect(() => {
+    if (!formImageFile) {
+      setFormImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(formImageFile);
+    setFormImagePreview(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [formImageFile]);
+
   const stats = useMemo(() => {
     const underMinimum = rows.filter((row) => {
       const available = Number(row.quantity ?? 0) - Number(row.reserved_quantity ?? 0);
@@ -876,6 +936,135 @@ export default function InventoryPage() {
     if (!importWizard) return [] as ImportMappingValue[];
     return Object.values(importWizard.mapping).filter((field) => field !== "ignore");
   }, [importWizard]);
+
+
+  function handleFormImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) return;
+
+    const validationError = validateInventoryImageFile(file);
+    if (validationError) {
+      setFeedback({ type: "error", message: validationError });
+      return;
+    }
+
+    setFormImageFile(file);
+  }
+
+  function clearFormImage() {
+    setFormImageFile(null);
+  }
+
+  async function uploadInventoryImage(params: {
+    itemId: string;
+    teamId: string;
+    file: File;
+    previousImagePath?: string | null;
+  }) {
+    const validationError = validateInventoryImageFile(params.file);
+    if (validationError) throw new Error(validationError);
+
+    const path = `${params.teamId}/${params.itemId}/${Date.now()}-${sanitizeFileName(params.file.name)}`;
+    const { error: uploadError } = await supabase.storage
+      .from(inventoryImageBucket)
+      .upload(path, params.file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: params.file.type,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { error: updateError } = await supabase
+      .from("inventory_items")
+      .update({ image_path: path, image_updated_at: new Date().toISOString() })
+      .eq("team_id", params.teamId)
+      .eq("id", params.itemId);
+
+    if (updateError) {
+      await supabase.storage.from(inventoryImageBucket).remove([path]);
+      throw updateError;
+    }
+
+    if (params.previousImagePath && params.previousImagePath !== path) {
+      const { error: removeOldError } = await supabase.storage
+        .from(inventoryImageBucket)
+        .remove([params.previousImagePath]);
+
+      if (removeOldError) {
+        console.warn("Vecchia foto non rimossa:", removeOldError.message);
+      }
+    }
+
+    return path;
+  }
+
+  async function handleRowImageChange(row: InventoryItem, file: File) {
+    if (!canEditInventory || imageUploadingId) return;
+
+    setFeedback(null);
+    setImageUploadingId(row.id);
+
+    try {
+      await uploadInventoryImage({
+        itemId: row.id,
+        teamId: row.team_id,
+        file,
+        previousImagePath: row.image_path,
+      });
+
+      await load({ keepFeedback: true });
+      setFeedback({ type: "success", message: `Foto aggiornata per ${row.name}.` });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Errore caricamento foto: ${error.message}`
+            : "Errore caricamento foto.",
+      });
+    } finally {
+      setImageUploadingId(null);
+    }
+  }
+
+  async function removeInventoryImage(row: InventoryItem) {
+    if (!canEditInventory || imageUploadingId || !row.image_path) return;
+
+    setFeedback(null);
+    setImageUploadingId(row.id);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("inventory_items")
+        .update({ image_path: null, image_updated_at: new Date().toISOString() })
+        .eq("team_id", row.team_id)
+        .eq("id", row.id);
+
+      if (updateError) throw updateError;
+
+      const { error: removeError } = await supabase.storage
+        .from(inventoryImageBucket)
+        .remove([row.image_path]);
+
+      if (removeError) {
+        console.warn("Foto non rimossa dallo storage:", removeError.message);
+      }
+
+      await load({ keepFeedback: true });
+      setFeedback({ type: "success", message: `Foto rimossa da ${row.name}.` });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error ? `Errore rimozione foto: ${error.message}` : "Errore rimozione foto.",
+      });
+    } finally {
+      setImageUploadingId(null);
+    }
+  }
 
   async function createMovement(params: {
     itemId: string;
@@ -934,6 +1123,14 @@ export default function InventoryPage() {
       const itemId = (data as { id: string } | null)?.id;
       if (!itemId) throw new Error("Articolo creato ma ID non restituito.");
 
+      if (formImageFile) {
+        await uploadInventoryImage({
+          itemId,
+          teamId: ctx.teamId,
+          file: formImageFile,
+        });
+      }
+
       if (initialQuantity > 0) {
         await createMovement({
           itemId,
@@ -947,6 +1144,7 @@ export default function InventoryPage() {
       }
 
       setForm(buildDefaultForm());
+      setFormImageFile(null);
       setFormOpen(false);
       await load({ keepFeedback: true });
       setFeedback({ type: "success", message: "Articolo aggiunto correttamente." });
@@ -1331,6 +1529,51 @@ export default function InventoryPage() {
     const lowStock = available <= minimum;
 
     switch (column) {
+      case "photo": {
+        const imageUrl = getInventoryImageUrl(row.image_path);
+        const uploadingThisImage = imageUploadingId === row.id;
+
+        return (
+          <div className="w-28">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+              {imageUrl ? (
+                <img src={imageUrl} alt={`Foto ${row.name}`} className="h-full w-full object-cover" />
+              ) : (
+                <ImageIcon size={22} className="text-neutral-400" />
+              )}
+            </div>
+            {canEditInventory ? (
+              <div className="mt-2 flex flex-col gap-1">
+                <label className="cursor-pointer rounded-lg bg-neutral-100 px-2 py-1 text-center text-[11px] font-semibold text-neutral-700 hover:bg-neutral-200">
+                  {uploadingThisImage ? "Carico..." : imageUrl ? "Sostituisci" : "Carica"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    disabled={Boolean(imageUploadingId)}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.currentTarget.value = "";
+                      if (file) void handleRowImageChange(row, file);
+                    }}
+                  />
+                </label>
+                {imageUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => void removeInventoryImage(row)}
+                    disabled={Boolean(imageUploadingId)}
+                    className="rounded-lg bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 size={11} className="mr-1 inline" />
+                    Rimuovi
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      }
       case "article":
         return (
           <div>
@@ -1572,7 +1815,7 @@ export default function InventoryPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setFormOpen(false)}
+                onClick={() => { setFormImageFile(null); setFormOpen(false); }}
                 className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
               >
                 Chiudi
@@ -1580,6 +1823,49 @@ export default function InventoryPage() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Field label="Foto articolo" hint="Una foto principale aiuta a riconoscere rapidamente ricambi e componenti simili.">
+                  <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center">
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                      {formImagePreview ? (
+                        <img src={formImagePreview} alt="Anteprima foto articolo" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon size={28} className="text-neutral-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-neutral-900">
+                        {formImageFile ? formImageFile.name : "Nessuna foto selezionata"}
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-neutral-500">
+                        Formati supportati: JPG, PNG, WEBP, GIF. Dimensione massima: 5 MB.
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <label className="cursor-pointer rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800">
+                          <ImageIcon size={16} className="mr-2 inline" />
+                          Seleziona foto
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handleFormImageChange}
+                          />
+                        </label>
+                        {formImageFile ? (
+                          <button
+                            type="button"
+                            onClick={clearFormImage}
+                            className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+                          >
+                            Rimuovi selezione
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </Field>
+              </div>
+
               <Field label="Codice interno / SKU" hint="Consigliato per import/export e aggiornamenti futuri.">
                 <input
                   value={form.sku}
@@ -1747,7 +2033,7 @@ export default function InventoryPage() {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setFormOpen(false)}
+                onClick={() => { setFormImageFile(null); setFormOpen(false); }}
                 className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
               >
                 Annulla
