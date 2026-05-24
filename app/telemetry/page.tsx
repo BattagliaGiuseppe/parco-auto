@@ -172,7 +172,22 @@ type TelemetryLap = {
   telemetry_file_id?: string | null;
   lap_number?: number | null;
   lap_time_seconds?: number | null;
+  max_speed?: number | null;
+  avg_speed?: number | null;
+  notes?: string | null;
 };
+
+type TelemetrySample = {
+  id: string;
+  telemetry_file_id?: string | null;
+  sample_index?: number | null;
+  time_seconds?: number | null;
+  distance_m?: number | null;
+  lap_number?: number | null;
+  values_json?: Record<string, number> | null;
+};
+
+type AnalysisAxis = "time" | "distance" | "sample";
 
 function buildDefaultForm(): TelemetryForm {
   return {
@@ -587,6 +602,156 @@ function formatNumber(value?: number | null, decimals = 2) {
   return value.toLocaleString("it-IT", { maximumFractionDigits: decimals });
 }
 
+function getSampleValue(sample: TelemetrySample, channelKey: string): number | null {
+  const values = sample.values_json || {};
+  const value = values[channelKey];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getAxisValue(sample: TelemetrySample, axis: AnalysisAxis): number | null {
+  if (axis === "time") return typeof sample.time_seconds === "number" ? sample.time_seconds : null;
+  if (axis === "distance") return typeof sample.distance_m === "number" ? sample.distance_m : null;
+  return typeof sample.sample_index === "number" ? sample.sample_index : null;
+}
+
+function channelDisplayName(channel?: TelemetryChannel, fallback?: string) {
+  if (channel?.display_name) return channel.display_name;
+  const definition = fallback ? CHANNEL_BY_KEY.get(fallback as ChannelKey) : undefined;
+  return definition?.label || fallback || "Canale";
+}
+
+function channelUnit(channel?: TelemetryChannel, fallback?: string) {
+  if (channel?.unit) return channel.unit;
+  const definition = fallback ? CHANNEL_BY_KEY.get(fallback as ChannelKey) : undefined;
+  return definition?.unit || "";
+}
+
+function channelStats(samples: TelemetrySample[], channelKey: string) {
+  const values = samples
+    .map((sample) => getSampleValue(sample, channelKey))
+    .filter((value): value is number => value !== null);
+
+  return {
+    count: values.length,
+    min: values.length ? Math.min(...values) : null,
+    max: values.length ? Math.max(...values) : null,
+    avg: average(values),
+  };
+}
+
+function SvgTelemetryChart({
+  samples,
+  selectedChannels,
+  availableChannels,
+  axis,
+}: {
+  samples: TelemetrySample[];
+  selectedChannels: string[];
+  availableChannels: TelemetryChannel[];
+  axis: AnalysisAxis;
+}) {
+  const width = 920;
+  const height = 320;
+  const paddingX = 54;
+  const paddingY = 34;
+  const plotWidth = width - paddingX * 2;
+  const plotHeight = height - paddingY * 2;
+  const colors = ["#facc15", "#2563eb", "#dc2626", "#16a34a", "#7c3aed", "#ea580c", "#0891b2", "#be123c"];
+
+  const xValues = samples.map((sample) => getAxisValue(sample, axis));
+  const validX = xValues.filter((value): value is number => value !== null);
+  const minX = validX.length ? Math.min(...validX) : 0;
+  const maxX = validX.length ? Math.max(...validX) : Math.max(samples.length - 1, 1);
+  const xRange = maxX - minX || 1;
+
+  const series = selectedChannels
+    .map((channelKey, index) => {
+      const values = samples
+        .map((sample, sampleIndex) => {
+          const y = getSampleValue(sample, channelKey);
+          const x = getAxisValue(sample, axis) ?? sampleIndex;
+          return y === null ? null : { x, y };
+        })
+        .filter((point): point is { x: number; y: number } => point !== null);
+
+      const yValues = values.map((point) => point.y);
+      const minY = yValues.length ? Math.min(...yValues) : 0;
+      const maxY = yValues.length ? Math.max(...yValues) : 1;
+      const yRange = maxY - minY || 1;
+
+      const points = values
+        .map((point) => {
+          const x = paddingX + ((point.x - minX) / xRange) * plotWidth;
+          const y = paddingY + plotHeight - ((point.y - minY) / yRange) * plotHeight;
+          return `${x.toFixed(2)},${y.toFixed(2)}`;
+        })
+        .join(" ");
+
+      const channel = availableChannels.find((item) => item.channel_key === channelKey);
+
+      return {
+        channelKey,
+        label: channelDisplayName(channel, channelKey),
+        unit: channelUnit(channel, channelKey),
+        color: colors[index % colors.length],
+        points,
+        minY,
+        maxY,
+        count: values.length,
+      };
+    })
+    .filter((item) => item.count > 1);
+
+  if (samples.length === 0 || series.length === 0) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+        Nessun dato sufficiente per disegnare il grafico. Importa un CSV con campioni validi e almeno un canale numerico.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white p-3">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[760px]">
+          <rect x={paddingX} y={paddingY} width={plotWidth} height={plotHeight} rx="14" fill="#fafafa" />
+          <line x1={paddingX} y1={paddingY + plotHeight} x2={paddingX + plotWidth} y2={paddingY + plotHeight} stroke="#d4d4d4" />
+          <line x1={paddingX} y1={paddingY} x2={paddingX} y2={paddingY + plotHeight} stroke="#d4d4d4" />
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line
+              key={ratio}
+              x1={paddingX}
+              y1={paddingY + plotHeight * ratio}
+              x2={paddingX + plotWidth}
+              y2={paddingY + plotHeight * ratio}
+              stroke="#e5e5e5"
+              strokeDasharray="5 5"
+            />
+          ))}
+          {series.map((item) => (
+            <polyline key={item.channelKey} points={item.points} fill="none" stroke={item.color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          ))}
+          <text x={paddingX} y={height - 8} fontSize="12" fill="#737373">
+            {axis === "time" ? "tempo" : axis === "distance" ? "distanza" : "campione"}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)}
+          </text>
+          <text x={paddingX} y="20" fontSize="12" fill="#737373">
+            Linee normalizzate per canale: utile per confrontare andamento, non scala assoluta condivisa.
+          </text>
+        </svg>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {series.map((item) => (
+          <span key={item.channelKey} className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+            {item.label}{item.unit ? ` (${item.unit})` : ""}: {formatNumber(item.minY, 2)} / {formatNumber(item.maxY, 2)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function validateCsvWizard(wizard: CsvWizardState | null) {
   if (!wizard) return { errors: [] as string[], warnings: [] as string[] };
 
@@ -773,6 +938,11 @@ export default function TelemetryPage() {
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [analysisFile, setAnalysisFile] = useState<TelemetryFile | null>(null);
+  const [analysisSamples, setAnalysisSamples] = useState<TelemetrySample[]>([]);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisAxis, setAnalysisAxis] = useState<AnalysisAxis>("time");
+  const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
   async function load() {
     setLoading(true);
@@ -1146,6 +1316,37 @@ export default function TelemetryPage() {
       setFeedback({ type: "error", message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function openAnalysis(row: TelemetryFile) {
+    setAnalysisFile(row);
+    setAnalysisSamples([]);
+    setAnalysisLoading(true);
+
+    const rowChannels = channels.filter((channel) => channel.telemetry_file_id === row.id);
+    const priority = ["speed", "rpm", "throttle", "brake", "brake_pressure", "gear", "water_temp", "oil_temp"];
+    const defaults = priority.filter((key) => rowChannels.some((channel) => channel.channel_key === key));
+    const fallback = rowChannels.map((channel) => channel.channel_key || "").filter(Boolean);
+    setSelectedAnalysisChannels((defaults.length ? defaults : fallback).slice(0, 4));
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase
+        .from("telemetry_samples")
+        .select("*")
+        .eq("team_id", ctx.teamId)
+        .eq("telemetry_file_id", row.id)
+        .order("sample_index", { ascending: true });
+
+      if (error) throw error;
+
+      setAnalysisSamples((data || []) as TelemetrySample[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore caricamento campioni telemetria.";
+      setFeedback({ type: "error", message });
+    } finally {
+      setAnalysisLoading(false);
     }
   }
 
@@ -1528,6 +1729,17 @@ export default function TelemetryPage() {
                           </label>
                         ) : null}
 
+                        {(row.sampled_points_count || 0) > 0 || rowChannels.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => void openAnalysis(row)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm font-semibold text-yellow-900 transition hover:bg-yellow-100"
+                          >
+                            <BarChart3 size={15} />
+                            Analizza
+                          </button>
+                        ) : null}
+
                         {row.file_url ? (
                           <a
                             href={row.file_url}
@@ -1638,6 +1850,198 @@ export default function TelemetryPage() {
           )}
         </SectionCard>
       </div>
+
+      {analysisFile ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
+              <div>
+                <div className="flex items-center gap-2 text-lg font-bold text-neutral-900">
+                  <BarChart3 className="h-5 w-5 text-yellow-600" />
+                  Analisi telemetria
+                </div>
+                <div className="mt-1 text-sm text-neutral-500">
+                  {analysisFile.file_name || "File telemetria"} · {analysisSamples.length} punti grafici
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalysisFile(null);
+                  setAnalysisSamples([]);
+                }}
+                className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(92vh-88px)] overflow-y-auto p-5">
+              {analysisLoading ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm font-semibold text-neutral-600">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Caricamento campioni telemetria...
+                </div>
+              ) : (
+                <>
+                  <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Durata</div>
+                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatDuration(analysisFile.duration_seconds)}</div>
+                    </div>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Best lap</div>
+                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatDuration(analysisFile.best_lap_seconds)}</div>
+                    </div>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">V max</div>
+                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatNumber(analysisFile.max_speed, 1)} km/h</div>
+                    </div>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">RPM max</div>
+                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatNumber(analysisFile.max_rpm, 0)}</div>
+                    </div>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Giri</div>
+                      <div className="mt-1 text-lg font-bold text-neutral-900">{analysisFile.laps_count || laps.filter((lap) => lap.telemetry_file_id === analysisFile.id).length}</div>
+                    </div>
+                  </div>
+
+                  <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div className="mb-3 text-sm font-bold text-neutral-900">Canali da visualizzare</div>
+
+                      <Field label="Asse X">
+                        <select
+                          className={selectClassName}
+                          value={analysisAxis}
+                          onChange={(event) => setAnalysisAxis(event.target.value as AnalysisAxis)}
+                        >
+                          <option value="time">Tempo</option>
+                          <option value="distance">Distanza</option>
+                          <option value="sample">Numero campione</option>
+                        </select>
+                      </Field>
+
+                      <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                        {channels
+                          .filter((channel) => channel.telemetry_file_id === analysisFile.id)
+                          .map((channel) => {
+                            const key = channel.channel_key || "";
+                            if (!key || ["time", "distance", "lap"].includes(key)) return null;
+                            const checked = selectedAnalysisChannels.includes(key);
+                            return (
+                              <label key={channel.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+                                <span>
+                                  <span className="font-semibold">{channelDisplayName(channel, key)}</span>
+                                  {channelUnit(channel, key) ? <span className="text-neutral-400"> · {channelUnit(channel, key)}</span> : null}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setSelectedAnalysisChannels((current) =>
+                                      checked ? current.filter((item) => item !== key) : [...current, key]
+                                    );
+                                  }}
+                                />
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-neutral-900">Grafico sensori</div>
+                          <div className="text-xs text-neutral-500">Prima versione: linee normalizzate per confrontare l'andamento dei canali.</div>
+                        </div>
+                        <div className="text-xs font-semibold text-neutral-500">
+                          Canali selezionati: {selectedAnalysisChannels.length}
+                        </div>
+                      </div>
+
+                      <SvgTelemetryChart
+                        samples={analysisSamples}
+                        selectedChannels={selectedAnalysisChannels}
+                        availableChannels={channels.filter((channel) => channel.telemetry_file_id === analysisFile.id)}
+                        axis={analysisAxis}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div className="mb-3 text-sm font-bold text-neutral-900">Statistiche canali</div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                          <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                            <tr>
+                              <th className="px-3 py-2">Canale</th>
+                              <th className="px-3 py-2">Min</th>
+                              <th className="px-3 py-2">Max</th>
+                              <th className="px-3 py-2">Media</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100 bg-white">
+                            {selectedAnalysisChannels.map((key) => {
+                              const channel = channels.find((item) => item.telemetry_file_id === analysisFile.id && item.channel_key === key);
+                              const stats = channelStats(analysisSamples, key);
+                              const unit = channelUnit(channel, key);
+                              return (
+                                <tr key={key}>
+                                  <td className="px-3 py-2 font-semibold text-neutral-800">{channelDisplayName(channel, key)}</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.min, 2)} {unit}</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.max, 2)} {unit}</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.avg, 2)} {unit}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div className="mb-3 text-sm font-bold text-neutral-900">Riepilogo giri</div>
+                      <div className="max-h-[330px] overflow-y-auto">
+                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                          <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                            <tr>
+                              <th className="px-3 py-2">Giro</th>
+                              <th className="px-3 py-2">Tempo</th>
+                              <th className="px-3 py-2">V max</th>
+                              <th className="px-3 py-2">V media</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100 bg-white">
+                            {laps
+                              .filter((lap) => lap.telemetry_file_id === analysisFile.id)
+                              .sort((a, b) => (a.lap_number || 0) - (b.lap_number || 0))
+                              .map((lap) => (
+                                <tr key={lap.id}>
+                                  <td className="px-3 py-2 font-semibold text-neutral-800">{lap.lap_number || "—"}</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatDuration(lap.lap_time_seconds)}</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(lap.max_speed, 1)} km/h</td>
+                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(lap.avg_speed, 1)} km/h</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+                    Questa è la prima vista grafica. Il passo successivo sarà confrontare due turni o due piloti e generare insight automatici sui punti di miglioramento.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {csvWizard ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
