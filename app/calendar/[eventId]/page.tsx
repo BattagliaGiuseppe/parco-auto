@@ -10,6 +10,7 @@ import {
   CarFront,
   ClipboardCheck,
   Clock3,
+  Download,
   FileText,
   Flag,
   Fuel,
@@ -172,6 +173,32 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function csvCell(value: string | number | null | undefined) {
+  const normalized = value == null ? "" : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function downloadTextFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function safeFilename(value: string | null | undefined) {
+  return (value || "evento")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "evento";
 }
 
 function InfoBlock({ children }: { children: ReactNode }) {
@@ -553,6 +580,91 @@ export default function EventDetailPage() {
     ] as const;
   }, [report]);
 
+  function exportEventReportCsv() {
+    if (!event) return;
+
+    const lines: string[] = [];
+
+    lines.push("REPORT EVENTO");
+    lines.push(["Campo", "Valore"].map(csvCell).join(";"));
+    [
+      ["Evento", event.name || ""],
+      ["Circuito", event.circuit_id?.name || ""],
+      ["Data", formatDate(event.date)],
+      ["Mezzi collegati", eventCars.length],
+      ["Sessioni", sessions.length],
+      ["Turni registrati", report.totalTurns],
+      ["Minuti totali", report.totalMinutes],
+      ["Ore guida", round1(report.totalHours)],
+      ["Giri totali", report.totalLaps],
+      ["Fuel consumato L", report.totalFuel],
+      ["Best lap evento", formatLapTime(report.bestLapMs)],
+      ["Piloti nei turni", report.driversInTurns],
+      ["Mezzi senza turni", report.carsWithoutTurns],
+      ["Mezzi senza pilota assegnato", report.carsWithoutAssignedDriver],
+      ["Sessioni senza turni", report.sessionsWithoutTurns],
+      ["Turni senza pilota", report.turnsWithoutDriver],
+      ["Turni senza sessione", report.turnsWithoutSession],
+    ].forEach((row) => lines.push(row.map(csvCell).join(";")));
+
+    lines.push("");
+    lines.push("RIEPILOGO PER MEZZO");
+    lines.push(["Mezzo", "Piloti assegnati", "Turni", "Minuti", "Ore", "Giri", "Fuel L", "Best lap", "Stato"].map(csvCell).join(";"));
+    carReportRows.forEach((row) => {
+      lines.push([
+        row.eventCar.car_id?.name || "",
+        row.assignedDrivers.map(driverName).join(", "),
+        row.turnsCount,
+        row.minutes,
+        round1(row.minutes / 60),
+        row.laps,
+        row.fuel || "",
+        formatLapTime(row.bestLapMs),
+        row.eventCar.status || "",
+      ].map(csvCell).join(";"));
+    });
+
+    lines.push("");
+    lines.push("TURNI");
+    lines.push(["Data", "Mezzo", "Sessione", "Tipo sessione", "Pilota", "Minuti", "Ore", "Giri", "Fuel start L", "Fuel end L", "Fuel usato L", "Best lap", "Avg lap", "Temp acqua max", "Temp olio max", "Condizione pista"].map(csvCell).join(";"));
+    turns.forEach((turn) => {
+      const eventCar = eventCarMap.get(turn.event_car_id);
+      const session = turn.event_session_id ? sessionMap.get(turn.event_session_id) : null;
+      const driver = turn.driver_id ? driverMap.get(turn.driver_id) : null;
+      lines.push([
+        formatDateTime(turn.recorded_at || turn.created_at),
+        eventCar?.car_id?.name || "",
+        session?.name || "",
+        sessionTypeLabel(session?.session_type),
+        driverName(driver),
+        turn.minutes || 0,
+        round1(Number(turn.minutes || 0) / 60),
+        turn.laps || 0,
+        turn.fuel_start_liters ?? "",
+        turn.fuel_end_liters ?? "",
+        getFuelUsed(turn) || "",
+        formatLapTime(turn.metrics?.best_lap_ms),
+        formatLapTime(turn.metrics?.avg_lap_ms),
+        turn.metrics?.max_water_temp_c ?? "",
+        turn.metrics?.max_oil_temp_c ?? "",
+        turn.metrics?.track_condition || "",
+      ].map(csvCell).join(";"));
+    });
+
+    lines.push("");
+    lines.push("SESSIONI");
+    lines.push(["Nome", "Tipo", "Turni collegati", "Creata il"].map(csvCell).join(";"));
+    sessions.forEach((session) => {
+      const turnsCount = turns.filter((turn) => turn.event_session_id === session.id).length;
+      lines.push([session.name, sessionTypeLabel(session.session_type), turnsCount, formatDateTime(session.created_at)].map(csvCell).join(";"));
+    });
+
+    const csv = `\ufeff${lines.join("\n")}`;
+    const filename = `report-evento-${safeFilename(event.name)}-${event.date || new Date().toISOString().slice(0, 10)}.csv`;
+    downloadTextFile(filename, csv, "text/csv;charset=utf-8");
+    setFeedback({ type: "success", message: "Report evento esportato in CSV." });
+  }
+
   function printEventReport() {
     const rowsHtml = carReportRows
       .map(
@@ -702,6 +814,14 @@ export default function EventDetailPage() {
         icon={<CalendarDays className="h-6 w-6" />}
         actions={
           <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={exportEventReportCsv}
+              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
+            >
+              <Download className="h-4 w-4" />
+              Esporta CSV
+            </button>
             <button
               type="button"
               onClick={printEventReport}
