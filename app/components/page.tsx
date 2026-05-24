@@ -53,6 +53,32 @@ type ComponentRow = {
   car: { name: string } | { name: string }[] | null;
 };
 
+const emptyForm = {
+  type: "",
+  customType: "",
+  identifier: "",
+  car_id: "",
+  hours: "0",
+  life_hours: "0",
+  warning_threshold_hours: "",
+  revision_threshold_hours: "",
+  expiry_date: "",
+  notes: "",
+};
+
+function normalizeCarName(car: ComponentRow["car"]) {
+  if (!car) return null;
+  if (Array.isArray(car)) return car[0]?.name || null;
+  return car.name || null;
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("it-IT");
+}
+
 const getStatus = getComponentStatus;
 const getHoursInfo = getComponentHoursInfo;
 const formatHours = formatComponentHours;
