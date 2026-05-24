@@ -325,46 +325,81 @@ export default function CarsPage() {
     );
   }
 
-  async function createOrAttachComponents(carId: string) {
-    const ctx = await getCurrentTeamContext();
-    for (const def of definitions) {
-      const form = componentForms[def.code];
-      if (!form) continue;
+async function createOrAttachComponents(carId: string) {
+  const ctx = await getCurrentTeamContext();
+  const mountedAt = new Date().toISOString().slice(0, 10);
 
-      if (form.mode === "existing" && form.existingId) {
-        const { error } = await supabase
-          .from("components")
-          .update({ car_id: carId })
-          .eq("team_id", ctx.teamId)
-          .eq("id", form.existingId);
-        if (error) throw error;
-      }
+  async function mountComponent(componentId: string, reason: string) {
+    const { error } = await supabase.rpc("mount_component_on_car", {
+      p_team_id: ctx.teamId,
+      p_car_id: carId,
+      p_component_id: componentId,
+      p_mounted_at: mountedAt,
+      p_mounted_by_team_user_id: ctx.teamUserId,
+      p_reason: reason,
+      p_replace_same_type: true,
+    });
 
-      if (form.mode === "new" && form.identifier.trim()) {
-        const payload: any = {
-          team_id: ctx.teamId,
-          type: def.code,
-          identifier: form.identifier.trim(),
-          car_id: carId,
-          is_active: true,
-          hours: parseNumber(form.hours),
-          life_hours: form.life_hours ? parseNumber(form.life_hours) : 0,
-          warning_threshold_hours: form.warning_threshold_hours
-            ? parseNumber(form.warning_threshold_hours)
-            : null,
-          revision_threshold_hours: form.revision_threshold_hours
-            ? parseNumber(form.revision_threshold_hours)
-            : null,
-          expiry_date: def.has_expiry ? form.expiry_date || null : null,
-          notes: form.notes || null,
-        };
-        const { error } = await supabase.from("components").insert([payload]);
-        if (error) throw error;
-      }
+    if (error) throw error;
+  }
 
-      if (!def.is_required && !form.existingId && !form.identifier.trim()) continue;
+  for (const def of definitions) {
+    const form = componentForms[def.code];
+    if (!form) continue;
+
+    if (!def.is_required && !form.existingId && !form.identifier.trim()) {
+      continue;
+    }
+
+    if (form.mode === "existing" && form.existingId) {
+      await mountComponent(
+        form.existingId,
+        editing
+          ? `Aggiornamento componente ${def.label || def.code} da scheda auto`
+          : `Montaggio iniziale componente ${def.label || def.code} da creazione auto`
+      );
+      continue;
+    }
+
+    if (form.mode === "new" && form.identifier.trim()) {
+      const payload: any = {
+        team_id: ctx.teamId,
+        type: def.code,
+        identifier: form.identifier.trim(),
+        // Importante: il componente nasce libero.
+        // Il collegamento all'auto viene fatto dalla RPC mount_component_on_car,
+        // che crea anche lo storico in car_components.
+        car_id: null,
+        is_active: true,
+        hours: parseNumber(form.hours),
+        life_hours: form.life_hours ? parseNumber(form.life_hours) : 0,
+        warning_threshold_hours: form.warning_threshold_hours
+          ? parseNumber(form.warning_threshold_hours)
+          : null,
+        revision_threshold_hours: form.revision_threshold_hours
+          ? parseNumber(form.revision_threshold_hours)
+          : null,
+        expiry_date: def.has_expiry ? form.expiry_date || null : null,
+        notes: form.notes || null,
+      };
+
+      const { data, error } = await supabase
+        .from("components")
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      await mountComponent(
+        data.id,
+        editing
+          ? `Nuovo componente ${def.label || def.code} creato e montato da scheda auto`
+          : `Nuovo componente ${def.label || def.code} creato durante creazione auto`
+      );
     }
   }
+}
 
   async function saveCar() {
     if (!canEditCars) return;
