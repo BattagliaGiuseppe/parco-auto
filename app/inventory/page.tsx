@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Audiowide } from "next/font/google";
 import {
   Download,
   FileSpreadsheet,
@@ -21,7 +20,6 @@ import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type InventoryItem = {
   id: string;
@@ -101,10 +99,10 @@ type CanonicalInventoryField =
   | "notes";
 
 const inputClassName =
-  "w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100";
+  "w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
 
 const textareaClassName =
-  "min-h-28 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100";
+  "min-h-[100px] w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
 
 const templateHeaders: CanonicalInventoryField[] = [
   "sku",
@@ -265,18 +263,18 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="space-y-2 text-sm font-semibold text-neutral-700">
-      <span>{label}</span>
-      {hint ? <span className="block text-xs font-normal text-neutral-500">{hint}</span> : null}
+    <div>
+      <label className="mb-1 block text-sm font-semibold text-neutral-700">{label}</label>
+      {hint ? <div className="mb-2 text-xs text-neutral-500">{hint}</div> : null}
       {children}
-    </label>
+    </div>
   );
 }
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
-      <div className="mb-2 flex items-center gap-2 font-bold">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-600 shadow-sm">
+      <div className="mb-2 flex items-center gap-2 font-bold text-neutral-900">
         <Info size={16} />
         Nota import/export
       </div>
@@ -496,6 +494,7 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [form, setForm] = useState<InventoryForm>(buildDefaultForm());
+  const [formOpen, setFormOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -644,6 +643,7 @@ export default function InventoryPage() {
       }
 
       setForm(buildDefaultForm());
+      setFormOpen(false);
       setFeedback({ type: "success", message: "Articolo aggiunto correttamente." });
       await load();
     } catch (error) {
@@ -926,10 +926,20 @@ export default function InventoryPage() {
         icon={<Package size={28} />}
         actions={
           <div className="flex flex-wrap gap-2">
+            {canEditInventory ? (
+              <button
+                type="button"
+                onClick={() => setFormOpen(true)}
+                className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+              >
+                <PlusCircle size={16} className="mr-2 inline" />
+                Nuovo articolo
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={downloadTemplate}
-              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 shadow-sm hover:bg-neutral-50"
+              className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
             >
               <FileSpreadsheet size={16} className="mr-2 inline" />
               Template CSV
@@ -940,7 +950,7 @@ export default function InventoryPage() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} className="mr-2 inline" />
                   {importing ? "Import..." : "Importa CSV"}
@@ -957,7 +967,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={exportCsv}
-              className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-neutral-800"
+              className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800"
             >
               <Download size={16} className="mr-2 inline" />
               Esporta CSV
@@ -980,14 +990,136 @@ export default function InventoryPage() {
         virgola, punto e virgola e numeri europei con decimali a virgola.
       </InfoBlock>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
-        {canEditInventory ? (
-          <SectionCard
-            title="Nuovo articolo"
-            subtitle="Inserisci anagrafica, codici standard e quantità iniziale."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Codice interno / SKU" hint="Campo consigliato per import/export e aggiornamenti futuri.">
+      <SectionCard
+        title="Articoli a magazzino"
+        subtitle="Consulta disponibilità, soglie minime, codici e materiali impegnati."
+      >
+        {loading ? (
+          <div className="text-neutral-500">Caricamento magazzino...</div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="Nessun articolo registrato"
+            description="Aggiungi il primo articolo oppure scarica il template e importa un CSV iniziale."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {canEditInventory ? (
+                  <button
+                    type="button"
+                    onClick={() => setFormOpen(true)}
+                    className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                  >
+                    Aggiungi articolo
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={downloadTemplate}
+                  className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+                >
+                  Scarica template CSV
+                </button>
+              </div>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-neutral-200">
+            <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
+              <thead className="bg-neutral-50">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  <th className="px-4 py-3">Articolo</th>
+                  <th className="px-4 py-3">Codici</th>
+                  <th className="px-4 py-3">Categoria</th>
+                  <th className="px-4 py-3">Disponibile</th>
+                  <th className="px-4 py-3">Minima</th>
+                  <th className="px-4 py-3">Impegnata</th>
+                  <th className="px-4 py-3">Unità</th>
+                  <th className="px-4 py-3">Posizione</th>
+                  <th className="px-4 py-3">Costo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {rows.map((row) => {
+                  const quantity = Number(row.quantity ?? 0);
+                  const reserved = Number(row.reserved_quantity ?? 0);
+                  const available = Math.max(quantity - reserved, 0);
+                  const minimum = Number(row.minimum_quantity ?? 0);
+                  const lowStock = available <= minimum;
+
+                  return (
+                    <tr key={row.id} className="align-top">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-neutral-900">{row.name}</div>
+                        <div className="mt-1 text-xs text-neutral-500">
+                          {[row.brand, row.supplier_name].filter(Boolean).join(" · ") || "—"}
+                        </div>
+                        {row.notes ? (
+                          <div className="mt-1 max-w-md text-xs leading-5 text-neutral-500">
+                            {row.notes}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-xs leading-5 text-neutral-600">
+                        <div>SKU: {row.sku || "—"}</div>
+                        <div>Forn.: {row.supplier_code || "—"}</div>
+                        <div>OEM: {row.manufacturer_code || "—"}</div>
+                        <div>EAN: {row.barcode || "—"}</div>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-700">{row.category || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={
+                            lowStock
+                              ? "font-semibold text-red-600"
+                              : "font-semibold text-neutral-900"
+                          }
+                        >
+                          {formatNumber(available)}
+                        </span>
+                        {available !== quantity ? (
+                          <div className="mt-1 text-xs text-neutral-500">
+                            Giacenza: {formatNumber(quantity)}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-700">{formatNumber(minimum)}</td>
+                      <td className="px-4 py-3 text-neutral-700">{formatNumber(reserved)}</td>
+                      <td className="px-4 py-3 text-neutral-700">{row.unit || "pz"}</td>
+                      <td className="px-4 py-3 text-neutral-700">{row.location || "—"}</td>
+                      <td className="px-4 py-3 text-neutral-700">
+                        {row.unit_cost !== null && row.unit_cost !== undefined
+                          ? `${formatNumber(row.unit_cost)} ${row.currency || "EUR"}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {formOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">Nuovo articolo</h3>
+                <div className="mt-1 text-sm text-neutral-500">
+                  Inserisci anagrafica, codici standard e quantità iniziale.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Codice interno / SKU" hint="Consigliato per import/export e aggiornamenti futuri.">
                 <input
                   value={form.sku}
                   onChange={(event) => setForm({ ...form, sku: event.target.value })}
@@ -1151,7 +1283,14 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end">
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Annulla
+              </button>
               <button
                 type="button"
                 onClick={addItem}
@@ -1162,110 +1301,9 @@ export default function InventoryPage() {
                 {saving ? "Salvataggio..." : "Aggiungi articolo"}
               </button>
             </div>
-          </SectionCard>
-        ) : null}
-
-        <SectionCard
-          title="Articoli a magazzino"
-          subtitle="Consulta disponibilità, soglie minime, codici e materiali impegnati."
-          className={canEditInventory ? "" : "xl:col-span-2"}
-        >
-          {loading ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
-              Caricamento magazzino...
-            </div>
-          ) : rows.length === 0 ? (
-            <EmptyState
-              title="Nessun articolo registrato"
-              description="Aggiungi il primo articolo oppure scarica il template e importa un CSV iniziale."
-              action={
-                <button
-                  type="button"
-                  onClick={downloadTemplate}
-                  className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
-                >
-                  Scarica template CSV
-                </button>
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto rounded-3xl border border-neutral-200">
-              <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
-                <thead className="bg-neutral-50">
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    <th className="px-4 py-3">Articolo</th>
-                    <th className="px-4 py-3">Codici</th>
-                    <th className="px-4 py-3">Categoria</th>
-                    <th className="px-4 py-3">Disponibile</th>
-                    <th className="px-4 py-3">Minima</th>
-                    <th className="px-4 py-3">Impegnata</th>
-                    <th className="px-4 py-3">Unità</th>
-                    <th className="px-4 py-3">Posizione</th>
-                    <th className="px-4 py-3">Costo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {rows.map((row) => {
-                    const quantity = Number(row.quantity ?? 0);
-                    const reserved = Number(row.reserved_quantity ?? 0);
-                    const available = Math.max(quantity - reserved, 0);
-                    const minimum = Number(row.minimum_quantity ?? 0);
-                    const lowStock = available <= minimum;
-
-                    return (
-                      <tr key={row.id} className="align-top">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-neutral-900">{row.name}</div>
-                          <div className="mt-1 text-xs text-neutral-500">
-                            {[row.brand, row.supplier_name].filter(Boolean).join(" · ") || "—"}
-                          </div>
-                          {row.notes ? (
-                            <div className="mt-1 max-w-md text-xs leading-5 text-neutral-500">
-                              {row.notes}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3 text-xs leading-5 text-neutral-600">
-                          <div>SKU: {row.sku || "—"}</div>
-                          <div>Forn.: {row.supplier_code || "—"}</div>
-                          <div>OEM: {row.manufacturer_code || "—"}</div>
-                          <div>EAN: {row.barcode || "—"}</div>
-                        </td>
-                        <td className="px-4 py-3 text-neutral-700">{row.category || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={
-                              lowStock
-                                ? "font-semibold text-red-600"
-                                : "font-semibold text-neutral-900"
-                            }
-                          >
-                            {formatNumber(available)}
-                          </span>
-                          {available !== quantity ? (
-                            <div className="mt-1 text-xs text-neutral-500">
-                              Giacenza: {formatNumber(quantity)}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3 text-neutral-700">{formatNumber(minimum)}</td>
-                        <td className="px-4 py-3 text-neutral-700">{formatNumber(reserved)}</td>
-                        <td className="px-4 py-3 text-neutral-700">{row.unit || "pz"}</td>
-                        <td className="px-4 py-3 text-neutral-700">{row.location || "—"}</td>
-                        <td className="px-4 py-3 text-neutral-700">
-                          {row.unit_cost !== null && row.unit_cost !== undefined
-                            ? `${formatNumber(row.unit_cost)} ${row.currency || "EUR"}`
-                            : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
-      </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
