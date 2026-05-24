@@ -22,6 +22,7 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import { usePermissionAccess } from "@/lib/permissions";
+import { formatComponentHours, getComponentHoursInfo, getComponentStatus } from "@/lib/componentStatus";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -52,110 +53,9 @@ type ComponentRow = {
   car: { name: string } | { name: string }[] | null;
 };
 
-type StatusTone = "neutral" | "green" | "yellow" | "red" | "blue" | "purple";
-
-type ComponentStatus = {
-  label: string;
-  tone: StatusTone;
-  severity: number;
-};
-
-type HoursInfo = {
-  revisionHours: number;
-  lifeHours: number;
-  warningThreshold: number | null;
-  revisionThreshold: number | null;
-  remainingHours: number | null;
-  progress: number | null;
-};
-
-const emptyForm = {
-  type: "",
-  customType: "",
-  identifier: "",
-  car_id: "",
-  hours: "0",
-  life_hours: "0",
-  warning_threshold_hours: "",
-  revision_threshold_hours: "",
-  expiry_date: "",
-  notes: "",
-};
-
-function normalizeCarName(car: ComponentRow["car"]) {
-  if (!car) return null;
-  if (Array.isArray(car)) return car[0]?.name || null;
-  return car.name || null;
-}
-
-function toNumber(value: number | string | null | undefined) {
-  const n = Number(value || 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function toOptionalNumber(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function formatHours(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-  return `${Number(value).toFixed(1)} h`;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("it-IT");
-}
-
-function getHoursInfo(row: ComponentRow): HoursInfo {
-  const revisionHours = toNumber(row.hours);
-  const lifeHours = toNumber(row.life_hours);
-  const warningThreshold = toOptionalNumber(row.warning_threshold_hours);
-  const revisionThreshold = toOptionalNumber(row.revision_threshold_hours);
-  const remainingHours =
-    revisionThreshold === null ? null : Math.max(0, revisionThreshold - revisionHours);
-  const progress =
-    revisionThreshold === null || revisionThreshold <= 0
-      ? null
-      : Math.min(100, Math.max(0, (revisionHours / revisionThreshold) * 100));
-
-  return {
-    revisionHours,
-    lifeHours,
-    warningThreshold,
-    revisionThreshold,
-    remainingHours,
-    progress,
-  };
-}
-
-function getStatus(row: ComponentRow): ComponentStatus {
-  const info = getHoursInfo(row);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (row.expiry_date) {
-    const expiry = new Date(row.expiry_date);
-    if (!Number.isNaN(expiry.getTime()) && expiry < today) {
-      return { label: "Scaduto", tone: "red", severity: 4 };
-    }
-  }
-
-  if (info.revisionThreshold !== null && info.revisionHours >= info.revisionThreshold) {
-    return { label: "Revisione necessaria", tone: "red", severity: 4 };
-  }
-
-  if (info.warningThreshold !== null && info.revisionHours >= info.warningThreshold) {
-    return { label: "Attenzione", tone: "yellow", severity: 3 };
-  }
-
-  if (row.car_id) return { label: "Montato", tone: "blue", severity: 1 };
-  return { label: "Smontato", tone: "neutral", severity: 0 };
-}
+const getStatus = getComponentStatus;
+const getHoursInfo = getComponentHoursInfo;
+const formatHours = formatComponentHours;
 
 function ProgressBar({ value }: { value: number | null }) {
   if (value === null) {
