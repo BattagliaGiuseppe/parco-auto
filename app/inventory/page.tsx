@@ -7,11 +7,16 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
+  History,
   ImageIcon,
   Info,
   Loader2,
+  Minus,
   Package,
+  Pencil,
+  Plus,
   PlusCircle,
+  RefreshCw,
   Settings2,
   Trash2,
   Upload,
@@ -51,6 +56,44 @@ type InventoryItem = {
   image_path: string | null;
   image_updated_at?: string | null;
   updated_at?: string | null;
+};
+
+type InventoryMovementType =
+  | "in"
+  | "out"
+  | "adjustment"
+  | "reserve"
+  | "release_reserve"
+  | "consume"
+  | "return"
+  | "import"
+  | "correction";
+
+type InventoryMovement = {
+  id: string;
+  team_id: string;
+  inventory_item_id: string;
+  movement_type: InventoryMovementType;
+  quantity_delta: number;
+  quantity_before: number | null;
+  quantity_after: number | null;
+  reason: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  unit_cost: number | null;
+  currency: string | null;
+  created_by_team_user_id: string | null;
+  created_at: string;
+  notes: string | null;
+};
+
+type MovementForm = {
+  itemId: string;
+  itemName: string;
+  movementType: InventoryMovementType;
+  quantity: string;
+  reason: string;
+  notes: string;
 };
 
 type InventoryForm = {
@@ -136,7 +179,8 @@ type InventoryTableColumnKey =
   | "reserved"
   | "unit"
   | "location"
-  | "cost";
+  | "cost"
+  | "actions";
 
 type ImportProgress = {
   total: number;
@@ -185,6 +229,7 @@ const defaultTableColumnOrder: InventoryTableColumnKey[] = [
   "unit",
   "location",
   "cost",
+  "actions",
 ];
 
 const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
@@ -198,6 +243,7 @@ const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
   unit: "Unità",
   location: "Posizione",
   cost: "Costo",
+  actions: "Azioni",
 };
 
 const tableColumnStorageKey = "inventory.tableColumnOrder.v1";
@@ -362,6 +408,51 @@ function buildDefaultForm(): InventoryForm {
   };
 }
 
+function buildFormFromItem(item: InventoryItem): InventoryForm {
+  return {
+    sku: item.sku ?? "",
+    name: item.name ?? "",
+    category: item.category ?? "",
+    brand: item.brand ?? "",
+    supplier_name: item.supplier_name ?? "",
+    supplier_code: item.supplier_code ?? "",
+    manufacturer_code: item.manufacturer_code ?? "",
+    barcode: item.barcode ?? "",
+    quantity: String(item.quantity ?? 0),
+    minimum_quantity: String(item.minimum_quantity ?? 0),
+    reserved_quantity: String(item.reserved_quantity ?? 0),
+    reorder_quantity: String(item.reorder_quantity ?? 0),
+    unit: item.unit ?? "pz",
+    location: item.location ?? "",
+    unit_cost: item.unit_cost === null || item.unit_cost === undefined ? "" : String(item.unit_cost),
+    currency: item.currency ?? "EUR",
+    notes: item.notes ?? "",
+  };
+}
+
+function buildDefaultMovementForm(item: InventoryItem, movementType: InventoryMovementType): MovementForm {
+  const defaultReasonByType: Record<InventoryMovementType, string> = {
+    in: "Carico manuale",
+    out: "Scarico manuale",
+    adjustment: "Rettifica inventario",
+    reserve: "Materiale impegnato",
+    release_reserve: "Rilascio materiale impegnato",
+    consume: "Utilizzo materiale",
+    return: "Reso a magazzino",
+    import: "Import",
+    correction: "Correzione",
+  };
+
+  return {
+    itemId: item.id,
+    itemName: item.name,
+    movementType,
+    quantity: movementType === "adjustment" ? String(item.quantity ?? 0) : "",
+    reason: defaultReasonByType[movementType],
+    notes: "",
+  };
+}
+
 function Field({
   label,
   hint,
@@ -444,6 +535,35 @@ function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("it-IT", {
     maximumFractionDigits: 3,
   }).format(Number(value ?? 0));
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getMovementTypeLabel(type: InventoryMovementType) {
+  const labels: Record<InventoryMovementType, string> = {
+    in: "Carico",
+    out: "Scarico",
+    adjustment: "Rettifica",
+    reserve: "Impegno",
+    release_reserve: "Rilascio impegno",
+    consume: "Utilizzo",
+    return: "Reso",
+    import: "Import",
+    correction: "Correzione",
+  };
+
+  return labels[type] ?? type;
 }
 
 function csvEscape(value: unknown) {
@@ -690,6 +810,27 @@ function buildInventoryPayload(form: InventoryForm, teamId: string, quantityOver
   };
 }
 
+function buildInventoryUpdatePayload(form: InventoryForm) {
+  return {
+    sku: normalizeText(form.sku),
+    name: form.name.trim(),
+    category: normalizeText(form.category),
+    brand: normalizeText(form.brand),
+    supplier_name: normalizeText(form.supplier_name),
+    supplier_code: normalizeText(form.supplier_code),
+    manufacturer_code: normalizeText(form.manufacturer_code),
+    barcode: normalizeText(form.barcode),
+    minimum_quantity: Math.max(parseNumber(form.minimum_quantity), 0),
+    reorder_quantity: Math.max(parseNumber(form.reorder_quantity), 0),
+    unit: normalizeText(form.unit) || "pz",
+    location: normalizeText(form.location),
+    unit_cost: form.unit_cost.trim() ? Math.max(parseNumber(form.unit_cost), 0) : null,
+    currency: normalizeCurrency(form.currency),
+    notes: normalizeText(form.notes),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 function buildInventoryPayloadFromImport(record: ImportRecord, teamId: string, quantityOverride = 0) {
   return {
     team_id: teamId,
@@ -802,6 +943,14 @@ export default function InventoryPage() {
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [movementForm, setMovementForm] = useState<MovementForm | null>(null);
+  const [movementSaving, setMovementSaving] = useState(false);
+  const [movementHistoryItem, setMovementHistoryItem] = useState<InventoryItem | null>(null);
+  const [movementHistory, setMovementHistory] = useState<InventoryMovement[]>([]);
+  const [movementHistoryLoading, setMovementHistoryLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "reserved" | "withPhoto" | "withoutPhoto">("all");
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [imageUploadingId, setImageUploadingId] = useState<string | null>(null);
@@ -926,6 +1075,42 @@ export default function InventoryPage() {
     ];
   }, [rows]);
 
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return rows.filter((row) => {
+      const quantity = Number(row.quantity ?? 0);
+      const reserved = Number(row.reserved_quantity ?? 0);
+      const available = Math.max(quantity - reserved, 0);
+      const minimum = Number(row.minimum_quantity ?? 0);
+
+      if (stockFilter === "low" && available > minimum) return false;
+      if (stockFilter === "reserved" && reserved <= 0) return false;
+      if (stockFilter === "withPhoto" && !row.image_path) return false;
+      if (stockFilter === "withoutPhoto" && row.image_path) return false;
+
+      if (!query) return true;
+
+      const searchable = [
+        row.name,
+        row.sku,
+        row.category,
+        row.brand,
+        row.supplier_name,
+        row.supplier_code,
+        row.manufacturer_code,
+        row.barcode,
+        row.location,
+        row.notes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(query);
+    });
+  }, [rows, search, stockFilter]);
+
   const importValidation = useMemo(() => {
     if (!importWizard) return null;
     const records = buildRecordsFromMapping(importWizard.rows, importWizard.mapping);
@@ -937,6 +1122,64 @@ export default function InventoryPage() {
     return Object.values(importWizard.mapping).filter((field) => field !== "ignore");
   }, [importWizard]);
 
+  function openNewItemForm() {
+    setEditId(null);
+    setForm(buildDefaultForm());
+    setFormImageFile(null);
+    setFormOpen(true);
+  }
+
+  function openEditItemForm(row: InventoryItem) {
+    setEditId(row.id);
+    setForm(buildFormFromItem(row));
+    setFormImageFile(null);
+    setFormOpen(true);
+  }
+
+  function closeItemForm() {
+    setEditId(null);
+    setForm(buildDefaultForm());
+    setFormImageFile(null);
+    setFormOpen(false);
+  }
+
+  function openMovementForm(row: InventoryItem, movementType: InventoryMovementType) {
+    setMovementForm(buildDefaultMovementForm(row, movementType));
+  }
+
+  function closeMovementForm() {
+    setMovementForm(null);
+  }
+
+  async function openMovementHistory(row: InventoryItem) {
+    setMovementHistoryItem(row);
+    setMovementHistory([]);
+    setMovementHistoryLoading(true);
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("*")
+        .eq("team_id", ctx.teamId)
+        .eq("inventory_item_id", row.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      setMovementHistory((data as InventoryMovement[] | null) ?? []);
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Errore caricamento storico movimenti: ${error.message}`
+            : "Errore caricamento storico movimenti.",
+      });
+    } finally {
+      setMovementHistoryLoading(false);
+    }
+  }
 
   function handleFormImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -1069,7 +1312,7 @@ export default function InventoryPage() {
   async function createMovement(params: {
     itemId: string;
     quantityDelta: number;
-    movementType: "in" | "import" | "correction";
+    movementType: InventoryMovementType;
     reason: string;
     unitCost?: number | null;
     currency?: string | null;
@@ -1158,6 +1401,122 @@ export default function InventoryPage() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+
+  async function updateItem() {
+    if (!canEditInventory || saving || !editId) return;
+    setFeedback(null);
+
+    if (!form.name.trim()) {
+      setFeedback({ type: "error", message: "Inserisci almeno il nome dell'articolo." });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const payload = buildInventoryUpdatePayload(form);
+      const currentItem = rows.find((row) => row.id === editId);
+
+      const { error } = await supabase
+        .from("inventory_items")
+        .update(payload)
+        .eq("team_id", ctx.teamId)
+        .eq("id", editId);
+
+      if (error) throw error;
+
+      if (formImageFile) {
+        await uploadInventoryImage({
+          itemId: editId,
+          teamId: ctx.teamId,
+          file: formImageFile,
+          previousImagePath: currentItem?.image_path,
+        });
+      }
+
+      closeItemForm();
+      await load({ keepFeedback: true });
+      setFeedback({ type: "success", message: "Articolo aggiornato correttamente." });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Errore aggiornamento articolo: ${error.message}`
+            : "Errore aggiornamento articolo.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveItem() {
+    if (editId) {
+      await updateItem();
+      return;
+    }
+
+    await addItem();
+  }
+
+  async function confirmMovement() {
+    if (!canEditInventory || movementSaving || !movementForm) return;
+    setFeedback(null);
+
+    const item = rows.find((row) => row.id === movementForm.itemId);
+    if (!item) {
+      setFeedback({ type: "error", message: "Articolo non trovato." });
+      return;
+    }
+
+    const parsedQuantity = parseNumber(movementForm.quantity, Number.NaN);
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      setFeedback({ type: "error", message: "Inserisci una quantità valida maggiore di zero." });
+      return;
+    }
+
+    let quantityDelta = parsedQuantity;
+    if (movementForm.movementType === "adjustment") {
+      quantityDelta = parsedQuantity - Number(item.quantity ?? 0);
+      if (quantityDelta === 0) {
+        setFeedback({ type: "info", message: "La quantità finale è uguale alla giacenza attuale: nessuna rettifica necessaria." });
+        return;
+      }
+    }
+
+    setMovementSaving(true);
+
+    try {
+      await createMovement({
+        itemId: movementForm.itemId,
+        quantityDelta,
+        movementType: movementForm.movementType,
+        reason: movementForm.reason.trim() || getMovementTypeLabel(movementForm.movementType),
+        unitCost: item.unit_cost,
+        currency: item.currency,
+        notes: movementForm.notes.trim() || null,
+      });
+
+      closeMovementForm();
+      await load({ keepFeedback: true });
+      setFeedback({
+        type: "success",
+        message: `${getMovementTypeLabel(movementForm.movementType)} registrato correttamente per ${item.name}.`,
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Errore movimento magazzino: ${error.message}`
+            : "Errore movimento magazzino.",
+      });
+    } finally {
+      setMovementSaving(false);
     }
   }
 
@@ -1624,6 +1983,75 @@ export default function InventoryPage() {
               : "—"}
           </span>
         );
+      case "actions":
+        return canEditInventory ? (
+          <div className="flex min-w-[220px] flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => openEditItemForm(row)}
+              className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+            >
+              <Pencil size={12} className="mr-1 inline" />
+              Modifica
+            </button>
+            <button
+              type="button"
+              onClick={() => openMovementForm(row, "in")}
+              className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"
+            >
+              <Plus size={12} className="mr-1 inline" />
+              Carico
+            </button>
+            <button
+              type="button"
+              onClick={() => openMovementForm(row, "out")}
+              className="rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+            >
+              <Minus size={12} className="mr-1 inline" />
+              Scarico
+            </button>
+            <button
+              type="button"
+              onClick={() => openMovementForm(row, "adjustment")}
+              className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              <RefreshCw size={12} className="mr-1 inline" />
+              Rettifica
+            </button>
+            <button
+              type="button"
+              onClick={() => openMovementForm(row, "reserve")}
+              className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+            >
+              Impegna
+            </button>
+            {Number(row.reserved_quantity ?? 0) > 0 ? (
+              <button
+                type="button"
+                onClick={() => openMovementForm(row, "release_reserve")}
+                className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Rilascia
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void openMovementHistory(row)}
+              className="rounded-lg bg-neutral-900 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-800"
+            >
+              <History size={12} className="mr-1 inline" />
+              Storico
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void openMovementHistory(row)}
+            className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+          >
+            Storico
+          </button>
+        );
       default:
         return null;
     }
@@ -1675,7 +2103,7 @@ export default function InventoryPage() {
             {canEditInventory ? (
               <button
                 type="button"
-                onClick={() => setFormOpen(true)}
+                onClick={openNewItemForm}
                 className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
@@ -1740,14 +2168,34 @@ export default function InventoryPage() {
 
       <InfoBlock>
         Il magazzino è pronto per un caricamento iniziale pulito: puoi usare il template CSV oppure
-        importare file con intestazioni comuni italiane/inglesi. L’import ora è guidato: dopo il
-        caricamento puoi verificare e correggere l’associazione colonne prima di scrivere nel database.
+        importare file con intestazioni comuni italiane/inglesi. Dopo l’import puoi modificare
+        l’anagrafica articolo, registrare carichi/scarichi, rettificare la giacenza e consultare
+        lo storico movimenti.
       </InfoBlock>
 
       <SectionCard
         title="Articoli a magazzino"
         subtitle="Consulta disponibilità, soglie minime, codici e materiali impegnati."
       >
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cerca per nome, SKU, marca, fornitore, posizione..."
+            className={inputClassName}
+          />
+          <select
+            value={stockFilter}
+            onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)}
+            className={inputClassName}
+          >
+            <option value="all">Tutti gli articoli</option>
+            <option value="low">Sotto scorta minima</option>
+            <option value="reserved">Con quantità impegnata</option>
+            <option value="withPhoto">Con foto</option>
+            <option value="withoutPhoto">Senza foto</option>
+          </select>
+        </div>
         {loading ? (
           <div className="text-neutral-500">Caricamento magazzino...</div>
         ) : rows.length === 0 ? (
@@ -1759,7 +2207,7 @@ export default function InventoryPage() {
                 {canEditInventory ? (
                   <button
                     type="button"
-                    onClick={() => setFormOpen(true)}
+                    onClick={openNewItemForm}
                     className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
                   >
                     Aggiungi articolo
@@ -1775,6 +2223,11 @@ export default function InventoryPage() {
               </div>
             }
           />
+        ) : filteredRows.length === 0 ? (
+          <EmptyState
+            title="Nessun articolo trovato"
+            description="Modifica ricerca o filtro per visualizzare altri articoli."
+          />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-neutral-200">
             <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
@@ -1788,7 +2241,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <tr key={row.id} className="align-top">
                     {columnOrder.map((column) => (
                       <td key={column} className="px-4 py-3">
@@ -1808,14 +2261,14 @@ export default function InventoryPage() {
           <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">Nuovo articolo</h3>
+                <h3 className="text-xl font-bold text-neutral-900">{editId ? "Modifica articolo" : "Nuovo articolo"}</h3>
                 <div className="mt-1 text-sm text-neutral-500">
-                  Inserisci anagrafica, codici standard e quantità iniziale.
+                  {editId ? "Aggiorna anagrafica, codici, soglie e posizione. Le quantità si modificano dai movimenti." : "Inserisci anagrafica, codici standard e quantità iniziale."}
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => { setFormImageFile(null); setFormOpen(false); }}
+                onClick={closeItemForm}
                 className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
               >
                 Chiudi
@@ -1938,14 +2391,18 @@ export default function InventoryPage() {
                 />
               </Field>
 
-              <Field label="Quantità iniziale">
+              <Field
+                label={editId ? "Giacenza attuale" : "Quantità iniziale"}
+                hint={editId ? "Per modificare la giacenza usa Carico, Scarico o Rettifica dalla tabella." : undefined}
+              >
                 <input
                   type="number"
                   step="0.001"
                   min="0"
                   value={form.quantity}
                   onChange={(event) => setForm({ ...form, quantity: event.target.value })}
-                  className={inputClassName}
+                  disabled={Boolean(editId)}
+                  className={`${inputClassName} ${editId ? "bg-neutral-100 text-neutral-500" : ""}`}
                 />
               </Field>
 
@@ -1960,14 +2417,18 @@ export default function InventoryPage() {
                 />
               </Field>
 
-              <Field label="Impegnata / riservata">
+              <Field
+                label="Impegnata / riservata"
+                hint={editId ? "Per impegnare o rilasciare quantità usa i movimenti dalla tabella." : undefined}
+              >
                 <input
                   type="number"
                   step="0.001"
                   min="0"
                   value={form.reserved_quantity}
                   onChange={(event) => setForm({ ...form, reserved_quantity: event.target.value })}
-                  className={inputClassName}
+                  disabled={Boolean(editId)}
+                  className={`${inputClassName} ${editId ? "bg-neutral-100 text-neutral-500" : ""}`}
                 />
               </Field>
 
@@ -2033,20 +2494,180 @@ export default function InventoryPage() {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => { setFormImageFile(null); setFormOpen(false); }}
+                onClick={closeItemForm}
                 className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
               >
                 Annulla
               </button>
               <button
                 type="button"
-                onClick={addItem}
+                onClick={saveItem}
                 disabled={saving}
                 className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
-                {saving ? "Salvataggio..." : "Aggiungi articolo"}
+                {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Aggiungi articolo"}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+
+      {movementForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">
+                  {getMovementTypeLabel(movementForm.movementType)} magazzino
+                </h3>
+                <div className="mt-1 text-sm text-neutral-500">
+                  Articolo: <span className="font-semibold text-neutral-700">{movementForm.itemName}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeMovementForm}
+                disabled={movementSaving}
+                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <Field
+                label={movementForm.movementType === "adjustment" ? "Quantità finale corretta" : "Quantità"}
+                hint={
+                  movementForm.movementType === "adjustment"
+                    ? "Inserisci la giacenza finale reale dopo controllo inventario. Il sistema calcolerà la differenza."
+                    : movementForm.movementType === "reserve"
+                      ? "La quantità verrà impegnata ma resterà fisicamente in magazzino."
+                      : movementForm.movementType === "release_reserve"
+                        ? "La quantità verrà rimossa dagli impegni e tornerà disponibile."
+                        : undefined
+                }
+              >
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={movementForm.quantity}
+                  onChange={(event) =>
+                    setMovementForm({ ...movementForm, quantity: event.target.value })
+                  }
+                  className={inputClassName}
+                  autoFocus
+                />
+              </Field>
+
+              <Field label="Motivo movimento">
+                <input
+                  value={movementForm.reason}
+                  onChange={(event) =>
+                    setMovementForm({ ...movementForm, reason: event.target.value })
+                  }
+                  placeholder="Es. Acquisto, utilizzo evento, rettifica inventario..."
+                  className={inputClassName}
+                />
+              </Field>
+
+              <Field label="Note">
+                <textarea
+                  value={movementForm.notes}
+                  onChange={(event) =>
+                    setMovementForm({ ...movementForm, notes: event.target.value })
+                  }
+                  placeholder="Eventuali dettagli aggiuntivi, documento, riferimento ordine, auto/evento collegato..."
+                  className={textareaClassName}
+                />
+              </Field>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeMovementForm}
+                disabled={movementSaving}
+                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmMovement()}
+                disabled={movementSaving}
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {movementSaving ? (
+                  <Loader2 size={16} className="mr-2 inline animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} className="mr-2 inline" />
+                )}
+                {movementSaving ? "Registrazione..." : "Registra movimento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {movementHistoryItem ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">Storico movimenti</h3>
+                <div className="mt-1 text-sm text-neutral-500">
+                  Articolo: <span className="font-semibold text-neutral-700">{movementHistoryItem.name}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMovementHistoryItem(null)}
+                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-2xl border border-neutral-200">
+              {movementHistoryLoading ? (
+                <div className="p-6 text-sm text-neutral-500">Caricamento movimenti...</div>
+              ) : movementHistory.length === 0 ? (
+                <div className="p-6 text-sm text-neutral-500">Nessun movimento registrato per questo articolo.</div>
+              ) : (
+                <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                  <thead className="bg-neutral-50">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Tipo</th>
+                      <th className="px-4 py-3">Delta</th>
+                      <th className="px-4 py-3">Prima</th>
+                      <th className="px-4 py-3">Dopo</th>
+                      <th className="px-4 py-3">Motivo</th>
+                      <th className="px-4 py-3">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {movementHistory.map((movement) => (
+                      <tr key={movement.id} className="align-top">
+                        <td className="px-4 py-3 text-neutral-600">{formatDateTime(movement.created_at)}</td>
+                        <td className="px-4 py-3 font-semibold text-neutral-900">
+                          {getMovementTypeLabel(movement.movement_type)}
+                        </td>
+                        <td className={Number(movement.quantity_delta ?? 0) < 0 ? "px-4 py-3 font-semibold text-red-600" : "px-4 py-3 font-semibold text-green-700"}>
+                          {Number(movement.quantity_delta ?? 0) > 0 ? "+" : ""}{formatNumber(movement.quantity_delta)}
+                        </td>
+                        <td className="px-4 py-3 text-neutral-600">{formatNumber(movement.quantity_before)}</td>
+                        <td className="px-4 py-3 text-neutral-600">{formatNumber(movement.quantity_after)}</td>
+                        <td className="px-4 py-3 text-neutral-600">{movement.reason || "—"}</td>
+                        <td className="px-4 py-3 text-neutral-600">{movement.notes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
