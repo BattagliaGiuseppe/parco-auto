@@ -8,8 +8,10 @@ import {
   Download,
   FileSpreadsheet,
   Info,
+  Loader2,
   Package,
   PlusCircle,
+  Settings2,
   Upload,
   XCircle,
 } from "lucide-react";
@@ -120,6 +122,27 @@ type CanonicalInventoryField =
   | "currency"
   | "notes";
 
+type InventoryTableColumnKey =
+  | "article"
+  | "codes"
+  | "category"
+  | "available"
+  | "minimum"
+  | "reserved"
+  | "unit"
+  | "location"
+  | "cost";
+
+type ImportProgress = {
+  total: number;
+  done: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  movements: number;
+  current: string;
+};
+
 const inputClassName =
   "w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
 
@@ -145,6 +168,32 @@ const templateHeaders: CanonicalInventoryField[] = [
   "currency",
   "notes",
 ];
+
+const defaultTableColumnOrder: InventoryTableColumnKey[] = [
+  "article",
+  "codes",
+  "category",
+  "available",
+  "minimum",
+  "reserved",
+  "unit",
+  "location",
+  "cost",
+];
+
+const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
+  article: "Articolo",
+  codes: "Codici",
+  category: "Categoria",
+  available: "Disponibile",
+  minimum: "Minima",
+  reserved: "Impegnata",
+  unit: "Unità",
+  location: "Posizione",
+  cost: "Costo",
+};
+
+const tableColumnStorageKey = "inventory.tableColumnOrder.v1";
 
 const importFieldOptions: { value: ImportMappingValue; label: string; required?: boolean }[] = [
   { value: "ignore", label: "Ignora colonna" },
@@ -678,11 +727,16 @@ export default function InventoryPage() {
   const [form, setForm] = useState<InventoryForm>(buildDefaultForm());
   const [formOpen, setFormOpen] = useState(false);
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [columnOrder, setColumnOrder] = useState<InventoryTableColumnKey[]>([
+    ...defaultTableColumnOrder,
+  ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function load() {
+  async function load(options?: { keepFeedback?: boolean }) {
     setLoading(true);
-    setFeedback(null);
+    if (!options?.keepFeedback) setFeedback(null);
 
     try {
       const ctx = await getCurrentTeamContext();
@@ -721,6 +775,32 @@ export default function InventoryPage() {
       void load();
     }
   }, [access.loading, canViewInventory]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(tableColumnStorageKey);
+      if (!saved) return;
+
+      const parsed = JSON.parse(saved) as InventoryTableColumnKey[];
+      const filtered = parsed.filter((key): key is InventoryTableColumnKey =>
+        defaultTableColumnOrder.includes(key as InventoryTableColumnKey)
+      );
+      const missing = defaultTableColumnOrder.filter((key) => !filtered.includes(key));
+
+      if (filtered.length) {
+        setColumnOrder([...filtered, ...missing]);
+      }
+    } catch {
+      setColumnOrder([...defaultTableColumnOrder]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(tableColumnStorageKey, JSON.stringify(columnOrder));
+  }, [columnOrder]);
 
   const stats = useMemo(() => {
     const underMinimum = rows.filter((row) => {
@@ -936,6 +1016,15 @@ export default function InventoryPage() {
     if (!canEditInventory || importing) return;
     setFeedback(null);
     setImporting(true);
+    setImportProgress({
+      total: records.length,
+      done: 0,
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
+      movements: 0,
+      current: "Preparazione import...",
+    });
 
     const summary: ImportSummary = {
       inserted: 0,
@@ -957,9 +1046,28 @@ export default function InventoryPage() {
         const rowNumber = index + 2;
         const name = normalizeText(record.name);
 
+        setImportProgress({
+          total: records.length,
+          done: index,
+          inserted: summary.inserted,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          movements: summary.movements,
+          current: `Importazione riga ${rowNumber} di ${records.length + 1}...`,
+        });
+
         if (!name) {
           summary.skipped += 1;
           summary.errors.push(`Riga ${rowNumber}: manca il nome articolo.`);
+          setImportProgress({
+            total: records.length,
+            done: index + 1,
+            inserted: summary.inserted,
+            updated: summary.updated,
+            skipped: summary.skipped,
+            movements: summary.movements,
+            current: `Riga ${rowNumber} saltata: manca il nome articolo.`,
+          });
           continue;
         }
 
@@ -1046,23 +1154,50 @@ export default function InventoryPage() {
             `Riga ${rowNumber}: ${error instanceof Error ? error.message : "errore importazione"}`
           );
         }
+
+        setImportProgress({
+          total: records.length,
+          done: index + 1,
+          inserted: summary.inserted,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          movements: summary.movements,
+          current: `Processate ${index + 1} righe su ${records.length}.`,
+        });
       }
 
+      const loadedCount = summary.inserted + summary.updated;
       const errorsCopy = summary.errors.length
-        ? ` Errori: ${summary.errors.slice(0, 5).join(" | ")}${
+        ? ` Dettagli: ${summary.errors.slice(0, 5).join(" | ")}${
             summary.errors.length > 5 ? " ..." : ""
           }`
         : "";
 
+      if (loadedCount === 0) {
+        setFeedback({
+          type: "error",
+          message: `Import non completato: nessun articolo caricato. Saltati: ${summary.skipped}.${errorsCopy}`,
+        });
+        return;
+      }
+
+      await load({ keepFeedback: true });
+      setImportWizard(null);
       setFeedback({
         type: summary.errors.length ? "info" : "success",
         message: `Import completato. Creati: ${summary.inserted}. Aggiornati: ${summary.updated}. Saltati: ${summary.skipped}. Movimenti: ${summary.movements}.${errorsCopy}`,
       });
-
-      setImportWizard(null);
-      await load();
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `Import interrotto: ${error.message}`
+            : "Import interrotto per un errore imprevisto.",
+      });
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   }
 
@@ -1139,6 +1274,88 @@ export default function InventoryPage() {
     }
 
     await importMappedRecords(importValidation.records, importWizard.fileName);
+  }
+
+  function moveColumn(column: InventoryTableColumnKey, direction: "left" | "right") {
+    setColumnOrder((current) => {
+      const index = current.indexOf(column);
+      if (index === -1) return current;
+
+      const nextIndex = direction === "left" ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      next.splice(nextIndex, 0, item);
+      return next;
+    });
+  }
+
+  function resetColumnOrder() {
+    setColumnOrder([...defaultTableColumnOrder]);
+  }
+
+  function renderInventoryCell(row: InventoryItem, column: InventoryTableColumnKey) {
+    const quantity = Number(row.quantity ?? 0);
+    const reserved = Number(row.reserved_quantity ?? 0);
+    const available = Math.max(quantity - reserved, 0);
+    const minimum = Number(row.minimum_quantity ?? 0);
+    const lowStock = available <= minimum;
+
+    switch (column) {
+      case "article":
+        return (
+          <div>
+            <div className="font-semibold text-neutral-900">{row.name}</div>
+            <div className="mt-1 text-xs text-neutral-500">
+              {[row.brand, row.supplier_name].filter(Boolean).join(" · ") || "—"}
+            </div>
+            {row.notes ? (
+              <div className="mt-1 max-w-md text-xs leading-5 text-neutral-500">{row.notes}</div>
+            ) : null}
+          </div>
+        );
+      case "codes":
+        return (
+          <div className="text-xs leading-5 text-neutral-600">
+            <div>SKU: {row.sku || "—"}</div>
+            <div>Forn.: {row.supplier_code || "—"}</div>
+            <div>OEM: {row.manufacturer_code || "—"}</div>
+            <div>EAN: {row.barcode || "—"}</div>
+          </div>
+        );
+      case "category":
+        return <span className="text-neutral-700">{row.category || "—"}</span>;
+      case "available":
+        return (
+          <div>
+            <span className={lowStock ? "font-semibold text-red-600" : "font-semibold text-neutral-900"}>
+              {formatNumber(available)}
+            </span>
+            {available !== quantity ? (
+              <div className="mt-1 text-xs text-neutral-500">Giacenza: {formatNumber(quantity)}</div>
+            ) : null}
+          </div>
+        );
+      case "minimum":
+        return <span className="text-neutral-700">{formatNumber(minimum)}</span>;
+      case "reserved":
+        return <span className="text-neutral-700">{formatNumber(reserved)}</span>;
+      case "unit":
+        return <span className="text-neutral-700">{row.unit || "pz"}</span>;
+      case "location":
+        return <span className="text-neutral-700">{row.location || "—"}</span>;
+      case "cost":
+        return (
+          <span className="text-neutral-700">
+            {row.unit_cost !== null && row.unit_cost !== undefined
+              ? `${formatNumber(row.unit_cost)} ${row.currency || "EUR"}`
+              : "—"}
+          </span>
+        );
+      default:
+        return null;
+    }
   }
 
   if (access.loading) {
@@ -1224,6 +1441,14 @@ export default function InventoryPage() {
             ) : null}
             <button
               type="button"
+              onClick={() => setColumnSettingsOpen(true)}
+              className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+            >
+              <Settings2 size={16} className="mr-2 inline" />
+              Colonne
+            </button>
+            <button
+              type="button"
               onClick={exportCsv}
               className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800"
             >
@@ -1284,73 +1509,23 @@ export default function InventoryPage() {
             <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
               <thead className="bg-neutral-50">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  <th className="px-4 py-3">Articolo</th>
-                  <th className="px-4 py-3">Codici</th>
-                  <th className="px-4 py-3">Categoria</th>
-                  <th className="px-4 py-3">Disponibile</th>
-                  <th className="px-4 py-3">Minima</th>
-                  <th className="px-4 py-3">Impegnata</th>
-                  <th className="px-4 py-3">Unità</th>
-                  <th className="px-4 py-3">Posizione</th>
-                  <th className="px-4 py-3">Costo</th>
+                  {columnOrder.map((column) => (
+                    <th key={column} className="px-4 py-3">
+                      {tableColumnLabels[column]}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {rows.map((row) => {
-                  const quantity = Number(row.quantity ?? 0);
-                  const reserved = Number(row.reserved_quantity ?? 0);
-                  const available = Math.max(quantity - reserved, 0);
-                  const minimum = Number(row.minimum_quantity ?? 0);
-                  const lowStock = available <= minimum;
-
-                  return (
-                    <tr key={row.id} className="align-top">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-neutral-900">{row.name}</div>
-                        <div className="mt-1 text-xs text-neutral-500">
-                          {[row.brand, row.supplier_name].filter(Boolean).join(" · ") || "—"}
-                        </div>
-                        {row.notes ? (
-                          <div className="mt-1 max-w-md text-xs leading-5 text-neutral-500">
-                            {row.notes}
-                          </div>
-                        ) : null}
+                {rows.map((row) => (
+                  <tr key={row.id} className="align-top">
+                    {columnOrder.map((column) => (
+                      <td key={column} className="px-4 py-3">
+                        {renderInventoryCell(row, column)}
                       </td>
-                      <td className="px-4 py-3 text-xs leading-5 text-neutral-600">
-                        <div>SKU: {row.sku || "—"}</div>
-                        <div>Forn.: {row.supplier_code || "—"}</div>
-                        <div>OEM: {row.manufacturer_code || "—"}</div>
-                        <div>EAN: {row.barcode || "—"}</div>
-                      </td>
-                      <td className="px-4 py-3 text-neutral-700">{row.category || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={
-                            lowStock
-                              ? "font-semibold text-red-600"
-                              : "font-semibold text-neutral-900"
-                          }
-                        >
-                          {formatNumber(available)}
-                        </span>
-                        {available !== quantity ? (
-                          <div className="mt-1 text-xs text-neutral-500">
-                            Giacenza: {formatNumber(quantity)}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 text-neutral-700">{formatNumber(minimum)}</td>
-                      <td className="px-4 py-3 text-neutral-700">{formatNumber(reserved)}</td>
-                      <td className="px-4 py-3 text-neutral-700">{row.unit || "pz"}</td>
-                      <td className="px-4 py-3 text-neutral-700">{row.location || "—"}</td>
-                      <td className="px-4 py-3 text-neutral-700">
-                        {row.unit_cost !== null && row.unit_cost !== undefined
-                          ? `${formatNumber(row.unit_cost)} ${row.currency || "EUR"}`
-                          : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1563,9 +1738,123 @@ export default function InventoryPage() {
         </div>
       ) : null}
 
+      {columnSettingsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">Ordine colonne magazzino</h3>
+                <div className="mt-1 text-sm text-neutral-500">
+                  Sposta le colonne nella posizione che preferisci. L’ordine viene salvato sul browser.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setColumnSettingsOpen(false)}
+                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-2">
+              {columnOrder.map((column, index) => (
+                <div
+                  key={column}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3"
+                >
+                  <div>
+                    <div className="font-semibold text-neutral-900">{tableColumnLabels[column]}</div>
+                    <div className="text-xs text-neutral-500">Posizione {index + 1}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => moveColumn(column, "left")}
+                      disabled={index === 0}
+                      className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Su
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveColumn(column, "right")}
+                      disabled={index === columnOrder.length - 1}
+                      className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Giù
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={resetColumnOrder}
+                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+              >
+                Ripristina ordine standard
+              </button>
+              <button
+                type="button"
+                onClick={() => setColumnSettingsOpen(false)}
+                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              >
+                Salva ordine
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {importWizard ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            {importing ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/85 p-6 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-6 text-center shadow-xl">
+                  <Loader2 size={34} className="mx-auto animate-spin text-yellow-500" />
+                  <div className="mt-4 text-lg font-black text-neutral-900">Importazione in corso</div>
+                  <div className="mt-2 text-sm leading-6 text-neutral-600">
+                    Non chiudere la finestra e non ricaricare la pagina. Attendi il messaggio finale.
+                  </div>
+                  <div className="mt-4 rounded-full bg-neutral-100 p-1">
+                    <div
+                      className="h-2 rounded-full bg-yellow-400 transition-all"
+                      style={{
+                        width: `${Math.min(100, Math.round(((importProgress?.done ?? 0) / Math.max(importProgress?.total ?? 1, 1)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-neutral-800">
+                    {importProgress?.done ?? 0} / {importProgress?.total ?? 0} righe processate
+                  </div>
+                  <div className="mt-1 text-xs text-neutral-500">
+                    {importProgress?.current || "Preparazione..."}
+                  </div>
+                  <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
+                    <div className="rounded-xl bg-neutral-50 p-2">
+                      <div className="font-bold text-neutral-900">{importProgress?.inserted ?? 0}</div>
+                      <div className="text-neutral-500">Creati</div>
+                    </div>
+                    <div className="rounded-xl bg-neutral-50 p-2">
+                      <div className="font-bold text-neutral-900">{importProgress?.updated ?? 0}</div>
+                      <div className="text-neutral-500">Agg.</div>
+                    </div>
+                    <div className="rounded-xl bg-neutral-50 p-2">
+                      <div className="font-bold text-neutral-900">{importProgress?.skipped ?? 0}</div>
+                      <div className="text-neutral-500">Saltati</div>
+                    </div>
+                    <div className="rounded-xl bg-neutral-50 p-2">
+                      <div className="font-bold text-neutral-900">{importProgress?.movements ?? 0}</div>
+                      <div className="text-neutral-500">Mov.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold text-neutral-900">Import guidato magazzino</h3>
@@ -1583,6 +1872,12 @@ export default function InventoryPage() {
                 Chiudi
               </button>
             </div>
+
+            {feedback ? (
+              <div className="mt-4">
+                <FormStatusBanner type={feedback.type} message={feedback.message} />
+              </div>
+            ) : null}
 
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
