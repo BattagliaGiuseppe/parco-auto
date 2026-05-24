@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
+import { Audiowide } from "next/font/google";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -32,6 +33,7 @@ import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 
+const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type InventoryItem = {
   id: string;
@@ -473,7 +475,7 @@ function Field({
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-600 shadow-sm">
+    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
       <div className="mb-2 flex items-center gap-2 font-bold text-neutral-900">
         <Info size={16} />
         Nota import/export
@@ -2062,7 +2064,7 @@ export default function InventoryPage() {
       <PagePermissionState
         title="Magazzino"
         subtitle="Articoli, scorte e import/export"
-        icon={<Package size={28} />}
+        icon={<Package size={22} />}
         state="loading"
       />
     );
@@ -2073,7 +2075,7 @@ export default function InventoryPage() {
       <PagePermissionState
         title="Magazzino"
         subtitle="Articoli, scorte e import/export"
-        icon={<Package size={28} />}
+        icon={<Package size={22} />}
         state="error"
         message={access.error}
       />
@@ -2085,7 +2087,7 @@ export default function InventoryPage() {
       <PagePermissionState
         title="Magazzino"
         subtitle="Articoli, scorte e import/export"
-        icon={<Package size={28} />}
+        icon={<Package size={22} />}
         state="denied"
         message="Il tuo ruolo non ha accesso al modulo magazzino."
       />
@@ -2093,11 +2095,11 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
       <PageHeader
         title="Magazzino"
-        subtitle="Anagrafica articoli, scorte minime, import/export e base movimenti."
-        icon={<Package size={28} />}
+        subtitle="Anagrafica articoli, scorte, foto, movimenti e import/export guidato."
+        icon={<Package size={22} />}
         actions={
           <div className="flex flex-wrap gap-2">
             {canEditInventory ? (
@@ -2164,14 +2166,21 @@ export default function InventoryPage() {
         <FormStatusBanner type="info" message="Hai accesso in sola lettura a questo modulo." />
       ) : null}
 
-      <StatsGrid items={stats} />
+      <SectionCard>
+        <StatsGrid items={stats} />
+      </SectionCard>
 
-      <InfoBlock>
+      <SectionCard
+        title="Import/export e tracciabilità"
+        subtitle="Caricamento guidato, movimenti di magazzino e storico quantità."
+      >
+        <InfoBlock>
         Il magazzino è pronto per un caricamento iniziale pulito: puoi usare il template CSV oppure
         importare file con intestazioni comuni italiane/inglesi. Dopo l’import puoi modificare
         l’anagrafica articolo, registrare carichi/scarichi, rettificare la giacenza e consultare
         lo storico movimenti.
-      </InfoBlock>
+        </InfoBlock>
+      </SectionCard>
 
       <SectionCard
         title="Articoli a magazzino"
