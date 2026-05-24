@@ -6,13 +6,18 @@ import { Audiowide } from "next/font/google";
 import {
   Activity,
   BarChart3,
+  CheckCircle2,
   Clock,
+  Database,
   FileArchive,
   Gauge,
   Info,
   Link2,
+  Loader2,
+  PlayCircle,
   Upload,
   Users,
+  X,
 } from "lucide-react";
 
 import EmptyState from "@/components/EmptyState";
@@ -80,6 +85,13 @@ type TelemetryFile = {
   duration_seconds?: number | null;
   best_lap_seconds?: number | null;
   laps_count?: number | null;
+  max_speed?: number | null;
+  max_rpm?: number | null;
+  avg_speed?: number | null;
+  avg_throttle?: number | null;
+  avg_brake?: number | null;
+  sampled_points_count?: number | null;
+  parse_warnings?: string[] | null;
   tags?: string[] | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -304,6 +316,440 @@ function categoryLabel(category?: string | null) {
   }
 }
 
+
+type ChannelKey =
+  | "ignore"
+  | "time"
+  | "distance"
+  | "lap"
+  | "speed"
+  | "rpm"
+  | "throttle"
+  | "brake"
+  | "brake_pressure"
+  | "gear"
+  | "water_temp"
+  | "oil_temp"
+  | "oil_pressure"
+  | "fuel_pressure"
+  | "exhaust_temp"
+  | "gps_lat"
+  | "gps_lon"
+  | "lateral_g"
+  | "longitudinal_g"
+  | "steering_angle"
+  | "fuel"
+  | "battery_voltage"
+  | "lambda"
+  | "tire_pressure_fl"
+  | "tire_pressure_fr"
+  | "tire_pressure_rl"
+  | "tire_pressure_rr";
+
+type ChannelDefinition = {
+  key: ChannelKey;
+  label: string;
+  unit: string;
+  aliases: string[];
+};
+
+type CsvWizardState = {
+  mode: "new" | "existing";
+  telemetryFileId?: string;
+  fileName: string;
+  delimiter: string;
+  headers: string[];
+  rows: string[][];
+  mapping: Record<string, ChannelKey>;
+  error?: string;
+  importing?: boolean;
+};
+
+type ParsedChannel = {
+  channel_key: string;
+  display_name: string;
+  source_name: string;
+  unit: string;
+  mapped_type: string;
+  sample_count: number;
+  min_value: number | null;
+  max_value: number | null;
+  avg_value: number | null;
+};
+
+type ParsedLap = {
+  lap_number: number;
+  lap_time_seconds: number | null;
+  max_speed: number | null;
+  avg_speed: number | null;
+  notes?: string | null;
+};
+
+type ParsedSample = {
+  sample_index: number;
+  time_seconds: number | null;
+  distance_m: number | null;
+  lap_number: number | null;
+  values_json: Record<string, number>;
+};
+
+type ParsedTelemetryPayload = {
+  channels: ParsedChannel[];
+  laps: ParsedLap[];
+  samples: ParsedSample[];
+  summary: {
+    channels_count: number;
+    samples_count: number;
+    sampled_points_count: number;
+    duration_seconds: number | null;
+    best_lap_seconds: number | null;
+    laps_count: number;
+    max_speed: number | null;
+    max_rpm: number | null;
+    avg_speed: number | null;
+    avg_throttle: number | null;
+    avg_brake: number | null;
+    warnings: string[];
+  };
+};
+
+const MAX_STORED_SAMPLES = 5000;
+const MAX_PARSED_ROWS = 60000;
+
+const CHANNEL_DEFINITIONS: ChannelDefinition[] = [
+  { key: "ignore", label: "Ignora colonna", unit: "", aliases: [] },
+  { key: "time", label: "Tempo", unit: "s", aliases: ["time", "timestamp", "tempo", "t", "seconds", "sec"] },
+  { key: "distance", label: "Distanza", unit: "m", aliases: ["distance", "distanza", "dist", "m", "meter", "meters"] },
+  { key: "lap", label: "Giro", unit: "", aliases: ["lap", "giro", "lapnumber", "nrgiro", "lapno"] },
+  { key: "speed", label: "Velocità", unit: "km/h", aliases: ["speed", "velocita", "velocità", "vvehicle", "gpsspeed", "kmh"] },
+  { key: "rpm", label: "RPM", unit: "rpm", aliases: ["rpm", "engine rpm", "motore", "engine", "girimotore"] },
+  { key: "throttle", label: "Gas / Throttle", unit: "%", aliases: ["throttle", "gas", "acceleratore", "tps", "accel"] },
+  { key: "brake", label: "Freno", unit: "%", aliases: ["brake", "freno", "brakepedal", "brake position"] },
+  { key: "brake_pressure", label: "Pressione freno", unit: "bar", aliases: ["brakepressure", "pressionefreno", "brake press", "pbrake"] },
+  { key: "gear", label: "Marcia", unit: "", aliases: ["gear", "marcia", "rapport", "gearposition"] },
+  { key: "water_temp", label: "Temp. acqua", unit: "°C", aliases: ["watertemp", "h2otemp", "tempacqua", "water", "ect"] },
+  { key: "oil_temp", label: "Temp. olio", unit: "°C", aliases: ["oiltemp", "tempolio", "toil", "oil temperature"] },
+  { key: "oil_pressure", label: "Pressione olio", unit: "bar", aliases: ["oilpressure", "pressioneolio", "poil", "oil press"] },
+  { key: "fuel_pressure", label: "Pressione benzina", unit: "bar", aliases: ["fuelpressure", "pressionebenzina", "pfuel", "fuel press"] },
+  { key: "exhaust_temp", label: "Temp. scarico", unit: "°C", aliases: ["egt", "exhaust", "tempscarico", "exhausttemp"] },
+  { key: "gps_lat", label: "GPS latitudine", unit: "deg", aliases: ["lat", "latitude", "gpslat", "latitudine"] },
+  { key: "gps_lon", label: "GPS longitudine", unit: "deg", aliases: ["lon", "lng", "longitude", "gpslon", "longitudine"] },
+  { key: "lateral_g", label: "G laterale", unit: "g", aliases: ["lateralg", "latg", "g lateral", "gy"] },
+  { key: "longitudinal_g", label: "G longitudinale", unit: "g", aliases: ["longitudinalg", "longg", "g longitudinal", "gx"] },
+  { key: "steering_angle", label: "Angolo sterzo", unit: "deg", aliases: ["steering", "sterzo", "steeringangle", "angle"] },
+  { key: "fuel", label: "Carburante", unit: "L", aliases: ["fuel", "benzina", "carburante", "fuelused", "fuel level"] },
+  { key: "battery_voltage", label: "Batteria", unit: "V", aliases: ["battery", "batt", "voltage", "vbatt", "batteria"] },
+  { key: "lambda", label: "Lambda", unit: "", aliases: ["lambda", "afr", "lambda1"] },
+  { key: "tire_pressure_fl", label: "Pressione gomma ant. sx", unit: "bar", aliases: ["flpressure", "frontleftpressure", "ant sx", "pressioneant sx"] },
+  { key: "tire_pressure_fr", label: "Pressione gomma ant. dx", unit: "bar", aliases: ["frpressure", "frontrightpressure", "ant dx", "pressioneant dx"] },
+  { key: "tire_pressure_rl", label: "Pressione gomma post. sx", unit: "bar", aliases: ["rlpressure", "rearleftpressure", "post sx", "pressionepost sx"] },
+  { key: "tire_pressure_rr", label: "Pressione gomma post. dx", unit: "bar", aliases: ["rrpressure", "rearrightpressure", "post dx", "pressionepost dx"] },
+];
+
+const CHANNEL_BY_KEY = new Map(CHANNEL_DEFINITIONS.map((definition) => [definition.key, definition]));
+
+function normalizeHeader(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function detectDelimiter(text: string) {
+  const firstLine = text.split(/\r?\n/).find((line) => line.trim()) || "";
+  const delimiters = [";", ",", "\t"];
+  let bestDelimiter = ";";
+  let bestCount = -1;
+
+  delimiters.forEach((delimiter) => {
+    let insideQuotes = false;
+    let count = 0;
+    for (let index = 0; index < firstLine.length; index += 1) {
+      const char = firstLine[index];
+      if (char === '"') insideQuotes = !insideQuotes;
+      if (!insideQuotes && char === delimiter) count += 1;
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      bestDelimiter = delimiter;
+    }
+  });
+
+  return bestDelimiter;
+}
+
+function parseDelimitedText(text: string, delimiter: string) {
+  const rows: string[][] = [];
+  let current = "";
+  let row: string[] = [];
+  let insideQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"') {
+      if (insideQuotes && next === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+      continue;
+    }
+
+    if (!insideQuotes && char === delimiter) {
+      row.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    if (!insideQuotes && (char === "\n" || char === "\r")) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(current.trim());
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+      current = "";
+      if (rows.length > MAX_PARSED_ROWS) break;
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current || row.length > 0) {
+    row.push(current.trim());
+    if (row.some((cell) => cell !== "")) rows.push(row);
+  }
+
+  return rows;
+}
+
+function detectChannelKey(header: string): ChannelKey {
+  const normalized = normalizeHeader(header);
+  if (!normalized) return "ignore";
+
+  for (const definition of CHANNEL_DEFINITIONS) {
+    if (definition.key === "ignore") continue;
+    const aliases = definition.aliases.map(normalizeHeader);
+    if (aliases.some((alias) => alias && (normalized === alias || normalized.includes(alias)))) {
+      return definition.key;
+    }
+  }
+
+  return "ignore";
+}
+
+function parseNumeric(value: string | undefined | null): number | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const cleaned = trimmed
+    .replace(/\s/g, "")
+    .replace(/,/g, ".")
+    .replace(/[^0-9eE+\-.]/g, "");
+
+  if (!cleaned || cleaned === "." || cleaned === "-" || cleaned === "+") return null;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
+}
+
+function parseTimeToSeconds(value: string | undefined | null): number | null {
+  if (value === undefined || value === null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (raw.includes(":")) {
+    const parts = raw.split(":").map((part) => parseNumeric(part));
+    if (parts.some((part) => part === null)) return null;
+    if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0);
+    if (parts.length === 3) return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  }
+
+  return parseNumeric(raw);
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function roundTelemetry(value: number | null | undefined, decimals = 4) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function formatNumber(value?: number | null, decimals = 2) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  return value.toLocaleString("it-IT", { maximumFractionDigits: decimals });
+}
+
+function validateCsvWizard(wizard: CsvWizardState | null) {
+  if (!wizard) return { errors: [] as string[], warnings: [] as string[] };
+
+  const mappedKeys = Object.values(wizard.mapping).filter((key) => key !== "ignore");
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const duplicates = mappedKeys.filter((key, index) => mappedKeys.indexOf(key) !== index);
+  const uniqueDuplicates = Array.from(new Set(duplicates));
+
+  if (uniqueDuplicates.length > 0) {
+    errors.push(`Ogni canale può essere associato una sola volta. Duplicati: ${uniqueDuplicates.join(", ")}.`);
+  }
+
+  const dataChannels = mappedKeys.filter((key) => !["time", "distance", "lap"].includes(key));
+  if (dataChannels.length === 0) {
+    errors.push("Associa almeno un canale dati, per esempio velocità, RPM, gas o freno.");
+  }
+
+  if (!mappedKeys.includes("time")) {
+    warnings.push("Manca il canale tempo: durata e grafici time-based potrebbero essere incompleti.");
+  }
+
+  if (!mappedKeys.includes("lap")) {
+    warnings.push("Manca il canale giro: non posso calcolare il riepilogo giri automaticamente.");
+  }
+
+  if (wizard.rows.length > MAX_STORED_SAMPLES) {
+    warnings.push(`Il file ha ${wizard.rows.length} righe: salverò un campionamento di massimo ${MAX_STORED_SAMPLES} punti per i grafici.`);
+  }
+
+  return { errors, warnings };
+}
+
+function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPayload {
+  const validation = validateCsvWizard(wizard);
+  if (validation.errors.length > 0) {
+    throw new Error(validation.errors.join(" "));
+  }
+
+  const channelStats = new Map<ChannelKey, { values: number[]; sourceName: string }>();
+  const parsedRows: ParsedSample[] = [];
+  const lapGroups = new Map<number, { times: number[]; speeds: number[] }>();
+
+  wizard.rows.forEach((row, rowIndex) => {
+    const valuesJson: Record<string, number> = {};
+    let timeSeconds: number | null = null;
+    let distanceM: number | null = null;
+    let lapNumber: number | null = null;
+
+    wizard.headers.forEach((header, columnIndex) => {
+      const key = wizard.mapping[header] || "ignore";
+      if (key === "ignore") return;
+
+      const rawValue = row[columnIndex];
+      let numeric: number | null;
+
+      if (key === "time") {
+        numeric = parseTimeToSeconds(rawValue);
+        timeSeconds = numeric;
+      } else {
+        numeric = parseNumeric(rawValue);
+      }
+
+      if (numeric === null) return;
+
+      if (key === "distance") {
+        distanceM = numeric;
+      } else if (key === "lap") {
+        lapNumber = Math.round(numeric);
+      } else {
+        valuesJson[key] = numeric;
+      }
+
+      const stat = channelStats.get(key) || { values: [], sourceName: header };
+      stat.values.push(numeric);
+      channelStats.set(key, stat);
+    });
+
+    if (Object.keys(valuesJson).length > 0 || timeSeconds !== null || distanceM !== null || lapNumber !== null) {
+      parsedRows.push({
+        sample_index: rowIndex,
+        time_seconds: timeSeconds,
+        distance_m: distanceM,
+        lap_number: lapNumber,
+        values_json: valuesJson,
+      });
+
+      if (lapNumber !== null) {
+        const group = lapGroups.get(lapNumber) || { times: [], speeds: [] };
+        if (timeSeconds !== null) group.times.push(timeSeconds);
+        if (typeof valuesJson.speed === "number") group.speeds.push(valuesJson.speed);
+        lapGroups.set(lapNumber, group);
+      }
+    }
+  });
+
+  const channels = Array.from(channelStats.entries()).map(([key, stat]) => {
+    const definition = CHANNEL_BY_KEY.get(key);
+    const minValue = stat.values.length > 0 ? Math.min(...stat.values) : null;
+    const maxValue = stat.values.length > 0 ? Math.max(...stat.values) : null;
+    const avgValue = average(stat.values);
+
+    return {
+      channel_key: key,
+      display_name: definition?.label || key,
+      source_name: stat.sourceName,
+      unit: definition?.unit || "",
+      mapped_type: key,
+      sample_count: stat.values.length,
+      min_value: roundTelemetry(minValue),
+      max_value: roundTelemetry(maxValue),
+      avg_value: roundTelemetry(avgValue),
+    };
+  });
+
+  const laps = Array.from(lapGroups.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([lapNumber, group]) => {
+      const lapTime = group.times.length >= 2 ? Math.max(...group.times) - Math.min(...group.times) : null;
+      return {
+        lap_number: lapNumber,
+        lap_time_seconds: roundTelemetry(lapTime),
+        max_speed: roundTelemetry(group.speeds.length > 0 ? Math.max(...group.speeds) : null),
+        avg_speed: roundTelemetry(average(group.speeds)),
+        notes: null,
+      };
+    });
+
+  const sampleStep = Math.max(1, Math.ceil(parsedRows.length / MAX_STORED_SAMPLES));
+  const samples = parsedRows.filter((_, index) => index % sampleStep === 0).slice(0, MAX_STORED_SAMPLES);
+
+  const timeValues = parsedRows.map((row) => row.time_seconds).filter((value): value is number => value !== null);
+  const speedValues = parsedRows.map((row) => row.values_json.speed).filter((value): value is number => typeof value === "number");
+  const rpmValues = parsedRows.map((row) => row.values_json.rpm).filter((value): value is number => typeof value === "number");
+  const throttleValues = parsedRows.map((row) => row.values_json.throttle).filter((value): value is number => typeof value === "number");
+  const brakeValues = parsedRows
+    .map((row) => (typeof row.values_json.brake === "number" ? row.values_json.brake : row.values_json.brake_pressure))
+    .filter((value): value is number => typeof value === "number");
+
+  const durationSeconds = timeValues.length >= 2 ? Math.max(...timeValues) - Math.min(...timeValues) : null;
+  const lapTimes = laps.map((lap) => lap.lap_time_seconds).filter((value): value is number => value !== null && value > 0);
+
+  return {
+    channels,
+    laps,
+    samples,
+    summary: {
+      channels_count: channels.length,
+      samples_count: parsedRows.length,
+      sampled_points_count: samples.length,
+      duration_seconds: roundTelemetry(durationSeconds),
+      best_lap_seconds: roundTelemetry(lapTimes.length > 0 ? Math.min(...lapTimes) : null),
+      laps_count: laps.length,
+      max_speed: roundTelemetry(speedValues.length > 0 ? Math.max(...speedValues) : null),
+      max_rpm: roundTelemetry(rpmValues.length > 0 ? Math.max(...rpmValues) : null),
+      avg_speed: roundTelemetry(average(speedValues)),
+      avg_throttle: roundTelemetry(average(throttleValues)),
+      avg_brake: roundTelemetry(average(brakeValues)),
+      warnings: validation.warnings,
+    },
+  };
+}
+
 export default function TelemetryPage() {
   const access = usePermissionAccess();
   const canViewTelemetry = access.hasPermission("telemetry.view");
@@ -321,6 +767,8 @@ export default function TelemetryPage() {
   const [insights, setInsights] = useState<TelemetryInsight[]>([]);
   const [form, setForm] = useState(buildDefaultForm());
   const [file, setFile] = useState<File | null>(null);
+  const [csvWizard, setCsvWizard] = useState<CsvWizardState | null>(null);
+  const [parsedCsvDraft, setParsedCsvDraft] = useState<ParsedTelemetryPayload | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
@@ -527,6 +975,90 @@ export default function TelemetryPage() {
     });
   }
 
+
+  async function startCsvWizardFromFile(targetFile: File, mode: "new" | "existing", telemetryFileId?: string) {
+    setFeedback(null);
+    setParsedCsvDraft(mode === "new" ? null : parsedCsvDraft);
+
+    try {
+      const text = await targetFile.text();
+      const delimiter = detectDelimiter(text);
+      const parsedRows = parseDelimitedText(text, delimiter);
+      const headers = (parsedRows[0] || []).map((header, index) => header.trim() || `Colonna ${index + 1}`);
+      const rows = parsedRows.slice(1).filter((row) => row.some((cell) => String(cell || "").trim() !== ""));
+
+      if (headers.length === 0 || rows.length === 0) {
+        throw new Error("Il CSV non contiene intestazioni o righe dati leggibili.");
+      }
+
+      const mapping = headers.reduce<Record<string, ChannelKey>>((accumulator, header) => {
+        accumulator[header] = detectChannelKey(header);
+        return accumulator;
+      }, {});
+
+      setCsvWizard({
+        mode,
+        telemetryFileId,
+        fileName: targetFile.name,
+        delimiter,
+        headers,
+        rows,
+        mapping,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore lettura CSV telemetria.";
+      setFeedback({ type: "error", message });
+    }
+  }
+
+  async function saveParsedCsvForFile(telemetryFileId: string, parsedPayload: ParsedTelemetryPayload) {
+    const ctx = await getCurrentTeamContext();
+    const { error } = await supabase.rpc("save_telemetry_parsed_csv", {
+      p_team_id: ctx.teamId,
+      p_telemetry_file_id: telemetryFileId,
+      p_channels: parsedPayload.channels,
+      p_laps: parsedPayload.laps,
+      p_samples: parsedPayload.samples,
+      p_summary: parsedPayload.summary,
+    });
+
+    if (error) throw error;
+  }
+
+  async function confirmCsvWizard() {
+    if (!csvWizard || csvWizard.importing) return;
+
+    try {
+      const parsedPayload = buildParsedTelemetryPayload(csvWizard);
+
+      if (csvWizard.mode === "new") {
+        setParsedCsvDraft(parsedPayload);
+        setCsvWizard(null);
+        setFeedback({
+          type: "info",
+          message: `Canali CSV pronti: ${parsedPayload.summary.channels_count} canali, ${parsedPayload.summary.samples_count} campioni, ${parsedPayload.summary.laps_count} giri. Ora salva il file telemetria per registrare anche i dati importati.`,
+        });
+        return;
+      }
+
+      if (!csvWizard.telemetryFileId) {
+        throw new Error("File telemetria non identificato.");
+      }
+
+      setCsvWizard({ ...csvWizard, importing: true, error: undefined });
+      await saveParsedCsvForFile(csvWizard.telemetryFileId, parsedPayload);
+      setCsvWizard(null);
+      setFeedback({
+        type: "success",
+        message: `CSV importato: ${parsedPayload.summary.channels_count} canali, ${parsedPayload.summary.samples_count} campioni letti, ${parsedPayload.summary.sampled_points_count} punti salvati per grafici.`,
+      });
+      await load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore import CSV telemetria.";
+      setCsvWizard(csvWizard ? { ...csvWizard, importing: false, error: message } : null);
+    }
+  }
+
   async function addFile() {
     if (!canEditTelemetry || saving) return;
 
@@ -583,16 +1115,29 @@ export default function TelemetryPage() {
         };
       }
 
-      const { error } = await supabase.from("telemetry_files").insert([payload]);
+      const { data: insertedFile, error } = await supabase
+        .from("telemetry_files")
+        .insert([payload])
+        .select("id")
+        .single();
 
       if (error) throw error;
 
+      if (parsedCsvDraft && insertedFile?.id) {
+        await saveParsedCsvForFile(insertedFile.id as string, parsedCsvDraft);
+      }
+
+      const importedMessage = parsedCsvDraft
+        ? ` Dati CSV importati: ${parsedCsvDraft.summary.channels_count} canali, ${parsedCsvDraft.summary.samples_count} campioni letti, ${parsedCsvDraft.summary.sampled_points_count} punti salvati.`
+        : "";
+
       setForm(buildDefaultForm());
       setFile(null);
+      setParsedCsvDraft(null);
       setFeedback({
         type: "success",
         message:
-          "File telemetria registrato correttamente. Ora è collegato ai dati sportivi e pronto per le future analisi canali.",
+          `File telemetria registrato correttamente.${importedMessage} Ora è collegato ai dati sportivi e pronto per le future analisi canali.`,
       });
 
       await load();
@@ -605,6 +1150,7 @@ export default function TelemetryPage() {
   }
 
   const selectedTurn = form.event_car_turn_id ? turns.find((turn) => turn.id === form.event_car_turn_id) : null;
+  const wizardValidation = validateCsvWizard(csvWizard);
 
   if (access.loading) {
     return (
@@ -682,9 +1228,54 @@ export default function TelemetryPage() {
                 <input
                   className={inputClassName}
                   type="file"
-                  onChange={(event) => setFile(event.target.files?.[0] || null)}
+                  accept=".csv,.txt,.xlsx,.pdf,.zip,video/*,image/*"
+                  onChange={(event) => {
+                    const selectedFile = event.target.files?.[0] || null;
+                    setFile(selectedFile);
+                    setParsedCsvDraft(null);
+                  }}
                 />
               </Field>
+
+              {file && ["csv", "aim_export"].includes(form.data_format) ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="font-bold">Import guidato CSV disponibile</div>
+                      <div className="mt-1 text-xs leading-5">
+                        Leggo intestazioni e prime righe, propongo la mappatura dei canali e salvo un campionamento per i grafici futuri.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startCsvWizardFromFile(file, "new")}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-white px-4 py-2 text-xs font-bold text-sky-800 transition hover:bg-sky-100"
+                    >
+                      <PlayCircle size={15} />
+                      Leggi canali CSV
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {parsedCsvDraft ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 size={18} className="mt-0.5" />
+                    <div>
+                      <div className="font-bold">Canali pronti per il salvataggio</div>
+                      <div className="mt-1 leading-5">
+                        {parsedCsvDraft.summary.channels_count} canali · {parsedCsvDraft.summary.samples_count} campioni letti · {parsedCsvDraft.summary.sampled_points_count} punti salvati per grafici · {parsedCsvDraft.summary.laps_count} giri rilevati.
+                      </div>
+                      {parsedCsvDraft.summary.warnings.length > 0 ? (
+                        <div className="mt-2 text-xs text-emerald-800">
+                          Avvisi: {parsedCsvDraft.summary.warnings.join(" ")}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Field label="Categoria">
@@ -919,16 +1510,35 @@ export default function TelemetryPage() {
                         <div className="mt-1 text-sm text-neutral-500">{formatDateTime(row.created_at)}</div>
                       </div>
 
-                      {row.file_url ? (
-                        <a
-                          href={row.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
-                        >
-                          Apri file
-                        </a>
-                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        {canEditTelemetry ? (
+                          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-100">
+                            <Database size={15} />
+                            Importa CSV
+                            <input
+                              type="file"
+                              accept=".csv,.txt"
+                              className="hidden"
+                              onChange={(event) => {
+                                const selectedFile = event.target.files?.[0] || null;
+                                if (selectedFile) void startCsvWizardFromFile(selectedFile, "existing", row.id);
+                                event.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                        ) : null}
+
+                        {row.file_url ? (
+                          <a
+                            href={row.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                          >
+                            Apri file
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-neutral-700 md:grid-cols-2 xl:grid-cols-3">
@@ -944,9 +1554,14 @@ export default function TelemetryPage() {
                       <div>Turno: {row.event_car_turn_id ? "Collegato" : "—"}</div>
                       <div>Canali: {row.channels_count || rowChannels.length || 0}</div>
                       <div>Giri: {row.laps_count || rowLaps.length || 0}</div>
-                      <div>Campioni: {row.samples_count || 0}</div>
+                      <div>Campioni letti: {row.samples_count || 0}</div>
+                      <div>Punti grafici: {row.sampled_points_count || 0}</div>
                       <div>Durata: {formatDuration(row.duration_seconds)}</div>
                       <div>Best lap: {formatDuration(row.best_lap_seconds)}</div>
+                      <div>V max: {formatNumber(row.max_speed, 1)} km/h</div>
+                      <div>RPM max: {formatNumber(row.max_rpm, 0)}</div>
+                      <div>Gas medio: {formatNumber(row.avg_throttle, 1)}%</div>
+                      <div>Freno medio: {formatNumber(row.avg_brake, 1)}</div>
                     </div>
 
                     {row.event_car_turn_id ? (
@@ -974,6 +1589,35 @@ export default function TelemetryPage() {
                       </div>
                     ) : null}
 
+                    {rowChannels.length > 0 ? (
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+                        <div className="mb-2 font-bold text-neutral-900">Canali importati</div>
+                        <div className="flex flex-wrap gap-2">
+                          {rowChannels.slice(0, 12).map((channel) => (
+                            <span
+                              key={channel.id}
+                              className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-600"
+                            >
+                              {channel.display_name || channel.channel_key}
+                              {channel.unit ? ` (${channel.unit})` : ""}
+                            </span>
+                          ))}
+                          {rowChannels.length > 12 ? (
+                            <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-500">
+                              +{rowChannels.length - 12} altri
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {row.parse_warnings && row.parse_warnings.length > 0 ? (
+                      <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-3 text-xs leading-5 text-orange-800">
+                        <div className="mb-1 font-bold">Avvisi import</div>
+                        {row.parse_warnings.join(" ")}
+                      </div>
+                    ) : null}
+
                     {rowInsights.length > 0 ? (
                       <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
                         <div className="mb-2 font-bold">Insight tecnici</div>
@@ -994,6 +1638,160 @@ export default function TelemetryPage() {
           )}
         </SectionCard>
       </div>
+
+      {csvWizard ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
+              <div>
+                <div className="text-lg font-bold text-neutral-900">Import guidato CSV telemetria</div>
+                <div className="mt-1 text-sm text-neutral-500">
+                  {csvWizard.fileName} · separatore {csvWizard.delimiter === "\t" ? "tab" : csvWizard.delimiter} · {csvWizard.rows.length} righe dati
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => (csvWizard.importing ? null : setCsvWizard(null))}
+                disabled={csvWizard.importing}
+                className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50 disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-170px)] overflow-y-auto p-5">
+              <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+                Controlla l'associazione proposta. Le colonne ignorate non verranno importate. Dopo la conferma salvo
+                riepilogo canali, giri e un campionamento dei dati per i grafici futuri.
+              </div>
+
+              {csvWizard.error ? (
+                <FormStatusBanner type="error" message={csvWizard.error} />
+              ) : null}
+
+              {wizardValidation.errors.length > 0 ? (
+                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  <div className="font-bold">Errori da correggere</div>
+                  {wizardValidation.errors.map((error) => (
+                    <div key={error}>• {error}</div>
+                  ))}
+                </div>
+              ) : null}
+
+              {wizardValidation.warnings.length > 0 ? (
+                <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
+                  <div className="font-bold">Avvisi</div>
+                  {wizardValidation.warnings.map((warning) => (
+                    <div key={warning}>• {warning}</div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="overflow-x-auto rounded-2xl border border-neutral-200">
+                <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                  <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                    <tr>
+                      <th className="px-4 py-3">Colonna file</th>
+                      <th className="px-4 py-3">Esempio</th>
+                      <th className="px-4 py-3">Campo telemetria</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 bg-white">
+                    {csvWizard.headers.map((header, index) => (
+                      <tr key={`${header}-${index}`}>
+                        <td className="px-4 py-3 font-semibold text-neutral-800">{header}</td>
+                        <td className="max-w-xs truncate px-4 py-3 text-neutral-500">
+                          {csvWizard.rows[0]?.[index] || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+                            value={csvWizard.mapping[header] || "ignore"}
+                            onChange={(event) =>
+                              setCsvWizard({
+                                ...csvWizard,
+                                mapping: {
+                                  ...csvWizard.mapping,
+                                  [header]: event.target.value as ChannelKey,
+                                },
+                                error: undefined,
+                              })
+                            }
+                            disabled={csvWizard.importing}
+                          >
+                            {CHANNEL_DEFINITIONS.map((definition) => (
+                              <option key={definition.key} value={definition.key}>
+                                {definition.label}
+                                {definition.unit ? ` (${definition.unit})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="mb-3 text-sm font-bold text-neutral-800">Anteprima prime righe</div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs text-neutral-600">
+                    <thead>
+                      <tr>
+                        {csvWizard.headers.slice(0, 8).map((header) => (
+                          <th key={header} className="whitespace-nowrap px-3 py-2 text-left font-bold">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvWizard.rows.slice(0, 5).map((row, rowIndex) => (
+                        <tr key={rowIndex} className="border-t border-neutral-200">
+                          {csvWizard.headers.slice(0, 8).map((header, columnIndex) => (
+                            <td key={`${rowIndex}-${header}`} className="max-w-[180px] truncate px-3 py-2">
+                              {row[columnIndex] || "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-neutral-200 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="text-xs leading-5 text-neutral-500">
+                {csvWizard.mode === "new"
+                  ? "Conferma la mappatura, poi salva il file telemetria per completare l'import."
+                  : "Conferma la mappatura: i dati CSV sostituiranno l'eventuale import precedente di questo file."}
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCsvWizard(null)}
+                  disabled={csvWizard.importing}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCsvWizard}
+                  disabled={csvWizard.importing || wizardValidation.errors.length > 0}
+                  className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black shadow-sm transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {csvWizard.importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+                  {csvWizard.importing ? "Import in corso..." : "Conferma mapping"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }
