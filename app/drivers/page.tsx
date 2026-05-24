@@ -12,9 +12,13 @@ import {
   FileText,
   Mail,
   Phone,
+  Printer,
   PlusCircle,
   Search,
   ShieldCheck,
+  TimerReset,
+  Trophy,
+  Gauge,
   Trash2,
   Upload,
   UserRound,
@@ -88,6 +92,32 @@ type DriverDocument = {
   file_path: string | null;
   notes: string | null;
   created_at: string | null;
+};
+
+type DriverPerformanceSummary = {
+  driver_id: string;
+  events_count: number;
+  turns_count: number;
+  total_minutes: number;
+  total_hours: number;
+  total_laps: number;
+  best_lap_ms: number | null;
+  avg_lap_ms: number | null;
+  last_turn_at: string | null;
+  last_event_name: string | null;
+  last_car_name: string | null;
+};
+
+type DriverPerformanceDetail = {
+  id: string;
+  driver_id: string;
+  event_name: string;
+  car_name: string;
+  recorded_at: string | null;
+  minutes: number;
+  laps: number;
+  best_lap_ms: number | null;
+  avg_lap_ms: number | null;
 };
 
 type DriverForm = {
@@ -170,6 +200,40 @@ function formatDate(value: string | null | undefined) {
   return date.toLocaleDateString("it-IT");
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("it-IT");
+}
+
+function round1(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function formatHours(minutes: number) {
+  return `${round1(minutes / 60)} h`;
+}
+
+function formatLapTime(ms: number | null | undefined) {
+  if (ms == null || !Number.isFinite(ms)) return "—";
+  const totalMs = Math.max(0, Math.round(ms));
+  const minutes = Math.floor(totalMs / 60000);
+  const seconds = Math.floor((totalMs % 60000) / 1000);
+  const millis = totalMs % 1000;
+  if (minutes > 0) return `${minutes}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
+  return `${seconds}.${String(millis).padStart(3, "0")}`;
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function daysUntil(value: string | null | undefined) {
   if (!value) return null;
   const target = new Date(value);
@@ -237,6 +301,8 @@ export default function DriversPage() {
 
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [documents, setDocuments] = useState<DriverDocument[]>([]);
+  const [performanceByDriver, setPerformanceByDriver] = useState<Record<string, DriverPerformanceSummary>>({});
+  const [performanceDetailsByDriver, setPerformanceDetailsByDriver] = useState<Record<string, DriverPerformanceDetail[]>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -264,6 +330,111 @@ export default function DriversPage() {
       if (documentsRes.error) throw documentsRes.error;
       setDrivers((driversRes.data || []) as Driver[]);
       setDocuments((documentsRes.data || []) as DriverDocument[]);
+
+      const [turnsRes, metricsRes, eventCarsRes, eventsRes, carsRes] = await Promise.all([
+        supabase
+          .from("event_car_turns")
+          .select("id,driver_id,event_car_id,recorded_at,minutes,laps,created_at")
+          .eq("team_id", ctx.teamId),
+        supabase
+          .from("event_car_turn_metrics")
+          .select("turn_id,best_lap_ms,avg_lap_ms")
+          .eq("team_id", ctx.teamId),
+        supabase.from("event_cars").select("id,event_id,car_id").eq("team_id", ctx.teamId),
+        supabase.from("events").select("id,name,date"),
+        supabase.from("cars").select("id,name").eq("team_id", ctx.teamId),
+      ]);
+
+      if (!turnsRes.error && !eventCarsRes.error) {
+        const metricsMap = new Map<string, any>(((metricsRes.data || []) as any[]).map((row) => [String(row.turn_id), row]));
+        const eventCarMap = new Map<string, any>(((eventCarsRes.data || []) as any[]).map((row) => [String(row.id), row]));
+        const eventMap = new Map<string, any>(((eventsRes.data || []) as any[]).map((row) => [String(row.id), row]));
+        const carMap = new Map<string, any>(((carsRes.data || []) as any[]).map((row) => [String(row.id), row]));
+        const summaries: Record<string, DriverPerformanceSummary> = {};
+        const details: Record<string, DriverPerformanceDetail[]> = {};
+        const eventIdsByDriver: Record<string, Set<string>> = {};
+        const bestLapValuesByDriver: Record<string, number[]> = {};
+        const avgLapValuesByDriver: Record<string, number[]> = {};
+
+        ((turnsRes.data || []) as any[]).forEach((turn) => {
+          const driverId = turn.driver_id ? String(turn.driver_id) : "";
+          if (!driverId) return;
+          const eventCar = eventCarMap.get(String(turn.event_car_id));
+          const eventInfo = eventCar?.event_id ? eventMap.get(String(eventCar.event_id)) : null;
+          const carInfo = eventCar?.car_id ? carMap.get(String(eventCar.car_id)) : null;
+          const metrics = metricsMap.get(String(turn.id));
+          const minutes = Number(turn.minutes || 0);
+          const laps = Number(turn.laps || 0);
+          const bestLap = metrics?.best_lap_ms != null ? Number(metrics.best_lap_ms) : null;
+          const avgLap = metrics?.avg_lap_ms != null ? Number(metrics.avg_lap_ms) : null;
+          const recordedAt = turn.recorded_at || turn.created_at || null;
+          const eventName = eventInfo?.name || "Evento senza nome";
+          const carName = carInfo?.name || "Auto non indicata";
+
+          if (!summaries[driverId]) {
+            summaries[driverId] = {
+              driver_id: driverId,
+              events_count: 0,
+              turns_count: 0,
+              total_minutes: 0,
+              total_hours: 0,
+              total_laps: 0,
+              best_lap_ms: null,
+              avg_lap_ms: null,
+              last_turn_at: null,
+              last_event_name: null,
+              last_car_name: null,
+            };
+            eventIdsByDriver[driverId] = new Set<string>();
+            bestLapValuesByDriver[driverId] = [];
+            avgLapValuesByDriver[driverId] = [];
+            details[driverId] = [];
+          }
+
+          const summary = summaries[driverId];
+          summary.turns_count += 1;
+          summary.total_minutes += minutes;
+          summary.total_hours = round1(summary.total_minutes / 60);
+          summary.total_laps += laps;
+          if (eventCar?.event_id) eventIdsByDriver[driverId].add(String(eventCar.event_id));
+          if (bestLap != null && Number.isFinite(bestLap)) bestLapValuesByDriver[driverId].push(bestLap);
+          if (avgLap != null && Number.isFinite(avgLap)) avgLapValuesByDriver[driverId].push(avgLap);
+          if (recordedAt && (!summary.last_turn_at || new Date(recordedAt).getTime() > new Date(summary.last_turn_at).getTime())) {
+            summary.last_turn_at = recordedAt;
+            summary.last_event_name = eventName;
+            summary.last_car_name = carName;
+          }
+
+          details[driverId].push({
+            id: String(turn.id),
+            driver_id: driverId,
+            event_name: eventName,
+            car_name: carName,
+            recorded_at: recordedAt,
+            minutes,
+            laps,
+            best_lap_ms: bestLap,
+            avg_lap_ms: avgLap,
+          });
+        });
+
+        Object.keys(summaries).forEach((driverId) => {
+          summaries[driverId].events_count = eventIdsByDriver[driverId]?.size || 0;
+          const bestValues = bestLapValuesByDriver[driverId] || [];
+          const avgValues = avgLapValuesByDriver[driverId] || [];
+          summaries[driverId].best_lap_ms = bestValues.length ? Math.min(...bestValues) : null;
+          summaries[driverId].avg_lap_ms = avgValues.length ? Math.round(avgValues.reduce((sum, value) => sum + value, 0) / avgValues.length) : null;
+          details[driverId] = (details[driverId] || [])
+            .sort((a, b) => new Date(b.recorded_at || 0).getTime() - new Date(a.recorded_at || 0).getTime())
+            .slice(0, 8);
+        });
+
+        setPerformanceByDriver(summaries);
+        setPerformanceDetailsByDriver(details);
+      } else {
+        setPerformanceByDriver({});
+        setPerformanceDetailsByDriver({});
+      }
     } catch (error) {
       console.error(error);
       setFeedback({ type: "error", message: "Errore caricamento piloti o documenti." });
@@ -513,6 +684,107 @@ export default function DriversPage() {
     }
   }
 
+  function printDriverCard(driver: Driver) {
+    const docs = documentsForDriver(driver.id);
+    const performance = performanceByDriver[driver.id];
+    const recentPerformance = performanceDetailsByDriver[driver.id] || [];
+    const photoUrl = getPhotoUrl(driver.photo_path);
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Scheda pilota - ${escapeHtml(getDriverName(driver))}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 28px; color: #111827; }
+    .header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 3px solid #111827; padding-bottom: 18px; margin-bottom: 20px; }
+    .title { font-size: 28px; font-weight: 900; margin: 0; }
+    .subtitle { margin: 6px 0 0; color: #6b7280; font-size: 13px; }
+    .photo { width: 120px; height: 120px; border: 1px solid #d1d5db; border-radius: 16px; object-fit: cover; background: #f3f4f6; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+    .box { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; break-inside: avoid; }
+    .label { font-size: 10px; text-transform: uppercase; color: #6b7280; letter-spacing: .06em; font-weight: 700; }
+    .value { margin-top: 4px; font-size: 14px; font-weight: 800; }
+    h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f9fafb; font-size: 10px; text-transform: uppercase; color: #4b5563; }
+    .notes { white-space: pre-wrap; line-height: 1.45; }
+    .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 11px; }
+    @media print { body { padding: 18mm; } button { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 class="title">${escapeHtml(getDriverName(driver))}</h1>
+      <p class="subtitle">Scheda pilota generata il ${escapeHtml(new Date().toLocaleDateString("it-IT"))}</p>
+      <p class="subtitle">${escapeHtml(driver.nickname || "Nessun nickname")} ${driver.racing_number ? ` · #${escapeHtml(driver.racing_number)}` : ""}</p>
+    </div>
+    ${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}" />` : `<div class="photo"></div>`}
+  </div>
+
+  <h2>Anagrafica e contatti</h2>
+  <div class="grid">
+    <div class="box"><div class="label">Email</div><div class="value">${escapeHtml(driver.email || "—")}</div></div>
+    <div class="box"><div class="label">Telefono</div><div class="value">${escapeHtml(driver.phone || "—")}</div></div>
+    <div class="box"><div class="label">Nazionalità</div><div class="value">${escapeHtml(driver.nationality || "—")}</div></div>
+    <div class="box"><div class="label">Data nascita</div><div class="value">${escapeHtml(formatDate(driver.date_of_birth))}</div></div>
+    <div class="box"><div class="label">Gruppo sanguigno</div><div class="value">${escapeHtml(driver.blood_type || "—")}</div></div>
+    <div class="box"><div class="label">Stato</div><div class="value">${driver.is_active === false ? "Non attivo" : "Attivo"}</div></div>
+    <div class="box"><div class="label">Emergenza</div><div class="value">${escapeHtml([driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">Taglie</div><div class="value">${escapeHtml([driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">Indirizzo</div><div class="value">${escapeHtml(driver.address || "—")}</div></div>
+  </div>
+
+  <h2>Licenze e scadenze</h2>
+  <div class="grid">
+    <div class="box"><div class="label">Licenza</div><div class="value">${escapeHtml([driver.license_category, driver.license_number].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">Scadenza licenza</div><div class="value">${escapeHtml(formatDate(driver.license_expires_at))}</div></div>
+    <div class="box"><div class="label">Idoneità medica</div><div class="value">${escapeHtml(formatDate(driver.medical_expires_at))}</div></div>
+    <div class="box"><div class="label">Assicurazione</div><div class="value">${escapeHtml(formatDate(driver.insurance_expires_at))}</div></div>
+  </div>
+
+  <h2>Performance eventi</h2>
+  <div class="grid">
+    <div class="box"><div class="label">Eventi</div><div class="value">${performance?.events_count ?? 0}</div></div>
+    <div class="box"><div class="label">Turni</div><div class="value">${performance?.turns_count ?? 0}</div></div>
+    <div class="box"><div class="label">Ore guida</div><div class="value">${performance ? escapeHtml(`${performance.total_hours} h`) : "0 h"}</div></div>
+    <div class="box"><div class="label">Giri</div><div class="value">${performance?.total_laps ?? 0}</div></div>
+    <div class="box"><div class="label">Best lap</div><div class="value">${escapeHtml(formatLapTime(performance?.best_lap_ms))}</div></div>
+    <div class="box"><div class="label">Ultimo evento</div><div class="value">${escapeHtml(performance?.last_event_name || "—")}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Data</th><th>Evento</th><th>Auto</th><th>Minuti</th><th>Giri</th><th>Best lap</th><th>Avg lap</th></tr></thead>
+    <tbody>
+      ${recentPerformance.length ? recentPerformance.map((row) => `<tr><td>${escapeHtml(formatDateTime(row.recorded_at))}</td><td>${escapeHtml(row.event_name)}</td><td>${escapeHtml(row.car_name)}</td><td>${row.minutes}</td><td>${row.laps}</td><td>${escapeHtml(formatLapTime(row.best_lap_ms))}</td><td>${escapeHtml(formatLapTime(row.avg_lap_ms))}</td></tr>`).join("") : `<tr><td colspan="7">Nessun turno/evento collegato al pilota.</td></tr>`}
+    </tbody>
+  </table>
+
+  <h2>Documenti</h2>
+  <table>
+    <thead><tr><th>Tipo</th><th>Titolo</th><th>Numero</th><th>Emissione</th><th>Scadenza</th></tr></thead>
+    <tbody>
+      ${docs.length ? docs.map((doc) => `<tr><td>${escapeHtml(getDocumentLabel(doc.document_type))}</td><td>${escapeHtml(doc.title || "—")}</td><td>${escapeHtml(doc.document_number || "—")}</td><td>${escapeHtml(formatDate(doc.issued_at))}</td><td>${escapeHtml(formatDate(doc.expires_at))}</td></tr>`).join("") : `<tr><td colspan="5">Nessun documento registrato.</td></tr>`}
+    </tbody>
+  </table>
+
+  <h2>Note</h2>
+  <div class="box notes">${escapeHtml(driver.notes || "—")}</div>
+  <div class="footer">Scheda generata da Battaglia Racing Car · WebApp Motorsport</div>
+  <script>window.onload = () => { window.print(); };</script>
+</body>
+</html>`;
+    const printWindow = window.open("", "_blank", "width=1000,height=900");
+    if (!printWindow) {
+      setFeedback({ type: "error", message: "Impossibile aprire la finestra di stampa. Controlla il blocco popup del browser." });
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+
   const filteredDrivers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return drivers.filter((driver) => {
@@ -658,6 +930,8 @@ export default function DriversPage() {
                 const docs = documentsForDriver(driver.id);
                 const expanded = expandedDriverId === driver.id;
                 const alerts = driverHasAlert(driver);
+                const performance = performanceByDriver[driver.id];
+                const recentPerformance = performanceDetailsByDriver[driver.id] || [];
                 return (
                   <div key={driver.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
@@ -689,6 +963,9 @@ export default function DriversPage() {
                         <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50">
                           Eventi
                         </Link>
+                        <button onClick={() => printDriverCard(driver)} className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50">
+                          <Printer className="h-4 w-4" /> Stampa
+                        </button>
                         <button
                           onClick={() => {
                             setExpandedDriverId(expanded ? null : driver.id);
@@ -697,7 +974,7 @@ export default function DriversPage() {
                           }}
                           className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50"
                         >
-                          Documenti ({docs.length})
+                          Dettaglio ({docs.length} doc)
                         </button>
                         {canEditDrivers ? (
                           <>
@@ -721,8 +998,53 @@ export default function DriversPage() {
                       <InfoLine label="Taglie" value={[driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || null} />
                     </div>
 
+                    <div className="grid gap-3 border-t border-neutral-100 bg-white px-4 py-3 text-sm text-neutral-700 md:grid-cols-5">
+                      <PerformanceMini label="Eventi" value={performance ? String(performance.events_count) : "0"} icon={<Trophy className="h-4 w-4" />} />
+                      <PerformanceMini label="Turni" value={performance ? String(performance.turns_count) : "0"} icon={<TimerReset className="h-4 w-4" />} />
+                      <PerformanceMini label="Ore guida" value={performance ? `${performance.total_hours} h` : "0 h"} icon={<CalendarClock className="h-4 w-4" />} />
+                      <PerformanceMini label="Giri" value={performance ? String(performance.total_laps) : "0"} icon={<Gauge className="h-4 w-4" />} />
+                      <PerformanceMini label="Best lap" value={formatLapTime(performance?.best_lap_ms)} icon={<ShieldCheck className="h-4 w-4" />} />
+                    </div>
+
                     {expanded ? (
                       <div className="border-t border-neutral-200 bg-white p-4">
+                        <div className="mb-4 grid gap-4">
+                          <div>
+                            <h4 className="font-black text-neutral-900">Performance eventi</h4>
+                            <p className="text-sm font-semibold text-neutral-500">Dati calcolati dai turni/eventi collegati al pilota.</p>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-4">
+                            <PerformanceBox label="Eventi disputati" value={performance ? String(performance.events_count) : "0"} />
+                            <PerformanceBox label="Turni registrati" value={performance ? String(performance.turns_count) : "0"} />
+                            <PerformanceBox label="Ore guida" value={performance ? `${performance.total_hours} h` : "0 h"} />
+                            <PerformanceBox label="Best lap" value={formatLapTime(performance?.best_lap_ms)} />
+                          </div>
+                          {recentPerformance.length > 0 ? (
+                            <div className="overflow-hidden rounded-2xl border border-neutral-200">
+                              <div className="grid grid-cols-6 gap-2 bg-neutral-50 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-neutral-500">
+                                <span>Data</span>
+                                <span className="col-span-2">Evento</span>
+                                <span>Auto</span>
+                                <span>Giri</span>
+                                <span>Best</span>
+                              </div>
+                              {recentPerformance.map((row) => (
+                                <div key={row.id} className="grid grid-cols-6 gap-2 border-t border-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700">
+                                  <span>{formatDateTime(row.recorded_at)}</span>
+                                  <span className="col-span-2 truncate">{row.event_name}</span>
+                                  <span className="truncate">{row.car_name}</span>
+                                  <span>{row.laps}</span>
+                                  <span>{formatLapTime(row.best_lap_ms)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm font-semibold text-neutral-500">
+                              Nessun turno/evento ancora collegato a questo pilota.
+                            </div>
+                          )}
+                        </div>
+
                         <div className="mb-4 flex items-center justify-between gap-3">
                           <div>
                             <h4 className="font-black text-neutral-900">Documenti e scadenze</h4>
@@ -935,6 +1257,27 @@ function InfoLine({ label, value }: { label: string; value: string | null | unde
     <div>
       <p className="text-[11px] uppercase tracking-wide text-neutral-400">{label}</p>
       <p className="mt-1 truncate font-bold text-neutral-800">{value || "—"}</p>
+    </div>
+  );
+}
+
+function PerformanceMini({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2">
+      <span className="text-neutral-400">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-neutral-400">{label}</p>
+        <p className="truncate font-black text-neutral-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function PerformanceBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+      <p className="text-[11px] uppercase tracking-wide text-neutral-400">{label}</p>
+      <p className="mt-1 text-lg font-black text-neutral-900">{value}</p>
     </div>
   );
 }
