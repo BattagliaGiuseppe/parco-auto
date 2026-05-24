@@ -714,6 +714,36 @@ function itemMatchesImport(item: InventoryItem, record: ImportRecord) {
   return false;
 }
 
+function formatSupabaseImportError(error: unknown) {
+  if (error instanceof Error) return error.message;
+
+  if (error && typeof error === "object") {
+    const err = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+
+    const parts = [
+      typeof err.message === "string" ? err.message : null,
+      typeof err.details === "string" ? `Dettagli: ${err.details}` : null,
+      typeof err.hint === "string" ? `Suggerimento: ${err.hint}` : null,
+      typeof err.code === "string" ? `Codice: ${err.code}` : null,
+    ].filter(Boolean);
+
+    if (parts.length) return parts.join(" | ");
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "errore importazione non leggibile";
+    }
+  }
+
+  return String(error || "errore importazione");
+}
+
 export default function InventoryPage() {
   const access = usePermissionAccess();
   const canViewInventory = access.hasPermission("inventory.view");
@@ -918,8 +948,8 @@ export default function InventoryPage() {
 
       setForm(buildDefaultForm());
       setFormOpen(false);
+      await load({ keepFeedback: true });
       setFeedback({ type: "success", message: "Articolo aggiunto correttamente." });
-      await load();
     } catch (error) {
       setFeedback({
         type: "error",
@@ -1150,9 +1180,7 @@ export default function InventoryPage() {
           }
         } catch (error) {
           summary.skipped += 1;
-          summary.errors.push(
-            `Riga ${rowNumber}: ${error instanceof Error ? error.message : "errore importazione"}`
-          );
+          summary.errors.push(`Riga ${rowNumber}: ${formatSupabaseImportError(error)}`);
         }
 
         setImportProgress({
@@ -1168,8 +1196,8 @@ export default function InventoryPage() {
 
       const loadedCount = summary.inserted + summary.updated;
       const errorsCopy = summary.errors.length
-        ? ` Dettagli: ${summary.errors.slice(0, 5).join(" | ")}${
-            summary.errors.length > 5 ? " ..." : ""
+        ? ` Dettagli: ${summary.errors.slice(0, 10).join(" | ")}${
+            summary.errors.length > 10 ? " ..." : ""
           }`
         : "";
 
