@@ -11,6 +11,7 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import { getDashboardComponentSeverity } from "@/lib/componentStatus";
 
 const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
@@ -37,17 +38,7 @@ type DriverDoc = { id: string; expires_at: string | null; driver_id: { first_nam
 type Inventory = { id: string; name: string; quantity: number | null; minimum_quantity: number | null; reserved_quantity: number | null };
 
 function componentSeverity(component: Component) {
-  const hours = Number(component.hours || 0);
-  if (component.expiry_date && new Date(component.expiry_date) < new Date()) return 3;
-  if (component.revision_threshold_hours !== null && component.revision_threshold_hours !== undefined && hours >= component.revision_threshold_hours) return 3;
-  if (component.warning_threshold_hours !== null && component.warning_threshold_hours !== undefined && hours >= component.warning_threshold_hours) return 2;
-  if (component.expiry_date) {
-    const expiry = new Date(component.expiry_date);
-    const now = new Date();
-    const days = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 30) return 2;
-  }
-  return 1;
+  return getDashboardComponentSeverity(component);
 }
 
 function formatDate(value: string | null | undefined) {
