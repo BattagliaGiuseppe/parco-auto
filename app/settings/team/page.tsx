@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Audiowide } from "next/font/google";
 import {
   CheckCircle2,
   CopyPlus,
@@ -54,8 +53,6 @@ const OVERRIDE_MODES = [
   { value: "allow", label: "Consenti" },
   { value: "deny", label: "Nega" },
 ] as const;
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -398,7 +395,7 @@ export default function TeamAccessPage() {
 
   if (!ctx || !settings) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
           title="Team & Accessi"
           subtitle="Modulo di governance team e permessi"
@@ -415,7 +412,7 @@ export default function TeamAccessPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Team & Accessi"
         subtitle="Gestione ruoli, membri attivi e override permessi del team"

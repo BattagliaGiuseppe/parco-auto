@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Audiowide } from "next/font/google";
 import {
   CarFront,
   Search,
@@ -24,8 +23,6 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import { usePermissionAccess } from "@/lib/permissions";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarRow = {
   id: string;
@@ -487,7 +484,7 @@ async function createOrAttachComponents(carId: string) {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       {toast ? (
         <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">
           {toast}
@@ -589,7 +586,7 @@ async function createOrAttachComponents(carId: string) {
                               {component.type} · {component.identifier}
                             </div>
                             <div className="mt-1 text-sm text-neutral-500">
-                              Ore {Number(component.hours || 0).toFixed(1)} / vita{" "}
+                              Ore rev. {Number(component.hours || 0).toFixed(1)} / vita acc. {" "}
                               {Number(component.life_hours || 0).toFixed(1)}
                             </div>
                           </div>
@@ -686,11 +683,11 @@ async function createOrAttachComponents(carId: string) {
                       <div className="font-bold">Come leggere i campi</div>
                       <ul className="list-disc space-y-1 pl-5">
                         <li>
-                          <strong>Ore attuali</strong>: ore già maturate dal componente.
+                          <strong>Ore da ultima revisione</strong>: ore accumulate dall’ultima revisione/reset.
                           Per un componente nuovo puoi lasciare 0.
                         </li>
                         <li>
-                          <strong>Vita totale</strong>: vita utile prevista prima della sostituzione.
+                          <strong>Ore vita accumulate</strong>: storico totale del componente, non si azzera con le revisioni.
                         </li>
                         <li>
                           <strong>Soglia attenzione</strong>: ore da cui il sistema deve segnalare
@@ -792,7 +789,7 @@ async function createOrAttachComponents(carId: string) {
                 />
               </Field>
 
-              <Field label="Ore attuali">
+              <Field label="Ore da ultima revisione">
                 <input
                   className="w-full min-w-0 rounded-xl border p-3"
                   type="number"
@@ -808,7 +805,7 @@ async function createOrAttachComponents(carId: string) {
                 />
               </Field>
 
-              <Field label="Vita totale prevista">
+              <Field label="Ore vita accumulate">
                 <input
                   className="w-full min-w-0 rounded-xl border p-3"
                   type="number"

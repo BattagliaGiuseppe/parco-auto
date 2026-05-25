@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Audiowide } from "next/font/google";
 import {
   CarFront,
   Info,
@@ -28,8 +27,6 @@ import {
   uiInputClassName,
   uiTextareaClassName,
 } from "@/components/UiField";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type MountRow = {
   id: string;
@@ -290,28 +287,17 @@ export default function MountsPage() {
           ? mountedBy || ctx.teamUserId
           : ctx.teamUserId;
 
-      const { error } = await supabase.from("car_components").insert([
-        {
-          team_id: ctx.teamId,
-          car_id: selectedCar,
-          component_id: selectedComponent,
-          mounted_at: mountedAt,
-          installed_at: mountedAt,
-          status: "mounted",
-          mounted_by_team_user_id: actorId,
-          reason: reason.trim() || null,
-        },
-      ]);
+      const { error } = await supabase.rpc("mount_component_on_car", {
+        p_team_id: ctx.teamId,
+        p_car_id: selectedCar,
+        p_component_id: selectedComponent,
+        p_mounted_at: mountedAt,
+        p_mounted_by_team_user_id: actorId,
+        p_reason: reason.trim() || null,
+        p_replace_same_type: true,
+      });
 
       if (error) throw error;
-
-      const { error: updateError } = await supabase
-        .from("components")
-        .update({ car_id: selectedCar })
-        .eq("team_id", ctx.teamId)
-        .eq("id", selectedComponent);
-
-      if (updateError) throw updateError;
 
       setSelectedCar("");
       setSelectedComponent("");
@@ -342,25 +328,16 @@ export default function MountsPage() {
       const actorId = ctx.teamUserId;
       const today = new Date().toISOString().slice(0, 10);
 
-      const { error } = await supabase
-        .from("car_components")
-        .update({
-          removed_at: today,
-          removed_by_team_user_id: actorId,
-          status: "unmounted",
-        })
-        .eq("team_id", ctx.teamId)
-        .eq("id", mountId);
+      const { error } = await supabase.rpc("unmount_component_from_car", {
+        p_team_id: ctx.teamId,
+        p_component_id: componentId,
+        p_mount_id: mountId,
+        p_removed_at: today,
+        p_removed_by_team_user_id: actorId,
+        p_reason: null,
+      });
 
       if (error) throw error;
-
-      const { error: compError } = await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("team_id", ctx.teamId)
-        .eq("id", componentId);
-
-      if (compError) throw compError;
 
       await loadAll();
       setFeedback({
@@ -410,7 +387,7 @@ export default function MountsPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Montaggi"
         subtitle="Workflow tecnico per montare, smontare e consultare lo storico componenti del mezzo."

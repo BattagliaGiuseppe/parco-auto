@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Audiowide } from "next/font/google";
 import {
   acceptTeamInvite,
   clearPendingInviteToken,
@@ -19,8 +18,6 @@ import {
 } from "@/lib/teamContext";
 import { brandConfig } from "@/lib/brand";
 import { CheckCircle2, Loader2, Mail, Users } from "lucide-react";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -165,7 +162,7 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6 ${audiowide.className}`}>
+    <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6`}>
       <div className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-start gap-3">
           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-yellow-400/30 text-black">

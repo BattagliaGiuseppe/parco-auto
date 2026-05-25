@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -34,8 +33,6 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import StatsGrid from "@/components/StatsGrid";
 import { UiField, uiInputClassName } from "@/components/UiField";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 const inputClass = uiInputClassName;
 const selectClass = `${uiInputClassName} bg-white`;
@@ -859,7 +856,7 @@ export default function DriversPage() {
   }
 
   return (
-    <div className={`${audiowide.className} flex flex-col gap-6 p-6`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Piloti"
         subtitle="Anagrafica, contatti, licenze, idoneità medica, documenti e scadenze operative."

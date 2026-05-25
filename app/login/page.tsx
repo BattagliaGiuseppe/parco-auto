@@ -5,11 +5,8 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { LogIn, ShieldCheck, Mail, KeyRound, UserPlus } from "lucide-react";
-import { Audiowide } from "next/font/google";
 import { brandConfig } from "@/lib/brand";
 import { readPendingInviteToken, setPendingInviteToken } from "@/lib/teamContext";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 function getRedirectUrl(token?: string | null) {
   if (typeof window === "undefined") return undefined;
@@ -121,7 +118,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={`grid min-h-screen lg:grid-cols-[1.1fr_0.9fr] ${audiowide.className}`}>
+    <div className={`grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]`}>
       <div className="hidden bg-neutral-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-yellow-400">

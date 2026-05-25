@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -28,8 +27,6 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type SafetyItem = {
   id?: string;
@@ -513,7 +510,7 @@ export default function DriverDetailPage() {
 
   if (!driver || !driverForm) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
           Caricamento pilota...
         </div>
@@ -524,7 +521,7 @@ export default function DriverDetailPage() {
   const driverFullName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={driverFullName || "Scheda pilota"}
         subtitle="Anagrafica completa, sicurezza, documenti e strumenti di stampa."

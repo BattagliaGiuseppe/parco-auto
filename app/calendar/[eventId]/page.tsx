@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Audiowide } from "next/font/google";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -32,8 +31,6 @@ import InlineConfirmButton from "@/components/InlineConfirmButton";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import { UiField, uiInputClassName } from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type Feedback = { type: "success" | "error" | "info"; message: string };
 
@@ -775,7 +772,7 @@ export default function EventDetailPage() {
 
   if (loading && !event) {
     return (
-      <div className={`${audiowide.className} flex flex-col gap-6 p-6`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
           title="Dettaglio evento"
           subtitle="Caricamento dati evento in corso"
@@ -790,7 +787,7 @@ export default function EventDetailPage() {
 
   if (!event) {
     return (
-      <div className={`${audiowide.className} flex flex-col gap-6 p-6`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
           title="Evento non trovato"
           subtitle="Controlla che l'evento appartenga al team corrente"
@@ -807,7 +804,7 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className={`${audiowide.className} flex flex-col gap-6 p-6`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={event.name || "Dettaglio evento"}
         subtitle={`${event.circuit_id?.name || "Autodromo non definito"} • ${formatDate(event.date)}`}

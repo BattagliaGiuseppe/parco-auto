@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Audiowide } from "next/font/google";
 import {
   AlertTriangle,
   Boxes,
@@ -23,8 +22,6 @@ import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours, getComponentHoursInfo, getComponentStatus } from "@/lib/componentStatus";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarOption = { id: string; name: string };
 
@@ -229,11 +226,14 @@ export default function ComponentsPage() {
     setSaving(true);
     try {
       const ctx = await getCurrentTeamContext();
+      const selectedCarId = form.car_id || null;
       const payload = {
         team_id: ctx.teamId,
         type,
         identifier: form.identifier.trim(),
-        car_id: form.car_id || null,
+        // Il componente nasce sempre libero: il montaggio passa dalla RPC
+        // per creare anche lo storico e chiudere eventuali componenti dello stesso tipo.
+        car_id: null,
         hours: Number(form.hours || 0),
         life_hours: Number(form.life_hours || 0),
         warning_threshold_hours: form.warning_threshold_hours
@@ -269,8 +269,26 @@ export default function ComponentsPage() {
         }
       }
 
-      const { error } = await supabase.from("components").insert([payload]);
+      const { data, error } = await supabase
+        .from("components")
+        .insert([payload])
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (selectedCarId) {
+        const { error: mountError } = await supabase.rpc("mount_component_on_car", {
+          p_team_id: ctx.teamId,
+          p_car_id: selectedCarId,
+          p_component_id: data.id,
+          p_mounted_at: new Date().toISOString().slice(0, 10),
+          p_mounted_by_team_user_id: ctx.teamUserId,
+          p_reason: "Montaggio iniziale da anagrafica componente",
+          p_replace_same_type: true,
+        });
+
+        if (mountError) throw mountError;
+      }
 
       setOpen(false);
       setForm(emptyForm);
@@ -287,7 +305,7 @@ export default function ComponentsPage() {
     return (
       <PagePermissionState
         title="Componenti"
-        subtitle="Parco componenti, ore vita e soglie di revisione"
+        subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="loading"
       />
@@ -298,7 +316,7 @@ export default function ComponentsPage() {
     return (
       <PagePermissionState
         title="Componenti"
-        subtitle="Parco componenti, ore vita e soglie di revisione"
+        subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="error"
         message={access.error}
@@ -310,7 +328,7 @@ export default function ComponentsPage() {
     return (
       <PagePermissionState
         title="Componenti"
-        subtitle="Parco componenti, ore vita e soglie di revisione"
+        subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="denied"
         message="Il tuo ruolo non ha accesso al modulo componenti."
@@ -319,7 +337,7 @@ export default function ComponentsPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Componenti"
         subtitle="Controlla ore da ultima revisione, ore vita totali e soglie operative."
@@ -358,13 +376,13 @@ export default function ComponentsPage() {
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
             <div className="font-bold text-neutral-900">Ore da revisione</div>
             <div className="mt-1 text-neutral-600">
-              Sono le ore correnti del componente e vengono usate per warning e soglia revisione.
+              Sono le ore accumulate dall’ultima revisione/reset e guidano warning e soglia revisione.
             </div>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-bold text-neutral-900">Ore vita</div>
+            <div className="font-bold text-neutral-900">Ore vita accumulate</div>
             <div className="mt-1 text-neutral-600">
-              Sono lo storico totale del componente e restano sempre memorizzate.
+              Sono lo storico totale del componente: aumentano con i turni e non vengono azzerate dalle revisioni.
             </div>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
@@ -468,7 +486,7 @@ export default function ComponentsPage() {
                       label="Da revisione"
                       value={formatHours(info.revisionHours)}
                     />
-                    <InfoMini label="Ore vita" value={formatHours(info.lifeHours)} />
+                    <InfoMini label="Ore vita accumulate" value={formatHours(info.lifeHours)} />
                     <InfoMini
                       label="Soglia revisione"
                       value={formatHours(info.revisionThreshold)}
@@ -602,7 +620,7 @@ export default function ComponentsPage() {
                 />
               </Field>
 
-              <Field label="Ore vita totale">
+              <Field label="Ore vita accumulate">
                 <input
                   type="number"
                   min="0"

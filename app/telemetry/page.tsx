@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PointerEvent, ReactNode } from "react";
-import { Audiowide } from "next/font/google";
 import {
   Activity,
   BarChart3,
@@ -34,8 +33,6 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { supabase } from "@/lib/supabaseClient";
 import { uploadTeamFile } from "@/lib/storage";
 import { getCurrentTeamContext } from "@/lib/teamContext";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 const inputClassName =
   "w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100";
@@ -2597,7 +2594,7 @@ export default function TelemetryPage() {
   }
 
   return (
-    <div className={`${audiowide.className} flex flex-col gap-6 p-6`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Telemetria"
         subtitle="Collega file, eventi, turni e dati tecnici per costruire la base del futuro ingegnere di pista."

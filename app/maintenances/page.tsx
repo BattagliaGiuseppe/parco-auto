@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext, getTeamUsers } from "@/lib/teamContext";
 import { usePermissionAccess } from "@/lib/permissions";
@@ -22,8 +21,6 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import StatusBadge from "@/components/StatusBadge";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarOption = { id: string; name: string };
 type ComponentOption = {
@@ -308,7 +305,7 @@ export default function MaintenancesPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       {toast ? (
         <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">
           {toast}

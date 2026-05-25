@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Info, Upload } from "lucide-react";
@@ -13,8 +12,6 @@ import SectionCard from "@/components/SectionCard";
 import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import FormStatusBanner from "@/components/FormStatusBanner";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
@@ -146,7 +143,7 @@ export default function CarDocumentsPage() {
   );
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Documenti mezzo"
         subtitle="Archivio allegati, caricamento file locale e link esterni"

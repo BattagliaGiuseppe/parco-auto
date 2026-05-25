@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -34,8 +33,6 @@ import FormStatusBanner from "@/components/FormStatusBanner";
 import InlineConfirmButton from "@/components/InlineConfirmButton";
 import PagePermissionState from "@/components/PagePermissionState";
 import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type EventInfo = {
   id: string;
@@ -1250,7 +1247,7 @@ export default function EventCarTurnsPage() {
 
   if (loading) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)] shadow-sm">
           Caricamento console turni in corso...
         </div>
@@ -1260,7 +1257,7 @@ export default function EventCarTurnsPage() {
 
   if (!eventInfo || !carInfo) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <FormStatusBanner
           type="error"
           message="Impossibile trovare i dati dell'evento o del mezzo selezionato."
@@ -1270,7 +1267,7 @@ export default function EventCarTurnsPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={`Console turni • ${carInfo.name ?? "Mezzo"}`}
         subtitle={`Evento: ${eventInfo.name ?? "Evento"}${eventInfo.date ? ` • ${new Date(eventInfo.date).toLocaleDateString("it-IT")}` : ""}`}
@@ -1733,7 +1730,7 @@ export default function EventCarTurnsPage() {
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
-          <div className={`h-full w-full max-w-[860px] overflow-y-auto bg-[var(--surface-page)] p-4 md:p-6 ${audiowide.className}`}>
+          <div className={`h-full w-full max-w-[860px] overflow-y-auto bg-[var(--surface-page)] p-4 md:p-6`}>
             <div className="mx-auto flex max-w-4xl flex-col gap-6">
               <div className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">

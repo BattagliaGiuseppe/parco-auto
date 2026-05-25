@@ -4,11 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Building2, Rocket, ShieldCheck } from "lucide-react";
-import { Audiowide } from "next/font/google";
 import { brandConfig } from "@/lib/brand";
 import { listMyPendingTeamInvites, setPendingInviteToken } from "@/lib/teamContext";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -78,7 +75,7 @@ export default function OnboardingPage() {
 
   if (checkingInvites) {
     return (
-      <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6 ${audiowide.className}`}>
+      <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6`}>
         <div className="w-full max-w-xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl text-center text-neutral-500">
           Verifica inviti e configurazione account...
         </div>
@@ -87,7 +84,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6 ${audiowide.className}`}>
+    <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6`}>
       <div className="w-full max-w-xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
           <div className="rounded-2xl bg-yellow-400 p-2 text-black"><Rocket size={20} /></div>

@@ -38,6 +38,18 @@
   }
 }
 
+.racing-heading {
+  font-family: "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.racing-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .btn-primary {
   background-color: var(--brand-accent);
   color: var(--brand-on-accent);

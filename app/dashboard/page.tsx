@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CalendarDays, CarFront, CheckCircle2, ClipboardList, Fuel, Package, Users, Wrench } from "lucide-react";
-import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import PageHeader from "@/components/PageHeader";
@@ -12,8 +11,6 @@ import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import { getDashboardComponentSeverity } from "@/lib/componentStatus";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type AppSettings = {
   team_name: string;
@@ -285,11 +282,11 @@ setInventory((inventoryRes.data || []) as Inventory[]);
   ];
 
   if (loading) {
-    return <div className={`p-6 text-neutral-500 ${audiowide.className}`}>Caricamento dashboard...</div>;
+    return <div className={`p-6 text-neutral-500`}>Caricamento dashboard...</div>;
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={settings?.team_name || "Dashboard"}
         subtitle="Centro di comando operativo: prontezza mezzi, criticità e prossime azioni"

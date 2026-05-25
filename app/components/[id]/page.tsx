@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -31,8 +30,6 @@ import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type ComponentRow = {
   id: string;
@@ -290,12 +287,12 @@ export default function ComponentDetailPage() {
   );
 
   const stats: StatItem[] = [
-    { label: "Ore attuali", value: formatHours(component?.hours), icon: <Clock3 size={18} />, helper: "Ore già maturate dal componente" },
+    { label: "Ore da ultima revisione", value: formatHours(component?.hours), icon: <Clock3 size={18} />, helper: "Ore correnti usate per warning e revisione" },
     {
-      label: "Vita componente",
+      label: "Ore vita accumulate",
       value: formatHours(component?.life_hours),
       icon: <ShieldAlert size={18} />,
-      helper: "Durata operativa prevista",
+      helper: "Storico totale non azzerato",
     },
     {
       label: "Manutenzioni",
@@ -426,28 +423,18 @@ export default function ComponentDetailPage() {
     setSavingMount(true);
     try {
       const ctx = await getCurrentTeamContext();
-      const today = new Date().toISOString();
+      const today = new Date().toISOString().slice(0, 10);
 
-      const { error: historyError } = await supabase
-        .from("car_components")
-        .update({
-          removed_at: today,
-          removed_by_team_user_id: ctx.teamUserId,
-          status: "unmounted",
-        })
-        .eq("team_id", ctx.teamId)
-        .eq("component_id", component.id)
-        .is("removed_at", null);
+      const { error } = await supabase.rpc("unmount_component_from_car", {
+        p_team_id: ctx.teamId,
+        p_component_id: component.id,
+        p_mount_id: null,
+        p_removed_at: today,
+        p_removed_by_team_user_id: ctx.teamUserId,
+        p_reason: null,
+      });
 
-      if (historyError) throw historyError;
-
-      const { error: componentError } = await supabase
-        .from("components")
-        .update({ car_id: null })
-        .eq("team_id", ctx.teamId)
-        .eq("id", component.id);
-
-      if (componentError) throw componentError;
+      if (error) throw error;
 
       showFeedback("success", "Componente smontato.");
       await loadAll();
@@ -469,28 +456,17 @@ export default function ComponentDetailPage() {
       const ctx = await getCurrentTeamContext();
       const mountedAt = mountDate || new Date().toISOString().slice(0, 10);
 
-      const { error: historyError } = await supabase.from("car_components").insert([
-        {
-          team_id: ctx.teamId,
-          car_id: selectedCarId,
-          component_id: component.id,
-          mounted_at: mountedAt,
-          installed_at: mountedAt,
-          status: "mounted",
-          mounted_by_team_user_id: ctx.teamUserId,
-          reason: mountReason.trim() || null,
-        },
-      ]);
+      const { error } = await supabase.rpc("mount_component_on_car", {
+        p_team_id: ctx.teamId,
+        p_car_id: selectedCarId,
+        p_component_id: component.id,
+        p_mounted_at: mountedAt,
+        p_mounted_by_team_user_id: ctx.teamUserId,
+        p_reason: mountReason.trim() || null,
+        p_replace_same_type: true,
+      });
 
-      if (historyError) throw historyError;
-
-      const { error: componentError } = await supabase
-        .from("components")
-        .update({ car_id: selectedCarId })
-        .eq("team_id", ctx.teamId)
-        .eq("id", component.id);
-
-      if (componentError) throw componentError;
+      if (error) throw error;
 
       setOpenMount(false);
       setSelectedCarId("");
@@ -543,7 +519,7 @@ export default function ComponentDetailPage() {
 
   if (loading) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
           Caricamento componente...
         </div>
@@ -553,14 +529,14 @@ export default function ComponentDetailPage() {
 
   if (!component) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <FormStatusBanner type="error" message="Componente non trovato." />
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       <PageHeader
@@ -884,7 +860,7 @@ export default function ComponentDetailPage() {
                 }
               />
             </Field>
-            <Field label="Ore attuali">
+            <Field label="Ore da ultima revisione">
               <input
                 className="w-full rounded-xl border p-3"
                 type="number"
@@ -893,9 +869,9 @@ export default function ComponentDetailPage() {
                 value={editForm.hours}
                 onChange={(e) => setEditForm({ ...editForm, hours: e.target.value })}
               />
-              <FieldHint>Ore già maturate dal componente.</FieldHint>
+              <FieldHint>Ore accumulate dall’ultima revisione/reset. Le soglie usano questo valore.</FieldHint>
             </Field>
-            <Field label="Vita totale">
+            <Field label="Ore vita accumulate">
               <input
                 className="w-full rounded-xl border p-3"
                 type="number"
@@ -906,7 +882,7 @@ export default function ComponentDetailPage() {
                   setEditForm({ ...editForm, life_hours: e.target.value })
                 }
               />
-              <FieldHint>Ore previste prima della sostituzione.</FieldHint>
+              <FieldHint>Storico totale del componente. Non viene azzerato dalle revisioni.</FieldHint>
             </Field>
             <Field label="Soglia attenzione">
               <input
@@ -995,7 +971,7 @@ export default function ComponentDetailPage() {
               />
             </Field>
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <div className="text-sm text-neutral-500">Ore attuali da revisionare</div>
+              <div className="text-sm text-neutral-500">Ore da ultima revisione</div>
               <div className="mt-1 text-lg font-bold text-neutral-900">
                 {formatHours(component.hours)}
               </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -26,8 +25,6 @@ import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -473,7 +470,7 @@ export default function EventCarPage() {
   }
   if (!eventCar) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] px-6 py-5 text-sm text-[var(--text-secondary)] shadow-sm">
           Caricamento console mezzo...
         </div>
@@ -482,7 +479,7 @@ export default function EventCarPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={`${eventCar.car_id?.name || "Mezzo"} · ${eventCar.event_id?.name || "Evento"}`}
         subtitle="Dashboard operativa del mezzo: riepilogo rapido, hub tecnico, piloti, setup e check-up. I turni dettagliati vivono nella console specializzata."

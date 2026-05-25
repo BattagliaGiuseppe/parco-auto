@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import {
   Save,
   Settings,
@@ -27,8 +26,6 @@ import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type BrandingConfig = {
   showLogoInHeader: boolean;
@@ -973,7 +970,7 @@ async function saveAll() {
 
   if (loading || !settings || !previewBranding) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
           Caricamento impostazioni...
         </div>
@@ -982,7 +979,7 @@ async function saveAll() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Control Center"
         subtitle="Branding, moduli, template mezzo, checklist, setup e dashboard del team"

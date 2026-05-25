@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,8 +17,6 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import FormStatusBanner from "@/components/FormStatusBanner";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarComponent = {
   id: string;
@@ -199,7 +196,7 @@ export default function CarDetailPage() {
 
   if (loading) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
           Caricamento mezzo...
         </div>
@@ -209,7 +206,7 @@ export default function CarDetailPage() {
 
   if (error || !car) {
     return (
-      <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+      <div className={`flex flex-col gap-6 p-6`}>
         <FormStatusBanner
           type="error"
           message={error || "Vettura non trovata"}
@@ -246,7 +243,7 @@ export default function CarDetailPage() {
   ];
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={car.name}
         subtitle="Scheda mezzo con componenti montati, soglie e storico revisioni"

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -24,8 +23,6 @@ import InlineConfirmButton from "@/components/InlineConfirmButton";
 import StatsGrid from "@/components/StatsGrid";
 import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type Feedback = {
   type: "success" | "error" | "info";
@@ -316,7 +313,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Eventi"
         subtitle="Calendario weekend, test e gare con circuiti e mezzi collegati."

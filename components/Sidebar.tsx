@@ -19,7 +19,6 @@ import {
   X,
   ShieldCheck,
 } from "lucide-react";
-import { Audiowide } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
 import { brandConfig } from "@/lib/brand";
 import {
@@ -30,8 +29,6 @@ import {
 } from "@/lib/teamContext";
 import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type NavItem = {
   href: string;
@@ -217,7 +214,7 @@ export default function Sidebar() {
         }`}
         style={asideStyle}
       >
-        <div className={`flex h-full flex-col px-4 py-5 ${audiowide.className}`}>
+        <div className={`flex h-full flex-col px-4 py-5`}>
           <div className="mb-4 px-2">
             <div className="rounded-2xl border px-4 py-3" style={fixedBrandCardStyle}>
               <div className="flex items-center gap-3">

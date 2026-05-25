@@ -60,7 +60,7 @@ export default function PageHeader({
           ) : null}
 
           <h1
-            className={`font-black tracking-tight text-[var(--text-primary)] ${
+            className={`racing-heading font-black tracking-tight text-[var(--text-primary)] ${
               compact ? "text-[28px]" : "text-3xl"
             }`}
           >

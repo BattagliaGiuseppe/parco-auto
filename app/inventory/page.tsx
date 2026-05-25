@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Audiowide } from "next/font/google";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -32,8 +31,6 @@ import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type InventoryItem = {
   id: string;
@@ -2095,7 +2092,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6 ${audiowide.className}`}>
+    <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title="Magazzino"
         subtitle="Anagrafica articoli, scorte, foto, movimenti e import/export guidato."

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Audiowide } from "next/font/google";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CarFront, Printer } from "lucide-react";
@@ -11,8 +10,6 @@ import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import PrintLetterhead from "@/components/PrintLetterhead";
 import PrintDocumentFooter from "@/components/PrintDocumentFooter";
-
-const audiowide = Audiowide({ subsets: ["latin"], weight: ["400"] });
 
 type CarComponent = {
   id: string;
@@ -82,7 +79,7 @@ export default function CarPrintPage() {
   }
 
   return (
-    <div className={`bg-[var(--surface-page)] p-4 md:p-6 print:bg-white print:p-0 ${audiowide.className}`}>
+    <div className={`bg-[var(--surface-page)] p-4 md:p-6 print:bg-white print:p-0`}>
       <div className="mx-auto max-w-5xl space-y-6 print:max-w-none print:space-y-4">
         <div className="print:hidden">
           <PageHeader
