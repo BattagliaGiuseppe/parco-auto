@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
 import { Audiowide } from "next/font/google";
 import {
   Activity,
@@ -14,6 +14,8 @@ import {
   Info,
   Link2,
   Loader2,
+  Maximize2,
+  Minimize2,
   PlayCircle,
   Upload,
   Users,
@@ -865,6 +867,36 @@ function channelStats(samples: TelemetrySample[], channelKey: string) {
   };
 }
 
+function analysisAxisLabel(axis: AnalysisAxis) {
+  if (axis === "time") return "Tempo";
+  if (axis === "distance") return "Distanza";
+  return "Numero campione";
+}
+
+function analysisAxisUnit(axis: AnalysisAxis) {
+  if (axis === "time") return "s";
+  if (axis === "distance") return "m";
+  return "#";
+}
+
+function findNearestSampleIndex(samples: TelemetrySample[], axis: AnalysisAxis, targetX: number) {
+  if (samples.length === 0) return null;
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  samples.forEach((sample, index) => {
+    const axisValue = getAxisValue(sample, axis) ?? index;
+    const delta = Math.abs(axisValue - targetX);
+    if (delta < nearestDistance) {
+      nearestDistance = delta;
+      nearestIndex = index;
+    }
+  });
+
+  return nearestIndex;
+}
+
 function SvgTelemetryChart({
   samples,
   selectedChannels,
@@ -876,16 +908,19 @@ function SvgTelemetryChart({
   availableChannels: TelemetryChannel[];
   axis: AnalysisAxis;
 }) {
-  const width = 920;
-  const height = 320;
-  const paddingX = 54;
-  const paddingY = 34;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [lockedIndex, setLockedIndex] = useState<number | null>(null);
+
+  const width = 1120;
+  const height = 430;
+  const paddingX = 64;
+  const paddingY = 42;
   const plotWidth = width - paddingX * 2;
   const plotHeight = height - paddingY * 2;
   const colors = ["#facc15", "#2563eb", "#dc2626", "#16a34a", "#7c3aed", "#ea580c", "#0891b2", "#be123c"];
 
-  const xValues = samples.map((sample) => getAxisValue(sample, axis));
-  const validX = xValues.filter((value): value is number => value !== null);
+  const xValues = samples.map((sample, index) => getAxisValue(sample, axis) ?? index);
+  const validX = xValues.filter((value): value is number => value !== null && Number.isFinite(value));
   const minX = validX.length ? Math.min(...validX) : 0;
   const maxX = validX.length ? Math.max(...validX) : Math.max(samples.length - 1, 1);
   const xRange = maxX - minX || 1;
@@ -896,9 +931,9 @@ function SvgTelemetryChart({
         .map((sample, sampleIndex) => {
           const y = getSampleValue(sample, channelKey);
           const x = getAxisValue(sample, axis) ?? sampleIndex;
-          return y === null ? null : { x, y };
+          return y === null ? null : { sampleIndex, x, y };
         })
-        .filter((point): point is { x: number; y: number } => point !== null);
+        .filter((point): point is { sampleIndex: number; x: number; y: number } => point !== null);
 
       const yValues = values.map((point) => point.y);
       const minY = yValues.length ? Math.min(...yValues) : 0;
@@ -924,9 +959,26 @@ function SvgTelemetryChart({
         minY,
         maxY,
         count: values.length,
+        yForValue(value: number) {
+          return paddingY + plotHeight - ((value - minY) / yRange) * plotHeight;
+        },
       };
     })
     .filter((item) => item.count > 1);
+
+  const activeIndex = lockedIndex ?? hoveredIndex;
+  const activeSample = activeIndex !== null ? samples[activeIndex] : null;
+  const activeX = activeSample ? getAxisValue(activeSample, axis) ?? activeIndex ?? 0 : null;
+  const activeSvgX = activeX !== null ? paddingX + ((activeX - minX) / xRange) * plotWidth : null;
+
+  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const svgX = ((event.clientX - rect.left) / rect.width) * width;
+    const clampedSvgX = Math.min(Math.max(svgX, paddingX), paddingX + plotWidth);
+    const targetX = minX + ((clampedSvgX - paddingX) / plotWidth) * xRange;
+    const nearest = findNearestSampleIndex(samples, axis, targetX);
+    setHoveredIndex(nearest);
+  }
 
   if (samples.length === 0 || series.length === 0) {
     return (
@@ -938,32 +990,108 @@ function SvgTelemetryChart({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white p-3">
-        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[760px]">
-          <rect x={paddingX} y={paddingY} width={plotWidth} height={plotHeight} rx="14" fill="#fafafa" />
-          <line x1={paddingX} y1={paddingY + plotHeight} x2={paddingX + plotWidth} y2={paddingY + plotHeight} stroke="#d4d4d4" />
-          <line x1={paddingX} y1={paddingY} x2={paddingX} y2={paddingY + plotHeight} stroke="#d4d4d4" />
-          {[0.25, 0.5, 0.75].map((ratio) => (
-            <line
-              key={ratio}
-              x1={paddingX}
-              y1={paddingY + plotHeight * ratio}
-              x2={paddingX + plotWidth}
-              y2={paddingY + plotHeight * ratio}
-              stroke="#e5e5e5"
-              strokeDasharray="5 5"
-            />
-          ))}
-          {series.map((item) => (
-            <polyline key={item.channelKey} points={item.points} fill="none" stroke={item.color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-          ))}
-          <text x={paddingX} y={height - 8} fontSize="12" fill="#737373">
-            {axis === "time" ? "tempo" : axis === "distance" ? "distanza" : "campione"}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)}
-          </text>
-          <text x={paddingX} y="20" fontSize="12" fill="#737373">
-            Linee normalizzate per canale: utile per confrontare andamento, non scala assoluta condivisa.
-          </text>
-        </svg>
+      <div className="rounded-2xl border border-neutral-200 bg-white p-3">
+        <div className="mb-3 flex flex-col gap-2 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
+          <div>
+            Asse orizzontale: <span className="font-bold text-neutral-800">{analysisAxisLabel(axis)}</span>. Muovi il mouse sul grafico per leggere i valori; clicca per bloccare/sbloccare il riferimento.
+          </div>
+          {lockedIndex !== null ? (
+            <button
+              type="button"
+              onClick={() => setLockedIndex(null)}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white"
+            >
+              Sblocca riferimento
+            </button>
+          ) : null}
+        </div>
+
+        <div className="overflow-x-auto">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            className="min-w-[920px] cursor-crosshair select-none"
+            onPointerMove={handlePointerMove}
+            onPointerLeave={() => setHoveredIndex(null)}
+            onClick={() => {
+              if (hoveredIndex === null) return;
+              setLockedIndex((current) => (current === hoveredIndex ? null : hoveredIndex));
+            }}
+          >
+            <rect x={paddingX} y={paddingY} width={plotWidth} height={plotHeight} rx="14" fill="#fafafa" />
+            <line x1={paddingX} y1={paddingY + plotHeight} x2={paddingX + plotWidth} y2={paddingY + plotHeight} stroke="#d4d4d4" />
+            <line x1={paddingX} y1={paddingY} x2={paddingX} y2={paddingY + plotHeight} stroke="#d4d4d4" />
+            {[0.25, 0.5, 0.75].map((ratio) => (
+              <line
+                key={ratio}
+                x1={paddingX}
+                y1={paddingY + plotHeight * ratio}
+                x2={paddingX + plotWidth}
+                y2={paddingY + plotHeight * ratio}
+                stroke="#e5e5e5"
+                strokeDasharray="5 5"
+              />
+            ))}
+            {series.map((item) => (
+              <polyline key={item.channelKey} points={item.points} fill="none" stroke={item.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+            ))}
+
+            {activeSample && activeSvgX !== null ? (
+              <>
+                <line x1={activeSvgX} y1={paddingY} x2={activeSvgX} y2={paddingY + plotHeight} stroke="#111827" strokeWidth="1.6" strokeDasharray="6 4" />
+                {series.map((item) => {
+                  const value = getSampleValue(activeSample, item.channelKey);
+                  if (value === null) return null;
+                  return <circle key={item.channelKey} cx={activeSvgX} cy={item.yForValue(value)} r="4" fill={item.color} stroke="#111827" strokeWidth="1" />;
+                })}
+              </>
+            ) : null}
+
+            <text x={paddingX} y={height - 10} fontSize="12" fill="#737373">
+              {analysisAxisLabel(axis)}{analysisAxisUnit(axis) ? ` (${analysisAxisUnit(axis)})` : ""}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)}
+            </text>
+            <text x={paddingX} y="24" fontSize="12" fill="#737373">
+              Linee normalizzate per canale: utile per confrontare andamento; i valori reali sono nel pannello sotto al cursore.
+            </text>
+          </svg>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr]">
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm">
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Riferimento cursore</div>
+          {activeSample ? (
+            <div className="mt-2 space-y-1 text-neutral-700">
+              <div><span className="font-semibold text-neutral-900">Campione:</span> {activeSample.sample_index ?? activeIndex}</div>
+              <div><span className="font-semibold text-neutral-900">Tempo:</span> {formatNumber(activeSample.time_seconds, 3)} s</div>
+              <div><span className="font-semibold text-neutral-900">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
+              <div><span className="font-semibold text-neutral-900">Giro:</span> {activeSample.lap_number ?? "—"}</div>
+            </div>
+          ) : (
+            <div className="mt-2 text-neutral-500">Muovi il mouse sul grafico per leggere i valori.</div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Valori canali nel punto selezionato</div>
+          {activeSample ? (
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {series.map((item) => {
+                const value = getSampleValue(activeSample, item.channelKey);
+                return (
+                  <div key={item.channelKey} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                    <span className="flex items-center gap-2 font-semibold text-neutral-800">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      {item.label}
+                    </span>
+                    <span className="text-neutral-600">{formatNumber(value, 3)} {item.unit}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-sm text-neutral-500">Nessun punto selezionato.</div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -1189,7 +1317,8 @@ export default function TelemetryPage() {
   const [analysisFile, setAnalysisFile] = useState<TelemetryFile | null>(null);
   const [analysisSamples, setAnalysisSamples] = useState<TelemetrySample[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisAxis, setAnalysisAxis] = useState<AnalysisAxis>("time");
+  const [analysisAxis, setAnalysisAxis] = useState<AnalysisAxis>("distance");
+  const [analysisFullscreen, setAnalysisFullscreen] = useState(false);
   const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
   async function load() {
@@ -2144,8 +2273,8 @@ export default function TelemetryPage() {
       </div>
 
       {analysisFile ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 ${analysisFullscreen ? "p-0" : "p-4"}`}>
+          <div className={`${analysisFullscreen ? "h-screen max-h-screen w-screen rounded-none" : "max-h-[92vh] w-full max-w-7xl rounded-3xl"} overflow-hidden bg-white shadow-2xl`}>
             <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
               <div>
                 <div className="flex items-center gap-2 text-lg font-bold text-neutral-900">
@@ -2156,19 +2285,30 @@ export default function TelemetryPage() {
                   {analysisFile.file_name || "File telemetria"} · {analysisSamples.length} punti grafici
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnalysisFile(null);
-                  setAnalysisSamples([]);
-                }}
-                className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAnalysisFullscreen((current) => !current)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                >
+                  {analysisFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  {analysisFullscreen ? "Riduci" : "Tutto schermo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnalysisFile(null);
+                    setAnalysisSamples([]);
+                    setAnalysisFullscreen(false);
+                  }}
+                  className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="max-h-[calc(92vh-88px)] overflow-y-auto p-5">
+            <div className={`${analysisFullscreen ? "h-[calc(100vh-88px)]" : "max-h-[calc(92vh-88px)]"} overflow-y-auto p-5`}>
               {analysisLoading ? (
                 <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm font-semibold text-neutral-600">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -2199,23 +2339,24 @@ export default function TelemetryPage() {
                     </div>
                   </div>
 
-                  <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
+                  <div className={`${analysisFullscreen ? "mb-5 grid grid-cols-1 gap-4 2xl:grid-cols-[320px_1fr]" : "mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]"}`}>
                     <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                      <div className="mb-3 text-sm font-bold text-neutral-900">Canali da visualizzare</div>
+                      <div className="mb-3 text-sm font-bold text-neutral-900">Controlli analisi</div>
 
-                      <Field label="Asse X">
+                      <Field label="Asse orizzontale" hint="come scorre il grafico">
                         <select
                           className={selectClassName}
                           value={analysisAxis}
                           onChange={(event) => setAnalysisAxis(event.target.value as AnalysisAxis)}
                         >
-                          <option value="time">Tempo</option>
-                          <option value="distance">Distanza</option>
+                          <option value="distance">Distanza pista</option>
+                          <option value="time">Tempo sessione</option>
                           <option value="sample">Numero campione</option>
                         </select>
                       </Field>
 
-                      <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                      <div className="mt-4 mb-2 text-sm font-bold text-neutral-900">Canali da visualizzare</div>
+                      <div className={`${analysisFullscreen ? "max-h-[calc(100vh-420px)]" : "max-h-[360px]"} space-y-2 overflow-y-auto pr-1`}>
                         {channels
                           .filter((channel) => channel.telemetry_file_id === analysisFile.id)
                           .map((channel) => {
@@ -2247,7 +2388,7 @@ export default function TelemetryPage() {
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
                           <div className="text-sm font-bold text-neutral-900">Grafico sensori</div>
-                          <div className="text-xs text-neutral-500">Prima versione: linee normalizzate per confrontare l'andamento dei canali.</div>
+                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali di tutti i canali nello stesso punto.</div>
                         </div>
                         <div className="text-xs font-semibold text-neutral-500">
                           Canali selezionati: {selectedAnalysisChannels.length}
