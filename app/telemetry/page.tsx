@@ -897,57 +897,117 @@ function findNearestSampleIndex(samples: TelemetrySample[], axis: AnalysisAxis, 
   return nearestIndex;
 }
 
+function availableLapNumbersFromSamples(samples: TelemetrySample[]) {
+  return Array.from(
+    new Set(
+      samples
+        .map((sample) => sample.lap_number)
+        .filter((lap): lap is number => typeof lap === "number" && Number.isFinite(lap))
+    )
+  ).sort((a, b) => a - b);
+}
+
+function bestLapNumberForFile(laps: TelemetryLap[], telemetryFileId: string) {
+  const validLaps = laps
+    .filter((lap) => lap.telemetry_file_id === telemetryFileId && typeof lap.lap_number === "number" && typeof lap.lap_time_seconds === "number")
+    .sort((a, b) => (a.lap_time_seconds || Number.POSITIVE_INFINITY) - (b.lap_time_seconds || Number.POSITIVE_INFINITY));
+
+  return validLaps[0]?.lap_number ?? null;
+}
+
+function lapTimeForNumber(laps: TelemetryLap[], telemetryFileId: string, lapNumber: number | null) {
+  if (lapNumber === null) return null;
+  return laps.find((lap) => lap.telemetry_file_id === telemetryFileId && lap.lap_number === lapNumber)?.lap_time_seconds ?? null;
+}
+
+function resolveLapSelection(selection: string, bestLapNumber: number | null) {
+  if (selection === "all") return null;
+  if (selection === "best") return bestLapNumber;
+  const parsed = Number(selection);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function samplesForLap(samples: TelemetrySample[], lapNumber: number | null) {
+  if (lapNumber === null) return samples;
+  return samples.filter((sample) => sample.lap_number === lapNumber);
+}
+
+function normalizeSamplesForLap(samples: TelemetrySample[], axis: AnalysisAxis) {
+  if (samples.length === 0) return samples;
+  const baseTime = samples.find((sample) => typeof sample.time_seconds === "number")?.time_seconds ?? samples[0]?.time_seconds ?? 0;
+  const baseDistance = samples.find((sample) => typeof sample.distance_m === "number")?.distance_m ?? samples[0]?.distance_m ?? 0;
+  const baseSample = samples.find((sample) => typeof sample.sample_index === "number")?.sample_index ?? samples[0]?.sample_index ?? 0;
+
+  return samples.map((sample, index) => ({
+    ...sample,
+    time_seconds: typeof sample.time_seconds === "number" ? sample.time_seconds - baseTime : sample.time_seconds,
+    distance_m: typeof sample.distance_m === "number" ? sample.distance_m - baseDistance : sample.distance_m,
+    sample_index: typeof sample.sample_index === "number" ? sample.sample_index - baseSample : index,
+  }));
+}
+
 function SvgTelemetryChart({
   samples,
   selectedChannels,
   availableChannels,
   axis,
+  comparisonSamples = [],
+  primaryLabel = "Riferimento",
+  comparisonLabel = "Confronto",
 }: {
   samples: TelemetrySample[];
   selectedChannels: string[];
   availableChannels: TelemetryChannel[];
   axis: AnalysisAxis;
+  comparisonSamples?: TelemetrySample[];
+  primaryLabel?: string;
+  comparisonLabel?: string;
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
 
   const width = 1120;
-  const height = 430;
+  const height = 460;
   const paddingX = 64;
-  const paddingY = 42;
+  const paddingY = 46;
   const plotWidth = width - paddingX * 2;
   const plotHeight = height - paddingY * 2;
   const colors = ["#facc15", "#2563eb", "#dc2626", "#16a34a", "#7c3aed", "#ea580c", "#0891b2", "#be123c"];
+  const hasComparison = comparisonSamples.length > 1;
+  const allSamplesForAxis = hasComparison ? [...samples, ...comparisonSamples] : samples;
 
-  const xValues = samples.map((sample, index) => getAxisValue(sample, axis) ?? index);
+  const xValues = allSamplesForAxis.map((sample, index) => getAxisValue(sample, axis) ?? index);
   const validX = xValues.filter((value): value is number => value !== null && Number.isFinite(value));
   const minX = validX.length ? Math.min(...validX) : 0;
   const maxX = validX.length ? Math.max(...validX) : Math.max(samples.length - 1, 1);
   const xRange = maxX - minX || 1;
 
+  function pointsForChannel(dataset: TelemetrySample[], channelKey: string, minY: number, yRange: number) {
+    return dataset
+      .map((sample, sampleIndex) => {
+        const y = getSampleValue(sample, channelKey);
+        const x = getAxisValue(sample, axis) ?? sampleIndex;
+        if (y === null) return null;
+        const svgX = paddingX + ((x - minX) / xRange) * plotWidth;
+        const svgY = paddingY + plotHeight - ((y - minY) / yRange) * plotHeight;
+        return `${svgX.toFixed(2)},${svgY.toFixed(2)}`;
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+
   const series = selectedChannels
     .map((channelKey, index) => {
-      const values = samples
-        .map((sample, sampleIndex) => {
-          const y = getSampleValue(sample, channelKey);
-          const x = getAxisValue(sample, axis) ?? sampleIndex;
-          return y === null ? null : { sampleIndex, x, y };
-        })
-        .filter((point): point is { sampleIndex: number; x: number; y: number } => point !== null);
-
-      const yValues = values.map((point) => point.y);
+      const primaryValues = samples
+        .map((sample) => getSampleValue(sample, channelKey))
+        .filter((value): value is number => value !== null);
+      const comparisonValues = comparisonSamples
+        .map((sample) => getSampleValue(sample, channelKey))
+        .filter((value): value is number => value !== null);
+      const yValues = [...primaryValues, ...comparisonValues];
       const minY = yValues.length ? Math.min(...yValues) : 0;
       const maxY = yValues.length ? Math.max(...yValues) : 1;
       const yRange = maxY - minY || 1;
-
-      const points = values
-        .map((point) => {
-          const x = paddingX + ((point.x - minX) / xRange) * plotWidth;
-          const y = paddingY + plotHeight - ((point.y - minY) / yRange) * plotHeight;
-          return `${x.toFixed(2)},${y.toFixed(2)}`;
-        })
-        .join(" ");
-
       const channel = availableChannels.find((item) => item.channel_key === channelKey);
 
       return {
@@ -955,21 +1015,24 @@ function SvgTelemetryChart({
         label: channelDisplayName(channel, channelKey),
         unit: channelUnit(channel, channelKey),
         color: colors[index % colors.length],
-        points,
+        primaryPoints: pointsForChannel(samples, channelKey, minY, yRange),
+        comparisonPoints: pointsForChannel(comparisonSamples, channelKey, minY, yRange),
         minY,
         maxY,
-        count: values.length,
+        count: primaryValues.length + comparisonValues.length,
         yForValue(value: number) {
           return paddingY + plotHeight - ((value - minY) / yRange) * plotHeight;
         },
       };
     })
-    .filter((item) => item.count > 1);
+    .filter((item) => item.count > 1 && item.primaryPoints);
 
   const activeIndex = lockedIndex ?? hoveredIndex;
   const activeSample = activeIndex !== null ? samples[activeIndex] : null;
   const activeX = activeSample ? getAxisValue(activeSample, axis) ?? activeIndex ?? 0 : null;
   const activeSvgX = activeX !== null ? paddingX + ((activeX - minX) / xRange) * plotWidth : null;
+  const activeComparisonIndex = activeX !== null && hasComparison ? findNearestSampleIndex(comparisonSamples, axis, activeX) : null;
+  const activeComparisonSample = activeComparisonIndex !== null ? comparisonSamples[activeComparisonIndex] : null;
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -994,6 +1057,7 @@ function SvgTelemetryChart({
         <div className="mb-3 flex flex-col gap-2 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
           <div>
             Asse orizzontale: <span className="font-bold text-neutral-800">{analysisAxisLabel(axis)}</span>. Muovi il mouse sul grafico per leggere i valori; clicca per bloccare/sbloccare il riferimento.
+            {hasComparison ? <span className="ml-2 font-semibold text-yellow-700">Linea piena: {primaryLabel}. Linea tratteggiata: {comparisonLabel}.</span> : null}
           </div>
           {lockedIndex !== null ? (
             <button
@@ -1032,7 +1096,12 @@ function SvgTelemetryChart({
               />
             ))}
             {series.map((item) => (
-              <polyline key={item.channelKey} points={item.points} fill="none" stroke={item.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+              <g key={item.channelKey}>
+                <polyline points={item.primaryPoints} fill="none" stroke={item.color} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+                {hasComparison && item.comparisonPoints ? (
+                  <polyline points={item.comparisonPoints} fill="none" stroke={item.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="7 7" opacity="0.75" />
+                ) : null}
+              </g>
             ))}
 
             {activeSample && activeSvgX !== null ? (
@@ -1043,6 +1112,11 @@ function SvgTelemetryChart({
                   if (value === null) return null;
                   return <circle key={item.channelKey} cx={activeSvgX} cy={item.yForValue(value)} r="4" fill={item.color} stroke="#111827" strokeWidth="1" />;
                 })}
+                {hasComparison && activeComparisonSample ? series.map((item) => {
+                  const value = getSampleValue(activeComparisonSample, item.channelKey);
+                  if (value === null) return null;
+                  return <rect key={`cmp-${item.channelKey}`} x={activeSvgX - 3} y={item.yForValue(value) - 3} width="6" height="6" fill={item.color} stroke="#111827" strokeWidth="1" />;
+                }) : null}
               </>
             ) : null}
 
@@ -1065,6 +1139,11 @@ function SvgTelemetryChart({
               <div><span className="font-semibold text-neutral-900">Tempo:</span> {formatNumber(activeSample.time_seconds, 3)} s</div>
               <div><span className="font-semibold text-neutral-900">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
               <div><span className="font-semibold text-neutral-900">Giro:</span> {activeSample.lap_number ?? "—"}</div>
+              {activeComparisonSample ? (
+                <div className="mt-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
+                  Confronto: tempo {formatNumber(activeComparisonSample.time_seconds, 3)} s · distanza {formatNumber(activeComparisonSample.distance_m, 2)} m · giro {activeComparisonSample.lap_number ?? "—"}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="mt-2 text-neutral-500">Muovi il mouse sul grafico per leggere i valori.</div>
@@ -1077,13 +1156,23 @@ function SvgTelemetryChart({
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
               {series.map((item) => {
                 const value = getSampleValue(activeSample, item.channelKey);
+                const comparisonValue = activeComparisonSample ? getSampleValue(activeComparisonSample, item.channelKey) : null;
+                const delta = value !== null && comparisonValue !== null ? value - comparisonValue : null;
                 return (
-                  <div key={item.channelKey} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
-                    <span className="flex items-center gap-2 font-semibold text-neutral-800">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                      {item.label}
-                    </span>
-                    <span className="text-neutral-600">{formatNumber(value, 3)} {item.unit}</span>
+                  <div key={item.channelKey} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 font-semibold text-neutral-800">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        {item.label}
+                      </span>
+                      <span className="text-neutral-600">{formatNumber(value, 3)} {item.unit}</span>
+                    </div>
+                    {comparisonValue !== null ? (
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-neutral-500">
+                        <span>{comparisonLabel}: {formatNumber(comparisonValue, 3)} {item.unit}</span>
+                        <span className="font-semibold text-neutral-700">Δ {formatNumber(delta, 3)}</span>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -1319,6 +1408,8 @@ export default function TelemetryPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisAxis, setAnalysisAxis] = useState<AnalysisAxis>("distance");
   const [analysisFullscreen, setAnalysisFullscreen] = useState(false);
+  const [analysisPrimaryLap, setAnalysisPrimaryLap] = useState<string>("all");
+  const [analysisCompareLap, setAnalysisCompareLap] = useState<string>("none");
   const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
   async function load() {
@@ -1730,6 +1821,8 @@ export default function TelemetryPage() {
     setAnalysisFile(row);
     setAnalysisSamples([]);
     setAnalysisLoading(true);
+    setAnalysisPrimaryLap("all");
+    setAnalysisCompareLap("none");
 
     const rowChannels = channels.filter((channel) => channel.telemetry_file_id === row.id);
     const priority = ["speed", "rpm", "throttle", "brake", "brake_pressure", "gear", "water_temp", "oil_temp"];
@@ -1758,6 +1851,19 @@ export default function TelemetryPage() {
   }
 
   const selectedTurn = form.event_car_turn_id ? turns.find((turn) => turn.id === form.event_car_turn_id) : null;
+  const analysisLapOptions = analysisFile ? availableLapNumbersFromSamples(analysisSamples) : [];
+  const analysisBestLapNumber = analysisFile ? bestLapNumberForFile(laps, analysisFile.id) : null;
+  const resolvedPrimaryLap = resolveLapSelection(analysisPrimaryLap, analysisBestLapNumber);
+  const resolvedCompareLap = analysisCompareLap === "none" ? null : resolveLapSelection(analysisCompareLap, analysisBestLapNumber);
+  const rawPrimarySamples = analysisPrimaryLap === "all" ? analysisSamples : samplesForLap(analysisSamples, resolvedPrimaryLap);
+  const rawCompareSamples = resolvedCompareLap === null ? [] : samplesForLap(analysisSamples, resolvedCompareLap);
+  const shouldNormalizeLapAxis = analysisPrimaryLap !== "all";
+  const chartPrimarySamples = shouldNormalizeLapAxis ? normalizeSamplesForLap(rawPrimarySamples, analysisAxis) : rawPrimarySamples;
+  const chartCompareSamples = resolvedCompareLap !== null ? normalizeSamplesForLap(rawCompareSamples, analysisAxis) : [];
+  const primaryLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedPrimaryLap) : null;
+  const compareLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedCompareLap) : null;
+  const primaryLabel = analysisPrimaryLap === "all" ? "Sessione completa" : `Giro ${resolvedPrimaryLap ?? "—"}`;
+  const comparisonLabel = resolvedCompareLap !== null ? `Giro ${resolvedCompareLap}` : "Confronto";
   const wizardValidation = validateCsvWizard(csvWizard);
 
   if (access.loading) {
@@ -2355,6 +2461,50 @@ export default function TelemetryPage() {
                         </select>
                       </Field>
 
+                      <div className="mt-4 grid grid-cols-1 gap-3">
+                        <Field label="Giro di riferimento" hint="per confrontare su base tempo/distanza">
+                          <select
+                            className={selectClassName}
+                            value={analysisPrimaryLap}
+                            onChange={(event) => {
+                              setAnalysisPrimaryLap(event.target.value);
+                              if (event.target.value === "all") setAnalysisCompareLap("none");
+                            }}
+                          >
+                            <option value="all">Sessione completa</option>
+                            {analysisBestLapNumber !== null ? <option value="best">Miglior giro ({analysisBestLapNumber})</option> : null}
+                            {analysisLapOptions.map((lap) => (
+                              <option key={lap} value={String(lap)}>
+                                Giro {lap}{analysisFile ? ` · ${formatDuration(lapTimeForNumber(laps, analysisFile.id, lap))}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+
+                        <Field label="Sovrapponi giro" hint="linea tratteggiata">
+                          <select
+                            className={selectClassName}
+                            value={analysisCompareLap}
+                            disabled={analysisPrimaryLap === "all"}
+                            onChange={(event) => setAnalysisCompareLap(event.target.value)}
+                          >
+                            <option value="none">Nessun confronto</option>
+                            {analysisBestLapNumber !== null ? <option value="best">Miglior giro ({analysisBestLapNumber})</option> : null}
+                            {analysisLapOptions.map((lap) => (
+                              <option key={lap} value={String(lap)}>
+                                Giro {lap}{analysisFile ? ` · ${formatDuration(lapTimeForNumber(laps, analysisFile.id, lap))}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+
+                        {analysisPrimaryLap !== "all" ? (
+                          <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">
+                            Vista giro: tempo e distanza partono da zero per facilitare il confronto. {resolvedCompareLap !== null ? `Delta tempi giro: ${formatNumber((primaryLapTime ?? 0) - (compareLapTime ?? 0), 3)} s.` : "Seleziona un secondo giro per sovrapporre i dati."}
+                          </div>
+                        ) : null}
+                      </div>
+
                       <div className="mt-4 mb-2 text-sm font-bold text-neutral-900">Canali da visualizzare</div>
                       <div className={`${analysisFullscreen ? "max-h-[calc(100vh-420px)]" : "max-h-[360px]"} space-y-2 overflow-y-auto pr-1`}>
                         {channels
@@ -2388,7 +2538,7 @@ export default function TelemetryPage() {
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
                           <div className="text-sm font-bold text-neutral-900">Grafico sensori</div>
-                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali di tutti i canali nello stesso punto.</div>
+                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali. Se scegli due giri, il confronto appare tratteggiato.</div>
                         </div>
                         <div className="text-xs font-semibold text-neutral-500">
                           Canali selezionati: {selectedAnalysisChannels.length}
@@ -2396,10 +2546,13 @@ export default function TelemetryPage() {
                       </div>
 
                       <SvgTelemetryChart
-                        samples={analysisSamples}
+                        samples={chartPrimarySamples}
                         selectedChannels={selectedAnalysisChannels}
                         availableChannels={channels.filter((channel) => channel.telemetry_file_id === analysisFile.id)}
                         axis={analysisAxis}
+                        comparisonSamples={chartCompareSamples}
+                        primaryLabel={primaryLabel}
+                        comparisonLabel={comparisonLabel}
                       />
                     </div>
                   </div>
@@ -2467,7 +2620,7 @@ export default function TelemetryPage() {
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
-                    Questa è la prima vista grafica. Il passo successivo sarà confrontare due turni o due piloti e generare insight automatici sui punti di miglioramento.
+                    Ora puoi analizzare una sessione completa, isolare un giro e sovrapporre un secondo giro dello stesso file. Il passo successivo sarà confrontare file/turni diversi e generare insight automatici sui punti di miglioramento.
                   </div>
                 </>
               )}
