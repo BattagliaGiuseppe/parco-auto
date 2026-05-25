@@ -18,7 +18,7 @@ export default function InstallationsPage() {
           Il vecchio flusso Installazioni non è più il punto centrale del sistema. Per il controllo configurazione del mezzo usa il modulo <b>Montaggi</b>, che registra attore, motivo, storico e stato attuale dei componenti.
         </div>
         <div className="mt-4">
-          <Link href="/mounts" className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500">
+          <Link href="/mounts" className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">
             <ArrowRight size={16} className="mr-2 inline" />Apri Montaggi
           </Link>
         </div>

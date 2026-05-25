@@ -58,7 +58,7 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
         <label className="mb-1 block text-sm font-semibold text-neutral-700">Note setup</label>
         <textarea className="min-h-[110px] w-full rounded-xl border p-3" value={data.notes || ""} onChange={(e) => setData((prev) => ({ ...prev, notes: e.target.value }))} />
       </div>
-      <button onClick={save} disabled={saving} className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500">{saving ? "Salvataggio..." : "Salva setup"}</button>
+      <button onClick={save} disabled={saving} className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">{saving ? "Salvataggio..." : "Salva setup"}</button>
     </div>
   );
 }

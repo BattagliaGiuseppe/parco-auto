@@ -21,6 +21,7 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import StatusBadge from "@/components/StatusBadge";
+import { formatComponentHours } from "@/lib/componentStatus";
 
 type CarOption = { id: string; name: string };
 type ComponentOption = {
@@ -307,7 +308,7 @@ export default function MaintenancesPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       {toast ? (
-        <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">
+        <div className="fixed right-6 top-6 z-50 rounded-xl bg-[var(--brand-accent)] px-4 py-3 font-semibold text-[var(--brand-on-accent)] shadow-lg">
           {toast}
         </div>
       ) : null}
@@ -325,7 +326,7 @@ export default function MaintenancesPage() {
                 setForm(emptyForm);
                 setErrors({});
               }}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi manutenzione
@@ -545,8 +546,7 @@ export default function MaintenancesPage() {
                       {selectedComponent.type || "Componente"} · {selectedComponent.identifier}
                     </div>
                     <div className="mt-1 text-sm text-neutral-500">
-                      Ore attuali: {Number(selectedComponent.hours || 0).toFixed(1)} · Vita:{" "}
-                      {Number(selectedComponent.life_hours || 0).toFixed(1)}
+                      Ore attuali: {formatComponentHours(selectedComponent.hours)} · Vita: {formatComponentHours(selectedComponent.life_hours)}
                     </div>
                   </div>
                   <StatusBadge label="Componente collegato" tone="blue" />
@@ -635,7 +635,7 @@ export default function MaintenancesPage() {
               <button
                 onClick={() => void saveMaintenance()}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 {saving ? "Salvataggio..." : "Salva manutenzione"}
               </button>

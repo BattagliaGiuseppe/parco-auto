@@ -2103,7 +2103,7 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={openNewItemForm}
-                className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
                 Nuovo articolo
@@ -2214,7 +2214,7 @@ export default function InventoryPage() {
                   <button
                     type="button"
                     onClick={openNewItemForm}
-                    className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                    className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     Aggiungi articolo
                   </button>
@@ -2509,7 +2509,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={saveItem}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
                 {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Aggiungi articolo"}
@@ -2604,7 +2604,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => void confirmMovement()}
                 disabled={movementSaving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {movementSaving ? (
                   <Loader2 size={16} className="mr-2 inline animate-spin" />
@@ -2741,7 +2741,7 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={() => setColumnSettingsOpen(false)}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 Salva ordine
               </button>
@@ -2763,7 +2763,7 @@ export default function InventoryPage() {
                   </div>
                   <div className="mt-4 rounded-full bg-neutral-100 p-1">
                     <div
-                      className="h-2 rounded-full bg-yellow-400 transition-all"
+                      className="h-2 rounded-full bg-[var(--brand-accent)] transition-all"
                       style={{
                         width: `${Math.min(100, Math.round(((importProgress?.done ?? 0) / Math.max(importProgress?.total ?? 1, 1)) * 100))}%`,
                       }}
@@ -3002,7 +3002,7 @@ export default function InventoryPage() {
                   Boolean(importValidation?.errors.length) ||
                   !(importValidation?.records.length ?? 0)
                 }
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Upload size={16} className="mr-2 inline" />
                 {importing ? "Importazione..." : "Conferma e importa"}

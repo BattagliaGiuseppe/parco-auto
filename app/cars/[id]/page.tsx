@@ -48,7 +48,12 @@ type RevisionItem = {
 };
 
 function formatHours(value: number | null | undefined) {
-  return Number(value ?? 0).toFixed(2);
+  const hours = Number(value ?? 0);
+  const minutes = Math.round(hours * 60);
+
+  if (Math.abs(hours) < 1) return `${minutes} min`;
+  if (Math.abs(hours) < 10) return `${hours.toFixed(2)} h`;
+  return `${hours.toFixed(1)} h`;
 }
 
 function getExpiryColor(date: string) {
@@ -329,14 +334,14 @@ export default function CarDetailPage() {
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
-                    <MetricCard label="Ore attuali" value={`${formatHours(component.hours)} h`} />
-                    <MetricCard label="Ore vita totale" value={`${formatHours(component.life_hours)} h`} />
+                    <MetricCard label="Ore attuali" value={formatHours(component.hours)} />
+                    <MetricCard label="Ore vita totale" value={formatHours(component.life_hours)} />
                     <MetricCard
                       label="Soglia attenzione"
                       value={
                         component.warning_threshold_hours !== null &&
                         component.warning_threshold_hours !== undefined
-                          ? `${formatHours(component.warning_threshold_hours)} h`
+                          ? formatHours(component.warning_threshold_hours)
                           : "—"
                       }
                     />
@@ -345,7 +350,7 @@ export default function CarDetailPage() {
                       value={
                         component.revision_threshold_hours !== null &&
                         component.revision_threshold_hours !== undefined
-                          ? `${formatHours(component.revision_threshold_hours)} h`
+                          ? formatHours(component.revision_threshold_hours)
                           : "—"
                       }
                     />
@@ -375,7 +380,7 @@ export default function CarDetailPage() {
                   <div className="mt-4 flex justify-end">
                     <Link
                       href={`/components/${component.id}`}
-                      className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                      className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                     >
                       Apri componente
                     </Link>

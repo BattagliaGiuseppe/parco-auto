@@ -87,7 +87,7 @@ export default function OnboardingPage() {
     <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6`}>
       <div className="w-full max-w-xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-2xl bg-yellow-400 p-2 text-black"><Rocket size={20} /></div>
+          <div className="rounded-2xl bg-[var(--brand-accent)] p-2 text-[var(--brand-on-accent)]"><Rocket size={20} /></div>
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">Configura il primo workspace</h1>
             <p className="mt-1 text-sm text-neutral-500">Questo flusso è pensato per l&apos;owner iniziale del team. I collaboratori entrano invece tramite invito.</p>
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
 
           {error ? <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-          <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">
+          <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
             {loading ? "Creazione workspace..." : "Crea workspace"}
           </button>
         </form>

@@ -23,6 +23,7 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import { usePermissionAccess } from "@/lib/permissions";
+import { formatComponentHours } from "@/lib/componentStatus";
 
 type CarRow = {
   id: string;
@@ -486,7 +487,7 @@ async function createOrAttachComponents(carId: string) {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       {toast ? (
-        <div className="fixed right-6 top-6 z-50 rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-lg">
+        <div className="fixed right-6 top-6 z-50 rounded-xl bg-[var(--brand-accent)] px-4 py-3 font-semibold text-[var(--brand-on-accent)] shadow-lg">
           {toast}
         </div>
       ) : null}
@@ -499,7 +500,7 @@ async function createOrAttachComponents(carId: string) {
           canEditCars ? (
             <button
               onClick={openCreate}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi mezzo
@@ -555,7 +556,7 @@ async function createOrAttachComponents(carId: string) {
                 />
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <MiniStat label="Ore" value={`${Number(car.hours || 0).toFixed(1)} h`} />
+                <MiniStat label="Ore" value={formatComponentHours(car.hours)} />
                 <MiniStat label="Componenti" value={String(car.components.length)} />
                 <MiniStat
                   label="Critici"
@@ -578,16 +579,15 @@ async function createOrAttachComponents(carId: string) {
                     return (
                       <div
                         key={component.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                        className="data-row"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="font-bold text-neutral-900">
+                            <div className="font-extrabold text-[var(--text-primary)]">
                               {component.type} · {component.identifier}
                             </div>
-                            <div className="mt-1 text-sm text-neutral-500">
-                              Ore rev. {Number(component.hours || 0).toFixed(1)} / vita acc. {" "}
-                              {Number(component.life_hours || 0).toFixed(1)}
+                            <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                              Ore rev. {formatComponentHours(component.hours)} / vita acc. {formatComponentHours(component.life_hours)}
                             </div>
                           </div>
                           <StatusBadge label={status.label} tone={status.tone} />
@@ -595,7 +595,7 @@ async function createOrAttachComponents(carId: string) {
                         <div className="mt-3">
                           <Link
                             href={`/components/${component.id}`}
-                            className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-100"
+                            className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
                           >
                             Apri componente
                           </Link>
@@ -609,7 +609,7 @@ async function createOrAttachComponents(carId: string) {
                 {canEditCars ? (
                   <button
                     onClick={() => openEdit(car)}
-                    className="rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-black hover:bg-yellow-500"
+                    className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-semibold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Edit size={16} className="mr-2 inline" />
                     Modifica
@@ -712,12 +712,12 @@ async function createOrAttachComponents(carId: string) {
     return (
       <div
         key={def.id}
-        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+        className="data-row"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-bold text-neutral-900">{def.label}</div>
-            <div className="mt-1 text-sm text-neutral-500">
+            <div className="font-extrabold text-[var(--text-primary)]">{def.label}</div>
+            <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
               {categoryCopy.description}
             </div>
           </div>
@@ -912,7 +912,7 @@ async function createOrAttachComponents(carId: string) {
               <button
                 onClick={saveCar}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 {saving ? "Salvataggio..." : editing ? "Salva modifiche" : "Crea mezzo"}
               </button>

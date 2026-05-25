@@ -92,7 +92,7 @@ function ProgressBar({ value }: { value: number | null }) {
   return (
     <div className="h-2 rounded-full bg-neutral-100">
       <div
-        className="h-2 rounded-full bg-yellow-400"
+        className="h-2 rounded-full bg-[var(--brand-accent)]"
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
       />
     </div>
@@ -349,7 +349,7 @@ export default function ComponentsPage() {
                 setOpen(true);
                 setForm(emptyForm);
               }}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Nuovo componente
@@ -374,19 +374,19 @@ export default function ComponentsPage() {
       >
         <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-bold text-neutral-900">Ore da revisione</div>
+            <div className="font-extrabold text-[var(--text-primary)]">Ore da revisione</div>
             <div className="mt-1 text-neutral-600">
               Sono le ore accumulate dall’ultima revisione/reset e guidano warning e soglia revisione.
             </div>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-bold text-neutral-900">Ore vita accumulate</div>
+            <div className="font-extrabold text-[var(--text-primary)]">Ore vita accumulate</div>
             <div className="mt-1 text-neutral-600">
               Sono lo storico totale del componente: aumentano con i turni e non vengono azzerate dalle revisioni.
             </div>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-bold text-neutral-900">Ore residue</div>
+            <div className="font-extrabold text-[var(--text-primary)]">Ore residue</div>
             <div className="mt-1 text-neutral-600">
               Indicano quanto manca alla revisione in base alla soglia configurata.
             </div>
@@ -467,14 +467,14 @@ export default function ComponentsPage() {
               return (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-bold text-neutral-900">
+                      <div className="font-extrabold text-[var(--text-primary)]">
                         {row.type} · {row.identifier}
                       </div>
-                      <div className="mt-1 text-sm text-neutral-500">
+                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
                         {carName || "Non montato"}
                       </div>
                     </div>
@@ -545,7 +545,7 @@ export default function ComponentsPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold text-neutral-900">Nuovo componente</h3>
-                <div className="mt-1 text-sm text-neutral-500">
+                <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
                   Configura ore iniziali, soglie di warning e soglia revisione.
                 </div>
               </div>
@@ -690,7 +690,7 @@ export default function ComponentsPage() {
               <button
                 onClick={saveComponent}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
               >
                 {saving ? "Salvataggio..." : "Salva componente"}
               </button>

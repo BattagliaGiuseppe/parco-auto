@@ -10,7 +10,7 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
-import { getDashboardComponentSeverity } from "@/lib/componentStatus";
+import { formatComponentHours, getDashboardComponentSeverity } from "@/lib/componentStatus";
 
 type AppSettings = {
   team_name: string;
@@ -140,10 +140,34 @@ setInventory((inventoryRes.data || []) as Inventory[]);
   }, [cars, components]);
 
   const stats: StatItem[] = [
-    { label: `${labels.vehicle} pronti`, value: `${carsReady}/${cars.length}`, icon: <CheckCircle2 size={18} /> },
-    { label: "Criticità urgenti", value: String(urgentComponents.length), icon: <AlertTriangle size={18} /> },
-    { label: "Manutenzioni aperte", value: String(openMaintenances.length), icon: <Wrench size={18} /> },
-    { label: `${labels.event} prossimi`, value: String(upcomingEvents.length), icon: <CalendarDays size={18} /> },
+    {
+      label: `${labels.vehicle} pronti`,
+      value: `${carsReady}/${cars.length}`,
+      icon: <CheckCircle2 size={18} />,
+      helper: cars.length === 0 ? "Nessun mezzo registrato" : "Senza warning componenti",
+      tone: carsReady === cars.length ? "green" : "yellow",
+    },
+    {
+      label: "Criticità urgenti",
+      value: String(urgentComponents.length),
+      icon: <AlertTriangle size={18} />,
+      helper: urgentComponents.length > 0 ? "Da gestire prima del prossimo turno" : "Nessuna urgenza",
+      tone: urgentComponents.length > 0 ? "red" : "green",
+    },
+    {
+      label: "Manutenzioni aperte",
+      value: String(openMaintenances.length),
+      icon: <Wrench size={18} />,
+      helper: "Interventi non completati",
+      tone: openMaintenances.length > 0 ? "yellow" : "green",
+    },
+    {
+      label: `${labels.event} prossimi`,
+      value: String(upcomingEvents.length),
+      icon: <CalendarDays size={18} />,
+      helper: "Calendario operativo",
+      tone: "blue",
+    },
   ];
 
   function renderWidget(code: string, label: string) {
@@ -156,14 +180,14 @@ setInventory((inventoryRes.data || []) as Inventory[]);
                 {cars.map((car) => {
                   const hasProblems = components.some((c) => c.car_id === car.id && componentSeverity(c) >= 2);
                   return (
-                    <div key={car.id} className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <div key={car.id} className="data-row flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-neutral-900">{car.name}</div>
-                        <div className="mt-1 text-sm text-neutral-500">{Number(car.hours || 0).toFixed(1)} h</div>
+                        <div className="font-extrabold text-[var(--text-primary)]">{car.name}</div>
+                        <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{formatComponentHours(car.hours)}</div>
                       </div>
                       <div className="flex items-center gap-3">
                         <StatusBadge label={hasProblems ? "Da verificare" : "Pronto"} tone={hasProblems ? "yellow" : "green"} />
-                        <Link href="/cars" className="text-sm font-semibold text-neutral-600">Apri</Link>
+                        <Link href="/cars" className="text-sm font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Apri</Link>
                       </div>
                     </div>
                   );
@@ -178,11 +202,11 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             {urgentComponents.length + warningComponents.length === 0 ? <EmptyState title="Nessuna criticità componente" /> : (
               <div className="space-y-3">
                 {[...urgentComponents, ...warningComponents].slice(0, 8).map((row) => (
-                  <div key={row.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div key={row.id} className="data-row">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-bold text-neutral-900">{row.type} · {row.identifier}</div>
-                        <div className="mt-1 text-sm text-neutral-500">{row.car_id ? `Montato su mezzo collegato` : "Attualmente smontato"}</div>
+                        <div className="font-extrabold text-[var(--text-primary)]">{row.type} · {row.identifier}</div>
+                        <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.car_id ? `Montato su mezzo collegato` : "Attualmente smontato"}</div>
                       </div>
                       <StatusBadge label={componentSeverity(row) >= 3 ? "Urgente" : "Attenzione"} tone={componentSeverity(row) >= 3 ? "red" : "yellow"} />
                     </div>
@@ -198,12 +222,12 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             {upcomingEvents.length === 0 ? <EmptyState title="Nessun evento imminente" /> : (
               <div className="space-y-3">
                 {upcomingEvents.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div key={row.id} className="data-row flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-neutral-900">{row.name}</div>
-                      <div className="mt-1 text-sm text-neutral-500">{formatDate(row.date)} · {row.circuit_id?.name || "Circuito da definire"}</div>
+                      <div className="font-extrabold text-[var(--text-primary)]">{row.name}</div>
+                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{formatDate(row.date)} · {row.circuit_id?.name || "Circuito da definire"}</div>
                     </div>
-                    <Link href={`/calendar/${row.id}`} className="text-sm font-semibold text-neutral-600">Apri</Link>
+                    <Link href={`/calendar/${row.id}`} className="text-sm font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Apri</Link>
                   </div>
                 ))}
               </div>
@@ -216,11 +240,11 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             {openMaintenances.length === 0 ? <EmptyState title="Nessuna manutenzione aperta" /> : (
               <div className="space-y-3">
                 {openMaintenances.map((row) => (
-                  <div key={row.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div key={row.id} className="data-row">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-bold text-neutral-900">{row.type || "Manutenzione"}</div>
-                        <div className="mt-1 text-sm text-neutral-500">{row.car_id?.name || row.component_id?.identifier || "Elemento non specificato"} · {formatDate(row.date)}</div>
+                        <div className="font-extrabold text-[var(--text-primary)]">{row.type || "Manutenzione"}</div>
+                        <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.car_id?.name || row.component_id?.identifier || "Elemento non specificato"} · {formatDate(row.date)}</div>
                       </div>
                       <div className="flex gap-2">
                         {row.priority ? <StatusBadge label={row.priority} tone={row.priority === "high" ? "red" : row.priority === "medium" ? "yellow" : "neutral"} /> : null}
@@ -239,10 +263,10 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             {expiringDriverDocs.length === 0 ? <EmptyState title={`Nessun documento ${labels.driver.toLowerCase()} in scadenza`} /> : (
               <div className="space-y-3">
                 {expiringDriverDocs.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div key={row.id} className="data-row flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-neutral-900">{row.driver_id?.first_name} {row.driver_id?.last_name}</div>
-                      <div className="mt-1 text-sm text-neutral-500">Scadenza {formatDate(row.expires_at)}</div>
+                      <div className="font-extrabold text-[var(--text-primary)]">{row.driver_id?.first_name} {row.driver_id?.last_name}</div>
+                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">Scadenza {formatDate(row.expires_at)}</div>
                     </div>
                     <StatusBadge label="Da verificare" tone="yellow" />
                   </div>
@@ -257,10 +281,10 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             {lowStock.length === 0 ? <EmptyState title="Nessun articolo sotto soglia" /> : (
               <div className="space-y-3">
                 {lowStock.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div key={row.id} className="data-row flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-neutral-900">{row.name}</div>
-                      <div className="mt-1 text-sm text-neutral-500">Disponibile {row.quantity} · Minima {row.minimum_quantity} · Impegnata {row.reserved_quantity}</div>
+                      <div className="font-extrabold text-[var(--text-primary)]">{row.name}</div>
+                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">Disponibile {row.quantity} · Minima {row.minimum_quantity} · Impegnata {row.reserved_quantity}</div>
                     </div>
                     <StatusBadge label="Sotto soglia" tone="red" />
                   </div>
@@ -282,16 +306,16 @@ setInventory((inventoryRes.data || []) as Inventory[]);
   ];
 
   if (loading) {
-    return <div className={`p-6 text-neutral-500`}>Caricamento dashboard...</div>;
+    return <div className="p-6 text-[var(--text-secondary)]">Caricamento dashboard...</div>;
   }
 
   return (
-    <div className={`flex flex-col gap-6 p-6`}>
+    <div className="page-shell">
       <PageHeader
         title={settings?.team_name || "Dashboard"}
         subtitle="Centro di comando operativo: prontezza mezzi, criticità e prossime azioni"
         icon={<ClipboardList size={22} />}
-        actions={<Link href="/settings" className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black">Configura dashboard</Link>}
+        actions={<Link href="/settings" className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-extrabold text-[var(--brand-on-accent)] shadow-sm hover:brightness-95">Configura dashboard</Link>}
       />
 
       <SectionCard>
@@ -316,9 +340,9 @@ setInventory((inventoryRes.data || []) as Inventory[]);
 
 function QuickPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-      <div className="flex items-center gap-2 text-sm text-neutral-500">{icon}{label}</div>
-      <div className="mt-2 text-2xl font-bold text-neutral-900">{value}</div>
+    <div className="data-row">
+      <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">{icon}{label}</div>
+      <div className="technical-number mt-2 text-2xl font-black text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }

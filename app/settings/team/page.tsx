@@ -571,7 +571,7 @@ export default function TeamAccessPage() {
                             <button
                               onClick={() => void saveMember(member)}
                               disabled={isSaving || disableOwnerDowngrade || disableOwnerDeactivate}
-                              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
                               Salva membro
@@ -704,7 +704,7 @@ export default function TeamAccessPage() {
                   <button
                     onClick={() => void saveOverride()}
                     disabled={savingOverride || !selectedMemberId || !selectedPermissionCode}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {savingOverride ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                     Salva override

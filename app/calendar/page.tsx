@@ -323,7 +323,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => openCreate()}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi evento
@@ -514,7 +514,7 @@ export default function CalendarPage() {
                 type="button"
                 onClick={saveEvent}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? "Salvataggio..." : editing ? "Aggiorna evento" : "Salva evento"}
               </button>
@@ -560,7 +560,7 @@ export default function CalendarPage() {
                 type="button"
                 onClick={saveCircuit}
                 disabled={saving}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? "Salvataggio..." : "Salva autodromo"}
               </button>

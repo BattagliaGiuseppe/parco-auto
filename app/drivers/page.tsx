@@ -863,7 +863,7 @@ export default function DriversPage() {
         icon={<Users className="h-6 w-6" />}
         actions={
           canEditDrivers ? (
-            <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500">
+            <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">
               <PlusCircle className="h-4 w-4" /> Nuovo pilota
             </button>
           ) : undefined
@@ -1116,7 +1116,7 @@ export default function DriversPage() {
                               </UiField>
                             </div>
                             <div className="mt-4 flex justify-end">
-                              <button onClick={() => saveDocument(driver)} disabled={docSaving} className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">
+                              <button onClick={() => saveDocument(driver)} disabled={docSaving} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
                                 <Upload className="h-4 w-4" /> {docSaving ? "Salvataggio..." : "Salva documento"}
                               </button>
                             </div>
@@ -1238,7 +1238,7 @@ export default function DriversPage() {
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button onClick={resetDriverModal} className="rounded-xl border border-neutral-200 px-4 py-2 font-bold hover:bg-neutral-50">Annulla</button>
-              <button onClick={saveDriver} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">
+              <button onClick={saveDriver} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-5 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
                 <CheckCircle2 className="h-4 w-4" /> {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Crea pilota"}
               </button>
             </div>

@@ -10,15 +10,22 @@
   --brand-primary-soft: rgba(23, 23, 23, 0.08);
   --brand-secondary-soft: rgba(38, 38, 38, 0.08);
   --brand-accent-soft: rgba(250, 204, 21, 0.18);
-  --surface-page: #f5f5f5;
+  --surface-page: #f4f5f4;
   --surface-card: #ffffff;
-  --surface-muted: #fafafa;
+  --surface-muted: #f7f7f5;
+  --surface-raised: #ffffff;
+  --surface-track: #ededeb;
   --text-primary: #171717;
   --text-secondary: #525252;
-  --border-default: #e5e5e5;
+  --text-muted: #737373;
+  --border-default: #e2e2df;
+  --border-strong: #c9c9c4;
   --state-success: #059669;
   --state-warning: #d97706;
   --state-danger: #dc2626;
+  --state-info: #2563eb;
+  --shadow-card: 0 16px 40px rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 @layer base {
@@ -29,51 +36,103 @@
 
   body {
     @apply font-sans antialiased;
-    background-color: var(--surface-page);
+    background:
+      radial-gradient(circle at top right, var(--brand-accent-soft), transparent 28rem),
+      linear-gradient(180deg, #f8f8f6 0%, var(--surface-page) 42%, #eceeed 100%);
     color: var(--text-primary);
   }
 
   * {
     border-color: var(--border-default);
   }
+
+  ::selection {
+    background: var(--brand-accent-soft);
+    color: var(--text-primary);
+  }
+
+  input,
+  select,
+  textarea {
+    color: var(--text-primary);
+  }
+
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
 }
 
-.racing-heading {
-  font-family: "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
-  letter-spacing: -0.025em;
-}
+@layer components {
+  .page-shell {
+    @apply flex flex-col gap-6 p-4 md:p-6;
+  }
 
-.racing-kicker {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
+  .racing-heading {
+    font-family: "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
+    letter-spacing: -0.03em;
+  }
 
-.btn-primary {
-  background-color: var(--brand-accent);
-  color: var(--brand-on-accent);
-  padding: 0.5rem 1rem;
-  border-radius: 0.75rem;
-  font-weight: 700;
-  transition: filter 0.2s ease;
-}
+  .racing-kicker {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
 
-.btn-primary:hover {
-  filter: brightness(0.96);
-}
+  .motorsport-panel {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9)),
+      linear-gradient(135deg, var(--brand-accent-soft), transparent 38%);
+    border: 1px solid var(--border-default);
+    border-radius: 1.75rem;
+    box-shadow: var(--shadow-card);
+  }
 
-.card {
-  background: var(--surface-card);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
+  .motorsport-divider {
+    height: 3px;
+    width: 64px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0));
+  }
 
-.card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  .data-row {
+    @apply rounded-2xl border p-4 transition;
+    background: var(--surface-muted);
+    border-color: var(--border-default);
+  }
+
+  .data-row:hover {
+    background: var(--surface-card);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .technical-number {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn-primary {
+    background-color: var(--brand-accent);
+    color: var(--brand-on-accent);
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-weight: 800;
+    transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 10px 22px rgba(250, 204, 21, 0.18);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(0.96);
+    transform: translateY(-1px);
+  }
+
+  .card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+    box-shadow: var(--shadow-soft);
+  }
 }
 
 @media print {

@@ -121,7 +121,7 @@ export default function LoginPage() {
     <div className={`grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]`}>
       <div className="hidden bg-neutral-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-yellow-400">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-accent-soft)] bg-[var(--brand-accent-soft)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[var(--brand-primary)]">
             <ShieldCheck size={14} /> {brandConfig.marketingLabel}
           </div>
           <div className="mt-6 flex items-center gap-4">
@@ -209,7 +209,7 @@ export default function LoginPage() {
             {error ? <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {message ? <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-700">{message}</div> : null}
 
-            <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:opacity-60">
+            <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
               {mode === "login" ? <LogIn size={18} /> : <UserPlus size={18} />}
               {loading ? "Attendere..." : mode === "login" ? "Accedi" : "Crea account"}
             </button>

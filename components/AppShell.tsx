@@ -241,7 +241,7 @@ export default function AppShell({
 
   if (!ready || accessStatus === "loading") {
     return (
-      <div className="min-h-screen bg-neutral-100 flex items-center justify-center text-neutral-500">
+      <div className="min-h-screen flex items-center justify-center text-[var(--text-secondary)]">
         Caricamento...
       </div>
     );
@@ -249,12 +249,12 @@ export default function AppShell({
 
   if (isAuthenticated && accessStatus === "error") {
     return (
-      <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
-          <h1 className="text-2xl font-bold text-neutral-900">
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-8 shadow-[var(--shadow-card)]">
+          <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">
             Impossibile verificare il workspace
           </h1>
-          <p className="mt-3 text-sm leading-6 text-neutral-600">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
             L&apos;account risulta autenticato, ma la piattaforma non riesce a
             controllare correttamente l&apos;accesso al team. Non significa per
             forza che il workspace non esista: potrebbe essere un problema
@@ -270,14 +270,14 @@ export default function AppShell({
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => window.location.reload()}
-              className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"
+              className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand-accent)] px-4 py-3 font-extrabold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               Riprova
             </button>
 
             <button
               onClick={handleSignOut}
-              className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 px-4 py-3 font-semibold text-neutral-700 hover:bg-neutral-50"
+              className="inline-flex items-center justify-center rounded-2xl border border-[var(--border-default)] px-4 py-3 font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]"
             >
               Esci
             </button>
@@ -295,7 +295,7 @@ export default function AppShell({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 lg:grid lg:grid-cols-[280px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       <Sidebar />
       <main className="min-w-0 p-4 md:p-6">{children}</main>
     </div>

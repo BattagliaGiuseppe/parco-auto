@@ -2867,7 +2867,7 @@ export default function TelemetryPage() {
                 <button
                   onClick={addFile}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black shadow-sm transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} />
                   {saving ? "Salvataggio..." : parsedCsvDraft ? "Salva telemetria analizzata" : "Registra file"}
@@ -3656,7 +3656,7 @@ export default function TelemetryPage() {
                   type="button"
                   onClick={confirmCsvWizard}
                   disabled={csvWizard.importing || wizardValidation.errors.length > 0}
-                  className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black shadow-sm transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {csvWizard.importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
                   {csvWizard.importing ? "Import in corso..." : "Conferma mapping"}

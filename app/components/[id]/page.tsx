@@ -30,6 +30,7 @@ import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
+import { formatComponentHours } from "@/lib/componentStatus";
 
 type ComponentRow = {
   id: string;
@@ -100,7 +101,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatHours(value: number | null | undefined) {
-  return `${Number(value ?? 0).toFixed(1)} h`;
+  return formatComponentHours(value);
 }
 
 function getStatus(component: ComponentRow) {
@@ -573,7 +574,7 @@ export default function ComponentDetailPage() {
                 ) : (
                   <button
                     onClick={() => setOpenMount(true)}
-                    className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                    className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Link2 size={16} className="mr-2 inline" />
                     Monta su auto
@@ -944,7 +945,7 @@ export default function ComponentDetailPage() {
             <button
               onClick={() => void saveComponentEdits()}
               disabled={savingEdit}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <Save size={16} className="mr-2 inline" />
               {savingEdit ? "Salvataggio..." : "Salva componente"}
@@ -1034,7 +1035,7 @@ export default function ComponentDetailPage() {
             <button
               onClick={() => void saveRevision()}
               disabled={savingRevision}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <RotateCcw size={16} className="mr-2 inline" />
               {savingRevision ? "Salvataggio..." : "Registra revisione"}
@@ -1092,7 +1093,7 @@ export default function ComponentDetailPage() {
             <button
               onClick={() => void mountComponent()}
               disabled={savingMount || !selectedCarId}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
             >
               <Link2 size={16} className="mr-2 inline" />
               {savingMount ? "Montaggio..." : "Conferma montaggio"}

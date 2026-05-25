@@ -165,7 +165,7 @@ export default function AcceptInvitePage() {
     <div className={`flex min-h-screen items-center justify-center bg-neutral-100 p-6`}>
       <div className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-start gap-3">
-          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-yellow-400/30 text-black">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-[var(--brand-accent-soft)] text-[var(--brand-primary)]">
             <Image
               src={brandConfig.logoPath}
               alt={brandConfig.appName}
@@ -260,7 +260,7 @@ export default function AcceptInvitePage() {
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <Link
                         href={`/login?token=${encodeURIComponent(token || "")}`}
-                        className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500"
+                        className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand-accent)] px-4 py-3 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                       >
                         Accedi o crea account
                       </Link>
@@ -287,7 +287,7 @@ export default function AcceptInvitePage() {
                       <button
                         onClick={() => void handleAccept()}
                         disabled={accepting || !emailMatches}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {accepting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                         Accetta invito

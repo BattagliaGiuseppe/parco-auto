@@ -166,7 +166,7 @@ function SectionTabs({
           onClick={() => onChange(key)}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             value === key
-              ? "bg-yellow-400 text-black"
+              ? "bg-[var(--brand-accent)] text-[var(--brand-on-accent)]"
               : "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
           }`}
         >
@@ -988,7 +988,7 @@ async function saveAll() {
           <button
             onClick={saveAll}
             disabled={saving}
-            className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-yellow-200"
+            className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} className="mr-2 inline" />
             {saving ? "Salvataggio..." : "Salva impostazioni"}

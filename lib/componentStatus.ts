@@ -45,7 +45,19 @@ export function toOptionalComponentNumber(value: number | string | null | undefi
 
 export function formatComponentHours(value: number | string | null | undefined) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-  return `${Number(value).toFixed(1)} h`;
+
+  const hours = Number(value);
+  const minutes = Math.round(hours * 60);
+
+  if (Math.abs(hours) < 1) {
+    return `${minutes} min`;
+  }
+
+  if (Math.abs(hours) < 10) {
+    return `${hours.toFixed(2)} h`;
+  }
+
+  return `${hours.toFixed(1)} h`;
 }
 
 export function getComponentHoursInfo(row: ComponentStatusInput): ComponentHoursInfo {

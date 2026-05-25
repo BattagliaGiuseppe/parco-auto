@@ -53,7 +53,7 @@ function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
       {onPrefill ? (
         <button
           onClick={onPrefill}
-          className="ml-3 inline-flex rounded-xl bg-yellow-400 px-3 py-2 font-semibold text-black hover:bg-yellow-500"
+          className="ml-3 inline-flex rounded-xl bg-[var(--brand-accent)] px-3 py-2 font-semibold text-[var(--brand-on-accent)] hover:brightness-95"
         >
           Carica checklist base
         </button>
@@ -530,7 +530,7 @@ export default function DriverDetailPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href={`/drivers/${driver.id}/performance`}
-              className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               Performance
             </Link>
@@ -696,7 +696,7 @@ export default function DriverDetailPage() {
               <button
                 onClick={saveProfile}
                 disabled={savingProfile}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
               >
                 <Save size={16} className="mr-2 inline" />
                 {savingProfile ? "Salvataggio..." : "Salva scheda pilota"}
@@ -798,7 +798,7 @@ export default function DriverDetailPage() {
               <button
                 onClick={saveSafetyItems}
                 disabled={savingSafety}
-                className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500 disabled:opacity-60"
+                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
               >
                 <Save size={16} className="mr-2 inline" />
                 {savingSafety ? "Salvataggio..." : "Salva checklist sicurezza"}
@@ -844,7 +844,7 @@ export default function DriverDetailPage() {
               <div className="mt-3">
                 <button
                   onClick={addLicense}
-                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                  className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
                   Aggiungi licenza
@@ -907,7 +907,7 @@ export default function DriverDetailPage() {
                           </button>
                           <button
                             onClick={saveEditedLicense}
-                            className="inline-flex rounded-xl bg-yellow-400 px-3 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                            className="inline-flex rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                           >
                             <Save size={15} className="mr-2 inline" />
                             Salva licenza
@@ -989,7 +989,7 @@ export default function DriverDetailPage() {
               <div className="mt-3">
                 <button
                   onClick={addDocument}
-                  className="rounded-xl bg-yellow-400 px-4 py-2 font-bold text-black hover:bg-yellow-500"
+                  className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
                   Aggiungi documento
