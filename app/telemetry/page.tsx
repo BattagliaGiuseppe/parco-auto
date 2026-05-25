@@ -1445,6 +1445,10 @@ export default function TelemetryPage() {
   const [analysisFullscreen, setAnalysisFullscreen] = useState(false);
   const [analysisPrimaryLap, setAnalysisPrimaryLap] = useState<string>("all");
   const [analysisCompareLap, setAnalysisCompareLap] = useState<string>("none");
+  const [analysisCompareFileId, setAnalysisCompareFileId] = useState<string>("");
+  const [analysisCompareFileLap, setAnalysisCompareFileLap] = useState<string>("best");
+  const [analysisCompareFileSamples, setAnalysisCompareFileSamples] = useState<TelemetrySample[]>([]);
+  const [analysisCompareFileLoading, setAnalysisCompareFileLoading] = useState(false);
   const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
   async function load() {
@@ -1852,12 +1856,42 @@ export default function TelemetryPage() {
     }
   }
 
+  async function fetchTelemetrySamplesForFile(fileId: string) {
+    const ctx = await getCurrentTeamContext();
+    const pageSize = 1000;
+    let from = 0;
+    let allSamples: TelemetrySample[] = [];
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("telemetry_samples")
+        .select("*")
+        .eq("team_id", ctx.teamId)
+        .eq("telemetry_file_id", fileId)
+        .order("sample_index", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      const batch = ((data || []) as TelemetrySample[]) || [];
+      allSamples = allSamples.concat(batch);
+
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
+
+    return allSamples;
+  }
+
   async function openAnalysis(row: TelemetryFile) {
     setAnalysisFile(row);
     setAnalysisSamples([]);
     setAnalysisLoading(true);
     setAnalysisPrimaryLap("all");
     setAnalysisCompareLap("none");
+    setAnalysisCompareFileId("");
+    setAnalysisCompareFileLap("best");
+    setAnalysisCompareFileSamples([]);
 
     const rowChannels = channels.filter((channel) => channel.telemetry_file_id === row.id);
     const priority = ["speed", "rpm", "throttle", "brake", "brake_pressure", "gear", "water_temp", "oil_temp"];
@@ -1866,34 +1900,7 @@ export default function TelemetryPage() {
     setSelectedAnalysisChannels((defaults.length ? defaults : fallback).slice(0, 4));
 
     try {
-      const ctx = await getCurrentTeamContext();
-
-      // Supabase/PostgREST restituisce di default al massimo 1000 righe.
-      // I file telemetria possono avere 3000-5000 punti campionati: se leggiamo
-      // solo la prima pagina, vediamo solo l'out lap / Giro 1 e gli altri giri
-      // sembrano vuoti. Per l'analisi carichiamo quindi tutte le pagine.
-      const pageSize = 1000;
-      let from = 0;
-      let allSamples: TelemetrySample[] = [];
-
-      while (true) {
-        const { data, error } = await supabase
-          .from("telemetry_samples")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .eq("telemetry_file_id", row.id)
-          .order("sample_index", { ascending: true })
-          .range(from, from + pageSize - 1);
-
-        if (error) throw error;
-
-        const batch = ((data || []) as TelemetrySample[]) || [];
-        allSamples = allSamples.concat(batch);
-
-        if (batch.length < pageSize) break;
-        from += pageSize;
-      }
-
+      const allSamples = await fetchTelemetrySamplesForFile(row.id);
       setAnalysisSamples(allSamples);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore caricamento campioni telemetria.";
@@ -1903,20 +1910,65 @@ export default function TelemetryPage() {
     }
   }
 
+  async function loadComparisonTelemetryFile(fileId: string) {
+    setAnalysisCompareFileId(fileId);
+    setAnalysisCompareFileSamples([]);
+    setAnalysisCompareFileLap("best");
+
+    if (!fileId) return;
+
+    setAnalysisCompareFileLoading(true);
+
+    try {
+      const allSamples = await fetchTelemetrySamplesForFile(fileId);
+      setAnalysisCompareFileSamples(allSamples);
+
+      if (analysisPrimaryLap === "all") {
+        setAnalysisPrimaryLap("best");
+      }
+      setAnalysisCompareLap("none");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore caricamento file confronto telemetria.";
+      setFeedback({ type: "error", message });
+    } finally {
+      setAnalysisCompareFileLoading(false);
+    }
+  }
+
   const selectedTurn = form.event_car_turn_id ? turns.find((turn) => turn.id === form.event_car_turn_id) : null;
   const analysisLapOptions = analysisFile ? availableLapNumbersFromSamples(analysisSamples) : [];
   const analysisBestLapNumber = analysisFile ? bestLapNumberForFile(laps, analysisFile.id) : null;
+  const analysisCompareFile = analysisCompareFileId ? rows.find((row) => row.id === analysisCompareFileId) || null : null;
+  const comparisonFileLapOptions = analysisCompareFile ? availableLapNumbersFromSamples(analysisCompareFileSamples) : [];
+  const comparisonFileBestLapNumber = analysisCompareFile ? bestLapNumberForFile(laps, analysisCompareFile.id) : null;
   const resolvedPrimaryLap = resolveLapSelection(analysisPrimaryLap, analysisBestLapNumber);
   const resolvedCompareLap = analysisCompareLap === "none" ? null : resolveLapSelection(analysisCompareLap, analysisBestLapNumber);
+  const resolvedComparisonFileLap = analysisCompareFile ? resolveLapSelection(analysisCompareFileLap, comparisonFileBestLapNumber) : null;
+  const hasExternalComparison = Boolean(analysisCompareFile);
   const rawPrimarySamples = analysisPrimaryLap === "all" ? analysisSamples : samplesForLap(analysisSamples, resolvedPrimaryLap);
-  const rawCompareSamples = resolvedCompareLap === null ? [] : samplesForLap(analysisSamples, resolvedCompareLap);
-  const shouldNormalizeLapAxis = analysisPrimaryLap !== "all";
+  const sameFileCompareSamples = resolvedCompareLap === null ? [] : samplesForLap(analysisSamples, resolvedCompareLap);
+  const externalCompareSamples = analysisCompareFile
+    ? analysisCompareFileLap === "all"
+      ? analysisCompareFileSamples
+      : samplesForLap(analysisCompareFileSamples, resolvedComparisonFileLap)
+    : [];
+  const rawCompareSamples = hasExternalComparison ? externalCompareSamples : sameFileCompareSamples;
+  const shouldNormalizeLapAxis = analysisPrimaryLap !== "all" || Boolean(analysisCompareFile && analysisCompareFileLap !== "all");
   const chartPrimarySamples = shouldNormalizeLapAxis ? normalizeSamplesForLap(rawPrimarySamples, analysisAxis) : rawPrimarySamples;
-  const chartCompareSamples = resolvedCompareLap !== null ? normalizeSamplesForLap(rawCompareSamples, analysisAxis) : [];
+  const chartCompareSamples = rawCompareSamples.length > 0 ? normalizeSamplesForLap(rawCompareSamples, analysisAxis) : [];
   const primaryLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedPrimaryLap) : null;
-  const compareLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedCompareLap) : null;
+  const sameFileCompareLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedCompareLap) : null;
+  const externalCompareLapTime = analysisCompareFile ? lapTimeForNumber(laps, analysisCompareFile.id, resolvedComparisonFileLap) : null;
+  const compareLapTime = hasExternalComparison ? externalCompareLapTime : sameFileCompareLapTime;
   const primaryLabel = analysisPrimaryLap === "all" ? "Sessione completa" : `Giro ${resolvedPrimaryLap ?? "—"}`;
-  const comparisonLabel = resolvedCompareLap !== null ? `Giro ${resolvedCompareLap}` : "Confronto";
+  const comparisonLabel = hasExternalComparison
+    ? `${analysisCompareFile?.file_name || "File confronto"} · ${analysisCompareFileLap === "all" ? "Sessione" : `Giro ${resolvedComparisonFileLap ?? "—"}`}`
+    : resolvedCompareLap !== null
+      ? `Giro ${resolvedCompareLap}`
+      : "Confronto";
+  const comparableTelemetryFiles = analysisFile
+    ? rows.filter((row) => row.id !== analysisFile.id && (row.sampled_points_count || 0) > 0)
+    : [];
   const wizardValidation = validateCsvWizard(csvWizard);
 
   if (access.loading) {
@@ -2458,6 +2510,9 @@ export default function TelemetryPage() {
                   onClick={() => {
                     setAnalysisFile(null);
                     setAnalysisSamples([]);
+                    setAnalysisCompareFileId("");
+                    setAnalysisCompareFileSamples([]);
+                    setAnalysisCompareFileLap("best");
                     setAnalysisFullscreen(false);
                   }}
                   className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50"
@@ -2521,7 +2576,10 @@ export default function TelemetryPage() {
                             value={analysisPrimaryLap}
                             onChange={(event) => {
                               setAnalysisPrimaryLap(event.target.value);
-                              if (event.target.value === "all") setAnalysisCompareLap("none");
+                              if (event.target.value === "all") {
+                                setAnalysisCompareLap("none");
+                                if (analysisCompareFileId) setAnalysisCompareFileLap("all");
+                              }
                             }}
                           >
                             <option value="all">Sessione completa</option>
@@ -2534,11 +2592,11 @@ export default function TelemetryPage() {
                           </select>
                         </Field>
 
-                        <Field label="Sovrapponi giro" hint="linea tratteggiata">
+                        <Field label="Sovrapponi giro stesso file" hint="linea tratteggiata">
                           <select
                             className={selectClassName}
                             value={analysisCompareLap}
-                            disabled={analysisPrimaryLap === "all"}
+                            disabled={analysisPrimaryLap === "all" || Boolean(analysisCompareFileId)}
                             onChange={(event) => setAnalysisCompareLap(event.target.value)}
                           >
                             <option value="none">Nessun confronto</option>
@@ -2551,9 +2609,54 @@ export default function TelemetryPage() {
                           </select>
                         </Field>
 
-                        {analysisPrimaryLap !== "all" ? (
+                        <Field label="Confronta con altro file / turno" hint="usa file già analizzati">
+                          <select
+                            className={selectClassName}
+                            value={analysisCompareFileId}
+                            onChange={(event) => loadComparisonTelemetryFile(event.target.value)}
+                          >
+                            <option value="">Nessun confronto esterno</option>
+                            {comparableTelemetryFiles.map((row) => {
+                              const event = row.event_id ? events.find((item) => item.id === row.event_id) : null;
+                              const driver = row.driver_id ? drivers.find((item) => item.id === row.driver_id) : null;
+                              return (
+                                <option key={row.id} value={row.id}>
+                                  {row.file_name || "File telemetria"}{event?.name ? ` · ${event.name}` : ""}{driver ? ` · ${driverName(driver)}` : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </Field>
+
+                        {analysisCompareFileId ? (
+                          <Field label="Giro del file confronto" hint={analysisCompareFileLoading ? "caricamento campioni..." : "linea tratteggiata"}>
+                            <select
+                              className={selectClassName}
+                              value={analysisCompareFileLap}
+                              disabled={analysisCompareFileLoading}
+                              onChange={(event) => setAnalysisCompareFileLap(event.target.value)}
+                            >
+                              <option value="all">Sessione completa</option>
+                              {comparisonFileBestLapNumber !== null ? <option value="best">Miglior giro ({comparisonFileBestLapNumber})</option> : null}
+                              {comparisonFileLapOptions.map((lap) => (
+                                <option key={lap} value={String(lap)}>
+                                  Giro {lap}{analysisCompareFile ? ` · ${formatDuration(lapTimeForNumber(laps, analysisCompareFile.id, lap))}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                        ) : null}
+
+                        {analysisCompareFileLoading ? (
+                          <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-xs font-semibold text-neutral-600">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Caricamento file di confronto...
+                          </div>
+                        ) : null}
+
+                        {analysisPrimaryLap !== "all" || analysisCompareFileId ? (
                           <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">
-                            Vista giro: tempo e distanza partono da zero per facilitare il confronto. {resolvedCompareLap !== null ? `Delta tempi giro: ${formatNumber((primaryLapTime ?? 0) - (compareLapTime ?? 0), 3)} s.` : "Seleziona un secondo giro per sovrapporre i dati."}
+                            Vista confronto: quando confronti giri, tempo e distanza partono da zero per facilitare la sovrapposizione. {chartCompareSamples.length > 0 ? `Delta tempi: ${formatNumber((primaryLapTime ?? 0) - (compareLapTime ?? 0), 3)} s.` : "Seleziona un giro o un altro file per sovrapporre i dati."}
                           </div>
                         ) : null}
                       </div>
@@ -2591,7 +2694,7 @@ export default function TelemetryPage() {
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
                           <div className="text-sm font-bold text-neutral-900">Grafico sensori</div>
-                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali. Se scegli due giri, il confronto appare tratteggiato.</div>
+                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali. Il confronto, stesso file o altro file/turno, appare tratteggiato.</div>
                         </div>
                         <div className="text-xs font-semibold text-neutral-500">
                           Canali selezionati: {selectedAnalysisChannels.length}
@@ -2673,7 +2776,7 @@ export default function TelemetryPage() {
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
-                    Ora puoi analizzare una sessione completa, isolare un giro e sovrapporre un secondo giro dello stesso file. Il passo successivo sarà confrontare file/turni diversi e generare insight automatici sui punti di miglioramento.
+                    Ora puoi analizzare una sessione completa, isolare un giro, sovrapporre un secondo giro dello stesso file e confrontare anche un altro file/turno già analizzato. Il prossimo passo sarà trasformare questi confronti in insight automatici sui punti di miglioramento.
                   </div>
                 </>
               )}
