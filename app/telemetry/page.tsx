@@ -13,11 +13,13 @@ import {
   Gauge,
   Info,
   Link2,
+  List,
   Loader2,
   Maximize2,
   Minimize2,
   PlayCircle,
   Upload,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -271,6 +273,18 @@ function formatDuration(seconds?: number | null) {
   const rest = seconds - minutes * 60;
   if (minutes <= 0) return `${rest.toFixed(3)} s`;
   return `${minutes}:${rest.toFixed(3).padStart(6, "0")}`;
+}
+
+function formatFileSize(bytes?: number | null) {
+  if (!bytes || bytes <= 0) return "—";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 function parseTags(value: string) {
@@ -1436,8 +1450,10 @@ export default function TelemetryPage() {
   const [parsedCsvDraft, setParsedCsvDraft] = useState<ParsedTelemetryPayload | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [filter, setFilter] = useState("");
+  const [archiveViewMode, setArchiveViewMode] = useState<"detailed" | "compact">("detailed");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [analysisFile, setAnalysisFile] = useState<TelemetryFile | null>(null);
   const [analysisSamples, setAnalysisSamples] = useState<TelemetrySample[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -1524,6 +1540,17 @@ export default function TelemetryPage() {
       void load();
     }
   }, [access.loading, canViewTelemetry]);
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem("telemetry_archive_view_mode");
+    if (savedMode === "compact" || savedMode === "detailed") {
+      setArchiveViewMode(savedMode);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("telemetry_archive_view_mode", archiveViewMode);
+  }, [archiveViewMode]);
 
   const maps = useMemo(() => {
     return {
@@ -1853,6 +1880,64 @@ export default function TelemetryPage() {
       setFeedback({ type: "error", message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteTelemetryFile(row: TelemetryFile) {
+    if (!canEditTelemetry) return;
+
+    const confirmed = window.confirm(
+      `Eliminare definitivamente il file telemetria "${row.file_name || "File telemetria"}"?\n\nVerranno eliminati anche canali, giri, campioni grafici e insight collegati.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingFileId(row.id);
+
+    try {
+      const ctx = await getCurrentTeamContext();
+
+      const linkedDeletes = await Promise.all([
+        supabase.from("telemetry_samples").delete().eq("team_id", ctx.teamId).eq("telemetry_file_id", row.id),
+        supabase.from("telemetry_channels").delete().eq("team_id", ctx.teamId).eq("telemetry_file_id", row.id),
+        supabase.from("telemetry_laps").delete().eq("team_id", ctx.teamId).eq("telemetry_file_id", row.id),
+        supabase.from("telemetry_insights").delete().eq("team_id", ctx.teamId).eq("telemetry_file_id", row.id),
+      ]);
+
+      const linkedError = linkedDeletes.find((result) => result.error)?.error;
+      if (linkedError) throw linkedError;
+
+      const { error } = await supabase
+        .from("telemetry_files")
+        .delete()
+        .eq("team_id", ctx.teamId)
+        .eq("id", row.id);
+
+      if (error) throw error;
+
+      if (row.storage_path) {
+        const { error: storageError } = await supabase.storage.from("team-files").remove([row.storage_path]);
+        if (storageError) {
+          console.warn("File telemetria eliminato dal database, ma non dallo storage:", storageError.message);
+        }
+      }
+
+      if (analysisFile?.id === row.id) {
+        setAnalysisFile(null);
+        setAnalysisSamples([]);
+        setAnalysisCompareFileId("");
+        setAnalysisCompareFileSamples([]);
+        setAnalysisCompareFileLap("best");
+        setAnalysisFullscreen(false);
+      }
+
+      setFeedback({ type: "success", message: "File telemetria eliminato correttamente." });
+      await load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore durante l'eliminazione del file telemetria.";
+      setFeedback({ type: "error", message });
+    } finally {
+      setDeletingFileId(null);
     }
   }
 
@@ -2295,13 +2380,40 @@ export default function TelemetryPage() {
           subtitle="Consulta file e metadati collegati a eventi, turni e performance."
           className={canEditTelemetry ? "" : "xl:col-span-2"}
         >
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <input
-              className={inputClassName}
+              className={`${inputClassName} lg:max-w-xl`}
               placeholder="Filtro rapido per nome, evento, pilota, mezzo, tag o note"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             />
+
+            <div className="inline-flex w-full rounded-2xl border border-neutral-200 bg-neutral-50 p-1 lg:w-auto">
+              <button
+                type="button"
+                onClick={() => setArchiveViewMode("detailed")}
+                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition lg:flex-none ${
+                  archiveViewMode === "detailed"
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                <FileArchive size={15} />
+                Dettagliata
+              </button>
+              <button
+                type="button"
+                onClick={() => setArchiveViewMode("compact")}
+                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition lg:flex-none ${
+                  archiveViewMode === "compact"
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                <List size={15} />
+                Sintetica
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -2323,6 +2435,97 @@ export default function TelemetryPage() {
                 const rowChannels = channels.filter((channel) => channel.telemetry_file_id === row.id);
                 const rowLaps = laps.filter((lap) => lap.telemetry_file_id === row.id);
                 const rowInsights = insights.filter((insight) => insight.telemetry_file_id === row.id);
+
+                if (archiveViewMode === "compact") {
+                  return (
+                    <div key={row.id} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-sm font-bold text-neutral-900">
+                              {row.file_name || "File telemetria"}
+                            </div>
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusClassName(
+                                row.import_status
+                              )}`}
+                            >
+                              {statusLabel(row.import_status)}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
+                            <span>{formatDateTime(row.created_at)}</span>
+                            <span>{safeText(event?.name)}</span>
+                            <span>{safeText(car?.name)}</span>
+                            <span>{driverName(driver)}</span>
+                            <span>{safeText(row.track_name)}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs text-neutral-600 sm:grid-cols-5 xl:w-[520px]">
+                          <div><span className="font-bold text-neutral-900">{row.channels_count || rowChannels.length || 0}</span> canali</div>
+                          <div><span className="font-bold text-neutral-900">{row.laps_count || rowLaps.length || 0}</span> giri</div>
+                          <div><span className="font-bold text-neutral-900">{row.sampled_points_count || 0}</span> punti</div>
+                          <div>Best {formatDuration(row.best_lap_seconds)}</div>
+                          <div>{formatFileSize(row.file_size_bytes)}</div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 xl:justify-end">
+                          {canEditTelemetry ? (
+                            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 transition hover:bg-sky-100">
+                              <Database size={14} />
+                              CSV
+                              <input
+                                type="file"
+                                accept=".csv,.txt"
+                                className="hidden"
+                                onChange={(event) => {
+                                  const selectedFile = event.target.files?.[0] || null;
+                                  if (selectedFile) void startCsvWizardFromFile(selectedFile, "existing", row.id);
+                                  event.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                          ) : null}
+
+                          {(row.sampled_points_count || 0) > 0 || rowChannels.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => void openAnalysis(row)}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs font-semibold text-yellow-900 transition hover:bg-yellow-100"
+                            >
+                              <BarChart3 size={14} />
+                              Analizza
+                            </button>
+                          ) : null}
+
+                          {row.file_url ? (
+                            <a
+                              href={row.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                            >
+                              Apri
+                            </a>
+                          ) : null}
+
+                          {canEditTelemetry ? (
+                            <button
+                              type="button"
+                              onClick={() => void deleteTelemetryFile(row)}
+                              disabled={deletingFileId === row.id}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingFileId === row.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              Elimina
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={row.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -2381,6 +2584,18 @@ export default function TelemetryPage() {
                           >
                             Apri file
                           </a>
+                        ) : null}
+
+                        {canEditTelemetry ? (
+                          <button
+                            type="button"
+                            onClick={() => void deleteTelemetryFile(row)}
+                            disabled={deletingFileId === row.id}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingFileId === row.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                            Elimina
+                          </button>
                         ) : null}
                       </div>
                     </div>
