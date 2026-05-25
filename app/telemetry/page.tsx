@@ -368,14 +368,31 @@ type ChannelDefinition = {
   aliases: string[];
 };
 
+type AimCsvMetadata = {
+  isAimCsv: boolean;
+  format?: string | null;
+  session?: string | null;
+  vehicle?: string | null;
+  racer?: string | null;
+  championship?: string | null;
+  date?: string | null;
+  time?: string | null;
+  sampleRate?: number | null;
+  durationSeconds?: number | null;
+  beaconMarkers: number[];
+  segmentTimes: number[];
+};
+
 type CsvWizardState = {
   mode: "new" | "existing";
   telemetryFileId?: string;
   fileName: string;
   delimiter: string;
   headers: string[];
+  units: Record<string, string>;
   rows: string[][];
   mapping: Record<string, ChannelKey>;
+  aimMetadata?: AimCsvMetadata;
   error?: string;
   importing?: boolean;
 };
@@ -434,26 +451,51 @@ const MAX_PARSED_ROWS = 60000;
 const CHANNEL_DEFINITIONS: ChannelDefinition[] = [
   { key: "ignore", label: "Ignora colonna", unit: "", aliases: [] },
   { key: "time", label: "Tempo", unit: "s", aliases: ["time", "timestamp", "tempo", "t", "seconds", "sec"] },
-  { key: "distance", label: "Distanza", unit: "m", aliases: ["distance", "distanza", "dist", "m", "meter", "meters"] },
+  {
+    key: "distance",
+    label: "Distanza",
+    unit: "m",
+    aliases: ["distance", "distanza", "dist", "meter", "meters", "distanceongpsspeed", "distanceonvehiclespeed"],
+  },
   { key: "lap", label: "Giro", unit: "", aliases: ["lap", "giro", "lapnumber", "nrgiro", "lapno"] },
-  { key: "speed", label: "Velocità", unit: "km/h", aliases: ["speed", "velocita", "velocità", "vvehicle", "gpsspeed", "kmh"] },
-  { key: "rpm", label: "RPM", unit: "rpm", aliases: ["rpm", "engine rpm", "motore", "engine", "girimotore"] },
-  { key: "throttle", label: "Gas / Throttle", unit: "%", aliases: ["throttle", "gas", "acceleratore", "tps", "accel"] },
-  { key: "brake", label: "Freno", unit: "%", aliases: ["brake", "freno", "brakepedal", "brake position"] },
-  { key: "brake_pressure", label: "Pressione freno", unit: "bar", aliases: ["brakepressure", "pressionefreno", "brake press", "pbrake"] },
-  { key: "gear", label: "Marcia", unit: "", aliases: ["gear", "marcia", "rapport", "gearposition"] },
-  { key: "water_temp", label: "Temp. acqua", unit: "°C", aliases: ["watertemp", "h2otemp", "tempacqua", "water", "ect"] },
-  { key: "oil_temp", label: "Temp. olio", unit: "°C", aliases: ["oiltemp", "tempolio", "toil", "oil temperature"] },
-  { key: "oil_pressure", label: "Pressione olio", unit: "bar", aliases: ["oilpressure", "pressioneolio", "poil", "oil press"] },
+  {
+    key: "speed",
+    label: "Velocità",
+    unit: "km/h",
+    aliases: ["gpsspeed", "rsrv4bkspeed", "vehiclespeed", "speed", "velocita", "velocità", "vvehicle", "kmh"],
+  },
+  { key: "rpm", label: "RPM", unit: "rpm", aliases: ["rsv4rpm", "rpm", "engine rpm", "motore", "engine", "girimotore"] },
+  {
+    key: "throttle",
+    label: "Gas / Throttle",
+    unit: "%",
+    aliases: ["rsv4thrthand", "v4mpthrottle", "throttle", "gas", "acceleratore", "tps", "accel"],
+  },
+  { key: "brake", label: "Freno", unit: "%", aliases: ["brakepressbias", "brake", "freno", "brakepedal", "brake position"] },
+  {
+    key: "brake_pressure",
+    label: "Pressione freno",
+    unit: "bar",
+    aliases: ["brakepresfron", "brakepresfront", "brakepresrear", "brakepressure", "pressionefreno", "brake press", "pbrake"],
+  },
+  { key: "gear", label: "Marcia", unit: "", aliases: ["rsv4gear", "gear", "marcia", "rapport", "gearposition"] },
+  {
+    key: "water_temp",
+    label: "Temp. acqua",
+    unit: "°C",
+    aliases: ["rsv4engtemp", "engtemp", "watertemp", "h2otemp", "tempacqua", "water", "ect"],
+  },
+  { key: "oil_temp", label: "Temp. olio", unit: "°C", aliases: ["engineoiltem", "oiltemp", "tempolio", "toil", "oil temperature"] },
+  { key: "oil_pressure", label: "Pressione olio", unit: "bar", aliases: ["engineoilpre", "oilpumpinpre", "oilpressure", "pressioneolio", "poil", "oil press"] },
   { key: "fuel_pressure", label: "Pressione benzina", unit: "bar", aliases: ["fuelpressure", "pressionebenzina", "pfuel", "fuel press"] },
   { key: "exhaust_temp", label: "Temp. scarico", unit: "°C", aliases: ["egt", "exhaust", "tempscarico", "exhausttemp"] },
-  { key: "gps_lat", label: "GPS latitudine", unit: "deg", aliases: ["lat", "latitude", "gpslat", "latitudine"] },
-  { key: "gps_lon", label: "GPS longitudine", unit: "deg", aliases: ["lon", "lng", "longitude", "gpslon", "longitudine"] },
-  { key: "lateral_g", label: "G laterale", unit: "g", aliases: ["lateralg", "latg", "g lateral", "gy"] },
-  { key: "longitudinal_g", label: "G longitudinale", unit: "g", aliases: ["longitudinalg", "longg", "g longitudinal", "gx"] },
+  { key: "gps_lat", label: "GPS latitudine", unit: "deg", aliases: ["gpslatitude", "lat", "latitude", "gpslat", "latitudine"] },
+  { key: "gps_lon", label: "GPS longitudine", unit: "deg", aliases: ["gpslongitude", "lon", "lng", "longitude", "gpslon", "longitudine"] },
+  { key: "lateral_g", label: "G laterale", unit: "g", aliases: ["gpslatacc", "lateralacc", "lateralg", "latg", "g lateral", "gy"] },
+  { key: "longitudinal_g", label: "G longitudinale", unit: "g", aliases: ["gpslonacc", "longitudinala", "longitudinalg", "longg", "g longitudinal", "gx"] },
   { key: "steering_angle", label: "Angolo sterzo", unit: "deg", aliases: ["steering", "sterzo", "steeringangle", "angle"] },
   { key: "fuel", label: "Carburante", unit: "L", aliases: ["fuel", "benzina", "carburante", "fuelused", "fuel level"] },
-  { key: "battery_voltage", label: "Batteria", unit: "V", aliases: ["battery", "batt", "voltage", "vbatt", "batteria"] },
+  { key: "battery_voltage", label: "Batteria", unit: "V", aliases: ["rsv4vbatt", "externalvoltage", "battery", "batt", "voltage", "vbatt", "batteria"] },
   { key: "lambda", label: "Lambda", unit: "", aliases: ["lambda", "afr", "lambda1"] },
   { key: "tire_pressure_fl", label: "Pressione gomma ant. sx", unit: "bar", aliases: ["flpressure", "frontleftpressure", "ant sx", "pressioneant sx"] },
   { key: "tire_pressure_fr", label: "Pressione gomma ant. dx", unit: "bar", aliases: ["frpressure", "frontrightpressure", "ant dx", "pressioneant dx"] },
@@ -541,9 +583,43 @@ function parseDelimitedText(text: string, delimiter: string) {
   return rows;
 }
 
-function detectChannelKey(header: string): ChannelKey {
+function detectChannelKey(header: string, unit?: string): ChannelKey {
   const normalized = normalizeHeader(header);
+  const normalizedUnit = normalizeHeader(unit || "");
   if (!normalized) return "ignore";
+
+  const exactAimRules: Array<[RegExp, ChannelKey]> = [
+    [/^time$/, "time"],
+    [/^gpsspeed$/, "speed"],
+    [/^rsv4rpm$/, "rpm"],
+    [/^rsv4gear$/, "gear"],
+    [/^rsv4thrthand$/, "throttle"],
+    [/^v4mpthrottle$/, "throttle"],
+    [/^brakepressbias$/, "brake"],
+    [/^brakepresfron/, "brake_pressure"],
+    [/^brakepresrear/, "brake_pressure"],
+    [/^steering$/, "steering_angle"],
+    [/^gpslatitude$/, "gps_lat"],
+    [/^gpslongitude$/, "gps_lon"],
+    [/^gpslatacc$/, "lateral_g"],
+    [/^gpslonacc$/, "longitudinal_g"],
+    [/^longitudinala$/, "longitudinal_g"],
+    [/^lateralacc$/, "lateral_g"],
+    [/^rsv4engtemp$/, "water_temp"],
+    [/^engineoiltem$/, "oil_temp"],
+    [/^engineoilpre$/, "oil_pressure"],
+    [/^fuelpressure$/, "fuel_pressure"],
+    [/^rsv4vbatt$/, "battery_voltage"],
+    [/^externalvoltage$/, "battery_voltage"],
+    [/^distanceongpsspeed$/, "distance"],
+  ];
+
+  const exactRule = exactAimRules.find(([pattern]) => pattern.test(normalized));
+  if (exactRule) return exactRule[1];
+
+  // Evita falsi positivi frequenti negli export AIM.
+  if (normalized.includes("nsat") || normalized.includes("accuracy") || normalized.includes("radius")) return "ignore";
+  if (normalized === "rsv4bkspeed" && normalizedUnit !== "kmh") return "ignore";
 
   for (const definition of CHANNEL_DEFINITIONS) {
     if (definition.key === "ignore") continue;
@@ -554,6 +630,156 @@ function detectChannelKey(header: string): ChannelKey {
   }
 
   return "ignore";
+}
+
+function parseAimSegmentTime(value: string | undefined | null): number | null {
+  return parseTimeToSeconds(value || null);
+}
+
+function extractAimCsvMetadata(rows: string[][]): AimCsvMetadata | undefined {
+  const firstRow = rows[0] || [];
+  if (normalizeHeader(firstRow[0] || "") !== "format" || normalizeHeader(firstRow[1] || "") !== "aimcsvfile") {
+    return undefined;
+  }
+
+  const metadata: AimCsvMetadata = {
+    isAimCsv: true,
+    format: "AiM CSV File",
+    session: null,
+    vehicle: null,
+    racer: null,
+    championship: null,
+    date: null,
+    time: null,
+    sampleRate: null,
+    durationSeconds: null,
+    beaconMarkers: [],
+    segmentTimes: [],
+  };
+
+  rows.forEach((row) => {
+    const key = normalizeHeader(row[0] || "");
+    const value = row[1] || null;
+
+    if (key === "session") metadata.session = value;
+    if (key === "vehicle") metadata.vehicle = value;
+    if (key === "racer") metadata.racer = value;
+    if (key === "championship") metadata.championship = value;
+    if (key === "date") metadata.date = value;
+    if (key === "time") metadata.time = value;
+    if (key === "samplerate") metadata.sampleRate = parseNumeric(value);
+    if (key === "duration") metadata.durationSeconds = parseNumeric(value);
+    if (key === "beaconmarkers") {
+      metadata.beaconMarkers = row
+        .slice(1)
+        .map((cell) => parseNumeric(cell))
+        .filter((number): number is number => number !== null);
+    }
+    if (key === "segmenttimes") {
+      metadata.segmentTimes = row
+        .slice(1)
+        .map((cell) => parseAimSegmentTime(cell))
+        .filter((number): number is number => number !== null);
+    }
+  });
+
+  return metadata;
+}
+
+function findTelemetryHeaderIndex(rows: string[][]) {
+  const directIndex = rows.findIndex((row) => normalizeHeader(row[0] || "") === "time" && row.length >= 4);
+  if (directIndex >= 0) return directIndex;
+
+  return rows.findIndex((row) => {
+    const normalized = row.map(normalizeHeader);
+    return normalized.includes("time") && normalized.some((cell) => cell.includes("speed") || cell.includes("rpm"));
+  });
+}
+
+function looksLikeUnitRow(row: string[] | undefined, headerLength: number) {
+  if (!row || row.length !== headerLength) return false;
+  const normalized = row.map((cell) => normalizeHeader(cell));
+  const knownUnits = new Set(["s", "kmh", "rpm", "g", "deg", "degs", "m", "mm", "c", "v", "bar", "gear", "ms", "a"]);
+  const matches = normalized.filter((cell) => !cell || knownUnits.has(cell)).length;
+  return matches >= Math.max(2, Math.floor(headerLength * 0.35));
+}
+
+function makeUniqueHeaders(headers: string[]) {
+  const counts = new Map<string, number>();
+  return headers.map((header, index) => {
+    const base = header.trim() || `Colonna ${index + 1}`;
+    const count = counts.get(base) || 0;
+    counts.set(base, count + 1);
+    return count === 0 ? base : `${base} (${count + 1})`;
+  });
+}
+
+function channelPriority(header: string, key: ChannelKey) {
+  const normalized = normalizeHeader(header);
+  if (key === "speed") {
+    if (normalized === "gpsspeed") return 100;
+    if (normalized.includes("bkspeed")) return 70;
+  }
+  if (key === "distance") {
+    if (normalized.includes("gpsspeed")) return 100;
+    if (normalized.includes("vehiclespeed")) return 70;
+  }
+  if (key === "throttle") {
+    if (normalized.includes("thrthand")) return 100;
+    if (normalized.includes("v4mpthrottle")) return 90;
+    if (normalized.includes("tps")) return 70;
+  }
+  if (key === "brake_pressure") {
+    if (normalized.includes("fron")) return 100;
+    if (normalized.includes("rear")) return 80;
+  }
+  return 50;
+}
+
+function buildInitialCsvMapping(headers: string[], units: Record<string, string>) {
+  const mapping: Record<string, ChannelKey> = {};
+  const chosenByKey = new Map<ChannelKey, { header: string; priority: number }>();
+
+  headers.forEach((header) => {
+    const key = detectChannelKey(header, units[header]);
+    if (key === "ignore") {
+      mapping[header] = "ignore";
+      return;
+    }
+
+    const priority = channelPriority(header, key);
+    const previous = chosenByKey.get(key);
+
+    if (!previous) {
+      chosenByKey.set(key, { header, priority });
+      mapping[header] = key;
+      return;
+    }
+
+    if (priority > previous.priority) {
+      mapping[previous.header] = "ignore";
+      chosenByKey.set(key, { header, priority });
+      mapping[header] = key;
+      return;
+    }
+
+    mapping[header] = "ignore";
+  });
+
+  return mapping;
+}
+
+function deriveAimLapNumber(timeSeconds: number | null, aimMetadata?: AimCsvMetadata) {
+  if (timeSeconds === null || !aimMetadata?.beaconMarkers?.length) return null;
+
+  const markers = aimMetadata.beaconMarkers;
+  const segmentIndex = markers.findIndex((marker) => timeSeconds <= marker);
+  const resolvedSegmentIndex = segmentIndex >= 0 ? segmentIndex : markers.length - 1;
+
+  // AIM esporta di solito: out lap, giri validi, in lap.
+  // Segmento 0 = uscita box, ultimo segmento = rientro box.
+  if (resolvedSegmentIndex <= 0 || resolvedSegmentIndex >= markers.length - 1) return null;
+  return resolvedSegmentIndex;
 }
 
 function parseNumeric(value: string | undefined | null): number | null {
@@ -774,8 +1000,16 @@ function validateCsvWizard(wizard: CsvWizardState | null) {
     warnings.push("Manca il canale tempo: durata e grafici time-based potrebbero essere incompleti.");
   }
 
-  if (!mappedKeys.includes("lap")) {
+  if (!mappedKeys.includes("distance")) {
+    warnings.push("Manca il canale distanza: la vista Time-Distance stile Race Studio userà il tempo o il numero campione.");
+  }
+
+  if (!mappedKeys.includes("lap") && !wizard.aimMetadata?.beaconMarkers?.length) {
     warnings.push("Manca il canale giro: non posso calcolare il riepilogo giri automaticamente.");
+  }
+
+  if (wizard.aimMetadata?.isAimCsv) {
+    warnings.push("File AIM CSV riconosciuto: uso Beacon Markers e Segment Times per ricostruire i giri.");
   }
 
   if (wizard.rows.length > MAX_STORED_SAMPLES) {
@@ -791,7 +1025,7 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
     throw new Error(validation.errors.join(" "));
   }
 
-  const channelStats = new Map<ChannelKey, { values: number[]; sourceName: string }>();
+  const channelStats = new Map<ChannelKey, { values: number[]; sourceName: string; unit: string }>();
   const parsedRows: ParsedSample[] = [];
   const lapGroups = new Map<number, { times: number[]; speeds: number[] }>();
 
@@ -825,10 +1059,18 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
         valuesJson[key] = numeric;
       }
 
-      const stat = channelStats.get(key) || { values: [], sourceName: header };
+      const stat = channelStats.get(key) || {
+        values: [],
+        sourceName: header,
+        unit: wizard.units[header] || CHANNEL_BY_KEY.get(key)?.unit || "",
+      };
       stat.values.push(numeric);
       channelStats.set(key, stat);
     });
+
+    if (lapNumber === null && timeSeconds !== null) {
+      lapNumber = deriveAimLapNumber(timeSeconds, wizard.aimMetadata);
+    }
 
     if (Object.keys(valuesJson).length > 0 || timeSeconds !== null || distanceM !== null || lapNumber !== null) {
       parsedRows.push({
@@ -858,7 +1100,7 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
       channel_key: key,
       display_name: definition?.label || key,
       source_name: stat.sourceName,
-      unit: definition?.unit || "",
+      unit: stat.unit || definition?.unit || "",
       mapped_type: key,
       sample_count: stat.values.length,
       min_value: roundTelemetry(minValue),
@@ -867,16 +1109,20 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
     };
   });
 
+  const aimLapTimes = wizard.aimMetadata?.segmentTimes || [];
+  const aimHasFullLaps = wizard.aimMetadata?.isAimCsv && aimLapTimes.length >= 3;
+
   const laps = Array.from(lapGroups.entries())
     .sort(([a], [b]) => a - b)
     .map(([lapNumber, group]) => {
-      const lapTime = group.times.length >= 2 ? Math.max(...group.times) - Math.min(...group.times) : null;
+      const metadataLapTime = aimHasFullLaps ? aimLapTimes[lapNumber] ?? null : null;
+      const calculatedLapTime = group.times.length >= 2 ? Math.max(...group.times) - Math.min(...group.times) : null;
       return {
         lap_number: lapNumber,
-        lap_time_seconds: roundTelemetry(lapTime),
+        lap_time_seconds: roundTelemetry(metadataLapTime || calculatedLapTime),
         max_speed: roundTelemetry(group.speeds.length > 0 ? Math.max(...group.speeds) : null),
         avg_speed: roundTelemetry(average(group.speeds)),
-        notes: null,
+        notes: aimHasFullLaps ? "Lap ricostruito da Beacon Markers / Segment Times AIM" : null,
       };
     });
 
@@ -891,7 +1137,9 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
     .map((row) => (typeof row.values_json.brake === "number" ? row.values_json.brake : row.values_json.brake_pressure))
     .filter((value): value is number => typeof value === "number");
 
-  const durationSeconds = timeValues.length >= 2 ? Math.max(...timeValues) - Math.min(...timeValues) : null;
+  const durationSeconds =
+    wizard.aimMetadata?.durationSeconds ||
+    (timeValues.length >= 2 ? Math.max(...timeValues) - Math.min(...timeValues) : null);
   const lapTimes = laps.map((lap) => lap.lap_time_seconds).filter((value): value is number => value !== null && value > 0);
 
   return {
@@ -1154,17 +1402,45 @@ export default function TelemetryPage() {
       const text = await targetFile.text();
       const delimiter = detectDelimiter(text);
       const parsedRows = parseDelimitedText(text, delimiter);
-      const headers = (parsedRows[0] || []).map((header, index) => header.trim() || `Colonna ${index + 1}`);
-      const rows = parsedRows.slice(1).filter((row) => row.some((cell) => String(cell || "").trim() !== ""));
+      const aimMetadata = extractAimCsvMetadata(parsedRows);
+      const headerIndex = findTelemetryHeaderIndex(parsedRows);
+
+      if (headerIndex < 0) {
+        throw new Error("Non ho trovato la riga intestazioni dei canali. Per i CSV AIM deve esserci una riga che inizia con Time.");
+      }
+
+      const rawHeaders = parsedRows[headerIndex] || [];
+      const headers = makeUniqueHeaders(rawHeaders);
+      const nextRow = parsedRows[headerIndex + 1];
+      const hasUnits = looksLikeUnitRow(nextRow, rawHeaders.length);
+      const units = headers.reduce<Record<string, string>>((accumulator, header, index) => {
+        accumulator[header] = hasUnits ? nextRow?.[index] || "" : "";
+        return accumulator;
+      }, {});
+
+      const rows = parsedRows
+        .slice(headerIndex + (hasUnits ? 2 : 1))
+        .filter((row) => row.some((cell) => String(cell || "").trim() !== ""))
+        .map((row) => headers.map((_, index) => row[index] || ""));
 
       if (headers.length === 0 || rows.length === 0) {
         throw new Error("Il CSV non contiene intestazioni o righe dati leggibili.");
       }
 
-      const mapping = headers.reduce<Record<string, ChannelKey>>((accumulator, header) => {
-        accumulator[header] = detectChannelKey(header);
-        return accumulator;
-      }, {});
+      const mapping = buildInitialCsvMapping(headers, units);
+
+      if (mode === "new" && aimMetadata?.isAimCsv) {
+        setForm((current) => ({
+          ...current,
+          file_name: current.file_name.trim() || targetFile.name,
+          source_software: current.source_software.trim() || "AIM Race Studio",
+          data_format: "aim_export",
+          logger_model: current.logger_model,
+          track_name: current.track_name.trim() || aimMetadata.session || "",
+          import_status: "pending_parse",
+          tags: current.tags.trim() || "aim, race-studio",
+        }));
+      }
 
       setCsvWizard({
         mode,
@@ -1172,8 +1448,10 @@ export default function TelemetryPage() {
         fileName: targetFile.name,
         delimiter,
         headers,
+        units,
         rows,
         mapping,
+        aimMetadata,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore lettura CSV telemetria.";
@@ -2067,6 +2345,16 @@ export default function TelemetryPage() {
               <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
                 Controlla l'associazione proposta. Le colonne ignorate non verranno importate. Dopo la conferma salvo
                 riepilogo canali, giri e un campionamento dei dati per i grafici futuri.
+                {csvWizard.aimMetadata?.isAimCsv ? (
+                  <div className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5 text-yellow-900">
+                    <strong>AIM CSV riconosciuto:</strong> {csvWizard.aimMetadata.session || "pista non indicata"} ·{" "}
+                    {csvWizard.aimMetadata.vehicle || "veicolo non indicato"} ·{" "}
+                    {csvWizard.aimMetadata.racer || "pilota non indicato"} ·{" "}
+                    {csvWizard.aimMetadata.segmentTimes.length > 0
+                      ? `${Math.max(0, csvWizard.aimMetadata.segmentTimes.length - 2)} giri validi rilevati da Segment Times`
+                      : "giri non rilevati"}
+                  </div>
+                ) : null}
               </div>
 
               {csvWizard.error ? (
@@ -2096,6 +2384,7 @@ export default function TelemetryPage() {
                   <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
                     <tr>
                       <th className="px-4 py-3">Colonna file</th>
+                      <th className="px-4 py-3">Unità</th>
                       <th className="px-4 py-3">Esempio</th>
                       <th className="px-4 py-3">Campo telemetria</th>
                     </tr>
@@ -2104,6 +2393,7 @@ export default function TelemetryPage() {
                     {csvWizard.headers.map((header, index) => (
                       <tr key={`${header}-${index}`}>
                         <td className="px-4 py-3 font-semibold text-neutral-800">{header}</td>
+                        <td className="px-4 py-3 text-neutral-500">{csvWizard.units[header] || "—"}</td>
                         <td className="max-w-xs truncate px-4 py-3 text-neutral-500">
                           {csvWizard.rows[0]?.[index] || "—"}
                         </td>
