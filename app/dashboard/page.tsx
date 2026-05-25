@@ -313,20 +313,21 @@ setInventory((inventoryRes.data || []) as Inventory[]);
     <div className="page-shell">
       <PageHeader
         title={settings?.team_name || "Dashboard"}
-        subtitle="Centro di comando operativo: prontezza mezzi, criticità e prossime azioni"
+        subtitle="Centro operativo del team: mezzi pronti, componenti critici, scadenze e prossime azioni in un unico pannello."
         icon={<ClipboardList size={22} />}
-        actions={<Link href="/settings" className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-extrabold text-[var(--brand-on-accent)] shadow-sm hover:brightness-95">Configura dashboard</Link>}
+        actions={
+          <Link
+            href="/settings"
+            className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] shadow-[0_12px_24px_rgba(250,204,21,0.28)] transition hover:-translate-y-px hover:brightness-95"
+          >
+            Configura dashboard
+          </Link>
+        }
       />
 
-      <SectionCard>
-        <StatsGrid items={stats} />
-      </SectionCard>
+      <StatsGrid items={stats} />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {effectiveWidgets.map((widget) => renderWidget(widget.widget_code, widget.label)).filter(Boolean)}
-      </div>
-
-      <SectionCard title="Stato sintetico piattaforma" subtitle="Lettura rapida ad alto valore per team e management">
+      <SectionCard title="Quadro operativo" subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <QuickPill icon={<CarFront size={16} />} label={`${labels.vehicle} registrati`} value={String(cars.length)} />
           <QuickPill icon={<Wrench size={16} />} label="Componenti con warning" value={String(warningComponents.length)} />
@@ -334,15 +335,19 @@ setInventory((inventoryRes.data || []) as Inventory[]);
           <QuickPill icon={<Package size={16} />} label="Magazzino sotto soglia" value={String(lowStock.length)} />
         </div>
       </SectionCard>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {effectiveWidgets.map((widget) => renderWidget(widget.widget_code, widget.label)).filter(Boolean)}
+      </div>
     </div>
   );
 }
 
 function QuickPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="data-row">
-      <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">{icon}{label}</div>
-      <div className="technical-number mt-2 text-2xl font-black text-[var(--text-primary)]">{value}</div>
+    <div className="data-row bg-[var(--surface-muted)]">
+      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--text-muted)]">{icon}{label}</div>
+      <div className="technical-number mt-3 text-3xl font-black leading-none text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }

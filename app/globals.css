@@ -1,31 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --brand-primary: #171717;
+  --brand-primary: #101010;
   --brand-secondary: #262626;
   --brand-accent: #facc15;
   --brand-on-accent: #111827;
-  --brand-primary-soft: rgba(23, 23, 23, 0.08);
+  --brand-primary-soft: rgba(16, 16, 16, 0.08);
   --brand-secondary-soft: rgba(38, 38, 38, 0.08);
   --brand-accent-soft: rgba(250, 204, 21, 0.18);
-  --surface-page: #f4f5f4;
+  --surface-page: #f2f3f0;
   --surface-card: #ffffff;
-  --surface-muted: #f7f7f5;
+  --surface-muted: #f7f7f3;
   --surface-raised: #ffffff;
-  --surface-track: #ededeb;
-  --text-primary: #171717;
-  --text-secondary: #525252;
-  --text-muted: #737373;
-  --border-default: #e2e2df;
-  --border-strong: #c9c9c4;
+  --surface-track: #e7e7e0;
+  --text-primary: #141414;
+  --text-secondary: #4f4f46;
+  --text-muted: #73736b;
+  --border-default: #deded6;
+  --border-strong: #c7c7bb;
   --state-success: #059669;
   --state-warning: #d97706;
   --state-danger: #dc2626;
   --state-info: #2563eb;
-  --shadow-card: 0 16px 40px rgba(15, 23, 42, 0.06);
-  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.075);
+  --shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.055);
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Rajdhani", "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
 }
 
 @layer base {
@@ -35,10 +39,12 @@
   }
 
   body {
-    @apply font-sans antialiased;
+    font-family: var(--font-body);
+    @apply antialiased;
     background:
-      radial-gradient(circle at top right, var(--brand-accent-soft), transparent 28rem),
-      linear-gradient(180deg, #f8f8f6 0%, var(--surface-page) 42%, #eceeed 100%);
+      linear-gradient(135deg, rgba(16, 16, 16, 0.035) 0 25%, transparent 25% 50%, rgba(16, 16, 16, 0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px,
+      radial-gradient(circle at top right, var(--brand-accent-soft), transparent 30rem),
+      linear-gradient(180deg, #fbfbf8 0%, var(--surface-page) 46%, #e8ebe6 100%);
     color: var(--text-primary);
   }
 
@@ -49,6 +55,13 @@
   ::selection {
     background: var(--brand-accent-soft);
     color: var(--text-primary);
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: var(--font-body);
   }
 
   input,
@@ -65,60 +78,134 @@
 
 @layer components {
   .page-shell {
-    @apply flex flex-col gap-6 p-4 md:p-6;
+    @apply flex flex-col gap-5 p-4 md:p-6;
   }
 
   .racing-heading {
-    font-family: "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
-    letter-spacing: -0.03em;
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
+    text-transform: none;
   }
 
   .racing-kicker {
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
+    font-family: var(--font-display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
+  }
+
+  .race-control-panel {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(20, 20, 20, 0.96), rgba(35, 35, 31, 0.94)),
+      linear-gradient(135deg, rgba(255,255,255,0.08) 0 25%, transparent 25% 50%, rgba(255,255,255,0.04) 50% 75%, transparent 75%) 0 0 / 26px 26px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 1.65rem;
+    box-shadow: var(--shadow-card);
+    color: #ffffff;
+  }
+
+  .race-control-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--brand-accent);
+  }
+
+  .race-control-panel::after {
+    content: "";
+    position: absolute;
+    right: -6rem;
+    top: -8rem;
+    height: 18rem;
+    width: 18rem;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.34), transparent 62%);
+    pointer-events: none;
   }
 
   .motorsport-panel {
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9)),
-      linear-gradient(135deg, var(--brand-accent-soft), transparent 38%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.93)),
+      linear-gradient(135deg, var(--brand-accent-soft), transparent 36%);
     border: 1px solid var(--border-default);
-    border-radius: 1.75rem;
+    border-radius: 1.5rem;
     box-shadow: var(--shadow-card);
   }
 
   .motorsport-divider {
     height: 3px;
-    width: 64px;
+    width: 78px;
     border-radius: 999px;
     background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0));
   }
 
+  .race-section-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,247,0.98));
+    border: 1px solid var(--border-default);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .race-section-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0.18), transparent 70%);
+  }
+
   .data-row {
     @apply rounded-2xl border p-4 transition;
-    background: var(--surface-muted);
+    position: relative;
+    background: var(--surface-card);
     border-color: var(--border-default);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+    padding-left: 1.6rem;
+  }
+
+  .data-row::before {
+    content: "";
+    position: absolute;
+    left: 0.9rem;
+    top: 0.85rem;
+    bottom: 0.85rem;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--brand-accent);
+    opacity: 0.5;
+  }
+
+  .data-row > * {
+    position: relative;
   }
 
   .data-row:hover {
-    background: var(--surface-card);
+    border-color: var(--border-strong);
     box-shadow: var(--shadow-soft);
+    transform: translateY(-1px);
   }
 
   .technical-number {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 
   .btn-primary {
     background-color: var(--brand-accent);
     color: var(--brand-on-accent);
-    padding: 0.5rem 1rem;
-    border-radius: 0.75rem;
+    padding: 0.55rem 1rem;
+    border-radius: 0.85rem;
     font-weight: 800;
     transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 10px 22px rgba(250, 204, 21, 0.18);
+    box-shadow: 0 10px 22px rgba(250, 204, 21, 0.22);
   }
 
   .btn-primary:hover {
@@ -129,7 +216,7 @@
   .card {
     background: var(--surface-card);
     border: 1px solid var(--border-default);
-    border-radius: 1.5rem;
+    border-radius: 1.35rem;
     padding: 1.25rem;
     box-shadow: var(--shadow-soft);
   }
