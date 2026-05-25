@@ -1867,16 +1867,34 @@ export default function TelemetryPage() {
 
     try {
       const ctx = await getCurrentTeamContext();
-      const { data, error } = await supabase
-        .from("telemetry_samples")
-        .select("*")
-        .eq("team_id", ctx.teamId)
-        .eq("telemetry_file_id", row.id)
-        .order("sample_index", { ascending: true });
 
-      if (error) throw error;
+      // Supabase/PostgREST restituisce di default al massimo 1000 righe.
+      // I file telemetria possono avere 3000-5000 punti campionati: se leggiamo
+      // solo la prima pagina, vediamo solo l'out lap / Giro 1 e gli altri giri
+      // sembrano vuoti. Per l'analisi carichiamo quindi tutte le pagine.
+      const pageSize = 1000;
+      let from = 0;
+      let allSamples: TelemetrySample[] = [];
 
-      setAnalysisSamples((data || []) as TelemetrySample[]);
+      while (true) {
+        const { data, error } = await supabase
+          .from("telemetry_samples")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .eq("telemetry_file_id", row.id)
+          .order("sample_index", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        const batch = ((data || []) as TelemetrySample[]) || [];
+        allSamples = allSamples.concat(batch);
+
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+
+      setAnalysisSamples(allSamples);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore caricamento campioni telemetria.";
       setFeedback({ type: "error", message });
