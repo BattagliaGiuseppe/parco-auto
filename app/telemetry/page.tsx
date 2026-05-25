@@ -1739,19 +1739,33 @@ export default function TelemetryPage() {
 
               {parsedCsvDraft ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 size={18} className="mt-0.5" />
-                    <div>
-                      <div className="font-bold">Canali pronti per il salvataggio</div>
-                      <div className="mt-1 leading-5">
-                        {parsedCsvDraft.summary.channels_count} canali · {parsedCsvDraft.summary.samples_count} campioni letti · {parsedCsvDraft.summary.sampled_points_count} punti salvati per grafici · {parsedCsvDraft.summary.laps_count} giri rilevati.
-                      </div>
-                      {parsedCsvDraft.summary.warnings.length > 0 ? (
-                        <div className="mt-2 text-xs text-emerald-800">
-                          Avvisi: {parsedCsvDraft.summary.warnings.join(" ")}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 size={18} className="mt-0.5" />
+                      <div>
+                        <div className="font-bold">Canali pronti per il salvataggio</div>
+                        <div className="mt-1 leading-5">
+                          {parsedCsvDraft.summary.channels_count} canali · {parsedCsvDraft.summary.samples_count} campioni letti · {parsedCsvDraft.summary.sampled_points_count} punti salvati per grafici · {parsedCsvDraft.summary.laps_count} giri rilevati.
                         </div>
-                      ) : null}
+                        <div className="mt-2 text-xs font-semibold text-emerald-800">
+                          Passaggio finale: clicca “Salva telemetria analizzata”. Dopo il salvataggio il file comparirà nell’archivio con il pulsante “Analizza”.
+                        </div>
+                        {parsedCsvDraft.summary.warnings.length > 0 ? (
+                          <div className="mt-2 text-xs text-emerald-800">
+                            Avvisi: {parsedCsvDraft.summary.warnings.join(" ")}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={addFile}
+                      disabled={saving}
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Upload size={15} />
+                      {saving ? "Salvataggio..." : "Salva telemetria analizzata"}
+                    </button>
                   </div>
                 </div>
               ) : null}
@@ -1929,7 +1943,7 @@ export default function TelemetryPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black shadow-sm transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} />
-                  {saving ? "Salvataggio..." : "Registra file"}
+                  {saving ? "Salvataggio..." : parsedCsvDraft ? "Salva telemetria analizzata" : "Registra file"}
                 </button>
               </div>
             </div>
