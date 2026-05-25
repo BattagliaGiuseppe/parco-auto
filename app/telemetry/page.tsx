@@ -771,15 +771,45 @@ function buildInitialCsvMapping(headers: string[], units: Record<string, string>
   return mapping;
 }
 
-function deriveAimLapNumber(timeSeconds: number | null, aimMetadata?: AimCsvMetadata) {
-  if (timeSeconds === null || !aimMetadata?.beaconMarkers?.length) return null;
+function getAimLapBoundaries(aimMetadata?: AimCsvMetadata) {
+  if (!aimMetadata?.isAimCsv || !aimMetadata.segmentTimes?.length || aimMetadata.segmentTimes.length < 3) {
+    return [] as { lapNumber: number; start: number; end: number; lapTime: number }[];
+  }
 
+  // Segment Times AIM: segmento 0 = out lap, segmenti 1..n-2 = giri validi, ultimo = in lap.
+  // Usiamo questi tempi per creare confini cumulativi, più affidabili dei Beacon Markers
+  // su alcuni export Race Studio dove i marker non sono sempre coerenti con i campioni.
+  const cumulativeStarts: number[] = [];
+  let cursor = 0;
+  aimMetadata.segmentTimes.forEach((segmentTime) => {
+    cumulativeStarts.push(cursor);
+    cursor += Number.isFinite(segmentTime) ? segmentTime : 0;
+  });
+
+  return aimMetadata.segmentTimes
+    .map((lapTime, segmentIndex) => ({
+      lapNumber: segmentIndex,
+      start: cumulativeStarts[segmentIndex] ?? 0,
+      end: (cumulativeStarts[segmentIndex] ?? 0) + lapTime,
+      lapTime,
+    }))
+    .filter((item, segmentIndex, all) => segmentIndex > 0 && segmentIndex < all.length - 1 && item.lapTime > 0);
+}
+
+function deriveAimLapNumber(timeSeconds: number | null, aimMetadata?: AimCsvMetadata) {
+  if (timeSeconds === null || !aimMetadata?.isAimCsv) return null;
+
+  const boundaries = getAimLapBoundaries(aimMetadata);
+  if (boundaries.length > 0) {
+    const match = boundaries.find((lap) => timeSeconds >= lap.start && timeSeconds <= lap.end);
+    return match?.lapNumber ?? null;
+  }
+
+  // Fallback per export AIM che hanno solo Beacon Markers cumulativi.
+  if (!aimMetadata.beaconMarkers?.length) return null;
   const markers = aimMetadata.beaconMarkers;
   const segmentIndex = markers.findIndex((marker) => timeSeconds <= marker);
   const resolvedSegmentIndex = segmentIndex >= 0 ? segmentIndex : markers.length - 1;
-
-  // AIM esporta di solito: out lap, giri validi, in lap.
-  // Segmento 0 = uscita box, ultimo segmento = rientro box.
   if (resolvedSegmentIndex <= 0 || resolvedSegmentIndex >= markers.length - 1) return null;
   return resolvedSegmentIndex;
 }
@@ -1221,12 +1251,12 @@ function validateCsvWizard(wizard: CsvWizardState | null) {
     warnings.push("Manca il canale distanza: la vista Time-Distance stile Race Studio userà il tempo o il numero campione.");
   }
 
-  if (!mappedKeys.includes("lap") && !wizard.aimMetadata?.beaconMarkers?.length) {
+  if (!mappedKeys.includes("lap") && !wizard.aimMetadata?.segmentTimes?.length) {
     warnings.push("Manca il canale giro: non posso calcolare il riepilogo giri automaticamente.");
   }
 
   if (wizard.aimMetadata?.isAimCsv) {
-    warnings.push("File AIM CSV riconosciuto: uso Beacon Markers e Segment Times per ricostruire i giri.");
+    warnings.push("File AIM CSV riconosciuto: uso Segment Times AIM per ricostruire i giri e collegare i campioni al giro corretto.");
   }
 
   if (wizard.rows.length > MAX_STORED_SAMPLES) {
@@ -1326,20 +1356,25 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
     };
   });
 
-  const aimLapTimes = wizard.aimMetadata?.segmentTimes || [];
-  const aimHasFullLaps = wizard.aimMetadata?.isAimCsv && aimLapTimes.length >= 3;
+  const aimLapBoundaries = getAimLapBoundaries(wizard.aimMetadata);
+  const aimHasFullLaps = wizard.aimMetadata?.isAimCsv && aimLapBoundaries.length > 0;
+  const lapNumbers = new Set<number>([
+    ...Array.from(lapGroups.keys()),
+    ...aimLapBoundaries.map((lap) => lap.lapNumber),
+  ]);
 
-  const laps = Array.from(lapGroups.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([lapNumber, group]) => {
-      const metadataLapTime = aimHasFullLaps ? aimLapTimes[lapNumber] ?? null : null;
+  const laps = Array.from(lapNumbers)
+    .sort((a, b) => a - b)
+    .map((lapNumber) => {
+      const group = lapGroups.get(lapNumber) || { times: [], speeds: [] };
+      const metadataLapTime = aimLapBoundaries.find((lap) => lap.lapNumber === lapNumber)?.lapTime ?? null;
       const calculatedLapTime = group.times.length >= 2 ? Math.max(...group.times) - Math.min(...group.times) : null;
       return {
         lap_number: lapNumber,
         lap_time_seconds: roundTelemetry(metadataLapTime || calculatedLapTime),
         max_speed: roundTelemetry(group.speeds.length > 0 ? Math.max(...group.speeds) : null),
         avg_speed: roundTelemetry(average(group.speeds)),
-        notes: aimHasFullLaps ? "Lap ricostruito da Beacon Markers / Segment Times AIM" : null,
+        notes: aimHasFullLaps ? "Lap ricostruito da Segment Times AIM" : null,
       };
     });
 
