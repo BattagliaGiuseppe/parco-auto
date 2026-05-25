@@ -990,6 +990,175 @@ function normalizeSamplesForLap(samples: TelemetrySample[], axis: AnalysisAxis) 
   }));
 }
 
+
+type TrackGpsPoint = {
+  sample: TelemetrySample;
+  lat: number;
+  lon: number;
+};
+
+type TrackSpeedLoss = {
+  x: number;
+  loss: number;
+  primarySpeed: number;
+  comparisonSpeed: number;
+  sample: TelemetrySample;
+};
+
+function gpsPointForSample(sample: TelemetrySample): TrackGpsPoint | null {
+  const lat = getSampleValue(sample, "gps_lat");
+  const lon = getSampleValue(sample, "gps_lon");
+  if (lat === null || lon === null) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { sample, lat, lon };
+}
+
+function downsamplePoints<T>(points: T[], maxPoints = 900) {
+  if (points.length <= maxPoints) return points;
+  const step = Math.ceil(points.length / maxPoints);
+  return points.filter((_, index) => index % step === 0);
+}
+
+function buildGpsTrackPoints(samples: TelemetrySample[]) {
+  return samples.map(gpsPointForSample).filter((point): point is TrackGpsPoint => point !== null);
+}
+
+function TrackMapSvg({
+  samples,
+  comparisonSamples = [],
+  activeSample,
+  activeComparisonSample,
+  hasComparison,
+  primaryLabel,
+  comparisonLabel,
+  speedLosses = [],
+}: {
+  samples: TelemetrySample[];
+  comparisonSamples?: TelemetrySample[];
+  activeSample: TelemetrySample | null;
+  activeComparisonSample: TelemetrySample | null;
+  hasComparison: boolean;
+  primaryLabel: string;
+  comparisonLabel: string;
+  speedLosses?: TrackSpeedLoss[];
+}) {
+  const primaryGps = buildGpsTrackPoints(samples);
+  const comparisonGps = buildGpsTrackPoints(comparisonSamples);
+  const allGps = [...primaryGps, ...comparisonGps];
+
+  if (allGps.length < 5) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
+        <div className="font-semibold text-neutral-800">Mappa pista non disponibile</div>
+        <div className="mt-1 text-xs">
+          Il file analizzato non contiene coordinate GPS valide, oppure il tratto selezionato non ha abbastanza punti latitudine/longitudine.
+        </div>
+      </div>
+    );
+  }
+
+  const width = 360;
+  const height = 300;
+  const padding = 24;
+  const lats = allGps.map((point) => point.lat);
+  const lons = allGps.map((point) => point.lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const latRange = maxLat - minLat || 0.000001;
+  const lonRange = maxLon - minLon || 0.000001;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+
+  function project(point: TrackGpsPoint) {
+    const rawX = padding + ((point.lon - minLon) / lonRange) * innerWidth;
+    const rawY = padding + ((maxLat - point.lat) / latRange) * innerHeight;
+    return { x: rawX, y: rawY };
+  }
+
+  function pointString(points: TrackGpsPoint[]) {
+    return downsamplePoints(points)
+      .map((point) => {
+        const projected = project(point);
+        return `${projected.x.toFixed(2)},${projected.y.toFixed(2)}`;
+      })
+      .join(" ");
+  }
+
+  const activePrimaryGps = activeSample ? gpsPointForSample(activeSample) : null;
+  const activeComparisonGps = activeComparisonSample ? gpsPointForSample(activeComparisonSample) : null;
+  const activePrimary = activePrimaryGps ? project(activePrimaryGps) : null;
+  const activeComparison = activeComparisonGps ? project(activeComparisonGps) : null;
+  const visibleSpeedLosses = speedLosses
+    .map((loss) => {
+      const gps = gpsPointForSample(loss.sample);
+      return gps ? { ...loss, point: project(gps) } : null;
+    })
+    .filter((loss): loss is TrackSpeedLoss & { point: { x: number; y: number } } => loss !== null)
+    .slice(0, 5);
+
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Mappa pista GPS</div>
+          <div className="mt-1 text-xs text-neutral-500">
+            Il pallino segue il riferimento del grafico. Usa l’asse distanza per confronti più precisi sul tracciato.
+          </div>
+        </div>
+        <div className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">
+          {allGps.length} punti GPS
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[300px] w-full">
+          <rect x="0" y="0" width={width} height={height} fill="#fafafa" />
+          <polyline points={pointString(primaryGps)} fill="none" stroke="#111827" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
+          {hasComparison && comparisonGps.length > 5 ? (
+            <polyline points={pointString(comparisonGps)} fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="7 7" opacity="0.8" />
+          ) : null}
+
+          {visibleSpeedLosses.map((loss, index) => (
+            <g key={`${loss.x}-${index}`}>
+              <circle cx={loss.point.x} cy={loss.point.y} r="6" fill="#dc2626" opacity="0.22" />
+              <circle cx={loss.point.x} cy={loss.point.y} r="3.2" fill="#dc2626" stroke="#fff" strokeWidth="1" />
+            </g>
+          ))}
+
+          {activePrimary ? (
+            <g>
+              <circle cx={activePrimary.x} cy={activePrimary.y} r="8" fill="#2563eb" opacity="0.18" />
+              <circle cx={activePrimary.x} cy={activePrimary.y} r="5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
+            </g>
+          ) : null}
+          {hasComparison && activeComparison ? (
+            <g>
+              <circle cx={activeComparison.x} cy={activeComparison.y} r="8" fill="#f59e0b" opacity="0.2" />
+              <circle cx={activeComparison.x} cy={activeComparison.y} r="5" fill="#f59e0b" stroke="#111827" strokeWidth="1.5" />
+            </g>
+          ) : null}
+        </svg>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-neutral-600">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {primaryLabel}</span>
+          {hasComparison ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500" /> {comparisonLabel}</span> : null}
+          {visibleSpeedLosses.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600" /> perdita velocità</span> : null}
+        </div>
+        {activeSample ? (
+          <div className="rounded-xl bg-neutral-50 px-3 py-2">
+            Punto attuale: distanza {formatNumber(activeSample.distance_m, 1)} m · tempo {formatNumber(activeSample.time_seconds, 3)} s · velocità {formatNumber(getSampleValue(activeSample, "speed"), 1)} km/h
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SvgTelemetryChart({
   samples,
   selectedChannels,
@@ -1122,9 +1291,9 @@ function SvgTelemetryChart({
           if (primarySpeed === null || comparisonSpeed === null) return null;
           const loss = primarySpeed - comparisonSpeed;
           if (loss <= 3) return null;
-          return { x, loss, primarySpeed, comparisonSpeed };
+          return { x, loss, primarySpeed, comparisonSpeed, sample };
         })
-        .filter((item): item is { x: number; loss: number; primarySpeed: number; comparisonSpeed: number } => item !== null)
+        .filter((item): item is TrackSpeedLoss => item !== null)
         .sort((a, b) => b.loss - a.loss)
         .slice(0, 3)
     : [];
@@ -1254,8 +1423,11 @@ function SvgTelemetryChart({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <svg
+        <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="rounded-2xl border border-neutral-100 bg-white p-2 text-xs text-neutral-500">
+            <div className="px-2 pb-2 font-semibold text-neutral-700">Grafico canali</div>
+            <div className="overflow-x-auto">
+              <svg
             viewBox={`0 0 ${width} ${height}`}
             className="min-w-[920px] cursor-crosshair select-none"
             onPointerMove={handlePointerMove}
@@ -1302,7 +1474,19 @@ function SvgTelemetryChart({
             <text x={paddingX} y="24" fontSize="12" fill="#737373">
               Linee normalizzate per canale: utile per confrontare andamento; i valori reali sono nei pannelli riepilogo.
             </text>
-          </svg>
+              </svg>
+            </div>
+          </div>
+          <TrackMapSvg
+            samples={visiblePrimarySamples}
+            comparisonSamples={visibleComparisonSamples}
+            activeSample={activeSample}
+            activeComparisonSample={activeComparisonSample}
+            hasComparison={hasComparison}
+            primaryLabel={primaryLabel}
+            comparisonLabel={comparisonLabel}
+            speedLosses={speedLosses}
+          />
         </div>
       </div>
 
