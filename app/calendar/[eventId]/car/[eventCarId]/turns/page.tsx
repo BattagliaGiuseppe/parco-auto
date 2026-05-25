@@ -1094,81 +1094,53 @@ export default function EventCarTurnsPage() {
     try {
       const ctx = await getCurrentTeamContext();
 
-      const turnPayload = {
-        team_id: ctx.teamId,
-        event_car_id: eventCarId,
-        event_session_id: form.event_session_id || null,
-        driver_id: form.driver_id || null,
-        recorded_at: new Date(form.recorded_at).toISOString(),
-        minutes,
-        laps,
-        fuel_start_liters: fuelStart,
-        fuel_end_liters: fuelEnd,
-        notes: form.notes.trim() || null,
-      };
+      const { error } = await supabase.rpc("save_event_car_turn_with_metrics", {
+        p_team_id: ctx.teamId,
+        p_event_id: eventId,
+        p_event_car_id: eventCarId,
+        p_turn_id: editingTurnId,
+        p_event_session_id: form.event_session_id || null,
+        p_driver_id: form.driver_id || null,
+        p_recorded_at: new Date(form.recorded_at).toISOString(),
+        p_minutes: minutes,
+        p_laps: laps,
+        p_fuel_start_liters: fuelStart,
+        p_fuel_end_liters: fuelEnd,
+        p_notes: form.notes.trim() || null,
+        p_track_condition: form.track_condition || null,
+        p_pre_air_temp_c: parseOptionalNumber(form.pre_air_temp_c),
+        p_pre_track_temp_c: parseOptionalNumber(form.pre_track_temp_c),
+        p_post_air_temp_c: parseOptionalNumber(form.post_air_temp_c),
+        p_post_track_temp_c: parseOptionalNumber(form.post_track_temp_c),
+        p_pre_pressure_fl: parseOptionalNumber(form.pre_pressure_fl),
+        p_pre_pressure_fr: parseOptionalNumber(form.pre_pressure_fr),
+        p_pre_pressure_rl: parseOptionalNumber(form.pre_pressure_rl),
+        p_pre_pressure_rr: parseOptionalNumber(form.pre_pressure_rr),
+        p_post_pressure_fl: parseOptionalNumber(form.post_pressure_fl),
+        p_post_pressure_fr: parseOptionalNumber(form.post_pressure_fr),
+        p_post_pressure_rl: parseOptionalNumber(form.post_pressure_rl),
+        p_post_pressure_rr: parseOptionalNumber(form.post_pressure_rr),
+        p_post_tyre_temp_fl: parseOptionalNumber(form.post_tyre_temp_fl),
+        p_post_tyre_temp_fr: parseOptionalNumber(form.post_tyre_temp_fr),
+        p_post_tyre_temp_rl: parseOptionalNumber(form.post_tyre_temp_rl),
+        p_post_tyre_temp_rr: parseOptionalNumber(form.post_tyre_temp_rr),
+        p_air_opening_cm: parseOptionalNumber(form.air_opening_cm),
+        p_oil_opening_cm: parseOptionalNumber(form.oil_opening_cm),
+        p_max_water_temp_c: parseOptionalNumber(form.max_water_temp_c),
+        p_max_oil_temp_c: parseOptionalNumber(form.max_oil_temp_c),
+        p_best_lap_ms: bestLapMs,
+        p_avg_lap_ms: avgLapMs,
+        p_target_post_pressure_fl: parseOptionalNumber(form.target_post_pressure_fl),
+        p_target_post_pressure_fr: parseOptionalNumber(form.target_post_pressure_fr),
+        p_target_post_pressure_rl: parseOptionalNumber(form.target_post_pressure_rl),
+        p_target_post_pressure_rr: parseOptionalNumber(form.target_post_pressure_rr),
+        p_target_water_temp_c: parseOptionalNumber(form.target_water_temp_c),
+        p_target_oil_temp_c: parseOptionalNumber(form.target_oil_temp_c),
+        p_technical_notes: form.technical_notes.trim() || null,
+        p_created_by_team_user_id: ctx.teamUserId,
+      });
 
-      let turnId = editingTurnId;
-
-      if (editingTurnId) {
-        const { error } = await supabase
-          .from("event_car_turns")
-          .update(turnPayload)
-          .eq("id", editingTurnId);
-
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from("event_car_turns")
-          .insert([turnPayload])
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        turnId = data.id;
-      }
-
-      const metricsPayload = {
-        team_id: ctx.teamId,
-        turn_id: turnId,
-        event_id: eventId,
-        event_car_id: eventCarId,
-        track_condition: form.track_condition || null,
-        pre_air_temp_c: parseOptionalNumber(form.pre_air_temp_c),
-        pre_track_temp_c: parseOptionalNumber(form.pre_track_temp_c),
-        post_air_temp_c: parseOptionalNumber(form.post_air_temp_c),
-        post_track_temp_c: parseOptionalNumber(form.post_track_temp_c),
-        pre_pressure_fl: parseOptionalNumber(form.pre_pressure_fl),
-        pre_pressure_fr: parseOptionalNumber(form.pre_pressure_fr),
-        pre_pressure_rl: parseOptionalNumber(form.pre_pressure_rl),
-        pre_pressure_rr: parseOptionalNumber(form.pre_pressure_rr),
-        post_pressure_fl: parseOptionalNumber(form.post_pressure_fl),
-        post_pressure_fr: parseOptionalNumber(form.post_pressure_fr),
-        post_pressure_rl: parseOptionalNumber(form.post_pressure_rl),
-        post_pressure_rr: parseOptionalNumber(form.post_pressure_rr),
-        post_tyre_temp_fl: parseOptionalNumber(form.post_tyre_temp_fl),
-        post_tyre_temp_fr: parseOptionalNumber(form.post_tyre_temp_fr),
-        post_tyre_temp_rl: parseOptionalNumber(form.post_tyre_temp_rl),
-        post_tyre_temp_rr: parseOptionalNumber(form.post_tyre_temp_rr),
-        air_opening_cm: parseOptionalNumber(form.air_opening_cm),
-        oil_opening_cm: parseOptionalNumber(form.oil_opening_cm),
-        max_water_temp_c: parseOptionalNumber(form.max_water_temp_c),
-        max_oil_temp_c: parseOptionalNumber(form.max_oil_temp_c),
-        best_lap_ms: bestLapMs,
-        avg_lap_ms: avgLapMs,
-        target_post_pressure_fl: parseOptionalNumber(form.target_post_pressure_fl),
-        target_post_pressure_fr: parseOptionalNumber(form.target_post_pressure_fr),
-        target_post_pressure_rl: parseOptionalNumber(form.target_post_pressure_rl),
-        target_post_pressure_rr: parseOptionalNumber(form.target_post_pressure_rr),
-        target_water_temp_c: parseOptionalNumber(form.target_water_temp_c),
-        target_oil_temp_c: parseOptionalNumber(form.target_oil_temp_c),
-        technical_notes: form.technical_notes.trim() || null,
-      };
-
-      const { error: metricsError } = await supabase
-        .from("event_car_turn_metrics")
-        .upsert(metricsPayload, { onConflict: "turn_id" });
-
-      if (metricsError) throw metricsError;
+      if (error) throw error;
 
       setFeedback({
         type: "success",
@@ -1194,20 +1166,25 @@ export default function EventCarTurnsPage() {
   async function deleteTurn(turnId: string) {
     setFeedback(null);
 
-    const { error } = await supabase.from("event_car_turns").delete().eq("id", turnId);
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { error } = await supabase.rpc("delete_event_car_turn", {
+        p_team_id: ctx.teamId,
+        p_turn_id: turnId,
+      });
 
-    if (error) {
+      if (error) throw error;
+
+      setFeedback({ type: "success", message: "Turno eliminato correttamente." });
+      setCompareTurnIds((current) => current.filter((id) => id !== turnId));
+      if (editingTurnId === turnId) closeDrawer();
+      await fetchAll();
+    } catch (error: any) {
       setFeedback({
         type: "error",
-        message: `Errore eliminazione turno: ${error.message}`,
+        message: `Errore eliminazione turno: ${error?.message || "operazione non completata"}`,
       });
-      return;
     }
-
-    setFeedback({ type: "success", message: "Turno eliminato correttamente." });
-    setCompareTurnIds((current) => current.filter((id) => id !== turnId));
-    if (editingTurnId === turnId) closeDrawer();
-    await fetchAll();
   }
 
   if (access.loading) {
@@ -1477,8 +1454,7 @@ export default function EventCarTurnsPage() {
       >
         <InfoBlock>
           Usa la vista sintetica per avere una timeline leggibile della giornata.
-          Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno. Il form di inserimento o modifica si apre in drawer,
-          così la pagina resta ordinata e facile da leggere in pista.
+          I minuti salvati nei turni alimentano automaticamente i contatori ore dell’auto e dei componenti montati in quel momento. Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno.
         </InfoBlock>
       </SectionCard>
 
@@ -1739,7 +1715,7 @@ export default function EventCarTurnsPage() {
                       {editingTurnId ? "Modifica turno tecnico" : "Nuovo turno tecnico"}
                     </div>
                     <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                      Compila il turno senza perdere il contesto della console. Il salvataggio aggiorna subito la timeline.
+                      Compila il turno senza perdere il contesto della console. Il salvataggio è atomico: turno, metriche, ore auto e ore componenti vengono aggiornati insieme.
                     </div>
                   </div>
                   <button
