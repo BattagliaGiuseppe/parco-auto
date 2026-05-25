@@ -976,18 +976,82 @@ function samplesForLap(samples: TelemetrySample[], lapNumber: number | null) {
   return samples.filter((sample) => sample.lap_number === lapNumber);
 }
 
+function firstFiniteSampleValue(samples: TelemetrySample[], selector: (sample: TelemetrySample) => number | null | undefined) {
+  for (const sample of samples) {
+    const value = selector(sample);
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function lastFiniteSampleValue(samples: TelemetrySample[], selector: (sample: TelemetrySample) => number | null | undefined) {
+  for (let index = samples.length - 1; index >= 0; index -= 1) {
+    const value = selector(samples[index]);
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
 function normalizeSamplesForLap(samples: TelemetrySample[], axis: AnalysisAxis) {
   if (samples.length === 0) return samples;
-  const baseTime = samples.find((sample) => typeof sample.time_seconds === "number")?.time_seconds ?? samples[0]?.time_seconds ?? 0;
-  const baseDistance = samples.find((sample) => typeof sample.distance_m === "number")?.distance_m ?? samples[0]?.distance_m ?? 0;
-  const baseSample = samples.find((sample) => typeof sample.sample_index === "number")?.sample_index ?? samples[0]?.sample_index ?? 0;
 
-  return samples.map((sample, index) => ({
-    ...sample,
-    time_seconds: typeof sample.time_seconds === "number" ? sample.time_seconds - baseTime : sample.time_seconds,
-    distance_m: typeof sample.distance_m === "number" ? sample.distance_m - baseDistance : sample.distance_m,
-    sample_index: typeof sample.sample_index === "number" ? sample.sample_index - baseSample : index,
-  }));
+  const baseTime = firstFiniteSampleValue(samples, (sample) => sample.time_seconds) ?? samples[0]?.time_seconds ?? 0;
+  const baseDistance = firstFiniteSampleValue(samples, (sample) => sample.distance_m) ?? samples[0]?.distance_m ?? 0;
+  const lastDistance = lastFiniteSampleValue(samples, (sample) => sample.distance_m);
+  const baseSample = firstFiniteSampleValue(samples, (sample) => sample.sample_index) ?? samples[0]?.sample_index ?? 0;
+
+  // Alcuni export/logger possono avere la distanza che decresce durante il giro.
+  // Per l'analisi vogliamo sempre che la distanza segua il verso di percorrenza
+  // dei campioni: primo punto = 0, poi valori crescenti.
+  const distanceIsReversed =
+    typeof baseDistance === "number" &&
+    typeof lastDistance === "number" &&
+    Number.isFinite(baseDistance) &&
+    Number.isFinite(lastDistance) &&
+    lastDistance < baseDistance;
+
+  return samples.map((sample, index) => {
+    let normalizedDistance = sample.distance_m;
+    if (typeof sample.distance_m === "number" && typeof baseDistance === "number") {
+      normalizedDistance = distanceIsReversed ? baseDistance - sample.distance_m : sample.distance_m - baseDistance;
+      if (Number.isFinite(normalizedDistance) && normalizedDistance < 0 && Math.abs(normalizedDistance) < 0.001) {
+        normalizedDistance = 0;
+      }
+    }
+
+    return {
+      ...sample,
+      time_seconds: typeof sample.time_seconds === "number" ? sample.time_seconds - baseTime : sample.time_seconds,
+      distance_m: normalizedDistance,
+      sample_index: typeof sample.sample_index === "number" ? sample.sample_index - baseSample : index,
+    };
+  });
+}
+
+function mirrorSamplesOnAxis(samples: TelemetrySample[], axis: AnalysisAxis) {
+  if (samples.length === 0) return samples;
+
+  const axisValues = samples
+    .map((sample, index) => getAxisValue(sample, axis) ?? index)
+    .filter((value): value is number => Number.isFinite(value));
+
+  if (axisValues.length < 2) return samples;
+
+  const minAxis = Math.min(...axisValues);
+  const maxAxis = Math.max(...axisValues);
+
+  return samples.map((sample, index) => {
+    const currentValue = getAxisValue(sample, axis) ?? index;
+    const mirroredValue = minAxis + maxAxis - currentValue;
+
+    if (axis === "time") {
+      return { ...sample, time_seconds: mirroredValue };
+    }
+    if (axis === "distance") {
+      return { ...sample, distance_m: mirroredValue };
+    }
+    return { ...sample, sample_index: mirroredValue };
+  });
 }
 
 
@@ -1231,6 +1295,10 @@ function SvgTelemetryChart({
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
   const [zoomStartPct, setZoomStartPct] = useState(0);
   const [zoomEndPct, setZoomEndPct] = useState(100);
+  const [invertDirection, setInvertDirection] = useState(false);
+
+  const displaySamples = invertDirection ? mirrorSamplesOnAxis(samples, axis) : samples;
+  const displayComparisonSamples = invertDirection ? mirrorSamplesOnAxis(comparisonSamples, axis) : comparisonSamples;
 
   const width = 1120;
   const height = 500;
@@ -1239,8 +1307,8 @@ function SvgTelemetryChart({
   const plotWidth = width - paddingX * 2;
   const plotHeight = height - paddingY * 2;
   const colors = ["#facc15", "#2563eb", "#dc2626", "#16a34a", "#7c3aed", "#ea580c", "#0891b2", "#be123c"];
-  const hasComparison = comparisonSamples.length > 1;
-  const allSamplesForAxis = hasComparison ? [...samples, ...comparisonSamples] : samples;
+  const hasComparison = displayComparisonSamples.length > 1;
+  const allSamplesForAxis = hasComparison ? [...displaySamples, ...displayComparisonSamples] : displaySamples;
 
   const rawXValues = allSamplesForAxis
     .map((sample, index) => getAxisValue(sample, axis) ?? index)
@@ -1257,8 +1325,8 @@ function SvgTelemetryChart({
     return x >= minX && x <= maxX;
   }
 
-  const visiblePrimarySamples = samples.filter((sample, index) => isSampleInVisibleRange(sample, index));
-  const visibleComparisonSamples = comparisonSamples.filter((sample, index) => isSampleInVisibleRange(sample, index));
+  const visiblePrimarySamples = displaySamples.filter((sample, index) => isSampleInVisibleRange(sample, index));
+  const visibleComparisonSamples = displayComparisonSamples.filter((sample, index) => isSampleInVisibleRange(sample, index));
 
   function pointsForChannel(dataset: TelemetrySample[], channelKey: string, minY: number, yRange: number) {
     return dataset
@@ -1307,8 +1375,8 @@ function SvgTelemetryChart({
         label: channelDisplayName(channel, channelKey),
         unit: channelUnit(channel, channelKey),
         color: colors[index % colors.length],
-        primaryPoints: pointsForChannel(samples, channelKey, minY, yRange),
-        comparisonPoints: pointsForChannel(comparisonSamples, channelKey, minY, yRange),
+        primaryPoints: pointsForChannel(displaySamples, channelKey, minY, yRange),
+        comparisonPoints: pointsForChannel(displayComparisonSamples, channelKey, minY, yRange),
         minY,
         maxY,
         count: primaryValues.length + comparisonValues.length,
@@ -1367,7 +1435,7 @@ function SvgTelemetryChart({
     setZoomEndPct(end);
   }
 
-  if (samples.length === 0 || series.length === 0) {
+  if (displaySamples.length === 0 || series.length === 0) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
         Nessun dato sufficiente per disegnare il grafico. Importa un CSV con campioni validi e almeno un canale numerico.
@@ -1426,6 +1494,21 @@ function SvgTelemetryChart({
             <button type="button" onClick={() => setPresetZoom(37, 63)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
               Zoom 25%
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLockedIndex(null);
+                setHoveredIndex(null);
+                setInvertDirection((current) => !current);
+              }}
+              className={`rounded-xl border px-3 py-1.5 font-semibold transition ${
+                invertDirection
+                  ? "border-yellow-300 bg-yellow-50 text-yellow-900 hover:bg-yellow-100"
+                  : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-white"
+              }`}
+            >
+              {invertDirection ? "Verso invertito attivo" : "Inverti verso"}
+            </button>
             {lockedIndex !== null ? (
               <button type="button" onClick={() => setLockedIndex(null)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
                 Sblocca riferimento
@@ -1440,6 +1523,7 @@ function SvgTelemetryChart({
             <span>
               {analysisAxisLabel(axis)}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)} {analysisAxisUnit(axis)}
               {hasZoom ? <span className="ml-2 font-semibold text-yellow-700">zoom attivo</span> : null}
+              {invertDirection ? <span className="ml-2 font-semibold text-yellow-700">verso invertito</span> : null}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1472,6 +1556,11 @@ function SvgTelemetryChart({
               />
             </label>
           </div>
+          {invertDirection ? (
+            <div className="mt-3 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs leading-5 text-yellow-900">
+              Lettura invertita attiva: il cursore, il grafico e il pallino sulla pista scorrono nel verso opposto. Usala quando un export/logger visualizza il giro da fine a inizio.
+            </div>
+          ) : null}
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -1529,8 +1618,8 @@ function SvgTelemetryChart({
             </div>
           </div>
           <TrackMapSvg
-            samples={samples}
-            comparisonSamples={comparisonSamples}
+            samples={displaySamples}
+            comparisonSamples={displayComparisonSamples}
             highlightedSamples={visiblePrimarySamples}
             highlightedComparisonSamples={visibleComparisonSamples}
             activeSample={activeSample}
@@ -2455,8 +2544,7 @@ export default function TelemetryPage() {
       : samplesForLap(analysisCompareFileSamples, resolvedComparisonFileLap)
     : [];
   const rawCompareSamples = hasExternalComparison ? externalCompareSamples : sameFileCompareSamples;
-  const shouldNormalizeLapAxis = analysisPrimaryLap !== "all" || Boolean(analysisCompareFile && analysisCompareFileLap !== "all");
-  const chartPrimarySamples = shouldNormalizeLapAxis ? normalizeSamplesForLap(rawPrimarySamples, analysisAxis) : rawPrimarySamples;
+  const chartPrimarySamples = normalizeSamplesForLap(rawPrimarySamples, analysisAxis);
   const chartCompareSamples = rawCompareSamples.length > 0 ? normalizeSamplesForLap(rawCompareSamples, analysisAxis) : [];
   const primaryLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedPrimaryLap) : null;
   const sameFileCompareLapTime = analysisFile ? lapTimeForNumber(laps, analysisFile.id, resolvedCompareLap) : null;
