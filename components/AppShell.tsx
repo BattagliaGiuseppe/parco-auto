@@ -295,9 +295,9 @@ export default function AppShell({
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
+    <div className="app-chassis min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       <Sidebar />
-      <main className="min-w-0 p-4 md:p-6">{children}</main>
+      <main className="workspace-main min-w-0 p-4 md:p-6">{children}</main>
     </div>
   );
 }

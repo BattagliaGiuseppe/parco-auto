@@ -58,7 +58,7 @@ export default function PageHeader({
             </div>
 
             <h1
-              className={`racing-heading font-bold leading-none text-white ${
+              className={`racing-heading font-bold uppercase leading-none tracking-[0.01em] text-white ${
                 compact ? "text-[30px]" : "text-4xl md:text-[46px]"
               }`}
             >
@@ -66,7 +66,7 @@ export default function PageHeader({
             </h1>
 
             {subtitle ? (
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/72 md:text-[15px]">
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/68 md:text-[15px]">
                 {subtitle}
               </p>
             ) : null}

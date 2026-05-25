@@ -6,7 +6,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClassName: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-[0_12px_24px_rgba(250,204,21,0.24)] hover:brightness-95",
+    "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-[0_14px_28px_rgba(250,204,21,0.22)] hover:brightness-95",
   secondary:
     "border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]",
   danger:
@@ -27,7 +27,7 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
-      className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-black tracking-[-0.01em] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variantClassName[variant]} ${className}`.trim()}
+      className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-black uppercase tracking-[0.055em] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variantClassName[variant]} ${className}`.trim()}
       {...props}
     >
       {children}

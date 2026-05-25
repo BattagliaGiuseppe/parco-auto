@@ -158,23 +158,16 @@ export default function Sidebar() {
   const visibleLinks = links.filter((item) => item.enabled !== false);
 
   const asideStyle: CSSProperties = {
-    backgroundColor: "var(--brand-primary)",
-    borderRightColor: "var(--brand-primary-soft)",
+    background:
+      "linear-gradient(180deg, rgba(10,12,11,0.99), rgba(17,20,17,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
+    borderRightColor: "rgba(255,255,255,0.1)",
     color: "#ffffff",
+    boxShadow: "18px 0 52px rgba(0,0,0,0.24)",
   };
 
   const mobileButtonStyle: CSSProperties = {
     backgroundColor: "var(--brand-primary)",
     color: "var(--brand-accent)",
-  };
-
-  const activeItemStyle: CSSProperties = {
-    backgroundColor: "var(--brand-accent)",
-    color: "var(--brand-on-accent)",
-  };
-
-  const inactiveItemStyle: CSSProperties = {
-    color: "rgba(255,255,255,0.82)",
   };
 
   const fixedBrandCardStyle: CSSProperties = {
@@ -229,7 +222,7 @@ export default function Sidebar() {
                   <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
                     piattaforma
                   </div>
-                  <div className="truncate text-sm font-bold text-white">
+                  <div className="truncate text-sm font-black tracking-tight text-white">
                     {brandConfig.appName}
                   </div>
                 </div>
@@ -256,7 +249,7 @@ export default function Sidebar() {
                   >
                     team
                   </div>
-                  <div className="mt-1 truncate text-lg font-bold text-white">{theme.teamName}</div>
+                  <div className="mt-1 truncate text-lg font-black tracking-tight text-white">{theme.teamName}</div>
                 </div>
               </div>
 
@@ -291,21 +284,8 @@ export default function Sidebar() {
                     <Link
                       key={link.href}
                       href={link.href}
-                      className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                      style={active ? activeItemStyle : inactiveItemStyle}
+                      className={`sidebar-link ${active ? "sidebar-link-active" : ""}`}
                       onClick={() => setOpen(false)}
-                      onMouseEnter={(e) => {
-                        if (!active) {
-                          (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
-                            "rgba(255,255,255,0.08)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!active) {
-                          (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
-                            "transparent";
-                        }
-                      }}
                     >
                       {link.icon}
                       <span>{link.label}</span>

@@ -1,35 +1,42 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --brand-primary: #101010;
+  --brand-primary: #0d0f0e;
   --brand-secondary: #262626;
   --brand-accent: #facc15;
   --brand-on-accent: #111827;
-  --brand-primary-soft: rgba(16, 16, 16, 0.08);
-  --brand-secondary-soft: rgba(38, 38, 38, 0.08);
+  --brand-primary-soft: rgba(13, 15, 14, 0.1);
+  --brand-secondary-soft: rgba(38, 38, 38, 0.1);
   --brand-accent-soft: rgba(250, 204, 21, 0.18);
-  --surface-page: #f2f3f0;
+  --surface-page: #e9e9e2;
   --surface-card: #ffffff;
-  --surface-muted: #f7f7f3;
+  --surface-muted: #f4f4ee;
   --surface-raised: #ffffff;
-  --surface-track: #e7e7e0;
-  --text-primary: #141414;
-  --text-secondary: #4f4f46;
-  --text-muted: #73736b;
-  --border-default: #deded6;
-  --border-strong: #c7c7bb;
+  --surface-track: #e1e1d8;
+  --surface-control: #121412;
+  --surface-control-soft: #1b1e1b;
+  --surface-control-raised: #23261f;
+  --text-primary: #111312;
+  --text-secondary: #4b514a;
+  --text-muted: #74776e;
+  --text-on-dark: #f7f7ee;
+  --text-on-dark-muted: rgba(247, 247, 238, 0.68);
+  --border-default: #d9d9cf;
+  --border-strong: #bdbdaf;
+  --border-on-dark: rgba(255, 255, 255, 0.12);
   --state-success: #059669;
   --state-warning: #d97706;
   --state-danger: #dc2626;
   --state-info: #2563eb;
-  --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.075);
-  --shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.055);
+  --shadow-card: 0 18px 44px rgba(9, 12, 11, 0.16);
+  --shadow-soft: 0 12px 30px rgba(9, 12, 11, 0.1);
   --font-body: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Rajdhani", "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Rajdhani", "Arial Narrow", "Arial Black", "Impact", "Segoe UI", system-ui, sans-serif;
+  --font-racing: "Audiowide", "Rajdhani", system-ui, sans-serif;
 }
 
 @layer base {
@@ -42,9 +49,9 @@
     font-family: var(--font-body);
     @apply antialiased;
     background:
-      linear-gradient(135deg, rgba(16, 16, 16, 0.035) 0 25%, transparent 25% 50%, rgba(16, 16, 16, 0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px,
-      radial-gradient(circle at top right, var(--brand-accent-soft), transparent 30rem),
-      linear-gradient(180deg, #fbfbf8 0%, var(--surface-page) 46%, #e8ebe6 100%);
+      radial-gradient(circle at top right, rgba(250, 204, 21, 0.22), transparent 28rem),
+      radial-gradient(circle at 8% 12%, rgba(255, 255, 255, 0.08), transparent 22rem),
+      linear-gradient(180deg, #0b0d0c 0%, #141714 38%, #e8e8e0 38%, var(--surface-page) 100%);
     color: var(--text-primary);
   }
 
@@ -77,6 +84,36 @@
 }
 
 @layer components {
+  .app-chassis {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 25%, transparent 25% 50%, rgba(255, 255, 255, 0.025) 50% 75%, transparent 75%) 0 0 / 30px 30px,
+      radial-gradient(circle at top right, rgba(250, 204, 21, 0.22), transparent 26rem),
+      linear-gradient(180deg, #0b0d0c 0%, #161915 42%, #e8e8e0 42%, var(--surface-page) 100%);
+  }
+
+  .workspace-main {
+    position: relative;
+    min-width: 0;
+  }
+
+  .workspace-main::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 280px;
+    height: 310px;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.04) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px,
+      radial-gradient(circle at 76% -12%, rgba(250, 204, 21, 0.34), transparent 24rem),
+      linear-gradient(180deg, rgba(10, 12, 11, 0.98), rgba(20, 23, 20, 0.92));
+    z-index: 0;
+  }
+
+  .workspace-main > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .page-shell {
     @apply flex flex-col gap-5 p-4 md:p-6;
   }
@@ -88,10 +125,10 @@
   }
 
   .racing-kicker {
-    font-family: var(--font-display);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
+    font-family: var(--font-racing);
+    font-size: 0.67rem;
+    font-weight: 400;
+    letter-spacing: 0.19em;
     text-transform: uppercase;
   }
 
@@ -99,20 +136,20 @@
     position: relative;
     overflow: hidden;
     background:
-      linear-gradient(135deg, rgba(20, 20, 20, 0.96), rgba(35, 35, 31, 0.94)),
+      linear-gradient(135deg, rgba(12, 14, 13, 0.98), rgba(25, 29, 24, 0.96)),
       linear-gradient(135deg, rgba(255,255,255,0.08) 0 25%, transparent 25% 50%, rgba(255,255,255,0.04) 50% 75%, transparent 75%) 0 0 / 26px 26px;
-    border: 1px solid rgba(255, 255, 255, 0.11);
+    border: 1px solid rgba(255, 255, 255, 0.13);
     border-radius: 1.65rem;
-    box-shadow: var(--shadow-card);
-    color: #ffffff;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    color: var(--text-on-dark);
   }
 
   .race-control-panel::before {
     content: "";
     position: absolute;
     inset: 0 auto 0 0;
-    width: 6px;
-    background: var(--brand-accent);
+    width: 7px;
+    background: linear-gradient(180deg, var(--brand-accent), rgba(250, 204, 21, 0.38), transparent);
   }
 
   .race-control-panel::after {
@@ -120,16 +157,16 @@
     position: absolute;
     right: -6rem;
     top: -8rem;
-    height: 18rem;
-    width: 18rem;
+    height: 19rem;
+    width: 19rem;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(250, 204, 21, 0.34), transparent 62%);
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.38), transparent 64%);
     pointer-events: none;
   }
 
   .motorsport-panel {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.93)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 249, 243, 0.96)),
       linear-gradient(135deg, var(--brand-accent-soft), transparent 36%);
     border: 1px solid var(--border-default);
     border-radius: 1.5rem;
@@ -138,7 +175,7 @@
 
   .motorsport-divider {
     height: 3px;
-    width: 78px;
+    width: 82px;
     border-radius: 999px;
     background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0));
   }
@@ -146,9 +183,9 @@
   .race-section-card {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,247,0.98));
-    border: 1px solid var(--border-default);
-    border-radius: 1.5rem;
+    background: var(--surface-card);
+    border: 1px solid rgba(15, 18, 16, 0.12);
+    border-radius: 1.45rem;
     box-shadow: var(--shadow-soft);
   }
 
@@ -159,28 +196,56 @@
     right: 0;
     top: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0.18), transparent 70%);
+    background: linear-gradient(90deg, var(--brand-accent), rgba(250, 204, 21, 0.18), transparent 74%);
+    z-index: 2;
+  }
+
+  .section-card-header {
+    position: relative;
+    background:
+      linear-gradient(135deg, rgba(14, 16, 15, 0.98), rgba(31, 34, 28, 0.96)),
+      linear-gradient(135deg, rgba(255,255,255,0.06) 0 25%, transparent 25% 50%, rgba(255,255,255,0.035) 50% 75%, transparent 75%) 0 0 / 24px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-on-dark);
+  }
+
+  .section-card-header::after {
+    content: "";
+    position: absolute;
+    right: -5rem;
+    top: -6rem;
+    height: 12rem;
+    width: 12rem;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.2), transparent 62%);
+    pointer-events: none;
+  }
+
+  .section-card-body {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 250, 246, 0.985));
   }
 
   .data-row {
     @apply rounded-2xl border p-4 transition;
     position: relative;
-    background: var(--surface-card);
-    border-color: var(--border-default);
+    background:
+      linear-gradient(180deg, #ffffff, #fbfbf7);
+    border-color: rgba(15, 18, 16, 0.1);
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
-    padding-left: 1.6rem;
+    padding-left: 1.7rem;
   }
 
   .data-row::before {
     content: "";
     position: absolute;
-    left: 0.9rem;
-    top: 0.85rem;
-    bottom: 0.85rem;
-    width: 3px;
+    left: 0.82rem;
+    top: 0.82rem;
+    bottom: 0.82rem;
+    width: 4px;
     border-radius: 999px;
-    background: var(--brand-accent);
-    opacity: 0.5;
+    background: linear-gradient(180deg, var(--brand-accent), rgba(14, 16, 15, 0.72));
+    opacity: 0.75;
   }
 
   .data-row > * {
@@ -188,7 +253,7 @@
   }
 
   .data-row:hover {
-    border-color: var(--border-strong);
+    border-color: rgba(15, 18, 16, 0.2);
     box-shadow: var(--shadow-soft);
     transform: translateY(-1px);
   }
@@ -198,12 +263,36 @@
     font-feature-settings: "tnum";
   }
 
+  .stat-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background:
+      linear-gradient(135deg, rgba(15, 17, 16, 0.98), rgba(33, 36, 30, 0.95)),
+      linear-gradient(135deg, rgba(255,255,255,0.07) 0 25%, transparent 25% 50%, rgba(255,255,255,0.035) 50% 75%, transparent 75%) 0 0 / 24px 24px;
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+    color: var(--text-on-dark);
+  }
+
+  .stat-card::after {
+    content: "";
+    position: absolute;
+    right: -3.2rem;
+    top: -4rem;
+    height: 8rem;
+    width: 8rem;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.18), transparent 64%);
+    pointer-events: none;
+  }
+
   .btn-primary {
     background-color: var(--brand-accent);
     color: var(--brand-on-accent);
     padding: 0.55rem 1rem;
     border-radius: 0.85rem;
-    font-weight: 800;
+    font-weight: 900;
     transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 10px 22px rgba(250, 204, 21, 0.22);
   }
@@ -213,12 +302,55 @@
     transform: translateY(-1px);
   }
 
+  .sidebar-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    padding: 0.78rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 750;
+    color: rgba(255, 255, 255, 0.78);
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.075);
+    color: #ffffff;
+    transform: translateX(2px);
+  }
+
+  .sidebar-link-active {
+    background: linear-gradient(90deg, rgba(250, 204, 21, 0.22), rgba(255, 255, 255, 0.07));
+    border-color: rgba(250, 204, 21, 0.34);
+    color: #ffffff;
+  }
+
+  .sidebar-link-active::before {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    top: 0.65rem;
+    bottom: 0.65rem;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--brand-accent);
+  }
+
   .card {
     background: var(--surface-card);
     border: 1px solid var(--border-default);
     border-radius: 1.35rem;
     padding: 1.25rem;
     box-shadow: var(--shadow-soft);
+  }
+}
+
+@media (max-width: 1023px) {
+  .workspace-main::before {
+    inset: 0 0 auto 0;
   }
 }
 
@@ -238,23 +370,5 @@
   section,
   div {
     box-shadow: none !important;
-  }
-
-  .print-container {
-    margin: 0 auto !important;
-    width: 95% !important;
-    max-width: 1100px !important;
-  }
-
-  nav,
-  footer {
-    display: none !important;
-  }
-
-  html,
-  body {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    overflow: visible !important;
   }
 }
