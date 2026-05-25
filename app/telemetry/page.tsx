@@ -1009,29 +1009,43 @@ function SvgTelemetryChart({
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
+  const [zoomStartPct, setZoomStartPct] = useState(0);
+  const [zoomEndPct, setZoomEndPct] = useState(100);
 
   const width = 1120;
-  const height = 460;
+  const height = 500;
   const paddingX = 64;
-  const paddingY = 46;
+  const paddingY = 50;
   const plotWidth = width - paddingX * 2;
   const plotHeight = height - paddingY * 2;
   const colors = ["#facc15", "#2563eb", "#dc2626", "#16a34a", "#7c3aed", "#ea580c", "#0891b2", "#be123c"];
   const hasComparison = comparisonSamples.length > 1;
   const allSamplesForAxis = hasComparison ? [...samples, ...comparisonSamples] : samples;
 
-  const xValues = allSamplesForAxis.map((sample, index) => getAxisValue(sample, axis) ?? index);
-  const validX = xValues.filter((value): value is number => value !== null && Number.isFinite(value));
-  const minX = validX.length ? Math.min(...validX) : 0;
-  const maxX = validX.length ? Math.max(...validX) : Math.max(samples.length - 1, 1);
+  const rawXValues = allSamplesForAxis
+    .map((sample, index) => getAxisValue(sample, axis) ?? index)
+    .filter((value): value is number => value !== null && Number.isFinite(value));
+  const rawMinX = rawXValues.length ? Math.min(...rawXValues) : 0;
+  const rawMaxX = rawXValues.length ? Math.max(...rawXValues) : Math.max(samples.length - 1, 1);
+  const rawRangeX = rawMaxX - rawMinX || 1;
+  const minX = rawMinX + (rawRangeX * zoomStartPct) / 100;
+  const maxX = rawMinX + (rawRangeX * zoomEndPct) / 100;
   const xRange = maxX - minX || 1;
+
+  function isSampleInVisibleRange(sample: TelemetrySample, index: number) {
+    const x = getAxisValue(sample, axis) ?? index;
+    return x >= minX && x <= maxX;
+  }
+
+  const visiblePrimarySamples = samples.filter((sample, index) => isSampleInVisibleRange(sample, index));
+  const visibleComparisonSamples = comparisonSamples.filter((sample, index) => isSampleInVisibleRange(sample, index));
 
   function pointsForChannel(dataset: TelemetrySample[], channelKey: string, minY: number, yRange: number) {
     return dataset
       .map((sample, sampleIndex) => {
         const y = getSampleValue(sample, channelKey);
         const x = getAxisValue(sample, axis) ?? sampleIndex;
-        if (y === null) return null;
+        if (y === null || x < minX || x > maxX) return null;
         const svgX = paddingX + ((x - minX) / xRange) * plotWidth;
         const svgY = paddingY + plotHeight - ((y - minY) / yRange) * plotHeight;
         return `${svgX.toFixed(2)},${svgY.toFixed(2)}`;
@@ -1040,12 +1054,26 @@ function SvgTelemetryChart({
       .join(" ");
   }
 
+  function channelMax(dataset: TelemetrySample[], channelKey: string) {
+    const values = dataset
+      .map((sample) => getSampleValue(sample, channelKey))
+      .filter((value): value is number => value !== null);
+    return values.length ? Math.max(...values) : null;
+  }
+
+  function channelAvg(dataset: TelemetrySample[], channelKey: string) {
+    const values = dataset
+      .map((sample) => getSampleValue(sample, channelKey))
+      .filter((value): value is number => value !== null);
+    return average(values);
+  }
+
   const series = selectedChannels
     .map((channelKey, index) => {
-      const primaryValues = samples
+      const primaryValues = visiblePrimarySamples
         .map((sample) => getSampleValue(sample, channelKey))
         .filter((value): value is number => value !== null);
-      const comparisonValues = comparisonSamples
+      const comparisonValues = visibleComparisonSamples
         .map((sample) => getSampleValue(sample, channelKey))
         .filter((value): value is number => value !== null);
       const yValues = [...primaryValues, ...comparisonValues];
@@ -1064,6 +1092,10 @@ function SvgTelemetryChart({
         minY,
         maxY,
         count: primaryValues.length + comparisonValues.length,
+        primaryMax: channelMax(visiblePrimarySamples, channelKey),
+        comparisonMax: channelMax(visibleComparisonSamples, channelKey),
+        primaryAvg: channelAvg(visiblePrimarySamples, channelKey),
+        comparisonAvg: channelAvg(visibleComparisonSamples, channelKey),
         yForValue(value: number) {
           return paddingY + plotHeight - ((value - minY) / yRange) * plotHeight;
         },
@@ -1072,19 +1104,47 @@ function SvgTelemetryChart({
     .filter((item) => item.count > 1 && item.primaryPoints);
 
   const activeIndex = lockedIndex ?? hoveredIndex;
-  const activeSample = activeIndex !== null ? samples[activeIndex] : null;
+  const activeSample = activeIndex !== null ? visiblePrimarySamples[activeIndex] : null;
   const activeX = activeSample ? getAxisValue(activeSample, axis) ?? activeIndex ?? 0 : null;
   const activeSvgX = activeX !== null ? paddingX + ((activeX - minX) / xRange) * plotWidth : null;
-  const activeComparisonIndex = activeX !== null && hasComparison ? findNearestSampleIndex(comparisonSamples, axis, activeX) : null;
-  const activeComparisonSample = activeComparisonIndex !== null ? comparisonSamples[activeComparisonIndex] : null;
+  const activeComparisonIndex = activeX !== null && hasComparison ? findNearestSampleIndex(visibleComparisonSamples, axis, activeX) : null;
+  const activeComparisonSample = activeComparisonIndex !== null ? visibleComparisonSamples[activeComparisonIndex] : null;
+
+  const speedLosses = hasComparison
+    ? visiblePrimarySamples
+        .map((sample, index) => {
+          if (index % 4 !== 0) return null;
+          const x = getAxisValue(sample, axis) ?? index;
+          const comparisonIndex = findNearestSampleIndex(visibleComparisonSamples, axis, x);
+          const comparisonSample = comparisonIndex !== null ? visibleComparisonSamples[comparisonIndex] : null;
+          const primarySpeed = getSampleValue(sample, "speed");
+          const comparisonSpeed = comparisonSample ? getSampleValue(comparisonSample, "speed") : null;
+          if (primarySpeed === null || comparisonSpeed === null) return null;
+          const loss = primarySpeed - comparisonSpeed;
+          if (loss <= 3) return null;
+          return { x, loss, primarySpeed, comparisonSpeed };
+        })
+        .filter((item): item is { x: number; loss: number; primarySpeed: number; comparisonSpeed: number } => item !== null)
+        .sort((a, b) => b.loss - a.loss)
+        .slice(0, 3)
+    : [];
+
+  const hasZoom = zoomStartPct > 0 || zoomEndPct < 100;
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     const svgX = ((event.clientX - rect.left) / rect.width) * width;
     const clampedSvgX = Math.min(Math.max(svgX, paddingX), paddingX + plotWidth);
     const targetX = minX + ((clampedSvgX - paddingX) / plotWidth) * xRange;
-    const nearest = findNearestSampleIndex(samples, axis, targetX);
+    const nearest = findNearestSampleIndex(visiblePrimarySamples, axis, targetX);
     setHoveredIndex(nearest);
+  }
+
+  function setPresetZoom(start: number, end: number) {
+    setLockedIndex(null);
+    setHoveredIndex(null);
+    setZoomStartPct(start);
+    setZoomEndPct(end);
   }
 
   if (samples.length === 0 || series.length === 0) {
@@ -1097,21 +1157,101 @@ function SvgTelemetryChart({
 
   return (
     <div className="space-y-4">
+      {hasComparison ? (
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-yellow-800">Confronto attivo</div>
+              <div className="mt-1 text-sm font-semibold text-neutral-900">
+                <span>{primaryLabel}</span>
+                <span className="mx-2 text-neutral-400">vs</span>
+                <span>{comparisonLabel}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded-xl bg-white/80 px-3 py-2">
+                <div className="text-neutral-500">Punti rif.</div>
+                <div className="font-bold text-neutral-900">{visiblePrimarySamples.length}</div>
+              </div>
+              <div className="rounded-xl bg-white/80 px-3 py-2">
+                <div className="text-neutral-500">Punti conf.</div>
+                <div className="font-bold text-neutral-900">{visibleComparisonSamples.length}</div>
+              </div>
+              <div className="rounded-xl bg-white/80 px-3 py-2">
+                <div className="text-neutral-500">V max rif.</div>
+                <div className="font-bold text-neutral-900">{formatNumber(channelMax(visiblePrimarySamples, "speed"), 1)} km/h</div>
+              </div>
+              <div className="rounded-xl bg-white/80 px-3 py-2">
+                <div className="text-neutral-500">V max conf.</div>
+                <div className="font-bold text-neutral-900">{formatNumber(channelMax(visibleComparisonSamples, "speed"), 1)} km/h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-neutral-200 bg-white p-3">
-        <div className="mb-3 flex flex-col gap-2 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
+        <div className="mb-3 flex flex-col gap-3 text-xs text-neutral-500 xl:flex-row xl:items-center xl:justify-between">
           <div>
             Asse orizzontale: <span className="font-bold text-neutral-800">{analysisAxisLabel(axis)}</span>. Muovi il mouse sul grafico per leggere i valori; clicca per bloccare/sbloccare il riferimento.
             {hasComparison ? <span className="ml-2 font-semibold text-yellow-700">Linea piena: {primaryLabel}. Linea tratteggiata: {comparisonLabel}.</span> : null}
           </div>
-          {lockedIndex !== null ? (
-            <button
-              type="button"
-              onClick={() => setLockedIndex(null)}
-              className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white"
-            >
-              Sblocca riferimento
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setPresetZoom(0, 100)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+              Tutto il giro
             </button>
-          ) : null}
+            <button type="button" onClick={() => setPresetZoom(25, 75)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+              Zoom 50%
+            </button>
+            <button type="button" onClick={() => setPresetZoom(37, 63)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+              Zoom 25%
+            </button>
+            {lockedIndex !== null ? (
+              <button type="button" onClick={() => setLockedIndex(null)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+                Sblocca riferimento
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
+          <div className="mb-2 flex flex-col gap-1 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
+            <span className="font-semibold text-neutral-700">Finestra di analisi / zoom</span>
+            <span>
+              {analysisAxisLabel(axis)}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)} {analysisAxisUnit(axis)}
+              {hasZoom ? <span className="ml-2 font-semibold text-yellow-700">zoom attivo</span> : null}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="text-xs font-semibold text-neutral-600">
+              Inizio finestra: {zoomStartPct}%
+              <input
+                type="range"
+                min="0"
+                max="99"
+                value={zoomStartPct}
+                onChange={(event) => {
+                  setLockedIndex(null);
+                  setZoomStartPct(Math.min(Number(event.target.value), zoomEndPct - 1));
+                }}
+                className="mt-2 w-full accent-yellow-500"
+              />
+            </label>
+            <label className="text-xs font-semibold text-neutral-600">
+              Fine finestra: {zoomEndPct}%
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value={zoomEndPct}
+                onChange={(event) => {
+                  setLockedIndex(null);
+                  setZoomEndPct(Math.max(Number(event.target.value), zoomStartPct + 1));
+                }}
+                className="mt-2 w-full accent-yellow-500"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -1129,15 +1269,7 @@ function SvgTelemetryChart({
             <line x1={paddingX} y1={paddingY + plotHeight} x2={paddingX + plotWidth} y2={paddingY + plotHeight} stroke="#d4d4d4" />
             <line x1={paddingX} y1={paddingY} x2={paddingX} y2={paddingY + plotHeight} stroke="#d4d4d4" />
             {[0.25, 0.5, 0.75].map((ratio) => (
-              <line
-                key={ratio}
-                x1={paddingX}
-                y1={paddingY + plotHeight * ratio}
-                x2={paddingX + plotWidth}
-                y2={paddingY + plotHeight * ratio}
-                stroke="#e5e5e5"
-                strokeDasharray="5 5"
-              />
+              <line key={ratio} x1={paddingX} y1={paddingY + plotHeight * ratio} x2={paddingX + plotWidth} y2={paddingY + plotHeight * ratio} stroke="#e5e5e5" strokeDasharray="5 5" />
             ))}
             {series.map((item) => (
               <g key={item.channelKey}>
@@ -1168,13 +1300,13 @@ function SvgTelemetryChart({
               {analysisAxisLabel(axis)}{analysisAxisUnit(axis) ? ` (${analysisAxisUnit(axis)})` : ""}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)}
             </text>
             <text x={paddingX} y="24" fontSize="12" fill="#737373">
-              Linee normalizzate per canale: utile per confrontare andamento; i valori reali sono nel pannello sotto al cursore.
+              Linee normalizzate per canale: utile per confrontare andamento; i valori reali sono nei pannelli riepilogo.
             </text>
           </svg>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_1fr]">
         <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm">
           <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Riferimento cursore</div>
           {activeSample ? (
@@ -1195,37 +1327,85 @@ function SvgTelemetryChart({
         </div>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Valori canali nel punto selezionato</div>
+          <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Dati nel punto selezionato</div>
+              <div className="text-xs text-neutral-500">Valori reali del riferimento, del confronto e differenza tra i due.</div>
+            </div>
+            {activeSample && activeComparisonSample ? <div className="text-xs font-semibold text-yellow-700">Delta = riferimento - confronto</div> : null}
+          </div>
           {activeSample ? (
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-              {series.map((item) => {
-                const value = getSampleValue(activeSample, item.channelKey);
-                const comparisonValue = activeComparisonSample ? getSampleValue(activeComparisonSample, item.channelKey) : null;
-                const delta = value !== null && comparisonValue !== null ? value - comparisonValue : null;
-                return (
-                  <div key={item.channelKey} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2 font-semibold text-neutral-800">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        {item.label}
-                      </span>
-                      <span className="text-neutral-600">{formatNumber(value, 3)} {item.unit}</span>
-                    </div>
-                    {comparisonValue !== null ? (
-                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-neutral-500">
-                        <span>{comparisonLabel}: {formatNumber(comparisonValue, 3)} {item.unit}</span>
-                        <span className="font-semibold text-neutral-700">Δ {formatNumber(delta, 3)}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500">
+                    <th className="py-2 pr-3">Canale</th>
+                    <th className="py-2 pr-3">Riferimento</th>
+                    {activeComparisonSample ? <th className="py-2 pr-3">Confronto</th> : null}
+                    {activeComparisonSample ? <th className="py-2 pr-3">Delta</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {series.map((item) => {
+                    const value = getSampleValue(activeSample, item.channelKey);
+                    const comparisonValue = activeComparisonSample ? getSampleValue(activeComparisonSample, item.channelKey) : null;
+                    const delta = value !== null && comparisonValue !== null ? value - comparisonValue : null;
+                    return (
+                      <tr key={item.channelKey} className="border-b border-neutral-100 last:border-0">
+                        <td className="py-2 pr-3 font-semibold text-neutral-800">
+                          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          {item.label}{item.unit ? ` (${item.unit})` : ""}
+                        </td>
+                        <td className="py-2 pr-3 text-neutral-700">{formatNumber(value, 3)}</td>
+                        {activeComparisonSample ? <td className="py-2 pr-3 text-neutral-700">{formatNumber(comparisonValue, 3)}</td> : null}
+                        {activeComparisonSample ? <td className={`py-2 pr-3 font-semibold ${delta !== null && Math.abs(delta) > 0 ? "text-neutral-900" : "text-neutral-400"}`}>{formatNumber(delta, 3)}</td> : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="text-sm text-neutral-500">Nessun punto selezionato.</div>
           )}
         </div>
       </div>
+
+      {hasComparison ? (
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Suggerimenti automatici da verificare</div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl bg-neutral-50 p-3 text-sm text-neutral-700">
+              <div className="font-semibold text-neutral-900">Sintesi canali selezionati nella finestra</div>
+              <div className="mt-2 space-y-1 text-xs">
+                {series.slice(0, 6).map((item) => (
+                  <div key={item.channelKey} className="flex items-center justify-between gap-3">
+                    <span>{item.label}</span>
+                    <span className="font-semibold text-neutral-800">
+                      max {formatNumber(item.primaryMax, 2)} / {formatNumber(item.comparisonMax, 2)} {item.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-yellow-50 p-3 text-sm text-yellow-950">
+              <div className="font-semibold">Possibili punti dove il confronto perde velocità</div>
+              {speedLosses.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-xs">
+                  {speedLosses.map((item) => (
+                    <li key={`${item.x}-${item.loss}`}>
+                      circa {formatNumber(item.x, 0)} {analysisAxisUnit(axis)}: confronto più lento di {formatNumber(item.loss, 1)} km/h ({formatNumber(item.primarySpeed, 1)} vs {formatNumber(item.comparisonSpeed, 1)}).
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-2 text-xs">Nella finestra attuale non vedo perdite velocità evidenti oltre 3 km/h. Prova a restringere la zona o selezionare il canale velocità.</div>
+              )}
+              <div className="mt-2 text-[11px] text-yellow-800">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {series.map((item) => (
