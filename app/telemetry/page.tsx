@@ -1027,6 +1027,8 @@ function buildGpsTrackPoints(samples: TelemetrySample[]) {
 function TrackMapSvg({
   samples,
   comparisonSamples = [],
+  highlightedSamples = [],
+  highlightedComparisonSamples = [],
   activeSample,
   activeComparisonSample,
   hasComparison,
@@ -1036,6 +1038,8 @@ function TrackMapSvg({
 }: {
   samples: TelemetrySample[];
   comparisonSamples?: TelemetrySample[];
+  highlightedSamples?: TelemetrySample[];
+  highlightedComparisonSamples?: TelemetrySample[];
   activeSample: TelemetrySample | null;
   activeComparisonSample: TelemetrySample | null;
   hasComparison: boolean;
@@ -1045,6 +1049,8 @@ function TrackMapSvg({
 }) {
   const primaryGps = buildGpsTrackPoints(samples);
   const comparisonGps = buildGpsTrackPoints(comparisonSamples);
+  const highlightedPrimaryGps = buildGpsTrackPoints(highlightedSamples);
+  const highlightedComparisonGps = buildGpsTrackPoints(highlightedComparisonSamples);
   const allGps = [...primaryGps, ...comparisonGps];
 
   if (allGps.length < 5) {
@@ -1052,7 +1058,7 @@ function TrackMapSvg({
       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
         <div className="font-semibold text-neutral-800">Mappa pista non disponibile</div>
         <div className="mt-1 text-xs">
-          Il file analizzato non contiene coordinate GPS valide, oppure il tratto selezionato non ha abbastanza punti latitudine/longitudine.
+          Il file o il giro selezionato non contiene coordinate GPS valide sufficienti per ricostruire il tracciato.
         </div>
       </div>
     );
@@ -1091,6 +1097,8 @@ function TrackMapSvg({
   const activeComparisonGps = activeComparisonSample ? gpsPointForSample(activeComparisonSample) : null;
   const activePrimary = activePrimaryGps ? project(activePrimaryGps) : null;
   const activeComparison = activeComparisonGps ? project(activeComparisonGps) : null;
+  const isPrimaryZoomed = highlightedPrimaryGps.length > 5 && highlightedPrimaryGps.length < Math.max(primaryGps.length - 4, 0);
+  const isComparisonZoomed = highlightedComparisonGps.length > 5 && highlightedComparisonGps.length < Math.max(comparisonGps.length - 4, 0);
   const visibleSpeedLosses = speedLosses
     .map((loss) => {
       const gps = gpsPointForSample(loss.sample);
@@ -1105,7 +1113,7 @@ function TrackMapSvg({
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Mappa pista GPS</div>
           <div className="mt-1 text-xs text-neutral-500">
-            Il pallino segue il riferimento del grafico. Usa l’asse distanza per confronti più precisi sul tracciato.
+            Il tracciato resta sempre completo. Lo zoom restringe solo il grafico; sulla mappa viene evidenziato il tratto analizzato.
           </div>
         </div>
         <div className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">
@@ -1116,9 +1124,50 @@ function TrackMapSvg({
       <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-[300px] w-full">
           <rect x="0" y="0" width={width} height={height} fill="#fafafa" />
-          <polyline points={pointString(primaryGps)} fill="none" stroke="#111827" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
+          <polyline
+            points={pointString(primaryGps)}
+            fill="none"
+            stroke="#111827"
+            strokeWidth="3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={isPrimaryZoomed ? "0.24" : "0.9"}
+          />
           {hasComparison && comparisonGps.length > 5 ? (
-            <polyline points={pointString(comparisonGps)} fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="7 7" opacity="0.8" />
+            <polyline
+              points={pointString(comparisonGps)}
+              fill="none"
+              stroke="#f59e0b"
+              strokeWidth="2.4"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              strokeDasharray="7 7"
+              opacity={isComparisonZoomed ? "0.28" : "0.8"}
+            />
+          ) : null}
+
+          {isPrimaryZoomed ? (
+            <polyline
+              points={pointString(highlightedPrimaryGps)}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="4"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              opacity="0.95"
+            />
+          ) : null}
+          {hasComparison && isComparisonZoomed ? (
+            <polyline
+              points={pointString(highlightedComparisonGps)}
+              fill="none"
+              stroke="#f59e0b"
+              strokeWidth="3.2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              strokeDasharray="7 7"
+              opacity="0.95"
+            />
           ) : null}
 
           {visibleSpeedLosses.map((loss, index) => (
@@ -1145,8 +1194,9 @@ function TrackMapSvg({
 
       <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-neutral-600">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {primaryLabel}</span>
-          {hasComparison ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500" /> {comparisonLabel}</span> : null}
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-neutral-900" /> tracciato completo</span>
+          {isPrimaryZoomed ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> tratto analizzato {primaryLabel}</span> : <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {primaryLabel}</span>}
+          {hasComparison ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500" /> {isComparisonZoomed ? `tratto analizzato ${comparisonLabel}` : comparisonLabel}</span> : null}
           {visibleSpeedLosses.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600" /> perdita velocità</span> : null}
         </div>
         {activeSample ? (
@@ -1158,6 +1208,7 @@ function TrackMapSvg({
     </div>
   );
 }
+
 
 function SvgTelemetryChart({
   samples,
@@ -1478,8 +1529,10 @@ function SvgTelemetryChart({
             </div>
           </div>
           <TrackMapSvg
-            samples={visiblePrimarySamples}
-            comparisonSamples={visibleComparisonSamples}
+            samples={samples}
+            comparisonSamples={comparisonSamples}
+            highlightedSamples={visiblePrimarySamples}
+            highlightedComparisonSamples={visibleComparisonSamples}
             activeSample={activeSample}
             activeComparisonSample={activeComparisonSample}
             hasComparison={hasComparison}
