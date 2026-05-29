@@ -655,3 +655,243 @@ body .app-chassis .motorsport-panel,
 body .app-chassis .card {
   color: var(--text-primary) !important;
 }
+
+/* Patch 4C — decisive Dark Race Control harmonization.
+   This block intentionally targets legacy Tailwind light utilities globally, not only
+   inside .app-chassis, because some modals/overlays are rendered outside the shell
+   or contain hard-coded light utility combinations. */
+:root {
+  color-scheme: dark;
+}
+
+body .bg-white,
+body .bg-white\/95,
+body .bg-white\/90,
+body .bg-white\/80,
+body .bg-white\/70,
+body .bg-gray-50,
+body .bg-gray-100,
+body .bg-zinc-50,
+body .bg-zinc-100,
+body .bg-slate-50,
+body .bg-slate-100,
+body .bg-neutral-50,
+body .bg-neutral-100,
+body .bg-neutral-200 {
+  background: linear-gradient(180deg, rgba(17, 24, 32, 0.98), rgba(10, 15, 21, 0.99)) !important;
+  color: var(--text-primary) !important;
+}
+
+body .bg-neutral-900,
+body .bg-gray-900,
+body .bg-slate-900,
+body .bg-zinc-900 {
+  background: var(--brand-accent) !important;
+  color: var(--brand-on-accent) !important;
+}
+
+body .text-black,
+body .text-gray-950,
+body .text-gray-900,
+body .text-gray-800,
+body .text-zinc-950,
+body .text-zinc-900,
+body .text-zinc-800,
+body .text-slate-950,
+body .text-slate-900,
+body .text-slate-800,
+body .text-neutral-950,
+body .text-neutral-900,
+body .text-neutral-800 {
+  color: var(--text-primary) !important;
+}
+
+body .text-gray-700,
+body .text-gray-600,
+body .text-zinc-700,
+body .text-zinc-600,
+body .text-slate-700,
+body .text-slate-600,
+body .text-neutral-700,
+body .text-neutral-600 {
+  color: var(--text-secondary) !important;
+}
+
+body .text-gray-500,
+body .text-gray-400,
+body .text-zinc-500,
+body .text-zinc-400,
+body .text-slate-500,
+body .text-slate-400,
+body .text-neutral-500,
+body .text-neutral-400 {
+  color: var(--text-muted) !important;
+}
+
+body .border-gray-100,
+body .border-gray-200,
+body .border-gray-300,
+body .border-zinc-100,
+body .border-zinc-200,
+body .border-zinc-300,
+body .border-slate-100,
+body .border-slate-200,
+body .border-slate-300,
+body .border-neutral-100,
+body .border-neutral-200,
+body .border-neutral-300 {
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+body .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+body .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+body .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
+body .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
+body .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+body .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+body .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
+body .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body input:not([type="checkbox"]):not([type="radio"]),
+body select,
+body textarea {
+  background-color: rgba(7, 11, 15, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset !important;
+}
+
+body input:not([type="checkbox"]):not([type="radio"]):focus,
+body select:focus,
+body textarea:focus {
+  border-color: var(--brand-accent) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(248, 196, 0, 0.14) !important;
+}
+
+body input::placeholder,
+body textarea::placeholder {
+  color: rgba(195, 201, 212, 0.5) !important;
+}
+
+body input[type="date"]::-webkit-calendar-picker-indicator,
+body input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.82);
+}
+
+body option {
+  background: #0b1117;
+  color: var(--text-primary);
+}
+
+body label,
+body legend {
+  color: var(--text-secondary);
+}
+
+body .fixed.inset-0 {
+  color: var(--text-primary);
+}
+
+body .fixed.inset-0 > div:not(.pointer-events-none),
+body .fixed.inset-0 .max-h-\[90vh\],
+body .fixed.inset-0 .max-h-\[92vh\],
+body .fixed.inset-0 .max-w-3xl,
+body .fixed.inset-0 .max-w-4xl,
+body .fixed.inset-0 .max-w-5xl,
+body .fixed.inset-0 .max-w-6xl,
+body .fixed.inset-0 .max-w-lg,
+body .fixed.inset-0 .max-w-xl,
+body .fixed.inset-0 .max-w-2xl {
+  background: linear-gradient(180deg, rgba(17, 24, 32, 0.99), rgba(10, 15, 21, 0.99)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62) !important;
+}
+
+body .fixed.inset-0 h1,
+body .fixed.inset-0 h2,
+body .fixed.inset-0 h3,
+body .fixed.inset-0 h4 {
+  color: var(--text-primary) !important;
+}
+
+body .fixed.inset-0 .rounded-3xl,
+body .fixed.inset-0 .rounded-2xl,
+body .fixed.inset-0 .rounded-xl {
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+body .shadow-sm,
+body .shadow,
+body .shadow-md,
+body .shadow-lg,
+body .shadow-xl,
+body .shadow-2xl {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32) !important;
+}
+
+body table,
+body thead,
+body tbody,
+body tr,
+body td,
+body th {
+  color: var(--text-secondary);
+}
+
+body thead {
+  background: rgba(23, 31, 41, 0.98) !important;
+}
+
+body tbody,
+body tbody tr {
+  background: rgba(13, 19, 26, 0.96) !important;
+}
+
+body a:not(.sidebar-link) {
+  color: inherit;
+}
+
+body .bg-yellow-50,
+body .bg-amber-50 {
+  background: rgba(248, 196, 0, 0.12) !important;
+  color: #ffe27a !important;
+  border-color: rgba(248, 196, 0, 0.32) !important;
+}
+
+body .bg-red-50 {
+  background: rgba(255, 77, 95, 0.12) !important;
+  color: #ff9aa6 !important;
+  border-color: rgba(255, 77, 95, 0.32) !important;
+}
+
+body .bg-blue-50,
+body .bg-sky-50 {
+  background: rgba(56, 168, 255, 0.12) !important;
+  color: #8fcbff !important;
+  border-color: rgba(56, 168, 255, 0.32) !important;
+}
+
+body .bg-emerald-50,
+body .bg-green-50 {
+  background: rgba(25, 195, 125, 0.12) !important;
+  color: #8cf2c4 !important;
+  border-color: rgba(25, 195, 125, 0.32) !important;
+}
+
+body .hover\:bg-neutral-50:hover,
+body .hover\:bg-neutral-100:hover,
+body .hover\:bg-gray-50:hover,
+body .hover\:bg-white:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body button:disabled,
+body a[aria-disabled="true"] {
+  opacity: 0.48 !important;
+  color: rgba(246, 247, 243, 0.55) !important;
+}
