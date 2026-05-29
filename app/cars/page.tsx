@@ -22,6 +22,7 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
+import { Button } from "@/components/Button";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
 
@@ -173,7 +174,9 @@ export default function CarsPage() {
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
   const [notes, setNotes] = useState("");
-  const [componentForms, setComponentForms] = useState<Record<string, ComponentForm>>({});
+  const [componentForms, setComponentForms] = useState<
+    Record<string, ComponentForm>
+  >({});
   const [toast, setToast] = useState("");
 
   async function loadAll() {
@@ -184,7 +187,7 @@ export default function CarsPage() {
         supabase
           .from("cars")
           .select(
-            `id,name,chassis_number,hours,notes,components(id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours)`
+            `id,name,chassis_number,hours,notes,components(id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours)`,
           )
           .eq("team_id", ctx.teamId)
           .order("created_at", { ascending: false }),
@@ -203,7 +206,7 @@ export default function CarsPage() {
         ((carsRes.data || []) as any[]).map((car) => ({
           ...car,
           components: car.components || [],
-        })) as CarRow[]
+        })) as CarRow[],
       );
       setDefinitions((defsRes.data || []) as Definition[]);
       setAllComponents((compsRes.data || []) as ComponentOption[]);
@@ -228,7 +231,11 @@ export default function CarsPage() {
 
   const stats = useMemo(
     () => [
-      { label: "Mezzi", value: String(cars.length), icon: <CarFront size={18} /> },
+      {
+        label: "Mezzi",
+        value: String(cars.length),
+        icon: <CarFront size={18} />,
+      },
       {
         label: "Definizioni attive",
         value: String(definitions.length),
@@ -246,15 +253,15 @@ export default function CarsPage() {
             (acc, car) =>
               acc +
               car.components.filter(
-                (component) => getComponentStatus(component).label !== "OK"
+                (component) => getComponentStatus(component).label !== "OK",
               ).length,
-            0
-          )
+            0,
+          ),
         ),
         icon: <Search size={18} />,
       },
     ],
-    [cars, definitions.length, allComponents.length]
+    [cars, definitions.length, allComponents.length],
   );
 
   const filteredCars = useMemo(() => {
@@ -263,7 +270,7 @@ export default function CarsPage() {
     return cars.filter(
       (car) =>
         car.name.toLowerCase().includes(q) ||
-        (car.chassis_number || "").toLowerCase().includes(q)
+        (car.chassis_number || "").toLowerCase().includes(q),
     );
   }, [cars, search]);
 
@@ -275,8 +282,11 @@ export default function CarsPage() {
     setNotes("");
     setComponentForms(
       Object.fromEntries(
-        definitions.map((def) => [def.code, defaultComponentForm(def.default_expiry_years)])
-      )
+        definitions.map((def) => [
+          def.code,
+          defaultComponentForm(def.default_expiry_years),
+        ]),
+      ),
     );
     setOpen(true);
   }
@@ -285,7 +295,9 @@ export default function CarsPage() {
     if (!canEditCars) return;
     const next: Record<string, ComponentForm> = {};
     for (const def of definitions) {
-      const existing = car.components.find((component) => component.type === def.code);
+      const existing = car.components.find(
+        (component) => component.type === def.code,
+      );
       next[def.code] = existing
         ? {
             mode: "existing",
@@ -319,85 +331,86 @@ export default function CarsPage() {
   function availableOptions(type: string, currentCarId?: string) {
     return allComponents.filter(
       (component) =>
-        component.type === type && (!component.car_id || component.car_id === currentCarId)
+        component.type === type &&
+        (!component.car_id || component.car_id === currentCarId),
     );
   }
 
-async function createOrAttachComponents(carId: string) {
-  const ctx = await getCurrentTeamContext();
-  const mountedAt = new Date().toISOString().slice(0, 10);
+  async function createOrAttachComponents(carId: string) {
+    const ctx = await getCurrentTeamContext();
+    const mountedAt = new Date().toISOString().slice(0, 10);
 
-  async function mountComponent(componentId: string, reason: string) {
-    const { error } = await supabase.rpc("mount_component_on_car", {
-      p_team_id: ctx.teamId,
-      p_car_id: carId,
-      p_component_id: componentId,
-      p_mounted_at: mountedAt,
-      p_mounted_by_team_user_id: ctx.teamUserId,
-      p_reason: reason,
-      p_replace_same_type: true,
-    });
-
-    if (error) throw error;
-  }
-
-  for (const def of definitions) {
-    const form = componentForms[def.code];
-    if (!form) continue;
-
-    if (!def.is_required && !form.existingId && !form.identifier.trim()) {
-      continue;
-    }
-
-    if (form.mode === "existing" && form.existingId) {
-      await mountComponent(
-        form.existingId,
-        editing
-          ? `Aggiornamento componente ${def.label || def.code} da scheda auto`
-          : `Montaggio iniziale componente ${def.label || def.code} da creazione auto`
-      );
-      continue;
-    }
-
-    if (form.mode === "new" && form.identifier.trim()) {
-      const payload: any = {
-        team_id: ctx.teamId,
-        type: def.code,
-        identifier: form.identifier.trim(),
-        // Importante: il componente nasce libero.
-        // Il collegamento all'auto viene fatto dalla RPC mount_component_on_car,
-        // che crea anche lo storico in car_components.
-        car_id: null,
-        is_active: true,
-        hours: parseNumber(form.hours),
-        life_hours: form.life_hours ? parseNumber(form.life_hours) : 0,
-        warning_threshold_hours: form.warning_threshold_hours
-          ? parseNumber(form.warning_threshold_hours)
-          : null,
-        revision_threshold_hours: form.revision_threshold_hours
-          ? parseNumber(form.revision_threshold_hours)
-          : null,
-        expiry_date: def.has_expiry ? form.expiry_date || null : null,
-        notes: form.notes || null,
-      };
-
-      const { data, error } = await supabase
-        .from("components")
-        .insert([payload])
-        .select("id")
-        .single();
+    async function mountComponent(componentId: string, reason: string) {
+      const { error } = await supabase.rpc("mount_component_on_car", {
+        p_team_id: ctx.teamId,
+        p_car_id: carId,
+        p_component_id: componentId,
+        p_mounted_at: mountedAt,
+        p_mounted_by_team_user_id: ctx.teamUserId,
+        p_reason: reason,
+        p_replace_same_type: true,
+      });
 
       if (error) throw error;
+    }
 
-      await mountComponent(
-        data.id,
-        editing
-          ? `Nuovo componente ${def.label || def.code} creato e montato da scheda auto`
-          : `Nuovo componente ${def.label || def.code} creato durante creazione auto`
-      );
+    for (const def of definitions) {
+      const form = componentForms[def.code];
+      if (!form) continue;
+
+      if (!def.is_required && !form.existingId && !form.identifier.trim()) {
+        continue;
+      }
+
+      if (form.mode === "existing" && form.existingId) {
+        await mountComponent(
+          form.existingId,
+          editing
+            ? `Aggiornamento componente ${def.label || def.code} da scheda auto`
+            : `Montaggio iniziale componente ${def.label || def.code} da creazione auto`,
+        );
+        continue;
+      }
+
+      if (form.mode === "new" && form.identifier.trim()) {
+        const payload: any = {
+          team_id: ctx.teamId,
+          type: def.code,
+          identifier: form.identifier.trim(),
+          // Importante: il componente nasce libero.
+          // Il collegamento all'auto viene fatto dalla RPC mount_component_on_car,
+          // che crea anche lo storico in car_components.
+          car_id: null,
+          is_active: true,
+          hours: parseNumber(form.hours),
+          life_hours: form.life_hours ? parseNumber(form.life_hours) : 0,
+          warning_threshold_hours: form.warning_threshold_hours
+            ? parseNumber(form.warning_threshold_hours)
+            : null,
+          revision_threshold_hours: form.revision_threshold_hours
+            ? parseNumber(form.revision_threshold_hours)
+            : null,
+          expiry_date: def.has_expiry ? form.expiry_date || null : null,
+          notes: form.notes || null,
+        };
+
+        const { data, error } = await supabase
+          .from("components")
+          .insert([payload])
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+        await mountComponent(
+          data.id,
+          editing
+            ? `Nuovo componente ${def.label || def.code} creato e montato da scheda auto`
+            : `Nuovo componente ${def.label || def.code} creato durante creazione auto`,
+        );
+      }
     }
   }
-}
 
   async function saveCar() {
     if (!canEditCars) return;
@@ -498,19 +511,16 @@ async function createOrAttachComponents(carId: string) {
         icon={<CarFront size={22} />}
         actions={
           canEditCars ? (
-            <button
-              onClick={openCreate}
-              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
-            >
+            <Button onClick={openCreate}>
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi mezzo
-            </button>
+            </Button>
           ) : undefined
         }
       />
 
       {!canEditCars ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
@@ -519,11 +529,14 @@ async function createOrAttachComponents(carId: string) {
         <StatsGrid items={stats} />
       </SectionCard>
 
-      <SectionCard title="Ricerca mezzi" subtitle="Filtro rapido per nome o telaio">
-        <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-          <Search size={18} className="text-neutral-400" />
+      <SectionCard
+        title="Ricerca mezzi"
+        subtitle="Filtro rapido per nome o telaio"
+      >
+        <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.035] px-4 py-3">
+          <Search size={18} className="text-[var(--text-muted)]" />
           <input
-            className="w-full bg-transparent outline-none"
+            className="w-full bg-transparent text-[var(--text-primary)] outline-none placeholder:text-white/30"
             placeholder="Cerca nome mezzo o telaio"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -532,7 +545,7 @@ async function createOrAttachComponents(carId: string) {
       </SectionCard>
 
       {loading ? (
-        <div className="text-neutral-500">Caricamento mezzi...</div>
+        <div className="text-[var(--text-secondary)]">Caricamento mezzi...</div>
       ) : filteredCars.length === 0 ? (
         <EmptyState
           title="Nessun mezzo registrato"
@@ -557,13 +570,17 @@ async function createOrAttachComponents(carId: string) {
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <MiniStat label="Ore" value={formatComponentHours(car.hours)} />
-                <MiniStat label="Componenti" value={String(car.components.length)} />
+                <MiniStat
+                  label="Componenti"
+                  value={String(car.components.length)}
+                />
                 <MiniStat
                   label="Critici"
                   value={String(
                     car.components.filter(
-                      (component) => getComponentStatus(component).label !== "OK"
-                    ).length
+                      (component) =>
+                        getComponentStatus(component).label !== "OK",
+                    ).length,
                   )}
                 />
               </div>
@@ -577,25 +594,27 @@ async function createOrAttachComponents(carId: string) {
                   car.components.map((component) => {
                     const status = getComponentStatus(component);
                     return (
-                      <div
-                        key={component.id}
-                        className="data-row"
-                      >
+                      <div key={component.id} className="data-row">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="font-extrabold text-[var(--text-primary)]">
                               {component.type} · {component.identifier}
                             </div>
                             <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                              Ore rev. {formatComponentHours(component.hours)} / vita acc. {formatComponentHours(component.life_hours)}
+                              Ore rev. {formatComponentHours(component.hours)} /
+                              vita acc.{" "}
+                              {formatComponentHours(component.life_hours)}
                             </div>
                           </div>
-                          <StatusBadge label={status.label} tone={status.tone} />
+                          <StatusBadge
+                            label={status.label}
+                            tone={status.tone}
+                          />
                         </div>
                         <div className="mt-3">
                           <Link
                             href={`/components/${component.id}`}
-                            className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
+                            className="race-action-secondary px-4 py-2 text-sm"
                           >
                             Apri componente
                           </Link>
@@ -615,19 +634,22 @@ async function createOrAttachComponents(carId: string) {
                     Modifica
                   </button>
                 ) : null}
-                <Link href={`/cars/${car.id}`} className="rounded-xl border px-4 py-2 font-semibold">
+                <Link
+                  href={`/cars/${car.id}`}
+                  className="race-action-secondary px-4 py-2 text-sm"
+                >
                   Apri scheda
                 </Link>
                 <Link
                   href={`/cars/${car.id}/documents`}
-                  className="rounded-xl border px-4 py-2 font-semibold"
+                  className="race-action-secondary px-4 py-2 text-sm"
                 >
                   <FileText size={16} className="mr-2 inline" />
                   Documenti
                 </Link>
                 <Link
                   href={`/cars/${car.id}/print`}
-                  className="rounded-xl border px-4 py-2 font-semibold"
+                  className="race-action-secondary px-4 py-2 text-sm"
                 >
                   <Printer size={16} className="mr-2 inline" />
                   Stampa
@@ -639,8 +661,8 @@ async function createOrAttachComponents(carId: string) {
       )}
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+          <div className="modal-panel dark-scrollbar max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl p-6">
             <PageHeader
               title={editing ? `Modifica ${editing.name}` : "Nuovo mezzo"}
               subtitle="Crea o aggiorna il mezzo e associa i componenti definiti dal template del team"
@@ -650,21 +672,21 @@ async function createOrAttachComponents(carId: string) {
                 <div className="space-y-4">
                   <Field label="Nome mezzo" required>
                     <input
-                      className="w-full rounded-xl border p-3"
+                      className="form-control-dark"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
                   </Field>
                   <Field label="Numero telaio" required>
                     <input
-                      className="w-full rounded-xl border p-3"
+                      className="form-control-dark"
                       value={chassis}
                       onChange={(e) => setChassis(e.target.value)}
                     />
                   </Field>
                   <Field label="Note tecniche">
                     <textarea
-                      className="min-h-32 w-full rounded-xl border p-3"
+                      className="form-control-dark min-h-32"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
@@ -676,236 +698,269 @@ async function createOrAttachComponents(carId: string) {
                 title="Configurazione componenti"
                 subtitle="Le etichette sono state rese più chiare: ogni campo spiega esattamente cosa inserire."
               >
-                <div className="mb-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+                <div className="race-info-box mb-5 text-sm">
                   <div className="flex items-start gap-3">
                     <Info size={18} className="mt-0.5 shrink-0" />
                     <div className="space-y-2">
                       <div className="font-bold">Come leggere i campi</div>
                       <ul className="list-disc space-y-1 pl-5">
                         <li>
-                          <strong>Ore da ultima revisione</strong>: ore accumulate dall’ultima revisione/reset.
-                          Per un componente nuovo puoi lasciare 0.
+                          <strong>Ore da ultima revisione</strong>: ore
+                          accumulate dall’ultima revisione/reset. Per un
+                          componente nuovo puoi lasciare 0.
                         </li>
                         <li>
-                          <strong>Ore vita accumulate</strong>: storico totale del componente, non si azzera con le revisioni.
+                          <strong>Ore vita accumulate</strong>: storico totale
+                          del componente, non si azzera con le revisioni.
                         </li>
                         <li>
-                          <strong>Soglia attenzione</strong>: ore da cui il sistema deve segnalare
-                          il componente come da monitorare.
+                          <strong>Soglia attenzione</strong>: ore da cui il
+                          sistema deve segnalare il componente come da
+                          monitorare.
                         </li>
                         <li>
-                          <strong>Soglia revisione</strong>: ore massime prima di revisione o
-                          fermo tecnico.
+                          <strong>Soglia revisione</strong>: ore massime prima
+                          di revisione o fermo tecnico.
                         </li>
                       </ul>
                     </div>
                   </div>
                 </div>
 
-<div className="space-y-5">
-  {definitions.map((def) => {
-    const form =
-      componentForms[def.code] || defaultComponentForm(def.default_expiry_years);
-    const options = availableOptions(def.code, editing?.id);
-    const categoryCopy = getDefinitionCategoryCopy(def);
+                <div className="space-y-5">
+                  {definitions.map((def) => {
+                    const form =
+                      componentForms[def.code] ||
+                      defaultComponentForm(def.default_expiry_years);
+                    const options = availableOptions(def.code, editing?.id);
+                    const categoryCopy = getDefinitionCategoryCopy(def);
 
-    return (
-      <div
-        key={def.id}
-        className="data-row"
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-extrabold text-[var(--text-primary)]">{def.label}</div>
-            <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-              {categoryCopy.description}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge label={categoryCopy.label} tone={categoryCopy.tone} />
-            {def.is_required ? (
-              <StatusBadge label="Obbligatorio" tone="blue" />
-            ) : (
-              <StatusBadge label="Opzionale" tone="neutral" />
-            )}
-          </div>
-        </div>
+                    return (
+                      <div key={def.id} className="data-row">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-[var(--text-primary)]">
+                              {def.label}
+                            </div>
+                            <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                              {categoryCopy.description}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <StatusBadge
+                              label={categoryCopy.label}
+                              tone={categoryCopy.tone}
+                            />
+                            {def.is_required ? (
+                              <StatusBadge label="Obbligatorio" tone="blue" />
+                            ) : (
+                              <StatusBadge label="Opzionale" tone="neutral" />
+                            )}
+                          </div>
+                        </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
-          <Field label="Azione sul componente">
-            <select
-              className="w-full min-w-0 rounded-xl border p-3"
-              value={form.mode}
-              onChange={(e) =>
-                setComponentForms((prev) => ({
-                  ...prev,
-                  [def.code]: {
-                    ...form,
-                    mode: e.target.value as "existing" | "new",
-                  },
-                }))
-              }
-            >
-              <option value="existing">Seleziona componente esistente</option>
-              <option value="new">Crea nuovo componente</option>
-            </select>
-          </Field>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                          <Field label="Azione sul componente">
+                            <select
+                              className="form-control-dark min-w-0"
+                              value={form.mode}
+                              onChange={(e) =>
+                                setComponentForms((prev) => ({
+                                  ...prev,
+                                  [def.code]: {
+                                    ...form,
+                                    mode: e.target.value as "existing" | "new",
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="existing">
+                                Seleziona componente esistente
+                              </option>
+                              <option value="new">Crea nuovo componente</option>
+                            </select>
+                          </Field>
 
-          {form.mode === "existing" ? (
-            <Field label="Componente disponibile">
-              <select
-                className="w-full min-w-0 rounded-xl border p-3"
-                value={form.existingId}
-                onChange={(e) =>
-                  setComponentForms((prev) => ({
-                    ...prev,
-                    [def.code]: { ...form, existingId: e.target.value },
-                  }))
-                }
-              >
-                <option value="">Seleziona componente disponibile</option>
-                {options.map((component) => (
-                  <option key={component.id} value={component.id}>
-                    {component.identifier}
-                    {component.car_id
-                      ? ` · già su ${normalizeCarName(component.car) || "mezzo"}`
-                      : " · smontato / disponibile"}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          ) : (
-            <div className="min-w-0 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-              <Field label="Identificativo componente" required>
-                <input
-                  className="w-full min-w-0 rounded-xl border p-3"
-                  value={form.identifier}
-                  onChange={(e) =>
-                    setComponentForms((prev) => ({
-                      ...prev,
-                      [def.code]: { ...form, identifier: e.target.value },
-                    }))
-                  }
-                />
-              </Field>
+                          {form.mode === "existing" ? (
+                            <Field label="Componente disponibile">
+                              <select
+                                className="form-control-dark min-w-0"
+                                value={form.existingId}
+                                onChange={(e) =>
+                                  setComponentForms((prev) => ({
+                                    ...prev,
+                                    [def.code]: {
+                                      ...form,
+                                      existingId: e.target.value,
+                                    },
+                                  }))
+                                }
+                              >
+                                <option value="">
+                                  Seleziona componente disponibile
+                                </option>
+                                {options.map((component) => (
+                                  <option
+                                    key={component.id}
+                                    value={component.id}
+                                  >
+                                    {component.identifier}
+                                    {component.car_id
+                                      ? ` · già su ${normalizeCarName(component.car) || "mezzo"}`
+                                      : " · smontato / disponibile"}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                          ) : (
+                            <div className="min-w-0 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+                              <Field label="Identificativo componente" required>
+                                <input
+                                  className="form-control-dark min-w-0"
+                                  value={form.identifier}
+                                  onChange={(e) =>
+                                    setComponentForms((prev) => ({
+                                      ...prev,
+                                      [def.code]: {
+                                        ...form,
+                                        identifier: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
 
-              <Field label="Ore da ultima revisione">
-                <input
-                  className="w-full min-w-0 rounded-xl border p-3"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.hours}
-                  onChange={(e) =>
-                    setComponentForms((prev) => ({
-                      ...prev,
-                      [def.code]: { ...form, hours: e.target.value },
-                    }))
-                  }
-                />
-              </Field>
+                              <Field label="Ore da ultima revisione">
+                                <input
+                                  className="form-control-dark min-w-0"
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={form.hours}
+                                  onChange={(e) =>
+                                    setComponentForms((prev) => ({
+                                      ...prev,
+                                      [def.code]: {
+                                        ...form,
+                                        hours: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
 
-              <Field label="Ore vita accumulate">
-                <input
-                  className="w-full min-w-0 rounded-xl border p-3"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.life_hours}
-                  onChange={(e) =>
-                    setComponentForms((prev) => ({
-                      ...prev,
-                      [def.code]: { ...form, life_hours: e.target.value },
-                    }))
-                  }
-                />
-              </Field>
+                              <Field label="Ore vita accumulate">
+                                <input
+                                  className="form-control-dark min-w-0"
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={form.life_hours}
+                                  onChange={(e) =>
+                                    setComponentForms((prev) => ({
+                                      ...prev,
+                                      [def.code]: {
+                                        ...form,
+                                        life_hours: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
 
-              <Field label="Soglia attenzione">
-                <input
-                  className="w-full min-w-0 rounded-xl border p-3"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.warning_threshold_hours}
-                  onChange={(e) =>
-                    setComponentForms((prev) => ({
-                      ...prev,
-                      [def.code]: {
-                        ...form,
-                        warning_threshold_hours: e.target.value,
-                      },
-                    }))
-                  }
-                />
-              </Field>
+                              <Field label="Soglia attenzione">
+                                <input
+                                  className="form-control-dark min-w-0"
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={form.warning_threshold_hours}
+                                  onChange={(e) =>
+                                    setComponentForms((prev) => ({
+                                      ...prev,
+                                      [def.code]: {
+                                        ...form,
+                                        warning_threshold_hours: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
 
-              <Field label="Soglia revisione">
-                <input
-                  className="w-full min-w-0 rounded-xl border p-3"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.revision_threshold_hours}
-                  onChange={(e) =>
-                    setComponentForms((prev) => ({
-                      ...prev,
-                      [def.code]: {
-                        ...form,
-                        revision_threshold_hours: e.target.value,
-                      },
-                    }))
-                  }
-                />
-              </Field>
+                              <Field label="Soglia revisione">
+                                <input
+                                  className="form-control-dark min-w-0"
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={form.revision_threshold_hours}
+                                  onChange={(e) =>
+                                    setComponentForms((prev) => ({
+                                      ...prev,
+                                      [def.code]: {
+                                        ...form,
+                                        revision_threshold_hours:
+                                          e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
 
-              {def.has_expiry ? (
-                <Field label="Scadenza">
-                  <input
-                    className="w-full min-w-0 rounded-xl border p-3"
-                    type="date"
-                    value={form.expiry_date}
-                    onChange={(e) =>
-                      setComponentForms((prev) => ({
-                        ...prev,
-                        [def.code]: { ...form, expiry_date: e.target.value },
-                      }))
-                    }
-                  />
-                </Field>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-sm text-neutral-500">
-                  Questo tipo non richiede una scadenza a calendario.
+                              {def.has_expiry ? (
+                                <Field label="Scadenza">
+                                  <input
+                                    className="form-control-dark min-w-0"
+                                    type="date"
+                                    value={form.expiry_date}
+                                    onChange={(e) =>
+                                      setComponentForms((prev) => ({
+                                        ...prev,
+                                        [def.code]: {
+                                          ...form,
+                                          expiry_date: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </Field>
+                              ) : (
+                                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.035] p-4 text-sm text-[var(--text-secondary)]">
+                                  Questo tipo non richiede una scadenza a
+                                  calendario.
+                                </div>
+                              )}
+
+                              <div className="xl:col-span-2 2xl:col-span-3 min-w-0">
+                                <Field label="Note componente">
+                                  <textarea
+                                    className="form-control-dark min-h-24"
+                                    value={form.notes}
+                                    onChange={(e) =>
+                                      setComponentForms((prev) => ({
+                                        ...prev,
+                                        [def.code]: {
+                                          ...form,
+                                          notes: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </Field>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-
-              <div className="xl:col-span-2 2xl:col-span-3 min-w-0">
-                <Field label="Note componente">
-                  <textarea
-                    className="min-h-24 w-full rounded-xl border p-3"
-                    value={form.notes}
-                    onChange={(e) =>
-                      setComponentForms((prev) => ({
-                        ...prev,
-                        [def.code]: { ...form, notes: e.target.value },
-                      }))
-                    }
-                  />
-                </Field>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  })}
-</div>
               </SectionCard>
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold"
+                className="race-action-secondary px-4 py-2 text-sm"
               >
                 Annulla
               </button>
@@ -914,7 +969,11 @@ async function createOrAttachComponents(carId: string) {
                 disabled={saving}
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
-                {saving ? "Salvataggio..." : editing ? "Salva modifiche" : "Crea mezzo"}
+                {saving
+                  ? "Salvataggio..."
+                  : editing
+                    ? "Salva modifiche"
+                    : "Crea mezzo"}
               </button>
             </div>
           </div>
@@ -935,7 +994,7 @@ function Field({
 }) {
   return (
     <div className="min-w-0">
-      <label className="mb-1 block text-sm font-semibold text-neutral-700">
+      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
@@ -950,9 +1009,11 @@ function FieldHint({ children: _children }: { children: React.ReactNode }) {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-      <div className="text-sm text-neutral-500">{label}</div>
-      <div className="mt-1 text-lg font-bold text-neutral-900">{value}</div>
+    <div className="race-mini-panel">
+      <div className="text-sm text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+        {value}
+      </div>
     </div>
   );
 }

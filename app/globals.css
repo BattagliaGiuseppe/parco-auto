@@ -364,58 +364,106 @@
   }
 }
 
-/* Dark Race Control compatibility overrides for pages that still use Tailwind neutral/white utilities. */
-.app-chassis .bg-white { background-color: var(--surface-card) !important; }
-.app-chassis .bg-white\/80 { background-color: rgba(23, 31, 41, 0.82) !important; }
-.app-chassis .bg-white\/70 { background-color: rgba(23, 31, 41, 0.72) !important; }
-.app-chassis .bg-neutral-50 { background-color: var(--surface-muted) !important; }
-.app-chassis .bg-neutral-100 { background-color: var(--surface-raised) !important; }
-.app-chassis .bg-neutral-900 { background-color: var(--brand-accent) !important; }
-.app-chassis .bg-blue-50 { background-color: rgba(56, 168, 255, 0.1) !important; }
-.app-chassis .bg-red-50 { background-color: rgba(255, 77, 95, 0.1) !important; }
-.app-chassis .bg-yellow-50 { background-color: rgba(248, 196, 0, 0.1) !important; }
-.app-chassis .bg-emerald-50 { background-color: rgba(25, 195, 125, 0.1) !important; }
-.app-chassis .border-neutral-100,
-.app-chassis .border-neutral-200,
-.app-chassis .border-neutral-300 { border-color: var(--border-default) !important; }
-.app-chassis .border-blue-200 { border-color: rgba(56, 168, 255, 0.24) !important; }
-.app-chassis .border-red-200,
-.app-chassis .border-red-300 { border-color: rgba(255, 77, 95, 0.28) !important; }
-.app-chassis .border-yellow-200 { border-color: rgba(248, 196, 0, 0.28) !important; }
-.app-chassis .text-neutral-900,
-.app-chassis .text-neutral-800,
-.app-chassis .text-slate-900,
-.app-chassis .text-slate-800 { color: var(--text-primary) !important; }
-.app-chassis .text-neutral-700,
-.app-chassis .text-neutral-600,
-.app-chassis .text-slate-700,
-.app-chassis .text-slate-600 { color: var(--text-secondary) !important; }
-.app-chassis .text-neutral-500,
-.app-chassis .text-neutral-400,
-.app-chassis .text-slate-500,
-.app-chassis .text-slate-400 { color: var(--text-muted) !important; }
-.app-chassis .text-blue-800,
-.app-chassis .text-blue-700 { color: #8fcbff !important; }
-.app-chassis .text-red-800,
-.app-chassis .text-red-700 { color: #ff9aa6 !important; }
-.app-chassis .text-yellow-900,
-.app-chassis .text-yellow-800 { color: #ffd95f !important; }
-.app-chassis .text-emerald-700 { color: #7ee7b4 !important; }
-.app-chassis .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
-.app-chassis .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-default) !important; }
-.app-chassis .hover\:bg-neutral-50:hover,
-.app-chassis .hover\:bg-white:hover { background-color: var(--surface-raised) !important; }
-.app-chassis input:not([type="checkbox"]):not([type="radio"]),
-.app-chassis select,
-.app-chassis textarea {
-  border-color: var(--border-default);
-  color: var(--text-primary);
-  background-color: rgba(14, 20, 27, 0.78);
+  .race-info-box {
+    border: 1px solid rgba(248, 196, 0, 0.30);
+    background: linear-gradient(180deg, rgba(248, 196, 0, 0.12), rgba(248, 196, 0, 0.055));
+    color: #ffe27a;
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+
+  .race-mini-panel {
+    border: 1px solid rgba(255,255,255,0.10);
+    background: linear-gradient(180deg, rgba(22, 29, 38, 0.78), rgba(12, 18, 25, 0.92));
+    border-radius: 0.9rem;
+    padding: 0.85rem;
+  }
+
+  .race-card-grid {
+    background: linear-gradient(180deg, rgba(18, 25, 33, 0.96), rgba(11, 17, 24, 0.98));
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 1.1rem;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .race-action-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.045);
+    color: var(--text-secondary);
+    font-weight: 800;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .race-action-secondary:hover {
+    background: rgba(255,255,255,0.085);
+    color: var(--text-primary);
+    border-color: rgba(248, 196, 0, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .race-action-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 77, 95, 0.28);
+    background: rgba(255, 77, 95, 0.10);
+    color: #ff9aa6;
+    font-weight: 800;
+    transition: background 0.18s ease, transform 0.18s ease;
+  }
+
+  .race-action-danger:hover {
+    background: rgba(255, 77, 95, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .modal-panel {
+    background:
+      radial-gradient(circle at 88% 0%, rgba(248,196,0,0.12), transparent 16rem),
+      linear-gradient(180deg, rgba(18, 25, 33, 0.99), rgba(10, 15, 21, 0.99));
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.16);
+    box-shadow: 0 32px 96px rgba(0,0,0,0.68);
+  }
+
+  .form-control-dark {
+    width: 100%;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(255,255,255,0.20);
+    background: rgba(7, 11, 15, 0.86);
+    color: var(--text-primary);
+    padding: 0.78rem 0.95rem;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .form-control-dark:focus {
+    border-color: var(--brand-accent);
+    box-shadow: 0 0 0 4px rgba(248,196,0,0.13);
+  }
+
+  .form-control-dark::placeholder { color: rgba(195,201,212,0.44); }
+  .form-control-dark option { background: #0b1117; color: var(--text-primary); }
+
+  input[type="date"].form-control-dark::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"].form-control-dark::-webkit-calendar-picker-indicator,
+  input[type="time"].form-control-dark::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.82);
+  }
+
+  .dark-scrollbar::-webkit-scrollbar { width: 8px; }
+  .dark-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.035); border-radius: 999px; }
+  .dark-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
+  .dark-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) rgba(255,255,255,0.035); }
 }
-.app-chassis input.bg-transparent { background-color: transparent !important; }
-.app-chassis table { color: var(--text-secondary); }
-.app-chassis thead { background-color: rgba(23, 31, 41, 0.94) !important; color: var(--text-muted); }
-.app-chassis tbody { background-color: rgba(14, 20, 27, 0.82) !important; }
 
 @media (max-width: 1023px) {
   .workspace-main::before {
@@ -446,452 +494,5 @@
 .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
 .sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
 
-/* Patch 4B — stronger dark-mode compatibility. Some legacy pages still use Tailwind
-   light utilities directly. These rules keep the final Dark Race Control theme coherent
-   without changing page logic. */
-body .app-chassis .bg-white,
-body .app-chassis .bg-white\/80,
-body .app-chassis .bg-white\/70,
-body .app-chassis .bg-gray-50,
-body .app-chassis .bg-gray-100,
-body .app-chassis .bg-zinc-50,
-body .app-chassis .bg-zinc-100,
-body .app-chassis .bg-slate-50,
-body .app-chassis .bg-slate-100 {
-  background: linear-gradient(180deg, rgba(16, 22, 30, 0.98), rgba(10, 15, 21, 0.98)) !important;
-  color: var(--text-primary) !important;
-}
-
-body .app-chassis .bg-neutral-50,
-body .app-chassis .bg-neutral-100,
-body .app-chassis .bg-neutral-200 {
-  background: linear-gradient(180deg, rgba(20, 27, 36, 0.94), rgba(13, 19, 26, 0.96)) !important;
-  color: var(--text-primary) !important;
-}
-
-body .app-chassis .text-black,
-body .app-chassis .text-gray-950,
-body .app-chassis .text-gray-900,
-body .app-chassis .text-gray-800,
-body .app-chassis .text-zinc-950,
-body .app-chassis .text-zinc-900,
-body .app-chassis .text-zinc-800,
-body .app-chassis .text-slate-950,
-body .app-chassis .text-slate-900,
-body .app-chassis .text-slate-800,
-body .app-chassis .text-neutral-950,
-body .app-chassis .text-neutral-900,
-body .app-chassis .text-neutral-800 {
-  color: var(--text-primary) !important;
-}
-
-body .app-chassis .text-gray-700,
-body .app-chassis .text-gray-600,
-body .app-chassis .text-zinc-700,
-body .app-chassis .text-zinc-600,
-body .app-chassis .text-slate-700,
-body .app-chassis .text-slate-600,
-body .app-chassis .text-neutral-700,
-body .app-chassis .text-neutral-600 {
-  color: var(--text-secondary) !important;
-}
-
-body .app-chassis .text-gray-500,
-body .app-chassis .text-gray-400,
-body .app-chassis .text-zinc-500,
-body .app-chassis .text-zinc-400,
-body .app-chassis .text-slate-500,
-body .app-chassis .text-slate-400,
-body .app-chassis .text-neutral-500,
-body .app-chassis .text-neutral-400 {
-  color: var(--text-muted) !important;
-}
-
-body .app-chassis .border-gray-100,
-body .app-chassis .border-gray-200,
-body .app-chassis .border-gray-300,
-body .app-chassis .border-zinc-100,
-body .app-chassis .border-zinc-200,
-body .app-chassis .border-zinc-300,
-body .app-chassis .border-slate-100,
-body .app-chassis .border-slate-200,
-body .app-chassis .border-slate-300,
-body .app-chassis .border-neutral-100,
-body .app-chassis .border-neutral-200,
-body .app-chassis .border-neutral-300 {
-  border-color: var(--border-default) !important;
-}
-
-body .app-chassis .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
-body .app-chassis .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border-default) !important;
-}
-
-body .app-chassis input:not([type="checkbox"]):not([type="radio"]),
-body .app-chassis select,
-body .app-chassis textarea {
-  background-color: rgba(7, 11, 15, 0.88) !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.035) inset !important;
-}
-
-body .app-chassis input:not([type="checkbox"]):not([type="radio"]):focus,
-body .app-chassis select:focus,
-body .app-chassis textarea:focus {
-  border-color: var(--brand-accent) !important;
-  outline: none !important;
-  box-shadow: 0 0 0 4px rgba(248, 196, 0, 0.13) !important;
-}
-
-body .app-chassis input::placeholder,
-body .app-chassis textarea::placeholder {
-  color: rgba(195, 201, 212, 0.48) !important;
-}
-
-body .app-chassis input[type="date"]::-webkit-calendar-picker-indicator,
-body .app-chassis input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-body .app-chassis input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) opacity(0.8);
-}
-
-body .app-chassis option {
-  background: #0b1117;
-  color: var(--text-primary);
-}
-
-body .app-chassis .shadow-sm,
-body .app-chassis .shadow,
-body .app-chassis .shadow-md,
-body .app-chassis .shadow-lg,
-body .app-chassis .shadow-xl,
-body .app-chassis .shadow-2xl {
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
-}
-
-body .app-chassis .hover\:bg-neutral-50:hover,
-body .app-chassis .hover\:bg-neutral-100:hover,
-body .app-chassis .hover\:bg-white:hover,
-body .app-chassis .hover\:bg-gray-50:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-body .app-chassis button:disabled,
-body .app-chassis a[aria-disabled="true"] {
-  opacity: 0.55 !important;
-  color: rgba(246, 247, 243, 0.62) !important;
-}
-
-body .app-chassis .bg-yellow-50,
-body .app-chassis .bg-amber-50 {
-  background: rgba(248, 196, 0, 0.12) !important;
-  color: #ffe27a !important;
-}
-
-body .app-chassis .bg-red-50 {
-  background: rgba(255, 77, 95, 0.12) !important;
-  color: #ff9aa6 !important;
-}
-
-body .app-chassis .bg-blue-50,
-body .app-chassis .bg-sky-50 {
-  background: rgba(56, 168, 255, 0.12) !important;
-  color: #8fcbff !important;
-}
-
-body .app-chassis .bg-emerald-50,
-body .app-chassis .bg-green-50 {
-  background: rgba(25, 195, 125, 0.12) !important;
-  color: #8cf2c4 !important;
-}
-
-/* Modals and overlays should belong to the same Race Control visual system. */
-body .app-chassis .fixed.inset-0 .bg-white,
-body .app-chassis .fixed.inset-0 .rounded-3xl,
-body .app-chassis .fixed.inset-0 .rounded-\[28px\] {
-  background: linear-gradient(180deg, rgba(17, 24, 32, 0.99), rgba(11, 16, 22, 0.99)) !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  color: var(--text-primary) !important;
-}
-
-body .app-chassis .fixed.inset-0 .bg-white h1,
-body .app-chassis .fixed.inset-0 .bg-white h2,
-body .app-chassis .fixed.inset-0 .bg-white h3,
-body .app-chassis .fixed.inset-0 .bg-white h4 {
-  color: var(--text-primary) !important;
-}
-
-body .app-chassis .fixed.inset-0 label,
-body .app-chassis .fixed.inset-0 .text-sm {
-  color: var(--text-secondary);
-}
-
-body .app-chassis .data-row {
-  color: var(--text-primary) !important;
-  background: linear-gradient(180deg, rgba(18, 25, 33, 0.98), rgba(11, 17, 24, 0.98)) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-}
-
-body .app-chassis .data-row a {
-  color: rgba(246, 247, 243, 0.82) !important;
-}
-
-body .app-chassis .data-row a:hover {
-  color: var(--brand-accent) !important;
-}
-
-body .app-chassis .section-card-body {
-  background: linear-gradient(180deg, rgba(12, 18, 25, 0.98), rgba(9, 14, 20, 0.98)) !important;
-}
-
-body .app-chassis .race-section-card,
-body .app-chassis .motorsport-panel,
-body .app-chassis .card {
-  color: var(--text-primary) !important;
-}
-
-/* Patch 4C — decisive Dark Race Control harmonization.
-   This block intentionally targets legacy Tailwind light utilities globally, not only
-   inside .app-chassis, because some modals/overlays are rendered outside the shell
-   or contain hard-coded light utility combinations. */
-:root {
-  color-scheme: dark;
-}
-
-body .bg-white,
-body .bg-white\/95,
-body .bg-white\/90,
-body .bg-white\/80,
-body .bg-white\/70,
-body .bg-gray-50,
-body .bg-gray-100,
-body .bg-zinc-50,
-body .bg-zinc-100,
-body .bg-slate-50,
-body .bg-slate-100,
-body .bg-neutral-50,
-body .bg-neutral-100,
-body .bg-neutral-200 {
-  background: linear-gradient(180deg, rgba(17, 24, 32, 0.98), rgba(10, 15, 21, 0.99)) !important;
-  color: var(--text-primary) !important;
-}
-
-body .bg-neutral-900,
-body .bg-gray-900,
-body .bg-slate-900,
-body .bg-zinc-900 {
-  background: var(--brand-accent) !important;
-  color: var(--brand-on-accent) !important;
-}
-
-body .text-black,
-body .text-gray-950,
-body .text-gray-900,
-body .text-gray-800,
-body .text-zinc-950,
-body .text-zinc-900,
-body .text-zinc-800,
-body .text-slate-950,
-body .text-slate-900,
-body .text-slate-800,
-body .text-neutral-950,
-body .text-neutral-900,
-body .text-neutral-800 {
-  color: var(--text-primary) !important;
-}
-
-body .text-gray-700,
-body .text-gray-600,
-body .text-zinc-700,
-body .text-zinc-600,
-body .text-slate-700,
-body .text-slate-600,
-body .text-neutral-700,
-body .text-neutral-600 {
-  color: var(--text-secondary) !important;
-}
-
-body .text-gray-500,
-body .text-gray-400,
-body .text-zinc-500,
-body .text-zinc-400,
-body .text-slate-500,
-body .text-slate-400,
-body .text-neutral-500,
-body .text-neutral-400 {
-  color: var(--text-muted) !important;
-}
-
-body .border-gray-100,
-body .border-gray-200,
-body .border-gray-300,
-body .border-zinc-100,
-body .border-zinc-200,
-body .border-zinc-300,
-body .border-slate-100,
-body .border-slate-200,
-body .border-slate-300,
-body .border-neutral-100,
-body .border-neutral-200,
-body .border-neutral-300 {
-  border-color: rgba(255, 255, 255, 0.13) !important;
-}
-
-body .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-body .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
-body .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
-body .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
-body .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
-body .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
-body .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
-body .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-body input:not([type="checkbox"]):not([type="radio"]),
-body select,
-body textarea {
-  background-color: rgba(7, 11, 15, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.24) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset !important;
-}
-
-body input:not([type="checkbox"]):not([type="radio"]):focus,
-body select:focus,
-body textarea:focus {
-  border-color: var(--brand-accent) !important;
-  outline: none !important;
-  box-shadow: 0 0 0 4px rgba(248, 196, 0, 0.14) !important;
-}
-
-body input::placeholder,
-body textarea::placeholder {
-  color: rgba(195, 201, 212, 0.5) !important;
-}
-
-body input[type="date"]::-webkit-calendar-picker-indicator,
-body input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-body input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) opacity(0.82);
-}
-
-body option {
-  background: #0b1117;
-  color: var(--text-primary);
-}
-
-body label,
-body legend {
-  color: var(--text-secondary);
-}
-
-body .fixed.inset-0 {
-  color: var(--text-primary);
-}
-
-body .fixed.inset-0 > div:not(.pointer-events-none),
-body .fixed.inset-0 .max-h-\[90vh\],
-body .fixed.inset-0 .max-h-\[92vh\],
-body .fixed.inset-0 .max-w-3xl,
-body .fixed.inset-0 .max-w-4xl,
-body .fixed.inset-0 .max-w-5xl,
-body .fixed.inset-0 .max-w-6xl,
-body .fixed.inset-0 .max-w-lg,
-body .fixed.inset-0 .max-w-xl,
-body .fixed.inset-0 .max-w-2xl {
-  background: linear-gradient(180deg, rgba(17, 24, 32, 0.99), rgba(10, 15, 21, 0.99)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62) !important;
-}
-
-body .fixed.inset-0 h1,
-body .fixed.inset-0 h2,
-body .fixed.inset-0 h3,
-body .fixed.inset-0 h4 {
-  color: var(--text-primary) !important;
-}
-
-body .fixed.inset-0 .rounded-3xl,
-body .fixed.inset-0 .rounded-2xl,
-body .fixed.inset-0 .rounded-xl {
-  border-color: rgba(255, 255, 255, 0.13) !important;
-}
-
-body .shadow-sm,
-body .shadow,
-body .shadow-md,
-body .shadow-lg,
-body .shadow-xl,
-body .shadow-2xl {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32) !important;
-}
-
-body table,
-body thead,
-body tbody,
-body tr,
-body td,
-body th {
-  color: var(--text-secondary);
-}
-
-body thead {
-  background: rgba(23, 31, 41, 0.98) !important;
-}
-
-body tbody,
-body tbody tr {
-  background: rgba(13, 19, 26, 0.96) !important;
-}
-
-body a:not(.sidebar-link) {
-  color: inherit;
-}
-
-body .bg-yellow-50,
-body .bg-amber-50 {
-  background: rgba(248, 196, 0, 0.12) !important;
-  color: #ffe27a !important;
-  border-color: rgba(248, 196, 0, 0.32) !important;
-}
-
-body .bg-red-50 {
-  background: rgba(255, 77, 95, 0.12) !important;
-  color: #ff9aa6 !important;
-  border-color: rgba(255, 77, 95, 0.32) !important;
-}
-
-body .bg-blue-50,
-body .bg-sky-50 {
-  background: rgba(56, 168, 255, 0.12) !important;
-  color: #8fcbff !important;
-  border-color: rgba(56, 168, 255, 0.32) !important;
-}
-
-body .bg-emerald-50,
-body .bg-green-50 {
-  background: rgba(25, 195, 125, 0.12) !important;
-  color: #8cf2c4 !important;
-  border-color: rgba(25, 195, 125, 0.32) !important;
-}
-
-body .hover\:bg-neutral-50:hover,
-body .hover\:bg-neutral-100:hover,
-body .hover\:bg-gray-50:hover,
-body .hover\:bg-white:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-body button:disabled,
-body a[aria-disabled="true"] {
-  opacity: 0.48 !important;
-  color: rgba(246, 247, 243, 0.55) !important;
-}
+/* Patch 5A: no global forced conversion of Tailwind light utilities.
+   Pages are moved to explicit Race Control components instead of relying on CSS overrides. */

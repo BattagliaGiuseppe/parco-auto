@@ -18,8 +18,8 @@ export function UiField({
   );
 }
 
-export const uiInputClassName =
-  "w-full rounded-2xl border border-[var(--border-default)] bg-[rgba(14,20,27,0.82)] px-4 py-3 text-sm text-[var(--text-primary)] shadow-sm outline-none transition placeholder:text-white/30 focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent-soft)]";
+export const uiInputClassName = "form-control-dark";
 
-export const uiTextareaClassName =
-  "min-h-24 w-full rounded-2xl border border-[var(--border-default)] bg-[rgba(14,20,27,0.82)] px-4 py-3 text-sm text-[var(--text-primary)] shadow-sm outline-none transition placeholder:text-white/30 focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent-soft)]";
+export const uiSelectClassName = "form-control-dark";
+
+export const uiTextareaClassName = "form-control-dark min-h-24";

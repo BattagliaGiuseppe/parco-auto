@@ -20,8 +20,19 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
+import ModalShell from "@/components/ModalShell";
+import { Button } from "@/components/Button";
+import {
+  uiInputClassName,
+  uiSelectClassName,
+  uiTextareaClassName,
+} from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
-import { formatComponentHours, getComponentHoursInfo, getComponentStatus } from "@/lib/componentStatus";
+import {
+  formatComponentHours,
+  getComponentHoursInfo,
+  getComponentStatus,
+} from "@/lib/componentStatus";
 
 type CarOption = { id: string; name: string };
 
@@ -102,7 +113,10 @@ function ProgressBar({ value }: { value: number | null }) {
 export default function ComponentsPage() {
   const access = usePermissionAccess();
   const canViewComponents = access.hasPermission("components.view");
-  const canEditComponents = access.hasPermission("components.edit", ["owner", "admin"]);
+  const canEditComponents = access.hasPermission("components.edit", [
+    "owner",
+    "admin",
+  ]);
 
   const [rows, setRows] = useState<ComponentRow[]>([]);
   const [cars, setCars] = useState<CarOption[]>([]);
@@ -110,7 +124,9 @@ export default function ComponentsPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "mounted" | "unmounted" | "attention" | "revision">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "mounted" | "unmounted" | "attention" | "revision"
+  >("all");
   const [carFilter, setCarFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -124,11 +140,15 @@ export default function ComponentsPage() {
         supabase
           .from("components")
           .select(
-            "id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours,notes,car_id,car:car_id(name)"
+            "id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours,notes,car_id,car:car_id(name)",
           )
           .eq("team_id", ctx.teamId)
           .order("identifier", { ascending: true }),
-        supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
+        supabase
+          .from("cars")
+          .select("id,name")
+          .eq("team_id", ctx.teamId)
+          .order("name", { ascending: true }),
         supabase
           .from("team_component_definitions")
           .select("*")
@@ -163,7 +183,10 @@ export default function ComponentsPage() {
       label: definition.label,
     }));
     const fromRows = [...new Set(rows.map((row) => row.type))]
-      .filter((value) => !fromDefinitions.some((definition) => definition.value === value))
+      .filter(
+        (value) =>
+          !fromDefinitions.some((definition) => definition.value === value),
+      )
       .map((value) => ({ value, label: value }));
     return [...fromDefinitions, ...fromRows];
   }, [definitions, rows]);
@@ -176,19 +199,33 @@ export default function ComponentsPage() {
 
       if (statusFilter === "mounted" && !row.car_id) return false;
       if (statusFilter === "unmounted" && row.car_id) return false;
-      if (statusFilter === "attention" && status.label !== "Attenzione") return false;
-      if (statusFilter === "revision" && status.label !== "Revisione necessaria") return false;
+      if (statusFilter === "attention" && status.label !== "Attenzione")
+        return false;
+      if (
+        statusFilter === "revision" &&
+        status.label !== "Revisione necessaria"
+      )
+        return false;
       if (carFilter && row.car_id !== carFilter) return false;
       if (typeFilter && row.type !== typeFilter) return false;
-      if (q && !`${row.identifier} ${row.type} ${carName}`.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !`${row.identifier} ${row.type} ${carName}`.toLowerCase().includes(q)
+      )
+        return false;
       return true;
     });
   }, [rows, statusFilter, carFilter, typeFilter, search]);
 
   const stats = useMemo(() => {
     const statuses = rows.map((row) => getStatus(row));
-    const revisionCount = statuses.filter((status) => status.label === "Revisione necessaria" || status.label === "Scaduto").length;
-    const attentionCount = statuses.filter((status) => status.label === "Attenzione").length;
+    const revisionCount = statuses.filter(
+      (status) =>
+        status.label === "Revisione necessaria" || status.label === "Scaduto",
+    ).length;
+    const attentionCount = statuses.filter(
+      (status) => status.label === "Attenzione",
+    ).length;
 
     return [
       {
@@ -217,7 +254,8 @@ export default function ComponentsPage() {
   async function saveComponent() {
     if (!canEditComponents) return;
 
-    const type = form.type === "__custom__" ? form.customType.trim() : form.type;
+    const type =
+      form.type === "__custom__" ? form.customType.trim() : form.type;
     if (!type || !form.identifier.trim()) {
       alert("Tipo e identificativo sono obbligatori");
       return;
@@ -248,7 +286,9 @@ export default function ComponentsPage() {
       };
 
       if (form.type === "__custom__") {
-        const existingDefinition = definitions.find((definition) => definition.code === type);
+        const existingDefinition = definitions.find(
+          (definition) => definition.code === type,
+        );
         if (!existingDefinition) {
           const { error: definitionError } = await supabase
             .from("team_component_definitions")
@@ -277,15 +317,18 @@ export default function ComponentsPage() {
       if (error) throw error;
 
       if (selectedCarId) {
-        const { error: mountError } = await supabase.rpc("mount_component_on_car", {
-          p_team_id: ctx.teamId,
-          p_car_id: selectedCarId,
-          p_component_id: data.id,
-          p_mounted_at: new Date().toISOString().slice(0, 10),
-          p_mounted_by_team_user_id: ctx.teamUserId,
-          p_reason: "Montaggio iniziale da anagrafica componente",
-          p_replace_same_type: true,
-        });
+        const { error: mountError } = await supabase.rpc(
+          "mount_component_on_car",
+          {
+            p_team_id: ctx.teamId,
+            p_car_id: selectedCarId,
+            p_component_id: data.id,
+            p_mounted_at: new Date().toISOString().slice(0, 10),
+            p_mounted_by_team_user_id: ctx.teamUserId,
+            p_reason: "Montaggio iniziale da anagrafica componente",
+            p_replace_same_type: true,
+          },
+        );
 
         if (mountError) throw mountError;
       }
@@ -344,22 +387,21 @@ export default function ComponentsPage() {
         icon={<Boxes size={22} />}
         actions={
           canEditComponents ? (
-            <button
+            <Button
               onClick={() => {
                 setOpen(true);
                 setForm(emptyForm);
               }}
-              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Nuovo componente
-            </button>
+            </Button>
           ) : undefined
         }
       />
 
       {!canEditComponents ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
@@ -373,22 +415,31 @@ export default function ComponentsPage() {
         subtitle="Le ore da ultima revisione possono essere azzerate con una revisione; le ore vita totali non vengono mai azzerate."
       >
         <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-extrabold text-[var(--text-primary)]">Ore da revisione</div>
-            <div className="mt-1 text-neutral-600">
-              Sono le ore accumulate dall’ultima revisione/reset e guidano warning e soglia revisione.
+          <div className="race-mini-panel">
+            <div className="font-extrabold text-[var(--text-primary)]">
+              Ore da revisione
+            </div>
+            <div className="mt-1 text-[var(--text-secondary)]">
+              Sono le ore accumulate dall’ultima revisione/reset e guidano
+              warning e soglia revisione.
             </div>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-extrabold text-[var(--text-primary)]">Ore vita accumulate</div>
-            <div className="mt-1 text-neutral-600">
-              Sono lo storico totale del componente: aumentano con i turni e non vengono azzerate dalle revisioni.
+          <div className="race-mini-panel">
+            <div className="font-extrabold text-[var(--text-primary)]">
+              Ore vita accumulate
+            </div>
+            <div className="mt-1 text-[var(--text-secondary)]">
+              Sono lo storico totale del componente: aumentano con i turni e non
+              vengono azzerate dalle revisioni.
             </div>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="font-extrabold text-[var(--text-primary)]">Ore residue</div>
-            <div className="mt-1 text-neutral-600">
-              Indicano quanto manca alla revisione in base alla soglia configurata.
+          <div className="race-mini-panel">
+            <div className="font-extrabold text-[var(--text-primary)]">
+              Ore residue
+            </div>
+            <div className="mt-1 text-[var(--text-secondary)]">
+              Indicano quanto manca alla revisione in base alla soglia
+              configurata.
             </div>
           </div>
         </div>
@@ -400,9 +451,12 @@ export default function ComponentsPage() {
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
           <div className="relative lg:col-span-2">
-            <Search size={17} className="absolute left-3 top-3.5 text-neutral-400" />
+            <Search
+              size={17}
+              className="absolute left-3 top-3.5 text-[var(--text-muted)]"
+            />
             <input
-              className="w-full rounded-xl border border-neutral-200 py-3 pl-10 pr-3 text-sm"
+              className="form-control-dark py-3 pl-10 pr-3"
               placeholder="Cerca per codice, tipo o auto"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -410,11 +464,16 @@ export default function ComponentsPage() {
           </div>
 
           <div className="relative">
-            <Filter size={17} className="absolute left-3 top-3.5 text-neutral-400" />
+            <Filter
+              size={17}
+              className="absolute left-3 top-3.5 text-[var(--text-muted)]"
+            />
             <select
-              className="w-full rounded-xl border border-neutral-200 py-3 pl-10 pr-3 text-sm"
+              className="form-control-dark py-3 pl-10 pr-3"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as typeof statusFilter)
+              }
             >
               <option value="all">Tutti</option>
               <option value="mounted">Montati</option>
@@ -425,7 +484,7 @@ export default function ComponentsPage() {
           </div>
 
           <select
-            className="w-full rounded-xl border border-neutral-200 p-3 text-sm"
+            className={uiSelectClassName}
             value={carFilter}
             onChange={(e) => setCarFilter(e.target.value)}
           >
@@ -438,7 +497,7 @@ export default function ComponentsPage() {
           </select>
 
           <select
-            className="w-full rounded-xl border border-neutral-200 p-3 text-sm"
+            className={uiSelectClassName}
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
@@ -454,7 +513,9 @@ export default function ComponentsPage() {
 
       <SectionCard title="Elenco componenti">
         {loading ? (
-          <div className="text-neutral-500">Caricamento componenti...</div>
+          <div className="text-[var(--text-secondary)]">
+            Caricamento componenti...
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState title="Nessun componente trovato" />
         ) : (
@@ -465,10 +526,7 @@ export default function ComponentsPage() {
               const carName = normalizeCarName(row.car);
 
               return (
-                <div
-                  key={row.id}
-                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]"
-                >
+                <div key={row.id} className="data-row">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-extrabold text-[var(--text-primary)]">
@@ -486,7 +544,10 @@ export default function ComponentsPage() {
                       label="Da revisione"
                       value={formatHours(info.revisionHours)}
                     />
-                    <InfoMini label="Ore vita accumulate" value={formatHours(info.lifeHours)} />
+                    <InfoMini
+                      label="Ore vita accumulate"
+                      value={formatHours(info.lifeHours)}
+                    />
                     <InfoMini
                       label="Soglia revisione"
                       value={formatHours(info.revisionThreshold)}
@@ -494,31 +555,45 @@ export default function ComponentsPage() {
                     <InfoMini
                       label="Ore residue"
                       value={
-                        info.remainingHours === null ? "—" : formatHours(info.remainingHours)
+                        info.remainingHours === null
+                          ? "—"
+                          : formatHours(info.remainingHours)
                       }
                     />
                   </div>
 
                   <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-xs text-neutral-500">
+                    <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
                       <span>Avanzamento verso revisione</span>
-                      <span>{info.progress === null ? "Soglia non impostata" : `${info.progress.toFixed(0)}%`}</span>
+                      <span>
+                        {info.progress === null
+                          ? "Soglia non impostata"
+                          : `${info.progress.toFixed(0)}%`}
+                      </span>
                     </div>
                     <ProgressBar value={info.progress} />
-                    {info.warningThreshold !== null || info.revisionThreshold !== null ? (
-                      <div className="mt-2 text-xs text-neutral-500">
-                        Warning: {formatHours(info.warningThreshold)} · Revisione: {formatHours(info.revisionThreshold)}
+                    {info.warningThreshold !== null ||
+                    info.revisionThreshold !== null ? (
+                      <div className="mt-2 text-xs text-[var(--text-muted)]">
+                        Warning: {formatHours(info.warningThreshold)} ·
+                        Revisione: {formatHours(info.revisionThreshold)}
                       </div>
                     ) : null}
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <InfoMini label="Scadenza" value={formatDate(row.expiry_date)} />
-                    <InfoMini label="Stato montaggio" value={row.car_id ? "Montato" : "Smontato"} />
+                    <InfoMini
+                      label="Scadenza"
+                      value={formatDate(row.expiry_date)}
+                    />
+                    <InfoMini
+                      label="Stato montaggio"
+                      value={row.car_id ? "Montato" : "Smontato"}
+                    />
                   </div>
 
                   {row.notes ? (
-                    <div className="mt-4 rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-[var(--text-secondary)]">
                       {row.notes}
                     </div>
                   ) : null}
@@ -526,7 +601,7 @@ export default function ComponentsPage() {
                   <div className="mt-4 flex justify-end">
                     <Link
                       href={`/components/${row.id}`}
-                      className="rounded-xl bg-neutral-100 px-3 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+                      className="race-action-secondary px-3 py-2 text-sm"
                     >
                       <Gauge size={16} className="mr-2 inline" />
                       Apri scheda
@@ -540,163 +615,153 @@ export default function ComponentsPage() {
       </SectionCard>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-neutral-900">Nuovo componente</h3>
-                <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                  Configura ore iniziali, soglie di warning e soglia revisione.
-                </div>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold"
-              >
-                Chiudi
-              </button>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Tipo" required>
-                <select
-                  className="w-full rounded-xl border p-3"
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                >
-                  <option value="">Seleziona tipo</option>
-                  {availableTypes.map((definition) => (
-                    <option key={definition.value} value={definition.value}>
-                      {definition.label}
-                    </option>
-                  ))}
-                  <option value="__custom__">Tipo personalizzato</option>
-                </select>
-              </Field>
-
-              {form.type === "__custom__" ? (
-                <Field label="Tipo personalizzato" required>
-                  <input
-                    className="w-full rounded-xl border p-3"
-                    value={form.customType}
-                    onChange={(e) => setForm({ ...form, customType: e.target.value })}
-                    placeholder="Es. Pompa benzina"
-                  />
-                </Field>
-              ) : null}
-
-              <Field label="Identificativo" required>
-                <input
-                  className="w-full rounded-xl border p-3"
-                  value={form.identifier}
-                  onChange={(e) => setForm({ ...form, identifier: e.target.value })}
-                  placeholder="Es. MOT-01, CAMBIO-A"
-                />
-              </Field>
-
-              <Field label="Auto montata">
-                <select
-                  className="w-full rounded-xl border p-3"
-                  value={form.car_id}
-                  onChange={(e) => setForm({ ...form, car_id: e.target.value })}
-                >
-                  <option value="">Nessuno</option>
-                  {cars.map((car) => (
-                    <option key={car.id} value={car.id}>
-                      {car.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Ore da ultima revisione">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  className="w-full rounded-xl border p-3"
-                  value={form.hours}
-                  onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                />
-              </Field>
-
-              <Field label="Ore vita accumulate">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  className="w-full rounded-xl border p-3"
-                  value={form.life_hours}
-                  onChange={(e) => setForm({ ...form, life_hours: e.target.value })}
-                />
-              </Field>
-
-              <Field label="Soglia warning ore">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  className="w-full rounded-xl border p-3"
-                  value={form.warning_threshold_hours}
-                  onChange={(e) =>
-                    setForm({ ...form, warning_threshold_hours: e.target.value })
-                  }
-                  placeholder="Es. 8"
-                />
-              </Field>
-
-              <Field label="Soglia revisione ore">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  className="w-full rounded-xl border p-3"
-                  value={form.revision_threshold_hours}
-                  onChange={(e) =>
-                    setForm({ ...form, revision_threshold_hours: e.target.value })
-                  }
-                  placeholder="Es. 10"
-                />
-              </Field>
-
-              <Field label="Scadenza">
-                <input
-                  type="date"
-                  className="w-full rounded-xl border p-3"
-                  value={form.expiry_date}
-                  onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
-                />
-              </Field>
-
-              <div className="md:col-span-2">
-                <Field label="Note">
-                  <textarea
-                    className="min-h-[100px] w-full rounded-xl border p-3"
-                    value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Note tecniche, seriale, storico o dettagli utili"
-                  />
-                </Field>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold"
-              >
+        <ModalShell
+          title="Nuovo componente"
+          subtitle="Configura ore iniziali, soglie di warning e soglia revisione."
+          onClose={() => setOpen(false)}
+          maxWidth="max-w-3xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setOpen(false)}>
                 Annulla
-              </button>
-              <button
-                onClick={saveComponent}
-                disabled={saving}
-                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
-              >
+              </Button>
+              <Button onClick={saveComponent} disabled={saving}>
                 {saving ? "Salvataggio..." : "Salva componente"}
-              </button>
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Tipo" required>
+              <select
+                className={uiSelectClassName}
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                <option value="">Seleziona tipo</option>
+                {availableTypes.map((definition) => (
+                  <option key={definition.value} value={definition.value}>
+                    {definition.label}
+                  </option>
+                ))}
+                <option value="__custom__">Tipo personalizzato</option>
+              </select>
+            </Field>
+
+            {form.type === "__custom__" ? (
+              <Field label="Tipo personalizzato" required>
+                <input
+                  className={uiInputClassName}
+                  value={form.customType}
+                  onChange={(e) =>
+                    setForm({ ...form, customType: e.target.value })
+                  }
+                  placeholder="Es. Pompa benzina"
+                />
+              </Field>
+            ) : null}
+
+            <Field label="Identificativo" required>
+              <input
+                className={uiInputClassName}
+                value={form.identifier}
+                onChange={(e) =>
+                  setForm({ ...form, identifier: e.target.value })
+                }
+                placeholder="Es. MOT-01, CAMBIO-A"
+              />
+            </Field>
+
+            <Field label="Auto montata">
+              <select
+                className={uiSelectClassName}
+                value={form.car_id}
+                onChange={(e) => setForm({ ...form, car_id: e.target.value })}
+              >
+                <option value="">Nessuno</option>
+                {cars.map((car) => (
+                  <option key={car.id} value={car.id}>
+                    {car.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Ore da ultima revisione">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                className={uiInputClassName}
+                value={form.hours}
+                onChange={(e) => setForm({ ...form, hours: e.target.value })}
+              />
+            </Field>
+
+            <Field label="Ore vita accumulate">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                className={uiInputClassName}
+                value={form.life_hours}
+                onChange={(e) =>
+                  setForm({ ...form, life_hours: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Soglia warning ore">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                className={uiInputClassName}
+                value={form.warning_threshold_hours}
+                onChange={(e) =>
+                  setForm({ ...form, warning_threshold_hours: e.target.value })
+                }
+                placeholder="Es. 8"
+              />
+            </Field>
+
+            <Field label="Soglia revisione ore">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                className={uiInputClassName}
+                value={form.revision_threshold_hours}
+                onChange={(e) =>
+                  setForm({ ...form, revision_threshold_hours: e.target.value })
+                }
+                placeholder="Es. 10"
+              />
+            </Field>
+
+            <Field label="Scadenza">
+              <input
+                type="date"
+                className={uiInputClassName}
+                value={form.expiry_date}
+                onChange={(e) =>
+                  setForm({ ...form, expiry_date: e.target.value })
+                }
+              />
+            </Field>
+
+            <div className="md:col-span-2">
+              <Field label="Note">
+                <textarea
+                  className={uiTextareaClassName}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Note tecniche, seriale, storico o dettagli utili"
+                />
+              </Field>
             </div>
           </div>
-        </div>
+        </ModalShell>
       ) : null}
     </div>
   );
@@ -704,9 +769,11 @@ export default function ComponentsPage() {
 
 function InfoMini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</div>
-      <div className="mt-1 font-bold text-neutral-900">{value}</div>
+    <div className="race-mini-panel">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div className="mt-1 font-bold text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }
@@ -722,7 +789,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-semibold text-neutral-700">
+      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>

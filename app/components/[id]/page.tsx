@@ -149,7 +149,10 @@ export default function ComponentDetailPage() {
 
   const access = usePermissionAccess();
   const canViewComponents = access.hasPermission("components.view");
-  const canEditComponents = access.hasPermission("components.edit", ["owner", "admin"]);
+  const canEditComponents = access.hasPermission("components.edit", [
+    "owner",
+    "admin",
+  ]);
 
   const [component, setComponent] = useState<ComponentRow | null>(null);
   const [mountedCar, setMountedCar] = useState<MountedCar | null>(null);
@@ -186,7 +189,9 @@ export default function ComponentDetailPage() {
   });
 
   const [selectedCarId, setSelectedCarId] = useState("");
-  const [mountDate, setMountDate] = useState(new Date().toISOString().slice(0, 10));
+  const [mountDate, setMountDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [mountReason, setMountReason] = useState("");
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
@@ -197,37 +202,38 @@ export default function ComponentDetailPage() {
     setLoading(true);
     try {
       const ctx = await getCurrentTeamContext();
-      const [componentRes, maintRes, revRes, docsRes, carsRes] = await Promise.all([
-        supabase
-          .from("components")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .eq("id", componentId)
-          .single(),
-        supabase
-          .from("maintenances")
-          .select("id,date,type,status,priority,notes")
-          .eq("team_id", ctx.teamId)
-          .eq("component_id", componentId)
-          .order("date", { ascending: false }),
-        supabase
-          .from("component_revisions")
-          .select("id,date,description,notes,reset_hours,created_at")
-          .eq("team_id", ctx.teamId)
-          .eq("component_id", componentId)
-          .order("date", { ascending: false }),
-        supabase
-          .from("documents")
-          .select("id,title,type,file_url,file_name,uploaded_at")
-          .eq("team_id", ctx.teamId)
-          .eq("component_id", componentId)
-          .order("uploaded_at", { ascending: false }),
-        supabase
-          .from("cars")
-          .select("id,name,chassis_number")
-          .eq("team_id", ctx.teamId)
-          .order("name", { ascending: true }),
-      ]);
+      const [componentRes, maintRes, revRes, docsRes, carsRes] =
+        await Promise.all([
+          supabase
+            .from("components")
+            .select("*")
+            .eq("team_id", ctx.teamId)
+            .eq("id", componentId)
+            .single(),
+          supabase
+            .from("maintenances")
+            .select("id,date,type,status,priority,notes")
+            .eq("team_id", ctx.teamId)
+            .eq("component_id", componentId)
+            .order("date", { ascending: false }),
+          supabase
+            .from("component_revisions")
+            .select("id,date,description,notes,reset_hours,created_at")
+            .eq("team_id", ctx.teamId)
+            .eq("component_id", componentId)
+            .order("date", { ascending: false }),
+          supabase
+            .from("documents")
+            .select("id,title,type,file_url,file_name,uploaded_at")
+            .eq("team_id", ctx.teamId)
+            .eq("component_id", componentId)
+            .order("uploaded_at", { ascending: false }),
+          supabase
+            .from("cars")
+            .select("id,name,chassis_number")
+            .eq("team_id", ctx.teamId)
+            .order("name", { ascending: true }),
+        ]);
 
       const componentData = componentRes.data as ComponentRow | null;
       setComponent(componentData);
@@ -242,7 +248,8 @@ export default function ComponentDetailPage() {
           identifier: componentData.identifier || "",
           hours: String(componentData.hours ?? 0),
           life_hours:
-            componentData.life_hours !== null && componentData.life_hours !== undefined
+            componentData.life_hours !== null &&
+            componentData.life_hours !== undefined
               ? String(componentData.life_hours)
               : "",
           warning_threshold_hours:
@@ -283,12 +290,20 @@ export default function ComponentDetailPage() {
   }, [access.loading, canViewComponents, componentId]);
 
   const status = useMemo(
-    () => (component ? getStatus(component) : { label: "—", tone: "neutral" as const }),
-    [component]
+    () =>
+      component
+        ? getStatus(component)
+        : { label: "—", tone: "neutral" as const },
+    [component],
   );
 
   const stats: StatItem[] = [
-    { label: "Ore da ultima revisione", value: formatHours(component?.hours), icon: <Clock3 size={18} />, helper: "Ore correnti usate per warning e revisione" },
+    {
+      label: "Ore da ultima revisione",
+      value: formatHours(component?.hours),
+      icon: <Clock3 size={18} />,
+      helper: "Ore correnti usate per warning e revisione",
+    },
     {
       label: "Ore vita accumulate",
       value: formatHours(component?.life_hours),
@@ -328,8 +343,12 @@ export default function ComponentDetailPage() {
         identifier: editForm.identifier.trim(),
         hours: Number(editForm.hours || 0),
         life_hours: Number(editForm.life_hours || 0),
-        warning_threshold_hours: parseNullableNumber(editForm.warning_threshold_hours),
-        revision_threshold_hours: parseNullableNumber(editForm.revision_threshold_hours),
+        warning_threshold_hours: parseNullableNumber(
+          editForm.warning_threshold_hours,
+        ),
+        revision_threshold_hours: parseNullableNumber(
+          editForm.revision_threshold_hours,
+        ),
         expiry_date: editForm.expiry_date || null,
         notes: editForm.notes.trim() || null,
       };
@@ -368,7 +387,8 @@ export default function ComponentDetailPage() {
             team_id: ctx.teamId,
             component_id: component.id,
             date: revisionForm.date,
-            description: revisionForm.description.trim() || "Revisione componente",
+            description:
+              revisionForm.description.trim() || "Revisione componente",
             notes: revisionForm.notes.trim() || null,
             reset_hours: revisionForm.reset_hours,
             hours_before_reset: hoursBefore,
@@ -407,7 +427,7 @@ export default function ComponentDetailPage() {
         "success",
         revisionForm.reset_hours
           ? "Revisione registrata con reset ore."
-          : "Revisione registrata."
+          : "Revisione registrata.",
       );
       await loadAll();
     } catch (error) {
@@ -521,7 +541,7 @@ export default function ComponentDetailPage() {
   if (loading) {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
-        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+        <div className="rounded-3xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
           Caricamento componente...
         </div>
       </div>
@@ -538,7 +558,9 @@ export default function ComponentDetailPage() {
 
   return (
     <div className={`flex flex-col gap-6 p-6`}>
-      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
+      {feedback ? (
+        <FormStatusBanner type={feedback.type} message={feedback.message} />
+      ) : null}
 
       <PageHeader
         title={`${component.type} · ${component.identifier}`}
@@ -550,14 +572,14 @@ export default function ComponentDetailPage() {
               <>
                 <button
                   onClick={() => setOpenEdit(true)}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-900 hover:bg-neutral-100"
+                  className="rounded-xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.08]"
                 >
                   <Edit size={16} className="mr-2 inline" />
                   Modifica componente
                 </button>
                 <button
                   onClick={() => setOpenRevision(true)}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-900 hover:bg-neutral-100"
+                  className="rounded-xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.08]"
                 >
                   <RotateCcw size={16} className="mr-2 inline" />
                   Revisione / reset ore
@@ -582,7 +604,10 @@ export default function ComponentDetailPage() {
                 )}
               </>
             ) : null}
-            <Link href="/components" className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50">
+            <Link
+              href="/components"
+              className="rounded-xl border px-4 py-2 font-bold hover:bg-[var(--surface-card)]/[0.035]"
+            >
               <ArrowLeft size={16} className="mr-2 inline" />
               Componenti
             </Link>
@@ -599,8 +624,10 @@ export default function ComponentDetailPage() {
         subtitle="Questa pagina riunisce stato tecnico, montaggio e storico del componente."
       >
         <InfoBlock>
-          Usa la scheda componente per controllare ore, soglie, revisioni e posizione attuale sul mezzo.
-          Le manutenzioni restano nello storico dedicato, mentre da qui puoi intervenire su revisione, montaggio e dati tecnici del componente.
+          Usa la scheda componente per controllare ore, soglie, revisioni e
+          posizione attuale sul mezzo. Le manutenzioni restano nello storico
+          dedicato, mentre da qui puoi intervenire su revisione, montaggio e
+          dati tecnici del componente.
         </InfoBlock>
       </SectionCard>
 
@@ -612,8 +639,14 @@ export default function ComponentDetailPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <InfoCard label="Tipo" value={component.type} />
             <InfoCard label="Identificativo" value={component.identifier} />
-            <InfoCard label="Ultima manutenzione" value={formatDate(component.last_maintenance_date)} />
-            <InfoCard label="Scadenza" value={formatDate(component.expiry_date)} />
+            <InfoCard
+              label="Ultima manutenzione"
+              value={formatDate(component.last_maintenance_date)}
+            />
+            <InfoCard
+              label="Scadenza"
+              value={formatDate(component.expiry_date)}
+            />
             <InfoCard
               label="Soglia attenzione"
               value={
@@ -632,8 +665,10 @@ export default function ComponentDetailPage() {
                   : "—"
               }
             />
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:col-span-2">
-              <div className="text-sm text-neutral-500">Stato operativo</div>
+            <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4 md:col-span-2">
+              <div className="text-sm text-[var(--text-muted)]">
+                Stato operativo
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StatusBadge label={status.label} tone={status.tone} />
                 <StatusBadge
@@ -641,14 +676,15 @@ export default function ComponentDetailPage() {
                   tone={mountedCar ? "green" : "neutral"}
                 />
               </div>
-              <div className="mt-3 text-xs leading-5 text-neutral-500">
-                Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del componente.
-                Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.
+              <div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+                Usa “Revisione / reset ore” quando l’intervento comporta un
+                ripristino del componente. Usa invece la scheda manutenzioni per
+                lavori ordinari o da pianificare.
               </div>
             </div>
           </div>
           {component.notes ? (
-            <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm whitespace-pre-wrap text-neutral-700">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4 text-sm whitespace-pre-wrap text-[var(--text-secondary)]">
               {component.notes}
             </div>
           ) : null}
@@ -659,25 +695,27 @@ export default function ComponentDetailPage() {
           subtitle="Montaggio rapido e stato del componente sul mezzo"
         >
           {mountedCar ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
+              <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
                 <CarFront size={16} className="text-yellow-600" />
                 Mezzo montato
               </div>
-              <div className="mt-2 text-lg font-bold text-neutral-900">{mountedCar.name}</div>
-              <div className="mt-1 text-sm text-neutral-500">
+              <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
+                {mountedCar.name}
+              </div>
+              <div className="mt-1 text-sm text-[var(--text-muted)]">
                 Telaio {mountedCar.chassis_number || "—"}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
                   href={`/cars/${mountedCar.id}`}
-                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
+                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                 >
                   Apri scheda mezzo
                 </Link>
                 <Link
                   href="/mounts"
-                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
+                  className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                 >
                   Storico montaggi
                 </Link>
@@ -704,14 +742,14 @@ export default function ComponentDetailPage() {
               {maintenances.map((row) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                  className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-bold text-neutral-900">
+                      <div className="font-bold text-[var(--text-primary)]">
                         {row.type || "Manutenzione"}
                       </div>
-                      <div className="mt-1 text-sm text-neutral-500">
+                      <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {formatDate(row.date)}
                       </div>
                     </div>
@@ -723,8 +761,8 @@ export default function ComponentDetailPage() {
                             row.status === "completed"
                               ? "green"
                               : row.status === "open"
-                              ? "yellow"
-                              : "neutral"
+                                ? "yellow"
+                                : "neutral"
                           }
                         />
                       ) : null}
@@ -735,15 +773,15 @@ export default function ComponentDetailPage() {
                             row.priority === "high"
                               ? "red"
                               : row.priority === "medium"
-                              ? "yellow"
-                              : "neutral"
+                                ? "yellow"
+                                : "neutral"
                           }
                         />
                       ) : null}
                     </div>
                   </div>
                   {row.notes ? (
-                    <div className="mt-2 text-sm whitespace-pre-wrap text-neutral-700">
+                    <div className="mt-2 text-sm whitespace-pre-wrap text-[var(--text-secondary)]">
                       {row.notes}
                     </div>
                   ) : null}
@@ -759,7 +797,9 @@ export default function ComponentDetailPage() {
         >
           <div className="space-y-4">
             <div>
-              <div className="mb-2 font-semibold text-neutral-900">Revisioni</div>
+              <div className="mb-2 font-semibold text-[var(--text-primary)]">
+                Revisioni
+              </div>
               {revisions.length === 0 ? (
                 <EmptyState title="Nessuna revisione registrata" />
               ) : (
@@ -767,15 +807,17 @@ export default function ComponentDetailPage() {
                   {revisions.map((row) => (
                     <div
                       key={row.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                      className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="font-bold text-neutral-900">
+                          <div className="font-bold text-[var(--text-primary)]">
                             {formatDate(row.date)}
                           </div>
-                          <div className="mt-1 text-sm text-neutral-500">
-                            {row.reset_hours ? "Con reset ore" : "Senza reset ore"}
+                          <div className="mt-1 text-sm text-[var(--text-muted)]">
+                            {row.reset_hours
+                              ? "Con reset ore"
+                              : "Senza reset ore"}
                           </div>
                         </div>
                         <StatusBadge
@@ -784,12 +826,12 @@ export default function ComponentDetailPage() {
                         />
                       </div>
                       {row.description ? (
-                        <div className="mt-2 text-sm whitespace-pre-wrap text-neutral-700">
+                        <div className="mt-2 text-sm whitespace-pre-wrap text-[var(--text-secondary)]">
                           {row.description}
                         </div>
                       ) : null}
                       {row.notes ? (
-                        <div className="mt-2 text-xs whitespace-pre-wrap text-neutral-500">
+                        <div className="mt-2 text-xs whitespace-pre-wrap text-[var(--text-muted)]">
                           {row.notes}
                         </div>
                       ) : null}
@@ -800,7 +842,7 @@ export default function ComponentDetailPage() {
             </div>
 
             <div>
-              <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-900">
+              <div className="mb-2 flex items-center gap-2 font-semibold text-[var(--text-primary)]">
                 <FileText size={16} />
                 Documenti
               </div>
@@ -811,12 +853,12 @@ export default function ComponentDetailPage() {
                   {documents.map((row) => (
                     <div
                       key={row.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                      className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4"
                     >
-                      <div className="font-bold text-neutral-900">
+                      <div className="font-bold text-[var(--text-primary)]">
                         {row.title || row.type || "Documento"}
                       </div>
-                      <div className="mt-1 text-sm text-neutral-500">
+                      <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {row.file_name || formatDate(row.uploaded_at)}
                       </div>
                       {row.file_url ? (
@@ -824,7 +866,7 @@ export default function ComponentDetailPage() {
                           href={row.file_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
+                          className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                         >
                           Apri file
                         </a>
@@ -849,7 +891,9 @@ export default function ComponentDetailPage() {
               <input
                 className="w-full rounded-xl border p-3"
                 value={editForm.type}
-                onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, type: e.target.value })
+                }
               />
             </Field>
             <Field label="Identificativo" required>
@@ -868,9 +912,14 @@ export default function ComponentDetailPage() {
                 min="0"
                 step="0.1"
                 value={editForm.hours}
-                onChange={(e) => setEditForm({ ...editForm, hours: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, hours: e.target.value })
+                }
               />
-              <FieldHint>Ore accumulate dall’ultima revisione/reset. Le soglie usano questo valore.</FieldHint>
+              <FieldHint>
+                Ore accumulate dall’ultima revisione/reset. Le soglie usano
+                questo valore.
+              </FieldHint>
             </Field>
             <Field label="Ore vita accumulate">
               <input
@@ -883,7 +932,10 @@ export default function ComponentDetailPage() {
                   setEditForm({ ...editForm, life_hours: e.target.value })
                 }
               />
-              <FieldHint>Storico totale del componente. Non viene azzerato dalle revisioni.</FieldHint>
+              <FieldHint>
+                Storico totale del componente. Non viene azzerato dalle
+                revisioni.
+              </FieldHint>
             </Field>
             <Field label="Soglia attenzione">
               <input
@@ -930,7 +982,9 @@ export default function ComponentDetailPage() {
                 <textarea
                   className="min-h-28 w-full rounded-xl border p-3"
                   value={editForm.notes}
-                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, notes: e.target.value })
+                  }
                 />
               </Field>
             </div>
@@ -971,9 +1025,11 @@ export default function ComponentDetailPage() {
                 }
               />
             </Field>
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <div className="text-sm text-neutral-500">Ore da ultima revisione</div>
-              <div className="mt-1 text-lg font-bold text-neutral-900">
+            <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
+              <div className="text-sm text-[var(--text-muted)]">
+                Ore da ultima revisione
+              </div>
+              <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">
                 {formatHours(component.hours)}
               </div>
             </div>
@@ -1003,7 +1059,7 @@ export default function ComponentDetailPage() {
                 />
               </Field>
             </div>
-            <label className="md:col-span-2 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <label className="md:col-span-2 flex items-start gap-3 rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
               <input
                 type="checkbox"
                 checked={revisionForm.reset_hours}
@@ -1016,11 +1072,12 @@ export default function ComponentDetailPage() {
                 className="mt-1 h-4 w-4"
               />
               <div>
-                <div className="font-semibold text-neutral-900">
+                <div className="font-semibold text-[var(--text-primary)]">
                   Azzera le ore del componente
                 </div>
-                <div className="mt-1 text-sm text-neutral-500">
-                  Attivalo solo se la revisione riporta il componente a zero ore operative.
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
+                  Attivalo solo se la revisione riporta il componente a zero ore
+                  operative.
                 </div>
               </div>
             </label>
@@ -1060,7 +1117,8 @@ export default function ComponentDetailPage() {
                 <option value="">Seleziona auto</option>
                 {cars.map((car) => (
                   <option key={car.id} value={car.id}>
-                    {car.name} {car.chassis_number ? `· ${car.chassis_number}` : ""}
+                    {car.name}{" "}
+                    {car.chassis_number ? `· ${car.chassis_number}` : ""}
                   </option>
                 ))}
               </select>
@@ -1118,15 +1176,21 @@ function ModalShell({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+      <div className="modal-panel dark-scrollbar max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-2xl font-bold text-neutral-900">{title}</div>
-            {subtitle ? <div className="mt-1 text-sm text-neutral-500">{subtitle}</div> : null}
+            <div className="text-2xl font-bold text-[var(--text-primary)]">
+              {title}
+            </div>
+            {subtitle ? (
+              <div className="mt-1 text-sm text-[var(--text-muted)]">
+                {subtitle}
+              </div>
+            ) : null}
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl bg-neutral-100 p-2 text-neutral-600 hover:bg-neutral-200"
+            className="rounded-xl bg-neutral-100 p-2 text-[var(--text-secondary)] hover:bg-neutral-200"
             aria-label="Chiudi"
           >
             <X size={18} />
@@ -1149,7 +1213,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-semibold text-neutral-700">
+      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
@@ -1159,14 +1223,20 @@ function Field({
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 text-xs leading-5 text-neutral-500">{children}</div>;
+  return (
+    <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+      {children}
+    </div>
+  );
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-      <div className="text-sm text-neutral-500">{label}</div>
-      <div className="mt-1 text-base font-bold text-neutral-900">{value}</div>
+    <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
+      <div className="text-sm text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 text-base font-bold text-[var(--text-primary)]">
+        {value}
+      </div>
     </div>
   );
 }

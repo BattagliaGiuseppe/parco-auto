@@ -151,7 +151,8 @@ function formatLapTime(ms: number | null | undefined) {
 
 function driverName(driver: DriverRow | null | undefined) {
   if (!driver) return "—";
-  const fullName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
+  const fullName =
+    `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
   return fullName || driver.nickname || "Pilota";
 }
 
@@ -190,12 +191,14 @@ function downloadTextFile(filename: string, content: string, mimeType: string) {
 }
 
 function safeFilename(value: string | null | undefined) {
-  return (value || "evento")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "evento";
+  return (
+    (value || "evento")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "evento"
+  );
 }
 
 function InfoBlock({ children }: { children: ReactNode }) {
@@ -206,7 +209,13 @@ function InfoBlock({ children }: { children: ReactNode }) {
   );
 }
 
-function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "success" | "warning" | "danger" }) {
+function Badge({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger";
+}) {
   const classes =
     tone === "success"
       ? "bg-emerald-100 text-emerald-700"
@@ -214,8 +223,14 @@ function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "ne
         ? "bg-amber-100 text-amber-700"
         : tone === "danger"
           ? "bg-red-100 text-red-700"
-          : "bg-neutral-100 text-neutral-700";
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${classes}`}>{children}</span>;
+          : "bg-neutral-100 text-[var(--text-secondary)]";
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${classes}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 export default function EventDetailPage() {
@@ -229,7 +244,9 @@ export default function EventDetailPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [cars, setCars] = useState<CarRow[]>([]);
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [assignedDrivers, setAssignedDrivers] = useState<AssignedDriverRow[]>([]);
+  const [assignedDrivers, setAssignedDrivers] = useState<AssignedDriverRow[]>(
+    [],
+  );
   const [turns, setTurns] = useState<TurnRow[]>([]);
   const [selectedCar, setSelectedCar] = useState("");
   const [sessionForm, setSessionForm] = useState({
@@ -246,38 +263,44 @@ export default function EventDetailPage() {
     try {
       const ctx = await getCurrentTeamContext();
 
-      const [eventRes, eventCarsRes, sessionsRes, carsRes, driversRes] = await Promise.all([
-        supabase
-          .from("events")
-          .select("id,name,date,notes,circuit_id(id,name)")
-          .eq("team_id", ctx.teamId)
-          .eq("id", eventId)
-          .single(),
-        supabase
-          .from("event_cars")
-          .select("id,status,notes,car_id(id,name)")
-          .eq("team_id", ctx.teamId)
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("event_sessions")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("cars")
-          .select("id,name")
-          .eq("team_id", ctx.teamId)
-          .order("name", { ascending: true }),
-        supabase
-          .from("drivers")
-          .select("id,first_name,last_name,nickname")
-          .eq("team_id", ctx.teamId)
-          .order("last_name", { ascending: true }),
-      ]);
+      const [eventRes, eventCarsRes, sessionsRes, carsRes, driversRes] =
+        await Promise.all([
+          supabase
+            .from("events")
+            .select("id,name,date,notes,circuit_id(id,name)")
+            .eq("team_id", ctx.teamId)
+            .eq("id", eventId)
+            .single(),
+          supabase
+            .from("event_cars")
+            .select("id,status,notes,car_id(id,name)")
+            .eq("team_id", ctx.teamId)
+            .eq("event_id", eventId)
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("event_sessions")
+            .select("*")
+            .eq("team_id", ctx.teamId)
+            .eq("event_id", eventId)
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("cars")
+            .select("id,name")
+            .eq("team_id", ctx.teamId)
+            .order("name", { ascending: true }),
+          supabase
+            .from("drivers")
+            .select("id,first_name,last_name,nickname")
+            .eq("team_id", ctx.teamId)
+            .order("last_name", { ascending: true }),
+        ]);
 
-      const firstError = eventRes.error || eventCarsRes.error || sessionsRes.error || carsRes.error || driversRes.error;
+      const firstError =
+        eventRes.error ||
+        eventCarsRes.error ||
+        sessionsRes.error ||
+        carsRes.error ||
+        driversRes.error;
       if (firstError) throw firstError;
 
       const normalizedEvent = eventRes.data
@@ -287,10 +310,12 @@ export default function EventDetailPage() {
           }
         : null;
 
-      const normalizedEventCars = ((eventCarsRes.data || []) as any[]).map((row) => ({
-        ...row,
-        car_id: normalizeRelation(row.car_id),
-      })) as EventCarRow[];
+      const normalizedEventCars = ((eventCarsRes.data || []) as any[]).map(
+        (row) => ({
+          ...row,
+          car_id: normalizeRelation(row.car_id),
+        }),
+      ) as EventCarRow[];
 
       const eventCarIds = normalizedEventCars.map((row) => row.id);
       let turnRows: TurnRow[] = [];
@@ -300,13 +325,17 @@ export default function EventDetailPage() {
         const [turnsRes, metricsRes, assignedRes] = await Promise.all([
           supabase
             .from("event_car_turns")
-            .select("id,event_car_id,event_session_id,driver_id,recorded_at,minutes,laps,fuel_start_liters,fuel_end_liters,created_at")
+            .select(
+              "id,event_car_id,event_session_id,driver_id,recorded_at,minutes,laps,fuel_start_liters,fuel_end_liters,created_at",
+            )
             .eq("team_id", ctx.teamId)
             .in("event_car_id", eventCarIds)
             .order("recorded_at", { ascending: false }),
           supabase
             .from("event_car_turn_metrics")
-            .select("id,turn_id,event_car_id,best_lap_ms,avg_lap_ms,max_water_temp_c,max_oil_temp_c,track_condition")
+            .select(
+              "id,turn_id,event_car_id,best_lap_ms,avg_lap_ms,max_water_temp_c,max_oil_temp_c,track_condition",
+            )
             .eq("team_id", ctx.teamId)
             .in("event_car_id", eventCarIds),
           supabase
@@ -316,11 +345,15 @@ export default function EventDetailPage() {
             .in("event_car_id", eventCarIds),
         ]);
 
-        const reportError = turnsRes.error || metricsRes.error || assignedRes.error;
+        const reportError =
+          turnsRes.error || metricsRes.error || assignedRes.error;
         if (reportError) throw reportError;
 
         const metricsMap = new Map(
-          ((metricsRes.data || []) as TurnMetricRow[]).map((row) => [row.turn_id, row])
+          ((metricsRes.data || []) as TurnMetricRow[]).map((row) => [
+            row.turn_id,
+            row,
+          ]),
         );
 
         turnRows = ((turnsRes.data || []) as TurnBaseRow[]).map((row) => ({
@@ -377,9 +410,15 @@ export default function EventDetailPage() {
       if (error) throw error;
       setSelectedCar("");
       await loadAll();
-      setFeedback({ type: "success", message: "Mezzo associato correttamente all'evento." });
+      setFeedback({
+        type: "success",
+        message: "Mezzo associato correttamente all'evento.",
+      });
     } catch (error: any) {
-      setFeedback({ type: "error", message: error?.message || "Errore associazione mezzo." });
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore associazione mezzo.",
+      });
     }
   }
 
@@ -400,9 +439,15 @@ export default function EventDetailPage() {
       if (error) throw error;
       setSessionForm({ name: "", session_type: "test" });
       await loadAll();
-      setFeedback({ type: "success", message: "Sessione aggiunta correttamente." });
+      setFeedback({
+        type: "success",
+        message: "Sessione aggiunta correttamente.",
+      });
     } catch (error: any) {
-      setFeedback({ type: "error", message: error?.message || "Errore creazione sessione." });
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore creazione sessione.",
+      });
     }
   }
 
@@ -421,7 +466,8 @@ export default function EventDetailPage() {
       if ((count || 0) > 0) {
         setFeedback({
           type: "error",
-          message: "Questa sessione è già collegata a uno o più turni tecnici. Rimuovi o riassegna prima i turni collegati.",
+          message:
+            "Questa sessione è già collegata a uno o più turni tecnici. Rimuovi o riassegna prima i turni collegati.",
         });
         return;
       }
@@ -434,9 +480,15 @@ export default function EventDetailPage() {
 
       if (error) throw error;
       await loadAll();
-      setFeedback({ type: "success", message: "Sessione eliminata correttamente." });
+      setFeedback({
+        type: "success",
+        message: "Sessione eliminata correttamente.",
+      });
     } catch (error: any) {
-      setFeedback({ type: "error", message: error?.message || "Errore eliminazione sessione." });
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore eliminazione sessione.",
+      });
     }
   }
 
@@ -455,51 +507,94 @@ export default function EventDetailPage() {
       await loadAll();
       setFeedback({ type: "success", message: "Mezzo rimosso dall'evento." });
     } catch (error: any) {
-      setFeedback({ type: "error", message: error?.message || "Errore rimozione mezzo." });
+      setFeedback({
+        type: "error",
+        message: error?.message || "Errore rimozione mezzo.",
+      });
     }
   }
 
-  const driverMap = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
-  const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
-  const eventCarMap = useMemo(() => new Map(eventCars.map((row) => [row.id, row])), [eventCars]);
+  const driverMap = useMemo(
+    () => new Map(drivers.map((driver) => [driver.id, driver])),
+    [drivers],
+  );
+  const sessionMap = useMemo(
+    () => new Map(sessions.map((session) => [session.id, session])),
+    [sessions],
+  );
+  const eventCarMap = useMemo(
+    () => new Map(eventCars.map((row) => [row.id, row])),
+    [eventCars],
+  );
 
   const carReportRows = useMemo<CarReportRow[]>(() => {
     return eventCars.map((eventCar) => {
-      const rowTurns = turns.filter((turn) => turn.event_car_id === eventCar.id);
+      const rowTurns = turns.filter(
+        (turn) => turn.event_car_id === eventCar.id,
+      );
       const rowAssignedDrivers = assignedDrivers
         .filter((assignment) => assignment.event_car_id === eventCar.id)
         .map((assignment) => driverMap.get(assignment.driver_id || "") || null)
         .filter((driver): driver is DriverRow => Boolean(driver));
       const bestLapValues = rowTurns
         .map((turn) => turn.metrics?.best_lap_ms ?? null)
-        .filter((value): value is number => value != null && Number.isFinite(value));
+        .filter(
+          (value): value is number => value != null && Number.isFinite(value),
+        );
       return {
         eventCar,
         assignedDrivers: rowAssignedDrivers,
         turns: rowTurns,
         turnsCount: rowTurns.length,
-        minutes: rowTurns.reduce((sum, turn) => sum + Number(turn.minutes || 0), 0),
+        minutes: rowTurns.reduce(
+          (sum, turn) => sum + Number(turn.minutes || 0),
+          0,
+        ),
         laps: rowTurns.reduce((sum, turn) => sum + Number(turn.laps || 0), 0),
-        fuel: round1(rowTurns.reduce((sum, turn) => sum + getFuelUsed(turn), 0)),
+        fuel: round1(
+          rowTurns.reduce((sum, turn) => sum + getFuelUsed(turn), 0),
+        ),
         bestLapMs: bestLapValues.length ? Math.min(...bestLapValues) : null,
       };
     });
   }, [assignedDrivers, driverMap, eventCars, turns]);
 
   const report = useMemo(() => {
-    const totalMinutes = turns.reduce((sum, turn) => sum + Number(turn.minutes || 0), 0);
-    const totalLaps = turns.reduce((sum, turn) => sum + Number(turn.laps || 0), 0);
-    const totalFuel = round1(turns.reduce((sum, turn) => sum + getFuelUsed(turn), 0));
+    const totalMinutes = turns.reduce(
+      (sum, turn) => sum + Number(turn.minutes || 0),
+      0,
+    );
+    const totalLaps = turns.reduce(
+      (sum, turn) => sum + Number(turn.laps || 0),
+      0,
+    );
+    const totalFuel = round1(
+      turns.reduce((sum, turn) => sum + getFuelUsed(turn), 0),
+    );
     const bestLapValues = turns
       .map((turn) => turn.metrics?.best_lap_ms ?? null)
-      .filter((value): value is number => value != null && Number.isFinite(value));
-    const driverIds = new Set(turns.map((turn) => turn.driver_id).filter(Boolean));
-    const carsWithoutTurns = carReportRows.filter((row) => row.turnsCount === 0).length;
-    const carsWithoutAssignedDriver = carReportRows.filter((row) => row.assignedDrivers.length === 0).length;
-    const sessionIdsWithTurns = new Set(turns.map((turn) => turn.event_session_id).filter(Boolean));
-    const sessionsWithoutTurns = sessions.filter((session) => !sessionIdsWithTurns.has(session.id)).length;
+      .filter(
+        (value): value is number => value != null && Number.isFinite(value),
+      );
+    const driverIds = new Set(
+      turns.map((turn) => turn.driver_id).filter(Boolean),
+    );
+    const carsWithoutTurns = carReportRows.filter(
+      (row) => row.turnsCount === 0,
+    ).length;
+    const carsWithoutAssignedDriver = carReportRows.filter(
+      (row) => row.assignedDrivers.length === 0,
+    ).length;
+    const sessionIdsWithTurns = new Set(
+      turns.map((turn) => turn.event_session_id).filter(Boolean),
+    );
+    const sessionsWithoutTurns = sessions.filter(
+      (session) => !sessionIdsWithTurns.has(session.id),
+    ).length;
     const turnsWithoutDriver = turns.filter((turn) => !turn.driver_id).length;
-    const turnsWithoutSession = turns.filter((turn) => !turn.event_session_id).length;
+    const turnsWithoutSession = turns.filter(
+      (turn) => !turn.event_session_id,
+    ).length;
 
     return {
       totalTurns: turns.length,
@@ -518,7 +613,9 @@ export default function EventDetailPage() {
   }, [carReportRows, sessions, turns]);
 
   const stats: StatItem[] = useMemo(() => {
-    const readyCars = eventCars.filter((row) => (row.status || "").toLowerCase() === "ready").length;
+    const readyCars = eventCars.filter(
+      (row) => (row.status || "").toLowerCase() === "ready",
+    ).length;
     return [
       {
         label: "Mezzi collegati",
@@ -542,7 +639,10 @@ export default function EventDetailPage() {
         label: "Best lap evento",
         value: formatLapTime(report.bestLapMs),
         icon: <Clock3 className="h-5 w-5" />,
-        helper: report.totalFuel > 0 ? `${formatNumber(report.totalFuel, " L")} fuel consumato` : "Fuel non rilevato",
+        helper:
+          report.totalFuel > 0
+            ? `${formatNumber(report.totalFuel, " L")} fuel consumato`
+            : "Fuel non rilevato",
       },
     ];
   }, [eventCars, report, sessions.length]);
@@ -606,60 +706,121 @@ export default function EventDetailPage() {
 
     lines.push("");
     lines.push("RIEPILOGO PER MEZZO");
-    lines.push(["Mezzo", "Piloti assegnati", "Turni", "Minuti", "Ore", "Giri", "Fuel L", "Best lap", "Stato"].map(csvCell).join(";"));
+    lines.push(
+      [
+        "Mezzo",
+        "Piloti assegnati",
+        "Turni",
+        "Minuti",
+        "Ore",
+        "Giri",
+        "Fuel L",
+        "Best lap",
+        "Stato",
+      ]
+        .map(csvCell)
+        .join(";"),
+    );
     carReportRows.forEach((row) => {
-      lines.push([
-        row.eventCar.car_id?.name || "",
-        row.assignedDrivers.map(driverName).join(", "),
-        row.turnsCount,
-        row.minutes,
-        round1(row.minutes / 60),
-        row.laps,
-        row.fuel || "",
-        formatLapTime(row.bestLapMs),
-        row.eventCar.status || "",
-      ].map(csvCell).join(";"));
+      lines.push(
+        [
+          row.eventCar.car_id?.name || "",
+          row.assignedDrivers.map(driverName).join(", "),
+          row.turnsCount,
+          row.minutes,
+          round1(row.minutes / 60),
+          row.laps,
+          row.fuel || "",
+          formatLapTime(row.bestLapMs),
+          row.eventCar.status || "",
+        ]
+          .map(csvCell)
+          .join(";"),
+      );
     });
 
     lines.push("");
     lines.push("TURNI");
-    lines.push(["Data", "Mezzo", "Sessione", "Tipo sessione", "Pilota", "Minuti", "Ore", "Giri", "Fuel start L", "Fuel end L", "Fuel usato L", "Best lap", "Avg lap", "Temp acqua max", "Temp olio max", "Condizione pista"].map(csvCell).join(";"));
+    lines.push(
+      [
+        "Data",
+        "Mezzo",
+        "Sessione",
+        "Tipo sessione",
+        "Pilota",
+        "Minuti",
+        "Ore",
+        "Giri",
+        "Fuel start L",
+        "Fuel end L",
+        "Fuel usato L",
+        "Best lap",
+        "Avg lap",
+        "Temp acqua max",
+        "Temp olio max",
+        "Condizione pista",
+      ]
+        .map(csvCell)
+        .join(";"),
+    );
     turns.forEach((turn) => {
       const eventCar = eventCarMap.get(turn.event_car_id);
-      const session = turn.event_session_id ? sessionMap.get(turn.event_session_id) : null;
+      const session = turn.event_session_id
+        ? sessionMap.get(turn.event_session_id)
+        : null;
       const driver = turn.driver_id ? driverMap.get(turn.driver_id) : null;
-      lines.push([
-        formatDateTime(turn.recorded_at || turn.created_at),
-        eventCar?.car_id?.name || "",
-        session?.name || "",
-        sessionTypeLabel(session?.session_type),
-        driverName(driver),
-        turn.minutes || 0,
-        round1(Number(turn.minutes || 0) / 60),
-        turn.laps || 0,
-        turn.fuel_start_liters ?? "",
-        turn.fuel_end_liters ?? "",
-        getFuelUsed(turn) || "",
-        formatLapTime(turn.metrics?.best_lap_ms),
-        formatLapTime(turn.metrics?.avg_lap_ms),
-        turn.metrics?.max_water_temp_c ?? "",
-        turn.metrics?.max_oil_temp_c ?? "",
-        turn.metrics?.track_condition || "",
-      ].map(csvCell).join(";"));
+      lines.push(
+        [
+          formatDateTime(turn.recorded_at || turn.created_at),
+          eventCar?.car_id?.name || "",
+          session?.name || "",
+          sessionTypeLabel(session?.session_type),
+          driverName(driver),
+          turn.minutes || 0,
+          round1(Number(turn.minutes || 0) / 60),
+          turn.laps || 0,
+          turn.fuel_start_liters ?? "",
+          turn.fuel_end_liters ?? "",
+          getFuelUsed(turn) || "",
+          formatLapTime(turn.metrics?.best_lap_ms),
+          formatLapTime(turn.metrics?.avg_lap_ms),
+          turn.metrics?.max_water_temp_c ?? "",
+          turn.metrics?.max_oil_temp_c ?? "",
+          turn.metrics?.track_condition || "",
+        ]
+          .map(csvCell)
+          .join(";"),
+      );
     });
 
     lines.push("");
     lines.push("SESSIONI");
-    lines.push(["Nome", "Tipo", "Turni collegati", "Creata il"].map(csvCell).join(";"));
+    lines.push(
+      ["Nome", "Tipo", "Turni collegati", "Creata il"].map(csvCell).join(";"),
+    );
     sessions.forEach((session) => {
-      const turnsCount = turns.filter((turn) => turn.event_session_id === session.id).length;
-      lines.push([session.name, sessionTypeLabel(session.session_type), turnsCount, formatDateTime(session.created_at)].map(csvCell).join(";"));
+      const turnsCount = turns.filter(
+        (turn) => turn.event_session_id === session.id,
+      ).length;
+      lines.push(
+        [
+          session.name,
+          sessionTypeLabel(session.session_type),
+          turnsCount,
+          formatDateTime(session.created_at),
+        ]
+          .map(csvCell)
+          .join(";"),
+      );
     });
 
     const csv = `\ufeff${lines.join("\n")}`;
     const filename = `report-evento-${safeFilename(event.name)}-${event.date || new Date().toISOString().slice(0, 10)}.csv`;
     downloadTextFile(filename, csv, "text/csv;charset=utf-8");
-    setFeedback({ type: "success", message: "Report evento esportato in CSV." });
+    setFeedback({
+      type: "success",
+      message: "Report evento esportato in CSV.",
+    });
   }
 
   function printEventReport() {
@@ -674,12 +835,15 @@ export default function EventDetailPage() {
             <td>${row.laps}</td>
             <td>${row.fuel ? `${row.fuel} L` : "—"}</td>
             <td>${escapeHtml(formatLapTime(row.bestLapMs))}</td>
-          </tr>`
+          </tr>`,
       )
       .join("");
 
     const checksHtml = reportChecks
-      .map((check) => `<li>${escapeHtml(check.label)}: <strong>${check.value}</strong></li>`)
+      .map(
+        (check) =>
+          `<li>${escapeHtml(check.label)}: <strong>${check.value}</strong></li>`,
+      )
       .join("");
 
     const html = `
@@ -725,9 +889,17 @@ export default function EventDetailPage() {
         </body>
       </html>`;
 
-    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1100,height=800");
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "noopener,noreferrer,width=1100,height=800",
+    );
     if (!printWindow) {
-      setFeedback({ type: "error", message: "Popup bloccato. Consenti l'apertura popup per stampare il report." });
+      setFeedback({
+        type: "error",
+        message:
+          "Popup bloccato. Consenti l'apertura popup per stampare il report.",
+      });
       return;
     }
     printWindow.document.open();
@@ -779,7 +951,9 @@ export default function EventDetailPage() {
           icon={<CalendarDays className="h-6 w-6" />}
         />
         <SectionCard>
-          <p className="text-sm text-neutral-500">Caricamento evento...</p>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Caricamento evento...
+          </p>
         </SectionCard>
       </div>
     );
@@ -793,7 +967,10 @@ export default function EventDetailPage() {
           subtitle="Controlla che l'evento appartenga al team corrente"
           icon={<CalendarDays className="h-6 w-6" />}
           actions={
-            <Link href="/calendar" className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800">
+            <Link
+              href="/calendar"
+              className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            >
               <ArrowLeft className="h-4 w-4" />
               Eventi
             </Link>
@@ -814,7 +991,7 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={exportEventReportCsv}
-              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] shadow-sm transition hover:bg-white/[0.08]"
             >
               <Download className="h-4 w-4" />
               Esporta CSV
@@ -822,12 +999,15 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={printEventReport}
-              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] shadow-sm transition hover:bg-white/[0.08]"
             >
               <Printer className="h-4 w-4" />
               Stampa report
             </button>
-            <Link href="/calendar" className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800">
+            <Link
+              href="/calendar"
+              className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            >
               <ArrowLeft className="h-4 w-4" />
               Eventi
             </Link>
@@ -835,30 +1015,47 @@ export default function EventDetailPage() {
         }
       />
 
-      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
+      {feedback ? (
+        <FormStatusBanner type={feedback.type} message={feedback.message} />
+      ) : null}
 
       <StatsGrid items={stats} />
 
       <InfoBlock>
-        Da qui assegni i mezzi all'evento e definisci le sessioni principali del weekend. La nuova sezione report legge i turni già registrati e mostra un riepilogo operativo senza modificare console mezzo, salvataggio turni o trigger ore.
+        Da qui assegni i mezzi all'evento e definisci le sessioni principali del
+        weekend. La nuova sezione report legge i turni già registrati e mostra
+        un riepilogo operativo senza modificare console mezzo, salvataggio turni
+        o trigger ore.
       </InfoBlock>
 
-      <SectionCard title="Report evento" subtitle="Riepilogo in sola lettura dei dati già registrati nei turni tecnici.">
+      <SectionCard
+        title="Report evento"
+        subtitle="Riepilogo in sola lettura dei dati già registrati nei turni tecnici."
+      >
         <div className="grid gap-4 md:grid-cols-5">
           {reportChecks.map((check) => (
-            <div key={check.label} className="rounded-3xl border border-neutral-100 bg-neutral-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">{check.label}</p>
+            <div
+              key={check.label}
+              className="rounded-3xl border border-white/10 bg-white/[0.035] p-4"
+            >
+              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
+                {check.label}
+              </p>
               <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-2xl font-bold text-neutral-900">{check.value}</p>
-                <Badge tone={check.tone}>{check.value === 0 ? "OK" : "Verifica"}</Badge>
+                <p className="text-2xl font-bold text-[var(--text-primary)]">
+                  {check.value}
+                </p>
+                <Badge tone={check.tone}>
+                  {check.value === 0 ? "OK" : "Verifica"}
+                </Badge>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-6 overflow-x-auto rounded-3xl border border-neutral-100">
+        <div className="mt-6 overflow-x-auto rounded-3xl border border-white/10">
           <table className="min-w-full divide-y divide-neutral-100 text-sm">
-            <thead className="bg-neutral-50 text-left text-xs font-bold uppercase tracking-wide text-neutral-500">
+            <thead className="bg-white/[0.045] text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">Mezzo</th>
                 <th className="px-4 py-3">Piloti</th>
@@ -869,25 +1066,40 @@ export default function EventDetailPage() {
                 <th className="px-4 py-3">Best lap</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 bg-white">
+            <tbody className="divide-y divide-white/10 bg-white/[0.035]">
               {carReportRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-neutral-500">
+                  <td
+                    colSpan={7}
+                    className="px-4 py-6 text-center text-sm text-[var(--text-secondary)]"
+                  >
                     Nessun mezzo collegato all'evento.
                   </td>
                 </tr>
               ) : (
                 carReportRows.map((row) => (
                   <tr key={row.eventCar.id}>
-                    <td className="px-4 py-3 font-bold text-neutral-900">{row.eventCar.car_id?.name || "Mezzo"}</td>
-                    <td className="px-4 py-3 text-neutral-600">
-                      {row.assignedDrivers.length > 0 ? row.assignedDrivers.map(driverName).join(", ") : "—"}
+                    <td className="px-4 py-3 font-bold text-[var(--text-primary)]">
+                      {row.eventCar.car_id?.name || "Mezzo"}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">{row.turnsCount}</td>
-                    <td className="px-4 py-3 text-neutral-600">{row.minutes}</td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {row.assignedDrivers.length > 0
+                        ? row.assignedDrivers.map(driverName).join(", ")
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {row.turnsCount}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {row.minutes}
+                    </td>
                     <td className="px-4 py-3 text-neutral-600">{row.laps}</td>
-                    <td className="px-4 py-3 text-neutral-600">{row.fuel > 0 ? `${row.fuel} L` : "—"}</td>
-                    <td className="px-4 py-3 text-neutral-600">{formatLapTime(row.bestLapMs)}</td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {row.fuel > 0 ? `${row.fuel} L` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {formatLapTime(row.bestLapMs)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -896,10 +1108,17 @@ export default function EventDetailPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Mezzi evento" subtitle="Associa i mezzi al weekend e apri la console operativa dedicata.">
+      <SectionCard
+        title="Mezzi evento"
+        subtitle="Associa i mezzi al weekend e apri la console operativa dedicata."
+      >
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <UiField label="Mezzo">
-            <select value={selectedCar} onChange={(event) => setSelectedCar(event.target.value)} className={uiInputClassName}>
+            <select
+              value={selectedCar}
+              onChange={(event) => setSelectedCar(event.target.value)}
+              className={uiInputClassName}
+            >
               <option value="">Seleziona mezzo</option>
               {cars.map((car) => (
                 <option key={car.id} value={car.id}>
@@ -923,20 +1142,40 @@ export default function EventDetailPage() {
 
         <div className="mt-5 grid gap-3">
           {eventCars.length === 0 ? (
-            <EmptyState title="Nessun mezzo collegato" description="Aggiungi almeno un mezzo per aprire la console evento e registrare turni tecnici." />
+            <EmptyState
+              title="Nessun mezzo collegato"
+              description="Aggiungi almeno un mezzo per aprire la console evento e registrare turni tecnici."
+            />
           ) : (
             eventCars.map((row) => {
-              const reportRow = carReportRows.find((item) => item.eventCar.id === row.id);
+              const reportRow = carReportRows.find(
+                (item) => item.eventCar.id === row.id,
+              );
               return (
-                <div key={row.id} className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+                <div
+                  key={row.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.045] p-4 shadow-sm"
+                >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-bold text-neutral-900">{row.car_id?.name || "Mezzo"}</h3>
-                        <Badge tone={(row.status || "").toLowerCase() === "ready" ? "success" : "neutral"}>Stato: {row.status || "—"}</Badge>
+                        <h3 className="text-base font-bold text-[var(--text-primary)]">
+                          {row.car_id?.name || "Mezzo"}
+                        </h3>
+                        <Badge
+                          tone={
+                            (row.status || "").toLowerCase() === "ready"
+                              ? "success"
+                              : "neutral"
+                          }
+                        >
+                          Stato: {row.status || "—"}
+                        </Badge>
                       </div>
-                      <p className="mt-2 text-xs text-neutral-500">
-                        {reportRow ? `${reportRow.turnsCount} turni • ${reportRow.minutes} min • ${reportRow.laps} giri` : "Nessun dato tecnico registrato"}
+                      <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                        {reportRow
+                          ? `${reportRow.turnsCount} turni • ${reportRow.minutes} min • ${reportRow.laps} giri`
+                          : "Nessun dato tecnico registrato"}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -964,12 +1203,17 @@ export default function EventDetailPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Sessioni evento" subtitle="Definisci le fasi principali: test, practice, qualifica o gara.">
+      <SectionCard
+        title="Sessioni evento"
+        subtitle="Definisci le fasi principali: test, practice, qualifica o gara."
+      >
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <UiField label="Nome sessione">
             <input
               value={sessionForm.name}
-              onChange={(event) => setSessionForm({ ...sessionForm, name: event.target.value })}
+              onChange={(event) =>
+                setSessionForm({ ...sessionForm, name: event.target.value })
+              }
               className={uiInputClassName}
               placeholder="Es. Libere 1"
             />
@@ -977,7 +1221,12 @@ export default function EventDetailPage() {
           <UiField label="Tipo">
             <select
               value={sessionForm.session_type}
-              onChange={(event) => setSessionForm({ ...sessionForm, session_type: event.target.value })}
+              onChange={(event) =>
+                setSessionForm({
+                  ...sessionForm,
+                  session_type: event.target.value,
+                })
+              }
               className={uiInputClassName}
             >
               <option value="test">Test</option>
@@ -1001,17 +1250,28 @@ export default function EventDetailPage() {
 
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {sessions.length === 0 ? (
-            <EmptyState title="Nessuna sessione" description="Crea le sessioni evento per classificare correttamente i turni tecnici." />
+            <EmptyState
+              title="Nessuna sessione"
+              description="Crea le sessioni evento per classificare correttamente i turni tecnici."
+            />
           ) : (
             sessions.map((row) => {
-              const turnsCount = turns.filter((turn) => turn.event_session_id === row.id).length;
+              const turnsCount = turns.filter(
+                (turn) => turn.event_session_id === row.id,
+              ).length;
               return (
-                <div key={row.id} className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+                <div
+                  key={row.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.045] p-4 shadow-sm"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-base font-bold text-neutral-900">{row.name}</h3>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        {sessionTypeLabel(row.session_type)} • {turnsCount} turni collegati
+                      <h3 className="text-base font-bold text-[var(--text-primary)]">
+                        {row.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                        {sessionTypeLabel(row.session_type)} • {turnsCount}{" "}
+                        turni collegati
                       </p>
                     </div>
                     {canEditEvents ? (
@@ -1031,13 +1291,19 @@ export default function EventDetailPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Ultimi turni registrati" subtitle="Vista rapida in sola lettura, senza modificare la console turni.">
+      <SectionCard
+        title="Ultimi turni registrati"
+        subtitle="Vista rapida in sola lettura, senza modificare la console turni."
+      >
         {turns.length === 0 ? (
-          <EmptyState title="Nessun turno tecnico" description="I turni verranno mostrati qui dopo la registrazione dalle console mezzo." />
+          <EmptyState
+            title="Nessun turno tecnico"
+            description="I turni verranno mostrati qui dopo la registrazione dalle console mezzo."
+          />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-neutral-100">
+          <div className="overflow-x-auto rounded-3xl border border-white/10">
             <table className="min-w-full divide-y divide-neutral-100 text-sm">
-              <thead className="bg-neutral-50 text-left text-xs font-bold uppercase tracking-wide text-neutral-500">
+              <thead className="bg-white/[0.045] text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Mezzo</th>
@@ -1048,19 +1314,37 @@ export default function EventDetailPage() {
                   <th className="px-4 py-3">Best lap</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100 bg-white">
+              <tbody className="divide-y divide-white/10 bg-white/[0.035]">
                 {turns.slice(0, 12).map((turn) => {
                   const eventCar = eventCarMap.get(turn.event_car_id);
-                  const session = turn.event_session_id ? sessionMap.get(turn.event_session_id) : null;
+                  const session = turn.event_session_id
+                    ? sessionMap.get(turn.event_session_id)
+                    : null;
                   return (
                     <tr key={turn.id}>
-                      <td className="px-4 py-3 text-neutral-600">{formatDateTime(turn.recorded_at || turn.created_at)}</td>
-                      <td className="px-4 py-3 font-bold text-neutral-900">{eventCar?.car_id?.name || "—"}</td>
-                      <td className="px-4 py-3 text-neutral-600">{session?.name || "—"}</td>
-                      <td className="px-4 py-3 text-neutral-600">{driverName(turn.driver_id ? driverMap.get(turn.driver_id) : null)}</td>
-                      <td className="px-4 py-3 text-neutral-600">{turn.minutes || 0}</td>
-                      <td className="px-4 py-3 text-neutral-600">{turn.laps || 0}</td>
-                      <td className="px-4 py-3 text-neutral-600">{formatLapTime(turn.metrics?.best_lap_ms)}</td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {formatDateTime(turn.recorded_at || turn.created_at)}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-[var(--text-primary)]">
+                        {eventCar?.car_id?.name || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {session?.name || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {driverName(
+                          turn.driver_id ? driverMap.get(turn.driver_id) : null,
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {turn.minutes || 0}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {turn.laps || 0}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {formatLapTime(turn.metrics?.best_lap_ms)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -1072,7 +1356,9 @@ export default function EventDetailPage() {
 
       {event.notes ? (
         <SectionCard title="Note evento">
-          <p className="text-sm leading-relaxed text-neutral-600">{event.notes}</p>
+          <p className="text-sm leading-relaxed text-neutral-600">
+            {event.notes}
+          </p>
         </SectionCard>
       ) : null}
     </div>

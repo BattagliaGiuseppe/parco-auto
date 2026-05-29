@@ -35,15 +35,21 @@ type MountRow = {
   status: string | null;
   reason: string | null;
   cars?: { id: string; name: string | null } | null;
-  components?:
-    | { id: string; type: string | null; identifier: string | null }
-    | null;
-  mounted_by_team_user_id?:
-    | { id: string; name: string | null; email: string | null }
-    | null;
-  removed_by_team_user_id?:
-    | { id: string; name: string | null; email: string | null }
-    | null;
+  components?: {
+    id: string;
+    type: string | null;
+    identifier: string | null;
+  } | null;
+  mounted_by_team_user_id?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  removed_by_team_user_id?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
 };
 
 type MountRowRaw = {
@@ -120,7 +126,7 @@ export default function MountsPage() {
   const [selectedCar, setSelectedCar] = useState("");
   const [selectedComponent, setSelectedComponent] = useState("");
   const [mountedAt, setMountedAt] = useState(
-    new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10),
   );
   const [mountedBy, setMountedBy] = useState("");
   const [reason, setReason] = useState("");
@@ -147,7 +153,7 @@ export default function MountsPage() {
         supabase
           .from("car_components")
           .select(
-            "id, mounted_at, removed_at, status, reason, cars:car_id(id,name), components:component_id(id,type,identifier), mounted_by_team_user_id(id,name,email), removed_by_team_user_id(id,name,email)"
+            "id, mounted_at, removed_at, status, reason, cars:car_id(id,name), components:component_id(id,type,identifier), mounted_by_team_user_id(id,name,email), removed_by_team_user_id(id,name,email)",
           )
           .eq("team_id", ctx.teamId)
           .order("created_at", { ascending: false }),
@@ -210,7 +216,7 @@ export default function MountsPage() {
 
   const activeMounts = useMemo(
     () => mounts.filter((row) => !row.removed_at),
-    [mounts]
+    [mounts],
   );
 
   const filteredMounts = useMemo(() => {
@@ -263,7 +269,7 @@ export default function MountsPage() {
         helper: "Pronti per un nuovo montaggio",
       },
     ],
-    [activeMounts.length, mounts.length, cars.length, components.length]
+    [activeMounts.length, mounts.length, cars.length, components.length],
   );
 
   async function addMount(e: FormEvent) {
@@ -395,7 +401,7 @@ export default function MountsPage() {
       />
 
       {!canEditMounts ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
@@ -412,14 +418,16 @@ export default function MountsPage() {
         title="Lettura operativa"
         subtitle="Montaggio e smontaggio lavorano insieme in modo più chiaro."
       >
-        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+        <div className="race-info-box text-sm leading-6">
           <div className="flex items-start gap-3">
             <Info size={18} className="mt-0.5 shrink-0" />
             <div>
-              Usa <strong>Montaggio rapido</strong> per installare un componente libero su un mezzo.
-              Lo storico mostra tutto il ciclo del componente: quando è stato montato, da chi,
-              su quale auto e quando è stato smontato. Il pulsante <strong>Smonta componente</strong>
-              chiude il montaggio attivo senza alterare il resto della configurazione del modulo.
+              Usa <strong>Montaggio rapido</strong> per installare un componente
+              libero su un mezzo. Lo storico mostra tutto il ciclo del
+              componente: quando è stato montato, da chi, su quale auto e quando
+              è stato smontato. Il pulsante <strong>Smonta componente</strong>
+              chiude il montaggio attivo senza alterare il resto della
+              configurazione del modulo.
             </div>
           </div>
         </div>
@@ -433,7 +441,10 @@ export default function MountsPage() {
           >
             <form className="grid grid-cols-1 gap-5" onSubmit={addMount}>
               <div className="grid grid-cols-1 gap-4">
-                <UiField label="Auto" hint="Mezzo sul quale installare il componente">
+                <UiField
+                  label="Auto"
+                  hint="Mezzo sul quale installare il componente"
+                >
                   <select
                     value={selectedCar}
                     onChange={(e) => setSelectedCar(e.target.value)}
@@ -462,7 +473,8 @@ export default function MountsPage() {
                     <option value="">Seleziona componente</option>
                     {components.map((component) => (
                       <option key={component.id} value={component.id}>
-                        {(component.type || "Componente")} · {component.identifier || "senza codice"}
+                        {component.type || "Componente"} ·{" "}
+                        {component.identifier || "senza codice"}
                       </option>
                     ))}
                   </select>
@@ -504,7 +516,7 @@ export default function MountsPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="rounded-xl border p-3 text-sm text-neutral-700">
+                    <div className="race-mini-panel text-sm text-[var(--text-secondary)]">
                       {teamRole}
                     </div>
                   )}
@@ -568,10 +580,10 @@ export default function MountsPage() {
               ))}
             </select>
 
-            <div className="flex items-center gap-3 rounded-xl border p-3">
-              <Search size={18} className="text-neutral-400" />
+            <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.035] p-3">
+              <Search size={18} className="text-[var(--text-muted)]" />
               <input
-                className="w-full bg-transparent text-sm text-neutral-900 outline-none"
+                className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-white/30"
                 placeholder="Cerca per componente o auto"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -586,7 +598,7 @@ export default function MountsPage() {
         subtitle="Visione unificata di componenti attivi e storico smontaggi."
       >
         {loading ? (
-          <div className="text-neutral-500">Caricamento...</div>
+          <div className="text-[var(--text-secondary)]">Caricamento...</div>
         ) : filteredMounts.length === 0 ? (
           <EmptyState
             title="Nessun montaggio registrato"
@@ -595,16 +607,17 @@ export default function MountsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {filteredMounts.map((mount) => (
-              <div
-                key={mount.id}
-                className="rounded-2xl border p-4 shadow-sm"
-              >
+              <div key={mount.id} className="data-row">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-bold uppercase text-neutral-900">
-                      {(mount.components?.type || "Componente").replace(/_/g, " ")} · {mount.components?.identifier || "senza codice"}
+                    <div className="font-bold uppercase text-[var(--text-primary)]">
+                      {(mount.components?.type || "Componente").replace(
+                        /_/g,
+                        " ",
+                      )}{" "}
+                      · {mount.components?.identifier || "senza codice"}
                     </div>
-                    <div className="mt-1 text-sm text-neutral-500">
+                    <div className="mt-1 text-sm text-[var(--text-secondary)]">
                       {mount.cars?.name || "Auto non definita"}
                     </div>
                   </div>
@@ -616,38 +629,38 @@ export default function MountsPage() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border bg-neutral-50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                  <div className="race-mini-panel">
+                    <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                       Montato il
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                    <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {formatDate(mount.mounted_at)}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border bg-neutral-50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                  <div className="race-mini-panel">
+                    <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                       Operatore
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                    <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {mount.mounted_by_team_user_id?.name ||
                         mount.mounted_by_team_user_id?.email ||
                         "—"}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border bg-neutral-50 p-3 sm:col-span-2">
-                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                  <div className="race-mini-panel sm:col-span-2">
+                    <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                       Smontato il
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-neutral-900">
+                    <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {formatDate(mount.removed_at)}
                     </div>
                   </div>
                 </div>
 
                 {mount.reason ? (
-                  <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm leading-6 text-yellow-900">
+                  <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-3 text-sm leading-6 text-yellow-200">
                     {mount.reason}
                   </div>
                 ) : null}
@@ -657,7 +670,7 @@ export default function MountsPage() {
                     <button
                       type="button"
                       onClick={() => unmount(mount.id, mount.components?.id)}
-                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
+                      className="race-action-danger px-4 py-2 text-sm"
                     >
                       <Unlink size={16} className="mr-2 inline" />
                       Smonta componente

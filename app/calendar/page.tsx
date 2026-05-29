@@ -21,7 +21,14 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import InlineConfirmButton from "@/components/InlineConfirmButton";
 import StatsGrid from "@/components/StatsGrid";
-import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+import ModalShell from "@/components/ModalShell";
+import { Button } from "@/components/Button";
+import {
+  UiField,
+  uiInputClassName,
+  uiSelectClassName,
+  uiTextareaClassName,
+} from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
 
 type Feedback = {
@@ -36,7 +43,7 @@ function normalizeCircuit(value: any) {
 
 function FieldHint({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -121,7 +128,9 @@ export default function CalendarPage() {
     setFeedback(null);
     setEditing(normalizedEvent);
     setForm({
-      date: normalizedEvent?.date ? String(normalizedEvent.date).slice(0, 10) : "",
+      date: normalizedEvent?.date
+        ? String(normalizedEvent.date).slice(0, 10)
+        : "",
       name: normalizedEvent?.name || "",
       notes: normalizedEvent?.notes || "",
       circuit_id: normalizedEvent?.circuit_id?.id || "",
@@ -168,7 +177,9 @@ export default function CalendarPage() {
       await loadAll();
       setFeedback({
         type: "success",
-        message: editing ? "Evento aggiornato correttamente." : "Evento creato correttamente.",
+        message: editing
+          ? "Evento aggiornato correttamente."
+          : "Evento creato correttamente.",
       });
     } catch (error: any) {
       setFeedback({
@@ -200,11 +211,16 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
-      setCircuits((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setCircuits((prev) =>
+        [...prev, data].sort((a, b) => a.name.localeCompare(b.name)),
+      );
       setForm((prev) => ({ ...prev, circuit_id: data.id }));
       setNewCircuitName("");
       setCircuitOpen(false);
-      setFeedback({ type: "success", message: "Autodromo creato correttamente." });
+      setFeedback({
+        type: "success",
+        message: "Autodromo creato correttamente.",
+      });
     } catch (error: any) {
       setFeedback({
         type: "error",
@@ -229,7 +245,10 @@ export default function CalendarPage() {
       if (error) throw error;
 
       await loadAll();
-      setFeedback({ type: "success", message: "Evento eliminato correttamente." });
+      setFeedback({
+        type: "success",
+        message: "Evento eliminato correttamente.",
+      });
     } catch (error: any) {
       setFeedback({
         type: "error",
@@ -241,7 +260,7 @@ export default function CalendarPage() {
   const stats = useMemo(() => {
     const totalCars = events.reduce(
       (sum, event) => sum + Number(event.event_cars?.length || 0),
-      0
+      0,
     );
 
     return [
@@ -265,12 +284,11 @@ export default function CalendarPage() {
       },
       {
         label: "Prossimo evento",
-        value:
-          events.find((event) => !!event.date)?.date
-            ? new Date(
-                events.find((event) => !!event.date)?.date
-              ).toLocaleDateString("it-IT")
-            : "Non definito",
+        value: events.find((event) => !!event.date)?.date
+          ? new Date(
+              events.find((event) => !!event.date)?.date,
+            ).toLocaleDateString("it-IT")
+          : "Non definito",
         icon: <Info size={18} />,
         helper: "Prima data disponibile nel calendario attuale",
       },
@@ -320,25 +338,23 @@ export default function CalendarPage() {
         icon={<CalendarDays size={22} />}
         actions={
           canEditEvents ? (
-            <button
-              type="button"
-              onClick={() => openCreate()}
-              className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
-            >
+            <Button onClick={() => openCreate()}>
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi evento
-            </button>
+            </Button>
           ) : undefined
         }
       />
 
       {!canEditEvents ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
 
-      {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
+      {feedback ? (
+        <FormStatusBanner type={feedback.type} message={feedback.message} />
+      ) : null}
 
       <SectionCard>
         <StatsGrid items={stats} />
@@ -349,8 +365,11 @@ export default function CalendarPage() {
         subtitle="Il calendario eventi è il punto di partenza per organizzare mezzi, sessioni e lavoro tecnico del weekend."
       >
         <FieldHint>
-          Crea l&apos;evento, collega l&apos;autodromo e poi apri la scheda dedicata per assegnare i mezzi e configurare le sessioni.
-          L&apos;obiettivo di questa pagina è darti una vista chiara del calendario già registrato, senza entrare subito nel dettaglio operativo del singolo mezzo.
+          Crea l&apos;evento, collega l&apos;autodromo e poi apri la scheda
+          dedicata per assegnare i mezzi e configurare le sessioni.
+          L&apos;obiettivo di questa pagina è darti una vista chiara del
+          calendario già registrato, senza entrare subito nel dettaglio
+          operativo del singolo mezzo.
         </FieldHint>
       </SectionCard>
 
@@ -359,7 +378,7 @@ export default function CalendarPage() {
         subtitle="Apri, modifica o rimuovi i weekend già configurati."
       >
         {loading ? (
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
+          <div className="race-mini-panel text-sm text-[var(--text-secondary)]">
             Caricamento eventi...
           </div>
         ) : events.length === 0 ? (
@@ -370,14 +389,13 @@ export default function CalendarPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {events.map((event) => (
-              <div
-                key={event.id}
-                className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
-              >
+              <div key={event.id} className="data-row">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-bold text-neutral-900">{event.name}</div>
-                    <div className="mt-1 text-sm text-neutral-500">
+                    <div className="font-bold text-[var(--text-primary)]">
+                      {event.name}
+                    </div>
+                    <div className="mt-1 text-sm text-[var(--text-secondary)]">
                       {event.date
                         ? new Date(event.date).toLocaleDateString("it-IT")
                         : "Data non impostata"}{" "}
@@ -385,13 +403,13 @@ export default function CalendarPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
+                  <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
                     {event.event_cars?.length || 0} mezzi
                   </div>
                 </div>
 
                 {event.notes ? (
-                  <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm leading-6 text-yellow-900">
+                  <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-3 text-sm leading-6 text-yellow-200">
                     {event.notes}
                   </div>
                 ) : null}
@@ -401,7 +419,7 @@ export default function CalendarPage() {
                     <button
                       type="button"
                       onClick={() => openCreate(event)}
-                      className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
+                      className="race-action-secondary px-4 py-2 text-sm"
                     >
                       <Edit size={16} className="mr-2 inline" />
                       Modifica
@@ -410,7 +428,7 @@ export default function CalendarPage() {
 
                   <Link
                     href={`/calendar/${event.id}`}
-                    className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
+                    className="race-action-secondary px-4 py-2 text-sm"
                   >
                     <Wrench size={16} className="mr-2 inline" />
                     Gestisci
@@ -421,7 +439,7 @@ export default function CalendarPage() {
                       label="Elimina"
                       message="Eliminare questo evento?"
                       onConfirm={() => deleteEvent(event.id)}
-                      className="rounded-xl bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
+                      className="race-action-danger px-4 py-2 text-sm"
                       icon={<Trash2 size={16} className="mr-2 inline" />}
                     />
                   ) : null}
@@ -433,140 +451,114 @@ export default function CalendarPage() {
       </SectionCard>
 
       {open && canEditEvents ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-neutral-900">
-                {editing ? "Modifica evento" : "Nuovo evento"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-2xl border border-neutral-200 bg-white p-2 text-neutral-600 hover:bg-neutral-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UiField label="Data">
-                <input
-                  type="date"
-                  className={uiInputClassName}
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                />
-              </UiField>
-
-              <UiField label="Nome evento">
-                <input
-                  className={uiInputClassName}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Es. Test Vallelunga"
-                />
-              </UiField>
-
-              <UiField label="Autodromo">
-                <div className="flex gap-2">
-                  <select
-                    className={uiInputClassName}
-                    value={form.circuit_id}
-                    onChange={(e) => setForm({ ...form, circuit_id: e.target.value })}
-                  >
-                    <option value="">Seleziona autodromo</option>
-                    {circuits.map((circuit) => (
-                      <option key={circuit.id} value={circuit.id}>
-                        {circuit.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={() => setCircuitOpen(true)}
-                    className="rounded-2xl bg-neutral-900 px-3 py-3 text-white hover:bg-neutral-800"
-                  >
-                    <MapPinned size={18} />
-                  </button>
-                </div>
-              </UiField>
-
-              <UiField label="Note" hint="Indicazioni logistiche o tecniche utili sul weekend.">
-                <textarea
-                  className={uiTextareaClassName}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Es. test gomme, programma weekend, logistica paddock..."
-                />
-              </UiField>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
-              >
+        <ModalShell
+          title={editing ? "Modifica evento" : "Nuovo evento"}
+          subtitle="Configura weekend, autodromo e note operative."
+          onClose={() => setOpen(false)}
+          maxWidth="max-w-3xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setOpen(false)}>
                 Annulla
-              </button>
-              <button
-                type="button"
-                onClick={saveEvent}
-                disabled={saving}
-                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? "Salvataggio..." : editing ? "Aggiorna evento" : "Salva evento"}
-              </button>
-            </div>
+              </Button>
+              <Button onClick={saveEvent} disabled={saving}>
+                {saving
+                  ? "Salvataggio..."
+                  : editing
+                    ? "Aggiorna evento"
+                    : "Salva evento"}
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UiField label="Data">
+              <input
+                type="date"
+                className={uiInputClassName}
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+              />
+            </UiField>
+
+            <UiField label="Nome evento">
+              <input
+                className={uiInputClassName}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Es. Test Vallelunga"
+              />
+            </UiField>
+
+            <UiField label="Autodromo">
+              <div className="flex gap-2">
+                <select
+                  className={uiSelectClassName}
+                  value={form.circuit_id}
+                  onChange={(e) =>
+                    setForm({ ...form, circuit_id: e.target.value })
+                  }
+                >
+                  <option value="">Seleziona autodromo</option>
+                  {circuits.map((circuit) => (
+                    <option key={circuit.id} value={circuit.id}>
+                      {circuit.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setCircuitOpen(true)}
+                  className="race-action-secondary h-[46px] px-4"
+                  aria-label="Aggiungi autodromo"
+                >
+                  <MapPinned size={18} />
+                </button>
+              </div>
+            </UiField>
+
+            <UiField
+              label="Note"
+              hint="Indicazioni logistiche o tecniche utili sul weekend."
+            >
+              <textarea
+                className={uiTextareaClassName}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Es. test gomme, programma weekend, logistica paddock..."
+              />
+            </UiField>
           </div>
-        </div>
+        </ModalShell>
       ) : null}
 
       {circuitOpen && canEditEvents ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-neutral-200 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-neutral-900">Nuovo autodromo</h3>
-              <button
-                type="button"
-                onClick={() => setCircuitOpen(false)}
-                className="rounded-2xl border border-neutral-200 bg-white p-2 text-neutral-600 hover:bg-neutral-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <UiField label="Nome autodromo">
-                <input
-                  className={uiInputClassName}
-                  value={newCircuitName}
-                  onChange={(e) => setNewCircuitName(e.target.value)}
-                  placeholder="Es. Monza"
-                />
-              </UiField>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setCircuitOpen(false)}
-                className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
-              >
+        <ModalShell
+          title="Nuovo autodromo"
+          subtitle="Aggiungi un circuito alla configurazione del team."
+          onClose={() => setCircuitOpen(false)}
+          maxWidth="max-w-lg"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setCircuitOpen(false)}>
                 Annulla
-              </button>
-              <button
-                type="button"
-                onClick={saveCircuit}
-                disabled={saving}
-                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+              </Button>
+              <Button onClick={saveCircuit} disabled={saving}>
                 {saving ? "Salvataggio..." : "Salva autodromo"}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </>
+          }
+        >
+          <UiField label="Nome autodromo">
+            <input
+              className={uiInputClassName}
+              value={newCircuitName}
+              onChange={(e) => setNewCircuitName(e.target.value)}
+              placeholder="Es. Monza"
+            />
+          </UiField>
+        </ModalShell>
       ) : null}
     </div>
   );
