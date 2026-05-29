@@ -162,7 +162,7 @@ export default function Sidebar() {
       "linear-gradient(180deg, rgba(10,12,11,0.99), rgba(17,20,17,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
     borderRightColor: "rgba(255,255,255,0.1)",
     color: "#ffffff",
-    boxShadow: "18px 0 52px rgba(0,0,0,0.24)",
+    boxShadow: "18px 0 52px rgba(0,0,0,0.34)",
   };
 
   const mobileButtonStyle: CSSProperties = {
@@ -268,7 +268,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="flex-1 space-y-6 overflow-y-auto">
+          <div className="sidebar-scroll flex-1 space-y-6 overflow-y-auto pr-1">
             <div>
               <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
                 Core
@@ -297,6 +297,16 @@ export default function Sidebar() {
           </div>
 
           <div className="mt-6 space-y-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-4">
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.42)]" />
+                <div>
+                  <div className="text-sm font-extrabold text-white">Tutto operativo</div>
+                  <div className="mt-0.5 text-xs text-white/52">Sistema sincronizzato</div>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={logout}
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"

@@ -34,7 +34,7 @@ export default function PageHeader({
           <div className="min-w-0">
             {theme.brandingConfig.showLogoInHeader ? (
               <div className="mb-4 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] px-3 py-2 shadow-sm backdrop-blur">
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white/95">
+                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white/90">
                   <img
                     src={theme.headerLogoUrl || "/logo.png"}
                     alt={theme.teamName}
@@ -58,8 +58,8 @@ export default function PageHeader({
             </div>
 
             <h1
-              className={`racing-heading font-bold uppercase leading-none tracking-[0.01em] text-white ${
-                compact ? "text-[30px]" : "text-4xl md:text-[46px]"
+              className={`racing-heading font-bold uppercase leading-none tracking-[0.02em] text-white ${
+                compact ? "text-[30px]" : "text-4xl md:text-[52px]"
               }`}
             >
               {title}

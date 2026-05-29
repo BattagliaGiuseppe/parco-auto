@@ -22,13 +22,13 @@ export default function SectionCard({
               {title ? (
                 <div className="flex items-center gap-3">
                   <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)] shadow-[0_0_0_4px_rgba(250,204,21,0.14)]" />
-                  <h2 className="racing-heading text-[24px] font-bold uppercase leading-none tracking-[0.015em] text-white md:text-[28px]">
+                  <h2 className="racing-heading text-[23px] font-bold uppercase italic leading-none tracking-[0.025em] text-[var(--brand-accent)] md:text-[26px]">
                     {title}
                   </h2>
                 </div>
               ) : null}
               {subtitle ? (
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{subtitle}</p>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/62">{subtitle}</p>
               ) : null}
             </div>
             {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
