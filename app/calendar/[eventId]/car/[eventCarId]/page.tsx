@@ -70,7 +70,7 @@ function trackConditionLabel(value: string | null | undefined) {
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -88,23 +88,23 @@ function StatusChip({
 }) {
   const className =
     tone === "danger"
-      ? "bg-red-100 text-red-700"
+      ? "border-red-400/35 bg-red-400/10 text-red-200"
       : tone === "warning"
-      ? "bg-amber-100 text-amber-700"
+      ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
       : tone === "success"
-      ? "bg-emerald-100 text-emerald-700"
-      : "bg-neutral-100 text-neutral-700";
+      ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-100"
+      : "border-white/20 bg-white/[0.08] text-[var(--text-secondary)]";
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{label}</span>;
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.06em] ${className}`}>{label}</span>;
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+    <div className="race-mini-panel p-4">
+      <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>
-      <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="technical-number mt-2 text-lg font-black text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }
@@ -125,7 +125,7 @@ function ActionTile({
   return (
     <Link
       href={href}
-      className="rounded-[24px] border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--surface-muted)]"
+      className="race-card-grid p-5 transition hover:-translate-y-0.5 hover:border-[rgba(248,196,0,0.28)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div
@@ -495,7 +495,7 @@ export default function EventCarPage() {
             </Link>
             <Link
               href={`/calendar/${eventId}`}
-              className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+              className="race-action-secondary px-4 py-2"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
               Evento
@@ -591,10 +591,9 @@ export default function EventCarPage() {
                   disabled={!selectedDriver}
                   className={`w-full rounded-xl px-4 py-2 font-bold transition ${
                     selectedDriver
-                      ? ""
-                      : "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                      ? "btn-primary"
+                      : "cursor-not-allowed border border-white/10 bg-white/[0.06] text-[var(--text-muted)]"
                   }`}
-                  style={selectedDriver ? { backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" } : undefined}
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
                   Associa pilota
@@ -613,7 +612,7 @@ export default function EventCarPage() {
               assignedDrivers.map((row: any) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-sm"
+                  className="data-row p-4"
                 >
                   <div className="font-bold text-[var(--text-primary)]">
                     {row.driver_id?.first_name} {row.driver_id?.last_name}
@@ -631,7 +630,7 @@ export default function EventCarPage() {
           actions={
             <Link
               href={`/calendar/${eventId}/car/${eventCarId}/turns`}
-              className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
+              className="race-action-secondary px-4 py-2"
             >
               Apri dettaglio completo
             </Link>
@@ -662,7 +661,7 @@ export default function EventCarPage() {
                 ].filter(Boolean) as Array<{ label: string; tone: "warning" }>;
 
                 return (
-                  <div key={turn.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
+                  <div key={turn.id} className="data-row p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="text-sm font-bold text-[var(--text-primary)]">
                         {assigned?.driver_id
@@ -718,7 +717,7 @@ export default function EventCarPage() {
                   {field.field_type === "textarea" ? (
                     <textarea
                       disabled={!canEditEvents}
-                      className={`${uiTextareaClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
+                      className={`${uiTextareaClassName} ${!canEditEvents ? "opacity-70" : ""}`}
                       value={setupData[field.field_key] || ""}
                       onChange={(e) =>
                         setSetupData({ ...setupData, [field.field_key]: e.target.value })
@@ -727,7 +726,7 @@ export default function EventCarPage() {
                   ) : (
                     <input
                       disabled={!canEditEvents}
-                      className={`${uiInputClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
+                      className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
                       value={setupData[field.field_key] || ""}
                       onChange={(e) =>
                         setSetupData({ ...setupData, [field.field_key]: e.target.value })
@@ -774,7 +773,7 @@ export default function EventCarPage() {
               {checklists.map((group: any) => (
                 <div
                   key={group.id}
-                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4"
+                  className="data-row p-4"
                 >
                   <div className="font-bold text-[var(--text-primary)]">{group.name}</div>
                   <div className="mt-3 space-y-3">
@@ -789,7 +788,7 @@ export default function EventCarPage() {
                           </div>
                           <textarea
                             disabled={!canEditEvents}
-                            className={`mt-2 min-h-20 w-full rounded-xl border border-[var(--border-default)] p-3 ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : "bg-[var(--surface-card)] text-[var(--text-primary)]"}`}
+                            className={`${uiTextareaClassName} mt-2 ${!canEditEvents ? "opacity-70" : ""}`}
                             placeholder="Nota tecnica"
                             value={checkData[item.id]?.note || ""}
                             onChange={(e) =>
@@ -806,7 +805,7 @@ export default function EventCarPage() {
                         <UiField label="Esito">
                           <select
                             disabled={!canEditEvents}
-                            className={`${uiInputClassName} ${!canEditEvents ? "bg-neutral-100 text-neutral-500" : ""}`}
+                            className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
                             value={checkData[item.id]?.status || "ok"}
                             onChange={(e) =>
                               setCheckData({

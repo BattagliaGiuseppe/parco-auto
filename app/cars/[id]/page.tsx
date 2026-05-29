@@ -60,15 +60,15 @@ function getExpiryColor(date: string) {
   const expiry = new Date(date);
   const now = new Date();
 
-  if (expiry < now) return "text-red-600 font-bold";
+  if (expiry < now) return "text-red-300 font-bold";
 
   const months =
     (expiry.getFullYear() - now.getFullYear()) * 12 +
     (expiry.getMonth() - now.getMonth());
 
-  if (months > 12) return "text-green-600 font-semibold";
-  if (months > 6) return "text-yellow-500 font-semibold";
-  return "text-orange-500 font-semibold";
+  if (months > 12) return "text-emerald-300 font-semibold";
+  if (months > 6) return "text-[var(--brand-accent)] font-semibold";
+  return "text-amber-300 font-semibold";
 }
 
 function getThresholdBadge(component: CarComponent) {
@@ -79,26 +79,26 @@ function getThresholdBadge(component: CarComponent) {
   if (revision !== null && revision !== undefined && hours >= revision) {
     return {
       label: "Fuori soglia revisione",
-      className: "bg-red-100 text-red-700",
+      className: "border-red-400/35 bg-red-400/10 text-red-200",
     };
   }
 
   if (warning !== null && warning !== undefined && hours >= warning) {
     return {
       label: "In attenzione",
-      className: "bg-yellow-100 text-yellow-700",
+      className: "border-yellow-300/35 bg-yellow-300/10 text-yellow-100",
     };
   }
 
   return {
     label: "OK",
-    className: "bg-green-100 text-green-700",
+    className: "border-emerald-300/35 bg-emerald-300/10 text-emerald-100",
   };
 }
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -202,7 +202,7 @@ export default function CarDetailPage() {
   if (loading) {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
-        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+        <div className="race-card-grid px-6 py-5 text-sm text-[var(--text-secondary)]">
           Caricamento mezzo...
         </div>
       </div>
@@ -257,14 +257,14 @@ export default function CarDetailPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href={`/cars/${id}/documents`}
-              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
+              className="race-action-secondary px-4 py-2"
             >
               <FileText size={16} className="mr-2 inline" />
               Documenti
             </Link>
             <Link
               href={`/cars/${id}/print`}
-              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
+              className="race-action-secondary px-4 py-2"
             >
               <Printer size={16} className="mr-2 inline" />
               Stampa
@@ -294,7 +294,7 @@ export default function CarDetailPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <InfoCard label="Mezzo" value={car.name} />
           <InfoCard label="Telaio" value={car.chassis_number || "—"} />
-          <InfoCard label="Ore vettura" value={`${formatHours(car.hours)} h`} />
+          <InfoCard label="Ore vettura" value={formatHours(car.hours)} />
         </div>
       </SectionCard>
 
@@ -316,18 +316,18 @@ export default function CarDetailPage() {
               return (
                 <div
                   key={component.id}
-                  className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
+                  className="data-row p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-bold capitalize text-neutral-900">
+                      <h3 className="text-lg font-bold capitalize text-[var(--text-primary)]">
                         {component.type}
                       </h3>
-                      <p className="text-sm text-neutral-600">{component.identifier}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{component.identifier}</p>
                     </div>
 
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black uppercase tracking-[0.08em] ${badge.className}`}
                     >
                       {badge.label}
                     </span>
@@ -363,14 +363,14 @@ export default function CarDetailPage() {
                     </p>
                   )}
 
-                  <div className="mt-2 text-sm text-neutral-700">
+                  <div className="mt-2 text-sm text-[var(--text-secondary)]">
                     <span className="font-semibold">Ultima revisione:</span>{" "}
                     {latestRevision?.date
                       ? new Date(latestRevision.date).toLocaleDateString("it-IT")
                       : "—"}
                   </div>
 
-                  <div className="mt-1 text-sm text-neutral-700">
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">
                     <span className="font-semibold">Ultima manutenzione:</span>{" "}
                     {component.last_maintenance_date
                       ? new Date(component.last_maintenance_date).toLocaleDateString("it-IT")
@@ -378,10 +378,7 @@ export default function CarDetailPage() {
                   </div>
 
                   <div className="mt-4 flex justify-end">
-                    <Link
-                      href={`/components/${component.id}`}
-                      className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
-                    >
+                    <Link href={`/components/${component.id}`} className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm">
                       Apri componente
                     </Link>
                   </div>
@@ -397,18 +394,18 @@ export default function CarDetailPage() {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-      <div className="text-sm text-neutral-500">{label}</div>
-      <div className="mt-1 text-base font-bold text-neutral-900">{value}</div>
+    <div className="race-mini-panel min-h-[92px] p-4">
+      <div className="racing-kicker text-[var(--text-muted)]">{label}</div>
+      <div className="technical-number mt-3 text-xl font-black text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-3">
-      <span className="block text-neutral-500">{label}</span>
-      <span className="font-bold text-neutral-900">{value}</span>
+    <div className="race-mini-panel p-3">
+      <span className="block text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
+      <span className="technical-number mt-1 block font-black text-[var(--text-primary)]">{value}</span>
     </div>
   );
 }

@@ -12,10 +12,11 @@ import SectionCard from "@/components/SectionCard";
 import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import { uiInputClassName, uiTextareaClassName } from "@/components/UiField";
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -149,7 +150,7 @@ export default function CarDocumentsPage() {
         subtitle="Archivio allegati, caricamento file locale e link esterni"
         icon={<FileText size={22} />}
         actions={
-          <Link href={`/cars/${carId}`} className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50">
+          <Link href={`/cars/${carId}`} className="race-action-secondary px-4 py-2">
             <ArrowLeft size={16} className="mr-2 inline" />
             Scheda mezzo
           </Link>
@@ -179,30 +180,30 @@ export default function CarDocumentsPage() {
         >
           <div className="grid grid-cols-1 gap-3">
             <input
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+              className={uiInputClassName}
               placeholder="Titolo"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <input
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+              className={uiInputClassName}
               placeholder="Tipo documento"
               value={type}
               onChange={(e) => setType(e.target.value)}
             />
             <input
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+              className={uiInputClassName}
               placeholder="URL file esterno (opzionale)"
               value={fileUrl}
               onChange={(e) => setFileUrl(e.target.value)}
             />
             <input
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+              className={uiInputClassName}
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
             <textarea
-              className="min-h-24 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+              className={uiTextareaClassName}
               placeholder="Note"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -211,7 +212,7 @@ export default function CarDocumentsPage() {
               <button
                 onClick={addDoc}
                 disabled={saving}
-                className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-primary inline-flex items-center px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Upload size={16} className="mr-2 inline" />
                 {saving ? "Caricamento..." : "Aggiungi documento"}
@@ -226,13 +227,13 @@ export default function CarDocumentsPage() {
           ) : (
             <div className="space-y-3">
               {rows.map((row) => (
-                <div key={row.id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                  <div className="font-bold text-neutral-900">{row.title || row.type || "Documento"}</div>
-                  <div className="mt-1 text-sm text-neutral-500">
+                <div key={row.id} className="data-row p-4">
+                  <div className="font-bold text-[var(--text-primary)]">{row.title || row.type || "Documento"}</div>
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">
                     {new Date(row.uploaded_at).toLocaleString("it-IT")}
                   </div>
                   {row.notes ? (
-                    <div className="mt-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm leading-6 text-yellow-900">
+                    <div className="mt-3 rounded-2xl border border-[rgba(248,196,0,0.28)] bg-[rgba(248,196,0,0.08)] p-3 text-sm leading-6 text-yellow-100">
                       {row.notes}
                     </div>
                   ) : null}
@@ -241,7 +242,7 @@ export default function CarDocumentsPage() {
                       href={row.file_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50"
+                      className="race-action-secondary mt-3 px-4 py-2 text-sm"
                     >
                       Apri file
                     </a>

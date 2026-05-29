@@ -45,7 +45,7 @@ export default function StatsGrid({ items }: { items: StatItem[] }) {
                 </div>
               </div>
               {item.icon ? (
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] text-white/84">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] text-white/80">
                   {item.icon}
                 </span>
               ) : null}

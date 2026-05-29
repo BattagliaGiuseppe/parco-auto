@@ -218,11 +218,11 @@ function Badge({
 }) {
   const classes =
     tone === "success"
-      ? "border border-emerald-400/35 bg-emerald-400/12 text-emerald-200"
+      ? "border border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
       : tone === "warning"
-        ? "border border-amber-400/35 bg-amber-400/12 text-amber-200"
+        ? "border border-amber-400/35 bg-amber-400/10 text-amber-200"
         : tone === "danger"
-          ? "border border-red-400/35 bg-red-400/12 text-red-200"
+          ? "border border-red-400/35 bg-red-400/10 text-red-200"
           : "border border-white/15 bg-white/[0.07] text-[var(--text-secondary)]";
   return (
     <span
@@ -991,7 +991,7 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={exportEventReportCsv}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] shadow-sm transition hover:bg-white/[0.08]"
+              className="race-action-secondary inline-flex items-center gap-2 px-4 py-3 text-sm"
             >
               <Download className="h-4 w-4" />
               Esporta CSV
@@ -999,7 +999,7 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={printEventReport}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] shadow-sm transition hover:bg-white/[0.08]"
+              className="race-action-secondary inline-flex items-center gap-2 px-4 py-3 text-sm"
             >
               <Printer className="h-4 w-4" />
               Stampa report
@@ -1190,7 +1190,7 @@ export default function EventDetailPage() {
                           label="Rimuovi"
                           message="Rimuovere questo mezzo dall'evento?"
                           onConfirm={() => removeEventCar(row.id)}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                          className="race-action-danger px-4 py-2 text-sm"
                           icon={<Trash2 className="h-4 w-4" />}
                         />
                       ) : null}
@@ -1279,7 +1279,7 @@ export default function EventDetailPage() {
                         label="Elimina"
                         message="Eliminare questa sessione?"
                         onConfirm={() => removeSession(row.id)}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                        className="race-action-danger px-4 py-2 text-sm"
                         icon={<Trash2 className="h-4 w-4" />}
                       />
                     ) : null}
