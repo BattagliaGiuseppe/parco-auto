@@ -28,7 +28,7 @@ export default function SectionCard({
                 </div>
               ) : null}
               {subtitle ? (
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/62">{subtitle}</p>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{subtitle}</p>
               ) : null}
             </div>
             {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

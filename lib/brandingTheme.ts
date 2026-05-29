@@ -139,6 +139,33 @@ function getContrastText(hex: string) {
   return luminance > 0.6 ? "#111827" : "#ffffff";
 }
 
+function getHexLuminance(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function resolveDarkSurfaceToken(value: string | null | undefined, fallback: string) {
+  if (!isValidHex(value)) return fallback;
+  const normalized = normalizeHex(value, fallback);
+  return getHexLuminance(normalized) <= 0.36 ? normalized : fallback;
+}
+
+function resolveReadableTextToken(value: string | null | undefined, fallback: string) {
+  if (!isValidHex(value)) return fallback;
+  const normalized = normalizeHex(value, fallback);
+  return getHexLuminance(normalized) >= 0.58 ? normalized : fallback;
+}
+
+function resolveSubtleBorderToken(value: string | null | undefined, fallback: string) {
+  if (!value) return fallback;
+  const trimmed = value.trim();
+  if (trimmed.startsWith("rgba(") || trimmed.startsWith("rgb(")) return trimmed;
+  if (!isValidHex(trimmed)) return fallback;
+  const normalized = normalizeHex(trimmed, fallback);
+  const luminance = getHexLuminance(normalized);
+  return luminance > 0.18 && luminance < 0.75 ? normalized : fallback;
+}
+
 export const DEFAULT_BRANDING_THEME: BrandingTheme = {
   platformName: brandConfig.appName,
   platformSubtitle: brandConfig.appDescription,
@@ -153,19 +180,19 @@ export const DEFAULT_BRANDING_THEME: BrandingTheme = {
   labels: DEFAULT_LABELS,
   brandingConfig: DEFAULT_CONFIG,
   colors: {
-    primary: "#171717",
-    secondary: "#262626",
-    accent: normalizeHex(brandConfig.themeColor, "#facc15"),
-    onAccent: getContrastText(normalizeHex(brandConfig.themeColor, "#facc15")),
-    primarySoft: hexToRgba("#171717", 0.08),
-    secondarySoft: hexToRgba("#262626", 0.08),
-    accentSoft: hexToRgba(normalizeHex(brandConfig.themeColor, "#facc15"), 0.18),
-    surfacePage: "#f5f5f5",
-    surfaceCard: "#ffffff",
-    surfaceMuted: "#fafafa",
-    textPrimary: "#171717",
-    textSecondary: "#525252",
-    borderDefault: "#e5e5e5",
+    primary: "#070a0d",
+    secondary: "#111821",
+    accent: normalizeHex(brandConfig.themeColor, "#f8c400"),
+    onAccent: getContrastText(normalizeHex(brandConfig.themeColor, "#f8c400")),
+    primarySoft: hexToRgba("#f8c400", 0.1),
+    secondarySoft: hexToRgba("#94a3b8", 0.12),
+    accentSoft: hexToRgba(normalizeHex(brandConfig.themeColor, "#f8c400"), 0.18),
+    surfacePage: "#080c10",
+    surfaceCard: "#10161d",
+    surfaceMuted: "#151c24",
+    textPrimary: "#f6f7f3",
+    textSecondary: "#d8dee9",
+    borderDefault: "rgba(255,255,255,0.12)",
   },
 };
 
@@ -179,8 +206,8 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
   };
 
   const accent = normalizeHex(readString(raw?.accent_color), DEFAULT_BRANDING_THEME.colors.accent);
-  const primary = normalizeHex(readString(raw?.primary_color), DEFAULT_BRANDING_THEME.colors.primary);
-  const secondary = normalizeHex(readString(raw?.secondary_color), DEFAULT_BRANDING_THEME.colors.secondary);
+  const primary = resolveDarkSurfaceToken(readString(raw?.primary_color), DEFAULT_BRANDING_THEME.colors.primary);
+  const secondary = resolveDarkSurfaceToken(readString(raw?.secondary_color), DEFAULT_BRANDING_THEME.colors.secondary);
 
   const labels = {
     ...DEFAULT_LABELS,
@@ -233,24 +260,30 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
       primarySoft: hexToRgba(primary, 0.08),
       secondarySoft: hexToRgba(secondary, 0.08),
       accentSoft: hexToRgba(accent, 0.18),
-      surfacePage:
-        readString(raw?.theme_tokens?.surface_page, DEFAULT_BRANDING_THEME.colors.surfacePage) ||
-        DEFAULT_BRANDING_THEME.colors.surfacePage,
-      surfaceCard:
-        readString(raw?.theme_tokens?.surface_card, DEFAULT_BRANDING_THEME.colors.surfaceCard) ||
-        DEFAULT_BRANDING_THEME.colors.surfaceCard,
-      surfaceMuted:
-        readString(raw?.theme_tokens?.surface_muted, DEFAULT_BRANDING_THEME.colors.surfaceMuted) ||
-        DEFAULT_BRANDING_THEME.colors.surfaceMuted,
-      textPrimary:
-        readString(raw?.theme_tokens?.text_primary, DEFAULT_BRANDING_THEME.colors.textPrimary) ||
-        DEFAULT_BRANDING_THEME.colors.textPrimary,
-      textSecondary:
-        readString(raw?.theme_tokens?.text_secondary, DEFAULT_BRANDING_THEME.colors.textSecondary) ||
-        DEFAULT_BRANDING_THEME.colors.textSecondary,
-      borderDefault:
-        readString(raw?.theme_tokens?.border_default, DEFAULT_BRANDING_THEME.colors.borderDefault) ||
-        DEFAULT_BRANDING_THEME.colors.borderDefault,
+      surfacePage: resolveDarkSurfaceToken(
+        readString(raw?.theme_tokens?.surface_page),
+        DEFAULT_BRANDING_THEME.colors.surfacePage
+      ),
+      surfaceCard: resolveDarkSurfaceToken(
+        readString(raw?.theme_tokens?.surface_card),
+        DEFAULT_BRANDING_THEME.colors.surfaceCard
+      ),
+      surfaceMuted: resolveDarkSurfaceToken(
+        readString(raw?.theme_tokens?.surface_muted),
+        DEFAULT_BRANDING_THEME.colors.surfaceMuted
+      ),
+      textPrimary: resolveReadableTextToken(
+        readString(raw?.theme_tokens?.text_primary),
+        DEFAULT_BRANDING_THEME.colors.textPrimary
+      ),
+      textSecondary: resolveReadableTextToken(
+        readString(raw?.theme_tokens?.text_secondary),
+        DEFAULT_BRANDING_THEME.colors.textSecondary
+      ),
+      borderDefault: resolveSubtleBorderToken(
+        readString(raw?.theme_tokens?.border_default),
+        DEFAULT_BRANDING_THEME.colors.borderDefault
+      ),
     },
   };
 }
@@ -267,11 +300,22 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
   root.style.setProperty("--brand-secondary-soft", theme.colors.secondarySoft);
   root.style.setProperty("--brand-accent-soft", theme.colors.accentSoft);
   root.style.setProperty("--surface-page", theme.colors.surfacePage);
+  root.style.setProperty("--surface-page-soft", "#0b1117");
   root.style.setProperty("--surface-card", theme.colors.surfaceCard);
   root.style.setProperty("--surface-muted", theme.colors.surfaceMuted);
+  root.style.setProperty("--surface-raised", "#1a2430");
+  root.style.setProperty("--surface-track", "#263242");
+  root.style.setProperty("--surface-control", "#0b1117");
+  root.style.setProperty("--surface-control-soft", "#111a23");
+  root.style.setProperty("--surface-control-raised", "#1a2430");
   root.style.setProperty("--text-primary", theme.colors.textPrimary);
   root.style.setProperty("--text-secondary", theme.colors.textSecondary);
+  root.style.setProperty("--text-muted", "#aeb7c4");
+  root.style.setProperty("--text-on-dark", theme.colors.textPrimary);
+  root.style.setProperty("--text-on-dark-muted", "rgba(246,247,243,0.84)");
   root.style.setProperty("--border-default", theme.colors.borderDefault);
+  root.style.setProperty("--border-strong", "rgba(255,255,255,0.24)");
+  root.style.setProperty("--border-on-dark", "rgba(255,255,255,0.14)");
   root.lang = theme.language || "it";
 
   const link =

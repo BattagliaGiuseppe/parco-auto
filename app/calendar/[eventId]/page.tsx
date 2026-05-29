@@ -203,7 +203,7 @@ function safeFilename(value: string | null | undefined) {
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-3xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm leading-relaxed text-blue-800">
+    <div className="race-info-box text-sm leading-relaxed">
       {children}
     </div>
   );
@@ -218,12 +218,12 @@ function Badge({
 }) {
   const classes =
     tone === "success"
-      ? "bg-emerald-100 text-emerald-700"
+      ? "border border-emerald-400/35 bg-emerald-400/12 text-emerald-200"
       : tone === "warning"
-        ? "bg-amber-100 text-amber-700"
+        ? "border border-amber-400/35 bg-amber-400/12 text-amber-200"
         : tone === "danger"
-          ? "bg-red-100 text-red-700"
-          : "bg-neutral-100 text-[var(--text-secondary)]";
+          ? "border border-red-400/35 bg-red-400/12 text-red-200"
+          : "border border-white/15 bg-white/[0.07] text-[var(--text-secondary)]";
   return (
     <span
       className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${classes}`}
@@ -969,7 +969,7 @@ export default function EventDetailPage() {
           actions={
             <Link
               href="/calendar"
-              className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
             >
               <ArrowLeft className="h-4 w-4" />
               Eventi
@@ -1006,7 +1006,7 @@ export default function EventDetailPage() {
             </button>
             <Link
               href="/calendar"
-              className="inline-flex items-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
             >
               <ArrowLeft className="h-4 w-4" />
               Eventi
@@ -1036,9 +1036,9 @@ export default function EventDetailPage() {
           {reportChecks.map((check) => (
             <div
               key={check.label}
-              className="rounded-3xl border border-white/10 bg-white/[0.035] p-4"
+              className="race-mini-panel"
             >
-              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
+              <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                 {check.label}
               </p>
               <div className="mt-3 flex items-center justify-between gap-3">
@@ -1053,9 +1053,9 @@ export default function EventDetailPage() {
           ))}
         </div>
 
-        <div className="mt-6 overflow-x-auto rounded-3xl border border-white/10">
-          <table className="min-w-full divide-y divide-neutral-100 text-sm">
-            <thead className="bg-white/[0.045] text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+        <div className="race-table mt-6 overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/10 text-sm">
+            <thead className="text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">Mezzo</th>
                 <th className="px-4 py-3">Piloti</th>
@@ -1066,7 +1066,7 @@ export default function EventDetailPage() {
                 <th className="px-4 py-3">Best lap</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10 bg-white/[0.035]">
+            <tbody className="divide-y divide-white/10">
               {carReportRows.length === 0 ? (
                 <tr>
                   <td
@@ -1082,22 +1082,22 @@ export default function EventDetailPage() {
                     <td className="px-4 py-3 font-bold text-[var(--text-primary)]">
                       {row.eventCar.car_id?.name || "Mezzo"}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {row.assignedDrivers.length > 0
                         ? row.assignedDrivers.map(driverName).join(", ")
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {row.turnsCount}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {row.minutes}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">{row.laps}</td>
-                    <td className="px-4 py-3 text-neutral-600">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{row.laps}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {row.fuel > 0 ? `${row.fuel} L` : "—"}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {formatLapTime(row.bestLapMs)}
                     </td>
                   </tr>
@@ -1132,7 +1132,7 @@ export default function EventDetailPage() {
               type="button"
               onClick={addCar}
               disabled={!selectedCar}
-              className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-[var(--brand-accent)] px-5 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlusCircle className="h-4 w-4" />
               Aggiungi mezzo
@@ -1154,7 +1154,7 @@ export default function EventDetailPage() {
               return (
                 <div
                   key={row.id}
-                  className="rounded-3xl border border-white/10 bg-white/[0.045] p-4 shadow-sm"
+                  className="race-card-grid p-4"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -1181,7 +1181,7 @@ export default function EventDetailPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link
                         href={`/calendar/${eventId}/car/${row.id}`}
-                        className="inline-flex items-center justify-center rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                        className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
                       >
                         Apri console mezzo
                       </Link>
@@ -1240,7 +1240,7 @@ export default function EventDetailPage() {
               type="button"
               onClick={addSession}
               disabled={!sessionForm.name.trim()}
-              className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-[var(--brand-accent)] px-5 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlusCircle className="h-4 w-4" />
               Aggiungi sessione
@@ -1262,7 +1262,7 @@ export default function EventDetailPage() {
               return (
                 <div
                   key={row.id}
-                  className="rounded-3xl border border-white/10 bg-white/[0.045] p-4 shadow-sm"
+                  className="race-card-grid p-4"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1301,9 +1301,9 @@ export default function EventDetailPage() {
             description="I turni verranno mostrati qui dopo la registrazione dalle console mezzo."
           />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-white/10">
-            <table className="min-w-full divide-y divide-neutral-100 text-sm">
-              <thead className="bg-white/[0.045] text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+          <div className="race-table overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10 text-sm">
+              <thead className="text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Mezzo</th>
@@ -1314,7 +1314,7 @@ export default function EventDetailPage() {
                   <th className="px-4 py-3">Best lap</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 bg-white/[0.035]">
+              <tbody className="divide-y divide-white/10">
                 {turns.slice(0, 12).map((turn) => {
                   const eventCar = eventCarMap.get(turn.event_car_id);
                   const session = turn.event_session_id
@@ -1322,27 +1322,27 @@ export default function EventDetailPage() {
                     : null;
                   return (
                     <tr key={turn.id}>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {formatDateTime(turn.recorded_at || turn.created_at)}
                       </td>
                       <td className="px-4 py-3 font-bold text-[var(--text-primary)]">
                         {eventCar?.car_id?.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {session?.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {driverName(
                           turn.driver_id ? driverMap.get(turn.driver_id) : null,
                         )}
                       </td>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {turn.minutes || 0}
                       </td>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {turn.laps || 0}
                       </td>
-                      <td className="px-4 py-3 text-neutral-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {formatLapTime(turn.metrics?.best_lap_ms)}
                       </td>
                     </tr>
@@ -1356,7 +1356,7 @@ export default function EventDetailPage() {
 
       {event.notes ? (
         <SectionCard title="Note evento">
-          <p className="text-sm leading-relaxed text-neutral-600">
+          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
             {event.notes}
           </p>
         </SectionCard>

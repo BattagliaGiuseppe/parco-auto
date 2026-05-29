@@ -187,7 +187,7 @@ setInventory((inventoryRes.data || []) as Inventory[]);
                       </div>
                       <div className="flex items-center gap-3">
                         <StatusBadge label={hasProblems ? "Da verificare" : "Pronto"} tone={hasProblems ? "yellow" : "green"} />
-                        <Link href="/cars" className="text-sm font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Apri</Link>
+                        <Link href="/cars" className="race-action-link text-sm">Apri</Link>
                       </div>
                     </div>
                   );
@@ -227,7 +227,7 @@ setInventory((inventoryRes.data || []) as Inventory[]);
                       <div className="font-extrabold text-[var(--text-primary)]">{row.name}</div>
                       <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{formatDate(row.date)} · {row.circuit_id?.name || "Circuito da definire"}</div>
                     </div>
-                    <Link href={`/calendar/${row.id}`} className="text-sm font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Apri</Link>
+                    <Link href={`/calendar/${row.id}`} className="race-action-link text-sm">Apri</Link>
                   </div>
                 ))}
               </div>
@@ -345,7 +345,7 @@ setInventory((inventoryRes.data || []) as Inventory[]);
 
 function QuickPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="data-row bg-[var(--surface-muted)]">
+    <div className="data-row">
       <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--text-muted)]">{icon}{label}</div>
       <div className="technical-number mt-3 text-3xl font-black leading-none text-[var(--text-primary)]">{value}</div>
     </div>

@@ -35,7 +35,7 @@ export default function StatsGrid({ items }: { items: StatItem[] }) {
             <div className={`absolute left-0 top-0 z-10 h-full w-1.5 ${accentClassName[tone]}`} />
             <div className="relative z-10 flex items-start justify-between gap-3 pl-2">
               <div className="min-w-0">
-                <div className="racing-kicker text-white/48">{item.label}</div>
+                <div className="racing-kicker text-[var(--text-secondary)]">{item.label}</div>
                 <div
                   className={`technical-number mt-3 text-[38px] font-black leading-none tracking-tight ${toneClassName[tone]} ${
                     item.valueClassName || ""
@@ -51,7 +51,7 @@ export default function StatsGrid({ items }: { items: StatItem[] }) {
               ) : null}
             </div>
             {item.helper ? (
-              <div className="relative z-10 mt-3 pl-2 text-sm leading-5 text-white/62">{item.helper}</div>
+              <div className="relative z-10 mt-3 pl-2 text-sm leading-5 text-[var(--text-secondary)]">{item.helper}</div>
             ) : null}
           </div>
         );
