@@ -445,3 +445,213 @@
 .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
 .sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+
+/* Patch 4B — stronger dark-mode compatibility. Some legacy pages still use Tailwind
+   light utilities directly. These rules keep the final Dark Race Control theme coherent
+   without changing page logic. */
+body .app-chassis .bg-white,
+body .app-chassis .bg-white\/80,
+body .app-chassis .bg-white\/70,
+body .app-chassis .bg-gray-50,
+body .app-chassis .bg-gray-100,
+body .app-chassis .bg-zinc-50,
+body .app-chassis .bg-zinc-100,
+body .app-chassis .bg-slate-50,
+body .app-chassis .bg-slate-100 {
+  background: linear-gradient(180deg, rgba(16, 22, 30, 0.98), rgba(10, 15, 21, 0.98)) !important;
+  color: var(--text-primary) !important;
+}
+
+body .app-chassis .bg-neutral-50,
+body .app-chassis .bg-neutral-100,
+body .app-chassis .bg-neutral-200 {
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.94), rgba(13, 19, 26, 0.96)) !important;
+  color: var(--text-primary) !important;
+}
+
+body .app-chassis .text-black,
+body .app-chassis .text-gray-950,
+body .app-chassis .text-gray-900,
+body .app-chassis .text-gray-800,
+body .app-chassis .text-zinc-950,
+body .app-chassis .text-zinc-900,
+body .app-chassis .text-zinc-800,
+body .app-chassis .text-slate-950,
+body .app-chassis .text-slate-900,
+body .app-chassis .text-slate-800,
+body .app-chassis .text-neutral-950,
+body .app-chassis .text-neutral-900,
+body .app-chassis .text-neutral-800 {
+  color: var(--text-primary) !important;
+}
+
+body .app-chassis .text-gray-700,
+body .app-chassis .text-gray-600,
+body .app-chassis .text-zinc-700,
+body .app-chassis .text-zinc-600,
+body .app-chassis .text-slate-700,
+body .app-chassis .text-slate-600,
+body .app-chassis .text-neutral-700,
+body .app-chassis .text-neutral-600 {
+  color: var(--text-secondary) !important;
+}
+
+body .app-chassis .text-gray-500,
+body .app-chassis .text-gray-400,
+body .app-chassis .text-zinc-500,
+body .app-chassis .text-zinc-400,
+body .app-chassis .text-slate-500,
+body .app-chassis .text-slate-400,
+body .app-chassis .text-neutral-500,
+body .app-chassis .text-neutral-400 {
+  color: var(--text-muted) !important;
+}
+
+body .app-chassis .border-gray-100,
+body .app-chassis .border-gray-200,
+body .app-chassis .border-gray-300,
+body .app-chassis .border-zinc-100,
+body .app-chassis .border-zinc-200,
+body .app-chassis .border-zinc-300,
+body .app-chassis .border-slate-100,
+body .app-chassis .border-slate-200,
+body .app-chassis .border-slate-300,
+body .app-chassis .border-neutral-100,
+body .app-chassis .border-neutral-200,
+body .app-chassis .border-neutral-300 {
+  border-color: var(--border-default) !important;
+}
+
+body .app-chassis .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
+body .app-chassis .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-default) !important;
+}
+
+body .app-chassis input:not([type="checkbox"]):not([type="radio"]),
+body .app-chassis select,
+body .app-chassis textarea {
+  background-color: rgba(7, 11, 15, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.035) inset !important;
+}
+
+body .app-chassis input:not([type="checkbox"]):not([type="radio"]):focus,
+body .app-chassis select:focus,
+body .app-chassis textarea:focus {
+  border-color: var(--brand-accent) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(248, 196, 0, 0.13) !important;
+}
+
+body .app-chassis input::placeholder,
+body .app-chassis textarea::placeholder {
+  color: rgba(195, 201, 212, 0.48) !important;
+}
+
+body .app-chassis input[type="date"]::-webkit-calendar-picker-indicator,
+body .app-chassis input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body .app-chassis input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.8);
+}
+
+body .app-chassis option {
+  background: #0b1117;
+  color: var(--text-primary);
+}
+
+body .app-chassis .shadow-sm,
+body .app-chassis .shadow,
+body .app-chassis .shadow-md,
+body .app-chassis .shadow-lg,
+body .app-chassis .shadow-xl,
+body .app-chassis .shadow-2xl {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+
+body .app-chassis .hover\:bg-neutral-50:hover,
+body .app-chassis .hover\:bg-neutral-100:hover,
+body .app-chassis .hover\:bg-white:hover,
+body .app-chassis .hover\:bg-gray-50:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body .app-chassis button:disabled,
+body .app-chassis a[aria-disabled="true"] {
+  opacity: 0.55 !important;
+  color: rgba(246, 247, 243, 0.62) !important;
+}
+
+body .app-chassis .bg-yellow-50,
+body .app-chassis .bg-amber-50 {
+  background: rgba(248, 196, 0, 0.12) !important;
+  color: #ffe27a !important;
+}
+
+body .app-chassis .bg-red-50 {
+  background: rgba(255, 77, 95, 0.12) !important;
+  color: #ff9aa6 !important;
+}
+
+body .app-chassis .bg-blue-50,
+body .app-chassis .bg-sky-50 {
+  background: rgba(56, 168, 255, 0.12) !important;
+  color: #8fcbff !important;
+}
+
+body .app-chassis .bg-emerald-50,
+body .app-chassis .bg-green-50 {
+  background: rgba(25, 195, 125, 0.12) !important;
+  color: #8cf2c4 !important;
+}
+
+/* Modals and overlays should belong to the same Race Control visual system. */
+body .app-chassis .fixed.inset-0 .bg-white,
+body .app-chassis .fixed.inset-0 .rounded-3xl,
+body .app-chassis .fixed.inset-0 .rounded-\[28px\] {
+  background: linear-gradient(180deg, rgba(17, 24, 32, 0.99), rgba(11, 16, 22, 0.99)) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: var(--text-primary) !important;
+}
+
+body .app-chassis .fixed.inset-0 .bg-white h1,
+body .app-chassis .fixed.inset-0 .bg-white h2,
+body .app-chassis .fixed.inset-0 .bg-white h3,
+body .app-chassis .fixed.inset-0 .bg-white h4 {
+  color: var(--text-primary) !important;
+}
+
+body .app-chassis .fixed.inset-0 label,
+body .app-chassis .fixed.inset-0 .text-sm {
+  color: var(--text-secondary);
+}
+
+body .app-chassis .data-row {
+  color: var(--text-primary) !important;
+  background: linear-gradient(180deg, rgba(18, 25, 33, 0.98), rgba(11, 17, 24, 0.98)) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+body .app-chassis .data-row a {
+  color: rgba(246, 247, 243, 0.82) !important;
+}
+
+body .app-chassis .data-row a:hover {
+  color: var(--brand-accent) !important;
+}
+
+body .app-chassis .section-card-body {
+  background: linear-gradient(180deg, rgba(12, 18, 25, 0.98), rgba(9, 14, 20, 0.98)) !important;
+}
+
+body .app-chassis .race-section-card,
+body .app-chassis .motorsport-panel,
+body .app-chassis .card {
+  color: var(--text-primary) !important;
+}
