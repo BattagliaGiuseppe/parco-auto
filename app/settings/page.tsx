@@ -97,6 +97,7 @@ type SetupField = {
   group_name: string;
   field_type: string;
   unit: string | null;
+  options?: string[] | null;
   position: string;
   order_index: number;
   is_required: boolean;
@@ -142,6 +143,38 @@ const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
   compactHeader: false,
   printLetterheadMode: "logo_title_subtitle",
 };
+
+const DASHBOARD_WIDGET_OPTIONS = [
+  { code: "cars_ready", label: "Mezzi pronti" },
+  { code: "components_alerts", label: "Componenti critici" },
+  { code: "upcoming_events", label: "Prossimi eventi" },
+  { code: "maintenances_open", label: "Manutenzioni aperte" },
+  { code: "drivers_documents", label: "Documenti piloti" },
+  { code: "tasks_open", label: "Attività aperte" },
+  { code: "inventory_low_stock", label: "Magazzino sotto soglia" },
+] as const;
+
+function getDashboardWidgetLabel(code: string) {
+  return DASHBOARD_WIDGET_OPTIONS.find((item) => item.code === code)?.label || "Widget dashboard";
+}
+
+function normalizeSetupOptions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,;]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function optionsToText(value?: string[] | null) {
+  return normalizeSetupOptions(value).join("\n");
+}
+
 
 function SectionTabs({
   value,
@@ -219,6 +252,17 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
+      {...props}
+      className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
+        props.className || ""
+      }`.trim()}
+    />
+  );
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
       {...props}
       className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
@@ -558,6 +602,7 @@ export default function SettingsPage() {
   const [setupFields, setSetupFields] = useState<SetupField[]>([]);
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAsset, setUploadingAsset] = useState<"sidebar" | "header" | "print" | null>(null);
   const [feedback, setFeedback] = useState<{
@@ -568,6 +613,8 @@ export default function SettingsPage() {
 
   async function loadAll() {
     setLoading(true);
+    setLoadError(null);
+    setFeedback(null);
     try {
       const ctx = await getCurrentTeamContext();
       const [settingsRes, defsRes, groupsRes, itemsRes, setupRes, widgetsRes] =
@@ -600,11 +647,20 @@ export default function SettingsPage() {
             .order("order_index", { ascending: true }),
         ]);
 
-      const rawSettings = (settingsRes.data as AppSettingsRow | null) ?? buildDefaultSettings(ctx.teamId, ctx.name || "Team");
-
       if (settingsRes.error && settingsRes.error.code !== "PGRST116") {
-        console.warn("Errore caricamento app_settings:", settingsRes.error);
+        throw new Error(`Impossibile caricare le impostazioni generali: ${settingsRes.error.message}`);
       }
+
+      const criticalErrors = [defsRes.error, groupsRes.error, itemsRes.error, setupRes.error, widgetsRes.error].filter(Boolean);
+      if (criticalErrors.length > 0) {
+        throw new Error(
+          criticalErrors
+            .map((error: any) => error?.message || "Errore caricamento configurazione")
+            .join(" · ")
+        );
+      }
+
+      const rawSettings = (settingsRes.data as AppSettingsRow | null) ?? buildDefaultSettings(ctx.teamId, ctx.name || "Team");
 
       const normalizedSettings: AppSettingsRow = {
         ...rawSettings,
@@ -616,7 +672,12 @@ export default function SettingsPage() {
 
       setSettings(normalizedSettings);
       setDefinitions((defsRes.data || []) as ComponentDefinition[]);
-      setSetupFields((setupRes.data || []) as SetupField[]);
+      setSetupFields(
+        ((setupRes.data || []) as SetupField[]).map((field) => ({
+          ...field,
+          options: normalizeSetupOptions((field as any).options),
+        }))
+      );
       setWidgets((widgetsRes.data || []) as DashboardWidget[]);
 
       const groups = (groupsRes.data || []) as any[];
@@ -627,6 +688,11 @@ export default function SettingsPage() {
           items: items.filter((item) => item.checklist_id === group.id),
         }))
       );
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : "Errore caricamento impostazioni.";
+      setLoadError(message);
+      setFeedback({ type: "error", message });
     } finally {
       setLoading(false);
     }
@@ -748,6 +814,18 @@ async function uploadBrandAsset(kind: "sidebar" | "header" | "print", file: File
   setUploadingAsset(kind);
   setFeedback(null);
 
+  if (!file.type.startsWith("image/")) {
+    setUploadingAsset(null);
+    setFeedback({ type: "error", message: "Formato non valido: carica un'immagine PNG, JPG, SVG o WebP." });
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setUploadingAsset(null);
+    setFeedback({ type: "error", message: "Logo troppo pesante: usa un file sotto i 2 MB." });
+    return;
+  }
+
   try {
     const upload = await uploadTeamFile({
       file,
@@ -795,7 +873,7 @@ async function uploadBrandAsset(kind: "sidebar" | "header" | "print", file: File
 }
 
 async function saveAll() {
-    if (!settings) return;
+    if (!settings || loadError) return;
     setSaving(true);
     setFeedback(null);
 
@@ -816,11 +894,64 @@ async function saveAll() {
         },
       };
 
-      const { error: settingsError } = await supabase
-        .from("app_settings")
-        .upsert({
-          ...(settings.id ? { id: settings.id } : {}),
-          team_id: ctx.teamId,
+      const cleanDefinitions = definitions
+        .filter((row) => row.code.trim() && row.label.trim())
+        .map((row, index) => ({
+          code: row.code.trim(),
+          label: row.label.trim(),
+          category: row.category,
+          is_required: row.is_required,
+          tracks_hours: row.tracks_hours,
+          has_expiry: row.has_expiry,
+          default_expiry_years: row.has_expiry ? row.default_expiry_years || 1 : null,
+          order_index: index + 1,
+        }));
+
+      const cleanChecklists = checklists
+        .filter((group) => group.name.trim())
+        .map((group, index) => ({
+          name: group.name.trim(),
+          order_index: index + 1,
+          items: group.items
+            .filter((item) => item.label.trim())
+            .map((item, itemIndex) => ({
+              label: item.label.trim(),
+              input_type: item.input_type || "status",
+              is_required: item.is_required,
+              order_index: itemIndex + 1,
+            })),
+        }));
+
+      const cleanSetupFields = setupFields
+        .filter((field) => field.field_key.trim() && field.label.trim())
+        .map((field, index) => ({
+          field_key: field.field_key.trim(),
+          label: field.label.trim(),
+          group_name: field.group_name || "Generale",
+          field_type: field.field_type || "text",
+          unit: field.unit || null,
+          options: field.field_type === "select" ? normalizeSetupOptions(field.options) : [],
+          position: field.position || "left",
+          order_index: index + 1,
+          is_required: field.is_required,
+        }));
+
+      const cleanWidgets = widgets
+        .filter((widget) => widget.widget_code.trim())
+        .map((widget, index) => ({
+          role_scope: widget.role_scope || "all",
+          widget_code: widget.widget_code.trim(),
+          label: widget.label.trim() || getDashboardWidgetLabel(widget.widget_code),
+          is_enabled: widget.is_enabled,
+          size: widget.size || "md",
+          order_index: index + 1,
+          config: {},
+        }));
+
+      const { error } = await supabase.rpc("save_team_settings_bundle", {
+        p_team_id: ctx.teamId,
+        p_settings: {
+          id: settings.id || null,
           team_name: settings.team_name,
           team_subtitle: settings.team_subtitle,
           primary_color: normalizeHex(settings.primary_color, "#171717"),
@@ -833,122 +964,14 @@ async function saveAll() {
           modules: settings.modules,
           dashboard_layout: dashboardLayout,
           labels: settings.labels || DEFAULT_LABELS,
-        }, { onConflict: "team_id" });
+        },
+        p_component_definitions: cleanDefinitions,
+        p_checklists: cleanChecklists,
+        p_setup_fields: cleanSetupFields,
+        p_dashboard_widgets: cleanWidgets,
+      });
 
-      if (settingsError) throw settingsError;
-
-      const cleanDefinitions = definitions
-        .filter((row) => row.code.trim() && row.label.trim())
-        .map((row, index) => ({
-          team_id: ctx.teamId,
-          code: row.code.trim(),
-          label: row.label.trim(),
-          category: row.category,
-          is_required: row.is_required,
-          tracks_hours: row.tracks_hours,
-          has_expiry: row.has_expiry,
-          default_expiry_years: row.has_expiry ? row.default_expiry_years || 1 : null,
-          order_index: index + 1,
-        }));
-
-      await supabase
-        .from("team_component_definitions")
-        .delete()
-        .eq("team_id", ctx.teamId);
-
-      if (cleanDefinitions.length) {
-        const { error } = await supabase
-          .from("team_component_definitions")
-          .insert(cleanDefinitions);
-        if (error) throw error;
-      }
-
-      await supabase.from("team_checklist_items").delete().eq("team_id", ctx.teamId);
-      await supabase.from("team_checklists").delete().eq("team_id", ctx.teamId);
-
-      for (let index = 0; index < checklists.length; index++) {
-        const group = checklists[index];
-        if (!group.name.trim()) continue;
-
-        const { data: createdGroup, error: groupError } = await supabase
-          .from("team_checklists")
-          .insert([
-            {
-              team_id: ctx.teamId,
-              name: group.name.trim(),
-              order_index: index + 1,
-            },
-          ])
-          .select("*")
-          .single();
-
-        if (groupError) throw groupError;
-
-        const itemRows = group.items
-          .filter((item) => item.label.trim())
-          .map((item, itemIndex) => ({
-            team_id: ctx.teamId,
-            checklist_id: createdGroup.id,
-            label: item.label.trim(),
-            input_type: item.input_type || "status",
-            is_required: item.is_required,
-            order_index: itemIndex + 1,
-          }));
-
-        if (itemRows.length) {
-          const { error: itemError } = await supabase
-            .from("team_checklist_items")
-            .insert(itemRows);
-          if (itemError) throw itemError;
-        }
-      }
-
-      const cleanSetupFields = setupFields
-        .filter((field) => field.field_key.trim() && field.label.trim())
-        .map((field, index) => ({
-          team_id: ctx.teamId,
-          field_key: field.field_key.trim(),
-          label: field.label.trim(),
-          group_name: field.group_name || "Generale",
-          field_type: field.field_type || "text",
-          unit: field.unit || null,
-          position: field.position || "left",
-          order_index: index + 1,
-          is_required: field.is_required,
-        }));
-
-      await supabase.from("team_setup_fields").delete().eq("team_id", ctx.teamId);
-      if (cleanSetupFields.length) {
-        const { error } = await supabase
-          .from("team_setup_fields")
-          .insert(cleanSetupFields);
-        if (error) throw error;
-      }
-
-      const cleanWidgets = widgets
-        .filter((widget) => widget.widget_code.trim() && widget.label.trim())
-        .map((widget, index) => ({
-          team_id: ctx.teamId,
-          role_scope: widget.role_scope || "all",
-          widget_code: widget.widget_code.trim(),
-          label: widget.label.trim(),
-          is_enabled: widget.is_enabled,
-          size: widget.size || "md",
-          order_index: index + 1,
-          config: {},
-        }));
-
-      await supabase
-        .from("team_dashboard_widgets")
-        .delete()
-        .eq("team_id", ctx.teamId);
-
-      if (cleanWidgets.length) {
-        const { error } = await supabase
-          .from("team_dashboard_widgets")
-          .insert(cleanWidgets);
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       dispatchBrandingRefresh();
 
@@ -961,7 +984,7 @@ async function saveAll() {
       console.error(err);
       setFeedback({
         type: "error",
-        message: "Errore salvataggio impostazioni.",
+        message: "Errore salvataggio impostazioni. Verifica di aver eseguito db/settings_hardening_patch.sql.",
       });
     } finally {
       setSaving(false);
@@ -969,6 +992,18 @@ async function saveAll() {
   }
 
   const previewBranding = settings ? settings.branding || buildBrandingFromSettings(settings) : null;
+
+  if (!loading && loadError) {
+    return (
+      <PagePermissionState
+        title="Control Center"
+        subtitle="Configurazione avanzata del team"
+        icon={<Settings size={20} />}
+        state="error"
+        message={loadError}
+      />
+    );
+  }
 
   if (loading || !settings || !previewBranding) {
     return (
@@ -989,7 +1024,7 @@ async function saveAll() {
         actions={
           <button
             onClick={saveAll}
-            disabled={saving}
+            disabled={saving || !!loadError}
             className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} className="mr-2 inline" />
@@ -1501,7 +1536,7 @@ async function saveAll() {
                   },
                 ])
               }
-              className="rounded-xl bg-neutral-900 px-4 py-2 font-semibold text-white hover:bg-neutral-800"
+              className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi definizione
@@ -1665,7 +1700,7 @@ async function saveAll() {
                   { id: `temp-${Date.now()}`, name: "", order_index: prev.length + 1, items: [] },
                 ])
               }
-              className="rounded-xl bg-neutral-900 px-4 py-2 font-semibold text-white hover:bg-neutral-800"
+              className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi gruppo
@@ -1761,6 +1796,26 @@ async function saveAll() {
                   <option value="center">Centro</option>
                   <option value="right">Destra</option>
                 </Select>
+                {field.field_type === "select" ? (
+                  <div className="lg:col-span-6">
+                    <Label>Opzioni select</Label>
+                    <Textarea
+                      rows={3}
+                      value={optionsToText(field.options)}
+                      onChange={(e) =>
+                        setSetupFields((prev) =>
+                          prev.map((item, i) =>
+                            i === index ? { ...item, options: normalizeSetupOptions(e.target.value) } : item
+                          )
+                        )
+                      }
+                      placeholder={"Una opzione per riga\nSlick\nRain\nUsed"}
+                    />
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                      Le opzioni saranno disponibili nei campi setup di tipo select. Puoi scriverle una per riga oppure separate da virgola.
+                    </div>
+                  </div>
+                ) : null}
                 <button
                   onClick={() =>
                     setSetupFields((prev) => prev.filter((_, i) => i !== index))
@@ -1784,13 +1839,14 @@ async function saveAll() {
                     group_name: "Generale",
                     field_type: "text",
                     unit: null,
+                    options: [],
                     position: "left",
                     order_index: prev.length + 1,
                     is_required: false,
                   },
                 ])
               }
-              className="rounded-xl bg-neutral-900 px-4 py-2 font-semibold text-white hover:bg-neutral-800"
+              className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi campo setup
@@ -1811,17 +1867,26 @@ async function saveAll() {
                 key={widget.id}
                 className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[1fr_1.2fr_120px_120px_110px_40px]"
               >
-                <Input
+                <Select
                   value={widget.widget_code}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const nextCode = e.target.value;
                     setWidgets((prev) =>
                       prev.map((item, i) =>
-                        i === index ? { ...item, widget_code: e.target.value } : item
+                        i === index
+                          ? { ...item, widget_code: nextCode, label: item.label || getDashboardWidgetLabel(nextCode) }
+                          : item
                       )
-                    )
-                  }
-                  placeholder="Codice widget"
-                />
+                    );
+                  }}
+                >
+                  <option value="">Seleziona widget</option>
+                  {DASHBOARD_WIDGET_OPTIONS.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
                 <Input
                   value={widget.label}
                   onChange={(e) =>
@@ -1894,15 +1959,15 @@ async function saveAll() {
                   {
                     id: `temp-${Date.now()}`,
                     role_scope: "all",
-                    widget_code: "",
-                    label: "",
+                    widget_code: "cars_ready",
+                    label: getDashboardWidgetLabel("cars_ready"),
                     is_enabled: true,
                     size: "md",
                     order_index: prev.length + 1,
                   },
                 ])
               }
-              className="rounded-xl bg-neutral-900 px-4 py-2 font-semibold text-white hover:bg-neutral-800"
+              className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
               Aggiungi widget

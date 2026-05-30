@@ -84,7 +84,7 @@ function MemberStatusBadge({ active }: { active: boolean }) {
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -800,8 +800,8 @@ export default function TeamAccessPage() {
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
-                  Per far funzionare questo modulo lato database, esegui anche il file <code className="rounded border border-white/10 bg-black/30 px-1 py-0.5 text-xs text-yellow-100">db/team_access_patch.sql</code> incluso nello zip.
+                <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-4 text-sm leading-6 text-emerald-100">
+                  Permessi, ruoli e override sono gestiti in tempo reale per il team selezionato. Le modifiche hanno effetto sul prossimo caricamento della pagina dell’utente interessato.
                 </div>
               </div>
             </div>
