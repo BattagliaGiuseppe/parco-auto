@@ -73,8 +73,8 @@ function MemberStatusBadge({ active }: { active: boolean }) {
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
         active
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-neutral-200 text-neutral-700"
+          ? "border border-emerald-400/30 bg-emerald-400/12 text-emerald-200"
+          : "border border-white/10 bg-white/[0.08] text-[var(--text-secondary)]"
       }`}
     >
       {active ? "Attivo" : "Disattivo"}
@@ -390,7 +390,7 @@ export default function TeamAccessPage() {
   }
 
   if (loading) {
-    return <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">Caricamento Team & Accessi...</div>;
+    return <div className="rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-6 py-5 text-sm text-[var(--text-secondary)] shadow-[var(--shadow-card)]">Caricamento Team & Accessi...</div>;
   }
 
   if (!ctx || !settings) {
@@ -420,7 +420,7 @@ export default function TeamAccessPage() {
         actions={
           <button
             onClick={() => void loadAll(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:border-[var(--brand-accent)]/50 hover:bg-white/[0.1]"
           >
             {reloading ? <Loader2 size={16} className="animate-spin" /> : <CopyPlus size={16} />}
             Aggiorna dati
@@ -452,27 +452,27 @@ export default function TeamAccessPage() {
         subtitle="Contesto operativo del workspace corrente"
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-neutral-50 p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Team</div>
-            <div className="mt-2 text-lg font-bold text-neutral-900">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Team</div>
+            <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
               {settings.team_name || "Team senza nome"}
             </div>
-            <div className="mt-1 text-sm text-neutral-500">
+            <div className="mt-1 text-sm text-[var(--text-secondary)]">
               {settings.team_subtitle || brandConfig.defaultTeamSubtitle}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-neutral-50 p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Tuo ruolo</div>
-            <div className="mt-2 text-lg font-bold text-neutral-900">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Tuo ruolo</div>
+            <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
               {TEAM_ROLE_LABELS[ctx.role as TeamRole] || ctx.role}
             </div>
-            <div className="mt-1 text-sm text-neutral-500">Gestione team corrente</div>
+            <div className="mt-1 text-sm text-[var(--text-secondary)]">Gestione team corrente</div>
           </div>
 
-          <div className="rounded-2xl bg-neutral-50 p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">Nota operativa</div>
-            <div className="mt-2 text-sm leading-6 text-neutral-700">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Nota operativa</div>
+            <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
               Questo modulo gestisce membri già collegati al team. Per creare inviti automatici via email servirà un passo successivo dedicato.
             </div>
           </div>
@@ -513,20 +513,20 @@ export default function TeamAccessPage() {
                   return (
                     <div
                       key={member.id}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                      className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner"
                     >
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-base font-bold text-neutral-900">
+                            <div className="text-base font-bold text-[var(--text-primary)]">
                               {member.name || member.email || "Utente senza nome"}
                             </div>
                             <MemberStatusBadge active={draft.is_active} />
                           </div>
-                          <div className="mt-1 text-sm text-neutral-500 break-all">
+                          <div className="mt-1 text-sm text-[var(--text-secondary)] break-all">
                             {member.email || "Email non disponibile"}
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-4 text-xs text-neutral-500">
+                          <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
                             <span>ID membro: {member.id}</span>
                             <span>Creato: {formatDate(member.created_at)}</span>
                             {member.id === ctx.teamUserId ? <span>Account corrente</span> : null}
@@ -534,14 +534,14 @@ export default function TeamAccessPage() {
                         </div>
 
                         <div className="grid w-full gap-3 md:grid-cols-3 xl:w-auto xl:min-w-[520px]">
-                          <label className="text-sm font-semibold text-neutral-700">
+                          <label className="text-sm font-semibold text-[var(--text-secondary)]">
                             <div className="mb-1">Ruolo</div>
                             <select
                               value={draft.role}
                               onChange={(event) =>
                                 patchMemberDraft(member.id, { role: event.target.value })
                               }
-                              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                              className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                             >
                               {TEAM_ROLES.map((role) => (
                                 <option key={role} value={role}>
@@ -551,7 +551,7 @@ export default function TeamAccessPage() {
                             </select>
                           </label>
 
-                          <label className="text-sm font-semibold text-neutral-700">
+                          <label className="text-sm font-semibold text-[var(--text-secondary)]">
                             <div className="mb-1">Stato</div>
                             <select
                               value={draft.is_active ? "active" : "inactive"}
@@ -560,7 +560,7 @@ export default function TeamAccessPage() {
                                   is_active: event.target.value === "active",
                                 })
                               }
-                              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                              className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                             >
                               <option value="active">Attivo</option>
                               <option value="inactive">Disattivo</option>
@@ -581,7 +581,7 @@ export default function TeamAccessPage() {
                       </div>
 
                       {isLastOwner ? (
-                        <div className="mt-3 rounded-xl bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                        <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
                           Questo è l&apos;ultimo owner attivo del team: non può essere disattivato né retrocesso finché non esiste un altro owner attivo.
                         </div>
                       ) : null}
@@ -605,7 +605,7 @@ export default function TeamAccessPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                    <tr className="border-b border-white/10 text-left text-[var(--text-muted)]">
                       <th className="px-3 py-3 font-semibold">Permesso</th>
                       {TEAM_ROLES.map((role) => (
                         <th key={role} className="px-3 py-3 font-semibold">
@@ -616,10 +616,10 @@ export default function TeamAccessPage() {
                   </thead>
                   <tbody>
                     {permissionCatalog.map((permission) => (
-                      <tr key={permission.code} className="border-b border-neutral-100 align-top">
+                      <tr key={permission.code} className="border-b border-white/10 align-top hover:bg-white/[0.035]">
                         <td className="px-3 py-3">
-                          <div className="font-semibold text-neutral-900">{permission.label || permission.code}</div>
-                          <div className="mt-1 text-xs text-neutral-500">{permission.description || permission.code}</div>
+                          <div className="font-semibold text-[var(--text-primary)]">{permission.label || permission.code}</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">{permission.description || permission.code}</div>
                         </td>
                         {TEAM_ROLES.map((role) => {
                           const enabled = rolePermissionMap[role]?.has(permission.code) ?? false;
@@ -628,8 +628,8 @@ export default function TeamAccessPage() {
                               <span
                                 className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                                   enabled
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-neutral-200 text-neutral-600"
+                                    ? "border border-emerald-400/30 bg-emerald-400/12 text-emerald-200"
+                                    : "border border-white/10 bg-white/[0.08] text-[var(--text-muted)]"
                                 }`}
                               >
                                 {enabled ? "Attivo" : "No"}
@@ -652,12 +652,12 @@ export default function TeamAccessPage() {
             <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <label className="text-sm font-semibold text-neutral-700">
+                  <label className="text-sm font-semibold text-[var(--text-secondary)]">
                     <div className="mb-1">Membro</div>
                     <select
                       value={selectedMemberId}
                       onChange={(event) => setSelectedMemberId(event.target.value)}
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                      className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                     >
                       {members.map((member) => (
                         <option key={member.id} value={member.id}>
@@ -667,12 +667,12 @@ export default function TeamAccessPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm font-semibold text-neutral-700">
+                  <label className="text-sm font-semibold text-[var(--text-secondary)]">
                     <div className="mb-1">Permesso</div>
                     <select
                       value={selectedPermissionCode}
                       onChange={(event) => setSelectedPermissionCode(event.target.value)}
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                      className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                     >
                       {permissionCatalog.map((permission) => (
                         <option key={permission.code} value={permission.code}>
@@ -682,14 +682,14 @@ export default function TeamAccessPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm font-semibold text-neutral-700">
+                  <label className="text-sm font-semibold text-[var(--text-secondary)]">
                     <div className="mb-1">Azione</div>
                     <select
                       value={selectedOverrideMode}
                       onChange={(event) =>
                         setSelectedOverrideMode(event.target.value as "allow" | "deny")
                       }
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                      className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                     >
                       {OVERRIDE_MODES.map((mode) => (
                         <option key={mode.value} value={mode.value}>
@@ -710,7 +710,7 @@ export default function TeamAccessPage() {
                     Salva override
                   </button>
 
-                  <div className="text-sm text-neutral-500">
+                  <div className="text-sm text-[var(--text-secondary)]">
                     Gli override restano associati al membro selezionato anche se il ruolo cambia.
                   </div>
                 </div>
@@ -731,13 +731,13 @@ export default function TeamAccessPage() {
                       return (
                         <div
                           key={override.id || `${override.team_user_id}-${override.permission_code}`}
-                          className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:flex-row md:items-center md:justify-between"
+                          className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner md:flex-row md:items-center md:justify-between"
                         >
                           <div>
-                            <div className="font-semibold text-neutral-900">
+                            <div className="font-semibold text-[var(--text-primary)]">
                               {permission?.label || override.permission_code}
                             </div>
-                            <div className="mt-1 text-xs text-neutral-500">
+                            <div className="mt-1 text-xs text-[var(--text-muted)]">
                               {override.permission_code}
                             </div>
                           </div>
@@ -746,8 +746,8 @@ export default function TeamAccessPage() {
                             <span
                               className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                                 override.is_allowed
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-red-100 text-red-700"
+                                  ? "border border-emerald-400/30 bg-emerald-400/12 text-emerald-200"
+                                  : "border border-red-400/30 bg-red-500/12 text-red-200"
                               }`}
                             >
                               {override.is_allowed ? "Consentito" : "Negato"}
@@ -756,7 +756,7 @@ export default function TeamAccessPage() {
                             <button
                               onClick={() => void deleteOverride(override.id)}
                               disabled={isDeleting}
-                              className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:border-red-400/40 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               Rimuovi
@@ -769,15 +769,15 @@ export default function TeamAccessPage() {
                 )}
               </div>
 
-              <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+                  <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
                     Permessi effettivi membro
                   </div>
-                  <div className="mt-2 text-lg font-bold text-neutral-900">
+                  <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
                     {selectedMember?.name || selectedMember?.email || "Seleziona un membro"}
                   </div>
-                  <div className="mt-1 text-sm text-neutral-500">
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">
                     Ruolo base: {selectedMember ? TEAM_ROLE_LABELS[selectedMember.role as TeamRole] || selectedMember.role : "—"}
                   </div>
                 </div>
@@ -792,7 +792,7 @@ export default function TeamAccessPage() {
                     {selectedMemberEffectivePermissions.map((code) => (
                       <span
                         key={code}
-                        className="inline-flex rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800"
+                        className="inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-100"
                       >
                         {code}
                       </span>
@@ -800,8 +800,8 @@ export default function TeamAccessPage() {
                   </div>
                 )}
 
-                <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-neutral-600">
-                  Per far funzionare questo modulo lato database, esegui anche il file <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">db/team_access_patch.sql</code> incluso nello zip.
+                <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+                  Per far funzionare questo modulo lato database, esegui anche il file <code className="rounded border border-white/10 bg-black/30 px-1 py-0.5 text-xs text-yellow-100">db/team_access_patch.sql</code> incluso nello zip.
                 </div>
               </div>
             </div>
@@ -811,7 +811,7 @@ export default function TeamAccessPage() {
             title="Nota prodotto"
             subtitle="Per il prossimo step commerciale"
           >
-            <div className="flex items-start gap-3 rounded-2xl bg-neutral-50 p-4 text-sm leading-6 text-neutral-700">
+            <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner text-sm leading-6 text-[var(--text-secondary)]">
               <UserX className="mt-0.5 shrink-0" size={18} />
               <div>
                 Il modulo attuale copre gestione membri, ruoli e override. Il passo successivo naturale per renderlo ancora più vendibile è aggiungere inviti email e onboarding guidato dei nuovi membri.
