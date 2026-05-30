@@ -193,7 +193,7 @@ export default function MaintenancesPage() {
     for (const m of filteredMaintenances) {
       const label = m.car_id?.name || "Senza mezzo";
       const key = m.car_id?.id || "__no_car";
-      const group = groups.get(key) || { key, label, rows: [] };
+      const group = groups.get(key) || { key, label, rows: [] as any[] };
       group.rows.push(m);
       groups.set(key, group);
     }

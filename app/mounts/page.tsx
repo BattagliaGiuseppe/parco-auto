@@ -247,7 +247,7 @@ export default function MountsPage() {
     for (const mount of filteredMounts) {
       const label = mount.cars?.name || "Auto non definita";
       const key = mount.cars?.id || "__no_car";
-      const group = groups.get(key) || { key, label, rows: [] };
+      const group = groups.get(key) || { key, label, rows: [] as MountRow[] };
       group.rows.push(mount);
       groups.set(key, group);
     }

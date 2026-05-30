@@ -225,7 +225,7 @@ export default function ComponentsPage() {
     for (const row of filtered) {
       const label = normalizeCarName(row.car) || "Componenti non montati";
       const key = row.car_id || "__unmounted";
-      const group = groups.get(key) || { key, label, rows: [] };
+      const group = groups.get(key) || { key, label, rows: [] as ComponentRow[] };
       group.rows.push(row);
       groups.set(key, group);
     }
