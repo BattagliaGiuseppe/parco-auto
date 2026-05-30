@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -287,6 +288,7 @@ async function copyToClipboard(value: string) {
 }
 
 export default function AttendancePage() {
+  const router = useRouter();
   const access = usePermissionAccess();
   const [viewMode, setViewMode] = usePersistedViewMode("parcoauto.attendance.viewMode", "compact");
 
@@ -351,11 +353,12 @@ export default function AttendancePage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
 
-  const canView = access.hasPermission("attendance.view", ["owner", "admin", "engineer", "mechanic", "viewer"]);
+  const isAttendanceAdmin = access.ctx?.role === "owner" || access.ctx?.role === "admin" || access.hasPermission("attendance.manage", ["owner", "admin"]);
+  const canView = isAttendanceAdmin && access.hasPermission("attendance.view", ["owner", "admin"]);
   const canClockSelf = access.hasPermission("attendance.clock_self", ["owner", "admin", "engineer", "mechanic", "viewer"]);
-  const canManage = access.hasPermission("attendance.manage", ["owner", "admin"]);
-  const canExport = access.hasPermission("attendance.export", ["owner", "admin"]);
-  const canKiosk = access.hasPermission("attendance.kiosk", ["owner", "admin"]);
+  const canManage = isAttendanceAdmin && access.hasPermission("attendance.manage", ["owner", "admin"]);
+  const canExport = isAttendanceAdmin && access.hasPermission("attendance.export", ["owner", "admin"]);
+  const canKiosk = isAttendanceAdmin && access.hasPermission("attendance.kiosk", ["owner", "admin"]);
 
   const activeRecords = useMemo(() => records.filter((row) => !row.check_out_at), [records]);
   const activeStaffIds = useMemo(() => new Set(activeRecords.map((row) => row.staff_member_id)), [activeRecords]);
@@ -467,6 +470,12 @@ export default function AttendancePage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!access.loading && access.ctx && !canView && canClockSelf) {
+      router.replace("/attendance/quick");
+    }
+  }, [access.loading, access.ctx?.teamId, canView, canClockSelf, router]);
 
   useEffect(() => {
     if (!access.loading && access.ctx && canView) {
@@ -834,7 +843,7 @@ export default function AttendancePage() {
         subtitle="Timbrature e presenza giornaliera del team"
         icon={<UsersRound size={22} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo presenze."
+        message="Il modulo completo Presenze è riservato ad owner/admin. Per timbrare usa la pagina Timbratura rapida."
       />
     );
   }

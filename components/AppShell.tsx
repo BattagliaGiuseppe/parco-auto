@@ -13,6 +13,7 @@ import {
 } from "@/lib/teamContext";
 
 const publicRoutes = new Set(["/login", "/onboarding", "/accept-invite"]);
+const standaloneRoutes = new Set(["/attendance/quick", "/attendance/kiosk"]);
 
 type AccessStatus =
   | "loading"
@@ -288,7 +289,10 @@ export default function AppShell({
   }
 
   const showShell =
-    isAuthenticated && accessStatus === "ready" && !publicRoutes.has(pathname);
+    isAuthenticated &&
+    accessStatus === "ready" &&
+    !publicRoutes.has(pathname) &&
+    !standaloneRoutes.has(pathname);
 
   if (!showShell) {
     return <>{children}</>;
