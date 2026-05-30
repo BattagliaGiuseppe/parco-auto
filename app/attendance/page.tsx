@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   CalendarDays,
+  CalendarRange,
   CheckCircle2,
   Clock3,
   Edit3,
@@ -182,6 +183,36 @@ function startOfTodayIso() {
   return d.toISOString();
 }
 
+function getCurrentMonthValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthBounds(monthValue: string) {
+  const [yearRaw, monthRaw] = monthValue.split("-").map(Number);
+  const fallback = new Date();
+  const year = Number.isFinite(yearRaw) ? yearRaw : fallback.getFullYear();
+  const monthIndex = Number.isFinite(monthRaw) ? monthRaw - 1 : fallback.getMonth();
+  const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const end = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+  return { start, end };
+}
+
+function formatMonthLabel(monthValue: string) {
+  const { start } = getMonthBounds(monthValue);
+  return start.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+}
+
+function buildMonthOptions(count = 18) {
+  const base = new Date();
+  base.setDate(1);
+  return Array.from({ length: count }, (_, index) => {
+    const d = new Date(base.getFullYear(), base.getMonth() - index, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { value, label: d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }) };
+  });
+}
+
 function toDatetimeLocal(value?: string | null) {
   const d = value ? new Date(value) : new Date();
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -257,6 +288,12 @@ export default function AttendancePage() {
     note: "",
   });
   const [savingReset, setSavingReset] = useState(false);
+
+  const [detailMember, setDetailMember] = useState<StaffMember | null>(null);
+  const [detailMonth, setDetailMonth] = useState(getCurrentMonthValue());
+  const [detailRecords, setDetailRecords] = useState<AttendanceRecord[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   const canView = access.hasPermission("attendance.view", ["owner", "admin", "engineer", "mechanic", "viewer"]);
   const canClockSelf = access.hasPermission("attendance.clock_self", ["owner", "admin", "engineer", "mechanic", "viewer"]);
@@ -414,6 +451,9 @@ export default function AttendancePage() {
     () => filteredStaff.map((member) => ({ member, summary: summaryByStaffId.get(member.id) || null })),
     [filteredStaff, summaryByStaffId]
   );
+
+  const monthOptions = useMemo(() => buildMonthOptions(18), []);
+  const detailSummary = useMemo(() => buildMemberMonthSummary(detailRecords), [detailRecords]);
 
   async function clockIn() {
     if (!access.ctx || !canClockSelf) return;
@@ -635,6 +675,53 @@ export default function AttendancePage() {
     }
   }
 
+  function openMemberDetail(member: StaffMember) {
+    setDetailMember(member);
+    setDetailMonth(getCurrentMonthValue());
+    setDetailError("");
+  }
+
+  async function loadMemberDetailRecords(member: StaffMember, monthValue: string) {
+    if (!access.ctx) return;
+    const { start, end } = getMonthBounds(monthValue);
+    setDetailLoading(true);
+    setDetailError("");
+
+    try {
+      const { data, error: recordsError } = await supabase
+        .from("attendance_records")
+        .select(`
+          *,
+          staff_member:staff_member_id(*),
+          event:event_id(id,name,date)
+        `)
+        .eq("team_id", access.ctx.teamId)
+        .eq("staff_member_id", member.id)
+        .gte("check_in_at", start.toISOString())
+        .lt("check_in_at", end.toISOString())
+        .order("check_in_at", { ascending: true });
+
+      if (recordsError) throw recordsError;
+
+      setDetailRecords(((data || []) as any[]).map((row) => ({
+        ...row,
+        staff_member: normalizeRelation<StaffMember>(row.staff_member),
+        event: normalizeRelation<EventOption>(row.event),
+      })));
+    } catch (err: any) {
+      setDetailError(err.message || "Errore durante il caricamento della scheda membro.");
+      setDetailRecords([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (detailMember && access.ctx) {
+      void loadMemberDetailRecords(detailMember, detailMonth);
+    }
+  }, [detailMember?.id, detailMonth, access.ctx?.teamId]);
+
   if (access.loading) {
     return <PagePermissionState title="Presenze" subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="loading" />;
   }
@@ -752,6 +839,7 @@ export default function AttendancePage() {
                   onAdminClock={(mode) => openAdminClockModal(member, mode)}
                   onEditRecord={latestRecord ? () => openEditRecordModal(latestRecord) : undefined}
                   onReset={() => openResetModal(member)}
+                  onOpenDetail={() => openMemberDetail(member)}
                 />
               );
             })}
@@ -801,6 +889,7 @@ export default function AttendancePage() {
                       canManage={canManage}
                       onAdminClock={(mode) => openAdminClockModal(member, mode)}
                       onEditRecord={latestRecord ? () => openEditRecordModal(latestRecord) : undefined}
+                      onOpenDetail={() => openMemberDetail(member)}
                     />
                   );
                 })
@@ -951,6 +1040,67 @@ export default function AttendancePage() {
         </ModalShell>
       ) : null}
 
+      {detailMember ? (
+        <ModalShell
+          title={`Scheda presenze · ${getStaffLabel(detailMember)}`}
+          subtitle="Elenco mensile dei giorni lavorati con entrate, uscite, ore, luogo, evento e note."
+          maxWidth="max-w-6xl"
+          onClose={() => setDetailMember(null)}
+          footer={
+            <>
+              {canManage ? (
+                <>
+                  <Button variant="secondary" onClick={() => openAdminClockModal(detailMember, activeStaffIds.has(detailMember.id) ? "out" : "in")}>
+                    {activeStaffIds.has(detailMember.id) ? "Registra uscita" : "Registra entrata"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => openResetModal(detailMember)}>Azzera contatore</Button>
+                </>
+              ) : null}
+              <Button onClick={() => setDetailMember(null)}>Chiudi</Button>
+            </>
+          }
+        >
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_240px] lg:items-end">
+              <div className="race-card-grid p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge label={activeStaffIds.has(detailMember.id) ? "Presente" : "Assente"} tone={activeStaffIds.has(detailMember.id) ? "green" : "neutral"} />
+                  {detailMember.role_label ? <StatusBadge label={detailMember.role_label} tone="blue" /> : null}
+                </div>
+                <div className="mt-3 text-xl font-black text-[var(--text-primary)]">{getStaffLabel(detailMember)}</div>
+                <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                  {[detailMember.email, detailMember.phone].filter(Boolean).join(" · ") || "Nessun contatto salvato"}
+                </div>
+              </div>
+              <UiField label="Mese da consultare">
+                <select className={uiSelectClassName} value={detailMonth} onChange={(event) => setDetailMonth(event.target.value)}>
+                  {monthOptions.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
+                </select>
+              </UiField>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <MiniInfo icon={<CalendarRange size={15} />} label="Mese" value={formatMonthLabel(detailMonth)} />
+              <MiniInfo icon={<TimerReset size={15} />} label="Ore mese" value={formatDuration(detailSummary.totalMinutes)} />
+              <MiniInfo icon={<CalendarDays size={15} />} label="Giorni" value={String(detailSummary.daysWorked)} />
+              <MiniInfo icon={<Clock3 size={15} />} label="Timbrature" value={String(detailRecords.length)} />
+            </div>
+
+            {detailError ? (
+              <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-200">{detailError}</div>
+            ) : null}
+
+            {detailLoading ? (
+              <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento dettaglio mensile...</div>
+            ) : detailRecords.length === 0 ? (
+              <EmptyState title="Nessuna timbratura nel mese" description="Non risultano entrate o uscite per il mese selezionato." />
+            ) : (
+              <MemberMonthRecords records={detailRecords} canManage={canManage} onEdit={openEditRecordModal} />
+            )}
+          </div>
+        </ModalShell>
+      ) : null}
+
       {resetModalOpen ? (
         <ModalShell
           title="Azzera contatore periodo"
@@ -1032,6 +1182,7 @@ function StaffStatsRow({
   onAdminClock,
   onEditRecord,
   onReset,
+  onOpenDetail,
 }: {
   member: StaffMember;
   summary: AttendanceSummary | null;
@@ -1041,6 +1192,7 @@ function StaffStatsRow({
   onAdminClock: (mode: AdminClockMode) => void;
   onEditRecord?: () => void;
   onReset: () => void;
+  onOpenDetail: () => void;
 }) {
   return (
     <div className="data-row grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.85fr_0.85fr_0.75fr_1.25fr] xl:items-center">
@@ -1062,6 +1214,7 @@ function StaffStatsRow({
           Ultimo reset: <span className="text-[var(--text-secondary)]">{formatDateTime(summary?.last_reset_at)}</span>
         </div>
         <div className="flex flex-wrap gap-2 xl:justify-end">
+          <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}>Dettaglio</Button>
           {canManage ? (
             <>
               <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita" : "Entrata"}</Button>
@@ -1089,7 +1242,7 @@ function MetricBlock({ label, value, tone }: { label: string; value: string; ton
   );
 }
 
-function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord }: { staff: StaffMember; activeRecord: AttendanceRecord | null; canManage: boolean; onAdminClock: (mode: AdminClockMode) => void; onEditRecord?: () => void }) {
+function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord, onOpenDetail }: { staff: StaffMember; activeRecord: AttendanceRecord | null; canManage: boolean; onAdminClock: (mode: AdminClockMode) => void; onEditRecord?: () => void; onOpenDetail: () => void }) {
   return (
     <div className="data-row flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
@@ -1106,16 +1259,100 @@ function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord }
         <MiniInfo icon={<LogIn size={15} />} label="Entrata" value={activeRecord ? formatTime(activeRecord.check_in_at) : "—"} />
         <MiniInfo icon={<Clock3 size={15} />} label="Durata" value={activeRecord ? formatDuration(minutesBetween(activeRecord.check_in_at)) : "—"} />
       </div>
-      {canManage ? (
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita admin" : "Entrata admin"}</Button>
-          <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}>Modifica</Button>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap gap-2 lg:justify-end">
+        <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}>Dettaglio</Button>
+        {canManage ? (
+          <>
+            <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita admin" : "Entrata admin"}</Button>
+            <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}>Modifica</Button>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
 
+
+function buildMemberMonthSummary(records: AttendanceRecord[]) {
+  const days = new Set<string>();
+  let totalMinutes = 0;
+  for (const record of records) {
+    days.add(new Date(record.check_in_at).toISOString().slice(0, 10));
+    totalMinutes += minutesBetween(record.check_in_at, record.check_out_at);
+  }
+  return { totalMinutes, daysWorked: days.size };
+}
+
+function groupRecordsByDay(records: AttendanceRecord[]) {
+  const groups = new Map<string, { key: string; label: string; records: AttendanceRecord[]; minutes: number }>();
+  for (const record of records) {
+    const d = new Date(record.check_in_at);
+    const key = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" });
+    const group = groups.get(key) || { key, label, records: [], minutes: 0 };
+    group.records.push(record);
+    group.minutes += minutesBetween(record.check_in_at, record.check_out_at);
+    groups.set(key, group);
+  }
+  return Array.from(groups.values()).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function MemberMonthRecords({ records, canManage, onEdit }: { records: AttendanceRecord[]; canManage: boolean; onEdit: (record: AttendanceRecord) => void }) {
+  const grouped = groupRecordsByDay(records);
+
+  return (
+    <div className="space-y-4">
+      {grouped.map((day) => (
+        <div key={day.key} className="race-card-grid overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3">
+            <div>
+              <div className="text-sm font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">{day.label}</div>
+              <div className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{day.records.length} timbrature</div>
+            </div>
+            <div className="technical-number text-lg font-black text-blue-300">{formatDuration(day.minutes)}</div>
+          </div>
+          <div className="divide-y divide-white/10">
+            {day.records.map((record) => {
+              const isOpen = !record.check_out_at;
+              return (
+                <div key={record.id} className="grid grid-cols-1 gap-3 px-4 py-4 lg:grid-cols-[0.95fr_0.95fr_0.7fr_1.1fr_auto] lg:items-center">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Entrata</div>
+                    <div className="mt-1 flex items-center gap-2 text-sm font-black text-emerald-200"><LogIn size={14} />{formatTime(record.check_in_at)}</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">{getLocationLabel(record.check_in_location_label)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Uscita</div>
+                    <div className={`mt-1 flex items-center gap-2 text-sm font-black ${isOpen ? "text-amber-200" : "text-red-200"}`}><LogOut size={14} />{formatTime(record.check_out_at)}</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">{record.check_out_at ? getLocationLabel(record.check_out_location_label) : "Timbratura aperta"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Ore</div>
+                    <div className="technical-number mt-1 text-base font-black text-blue-300">{formatDuration(minutesBetween(record.check_in_at, record.check_out_at))}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Evento / note</div>
+                    <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{record.event?.name || "Nessun evento"}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{[record.check_in_note, record.check_out_note].filter(Boolean).join(" · ") || "Nessuna nota"}</div>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <StatusBadge label={isOpen ? "Aperta" : "Chiusa"} tone={isOpen ? "green" : "neutral"} />
+                    {canManage ? (
+                      <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={() => onEdit(record)}>
+                        <Edit3 size={13} className="mr-1.5" />
+                        Modifica
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 function AttendanceRecordCard({ record, canManage, onEdit }: { record: AttendanceRecord; canManage: boolean; onEdit: () => void }) {
   const isOpen = !record.check_out_at;
   return (
