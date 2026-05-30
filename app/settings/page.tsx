@@ -120,6 +120,7 @@ const DEFAULT_MODULES = {
   documents: true,
   mounts: true,
   tasks: true,
+  attendance: true,
 };
 
 const DEFAULT_LABELS = {
