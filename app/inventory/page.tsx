@@ -31,6 +31,8 @@ import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 
 type InventoryItem = {
   id: string;
@@ -950,6 +952,7 @@ export default function InventoryPage() {
   const [movementHistoryLoading, setMovementHistoryLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "reserved" | "withPhoto" | "withoutPhoto">("all");
+  const [viewMode, setViewMode] = usePersistedViewMode("inventory-view-mode");
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [imageUploadingId, setImageUploadingId] = useState<string | null>(null);
@@ -2183,7 +2186,7 @@ export default function InventoryPage() {
         title="Articoli a magazzino"
         subtitle="Consulta disponibilità, soglie minime, codici e materiali impegnati."
       >
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]">
+        <div className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px_auto] xl:items-center">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -2201,6 +2204,9 @@ export default function InventoryPage() {
             <option value="withPhoto">Con foto</option>
             <option value="withoutPhoto">Senza foto</option>
           </select>
+          <div className="xl:justify-self-end">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
         {loading ? (
           <div className="text-neutral-500">Caricamento magazzino...</div>
@@ -2234,6 +2240,48 @@ export default function InventoryPage() {
             title="Nessun articolo trovato"
             description="Modifica ricerca o filtro per visualizzare altri articoli."
           />
+        ) : viewMode === "cards" ? (
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {filteredRows.map((row) => {
+              const quantity = Number(row.quantity ?? 0);
+              const reserved = Number(row.reserved_quantity ?? 0);
+              const available = Math.max(quantity - reserved, 0);
+              const minimum = Number(row.minimum_quantity ?? 0);
+              const lowStock = available <= minimum;
+              const imageUrl = getInventoryImageUrl(row.image_path);
+              return (
+                <div key={row.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-sm">
+                  <div className="flex gap-3">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
+                      {imageUrl ? <img src={imageUrl} alt={`Foto ${row.name}`} className="h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[var(--text-muted)]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-black text-[var(--text-primary)]">{row.name}</div>
+                      <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{[row.sku, row.brand, row.category].filter(Boolean).join(" · ") || "Anagrafica articolo"}</div>
+                    </div>
+                    <span className={`h-fit rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${lowStock ? "border-red-400/40 bg-red-500/15 text-red-200" : "border-emerald-400/35 bg-emerald-500/15 text-emerald-200"}`}>
+                      {lowStock ? "Sotto soglia" : "Disponibile"}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Disponibile</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(available)}</div></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Minima</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(minimum)}</div></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Riservata</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(reserved)}</div></div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {canEditInventory ? (
+                      <>
+                        <button type="button" onClick={() => openEditItemForm(row)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">Modifica</button>
+                        <button type="button" onClick={() => openMovementForm(row, "in")} className="rounded-xl border border-emerald-400/30 bg-emerald-500/12 px-3 py-2 text-xs font-bold text-emerald-200">Carico</button>
+                        <button type="button" onClick={() => openMovementForm(row, "out")} className="rounded-xl border border-red-400/30 bg-red-500/12 px-3 py-2 text-xs font-bold text-red-200">Scarico</button>
+                      </>
+                    ) : null}
+                    <button type="button" onClick={() => void openMovementHistory(row)} className="rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)]">Storico</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-neutral-200">
             <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">

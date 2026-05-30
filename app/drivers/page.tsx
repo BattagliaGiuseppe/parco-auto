@@ -33,9 +33,11 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import StatsGrid from "@/components/StatsGrid";
 import { UiField, uiInputClassName } from "@/components/UiField";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 
 const inputClass = uiInputClassName;
-const selectClass = `${uiInputClassName} bg-white`;
+const selectClass = uiInputClassName;
 const textAreaClass = `${uiInputClassName} min-h-[84px]`;
 
 const DOCUMENT_TYPES = [
@@ -313,6 +315,7 @@ export default function DriversPage() {
   const [docSaving, setDocSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive" | "alerts">("all");
+  const [viewMode, setViewMode] = usePersistedViewMode("drivers-view-mode");
   const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   async function load() {
@@ -882,7 +885,7 @@ export default function DriversPage() {
 
       <SectionCard title="Archivio piloti">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
               <input
@@ -892,7 +895,8 @@ export default function DriversPage() {
                 className={`${inputClass} pl-10`}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
               {[
                 ["all", "Tutti"],
                 ["active", "Attivi"],
@@ -903,7 +907,7 @@ export default function DriversPage() {
                   key={value}
                   onClick={() => setFilter(value as typeof filter)}
                   className={`rounded-xl border px-3 py-2 text-sm font-bold ${
-                    filter === value ? "border-black bg-black text-white" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                    filter === value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]" : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {label}
@@ -919,6 +923,71 @@ export default function DriversPage() {
               <Users className="mx-auto mb-3 h-8 w-8 text-neutral-400" />
               <p className="text-base font-bold text-neutral-800">Nessun pilota trovato</p>
               <p className="mt-1 text-sm text-neutral-500">Crea il primo pilota o modifica i filtri di ricerca.</p>
+            </div>
+          ) : viewMode === "compact" ? (
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+              <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_120px] gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)] max-xl:hidden">
+                <span>Pilota</span>
+                <span>Contatti</span>
+                <span>Scadenze</span>
+                <span>Performance</span>
+                <span>Stato</span>
+                <span>Azioni</span>
+              </div>
+              <div className="divide-y divide-white/10">
+                {filteredDrivers.map((driver) => {
+                  const performance = performanceByDriver[driver.id];
+                  const alerts = driverHasAlert(driver);
+                  const docs = documentsForDriver(driver.id);
+                  return (
+                    <div key={driver.id} className="grid gap-3 px-4 py-3 text-sm xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_120px] xl:items-center">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate font-black text-[var(--text-primary)]">{getDriverName(driver)}</span>
+                          {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{driver.nickname || driver.nationality || "Profilo pilota"}</div>
+                      </div>
+                      <div className="text-xs font-semibold text-[var(--text-secondary)]">
+                        <div className="truncate">{driver.email || "Email non inserita"}</div>
+                        <div className="truncate text-[var(--text-muted)]">{driver.phone || "Telefono non inserito"}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <ExpiryPill label="Lic." value={driver.license_expires_at} />
+                        <ExpiryPill label="Med." value={driver.medical_expires_at} />
+                      </div>
+                      <div className="text-xs font-semibold text-[var(--text-secondary)]">
+                        <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> turni · <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> h
+                        <div className="text-[var(--text-muted)]">Best: {formatLapTime(performance?.best_lap_ms)}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {driver.is_active === false ? <StatusPill tone="neutral">Non attivo</StatusPill> : <StatusPill tone="green">Attivo</StatusPill>}
+                        {alerts || docs.some((doc) => ["expired", "expiring"].includes(expiryTone(doc.expires_at))) ? <StatusPill tone="yellow">Da verificare</StatusPill> : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2 xl:justify-end">
+                        <button onClick={() => setExpandedDriverId(expandedDriverId === driver.id ? null : driver.id)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
+                          {expandedDriverId === driver.id ? "Chiudi" : "Apri"}
+                        </button>
+                        {canEditDrivers ? (
+                          <button onClick={() => openEdit(driver)} className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)] hover:bg-[var(--brand-accent)]/18">
+                            Modifica
+                          </button>
+                        ) : null}
+                      </div>
+                      {expandedDriverId === driver.id ? (
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 xl:col-span-6">
+                          <div className="grid gap-3 md:grid-cols-4">
+                            <PerformanceBox label="Eventi" value={performance ? String(performance.events_count) : "0"} />
+                            <PerformanceBox label="Turni" value={performance ? String(performance.turns_count) : "0"} />
+                            <PerformanceBox label="Ore guida" value={performance ? `${performance.total_hours} h` : "0 h"} />
+                            <PerformanceBox label="Documenti" value={String(docs.length)} />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="grid gap-4">

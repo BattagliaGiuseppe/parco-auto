@@ -1953,7 +1953,7 @@ export default function TelemetryPage() {
   const [parsedCsvDraft, setParsedCsvDraft] = useState<ParsedTelemetryPayload | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [filter, setFilter] = useState("");
-  const [archiveViewMode, setArchiveViewMode] = useState<"detailed" | "compact">("detailed");
+  const [archiveViewMode, setArchiveViewMode] = useState<"detailed" | "compact">("compact");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
@@ -2890,14 +2890,14 @@ export default function TelemetryPage() {
               onChange={(event) => setFilter(event.target.value)}
             />
 
-            <div className="inline-flex w-full rounded-2xl border border-neutral-200 bg-neutral-50 p-1 lg:w-auto">
+            <div className="inline-flex w-full rounded-2xl border border-white/15 bg-white/[0.045] p-1 lg:w-auto">
               <button
                 type="button"
                 onClick={() => setArchiveViewMode("detailed")}
                 className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition lg:flex-none ${
                   archiveViewMode === "detailed"
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-800"
+                    ? "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-sm"
+                    : "text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                 }`}
               >
                 <FileArchive size={15} />
@@ -2908,8 +2908,8 @@ export default function TelemetryPage() {
                 onClick={() => setArchiveViewMode("compact")}
                 className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition lg:flex-none ${
                   archiveViewMode === "compact"
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-800"
+                    ? "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-sm"
+                    : "text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                 }`}
               >
                 <List size={15} />
