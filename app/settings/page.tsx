@@ -167,7 +167,7 @@ function SectionTabs({
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             value === key
               ? "bg-[var(--brand-accent)] text-[var(--brand-on-accent)]"
-              : "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
+              : "bg-neutral-200 text-[var(--text-secondary)] hover:bg-neutral-300"
           }`}
         >
           {label}
@@ -179,7 +179,7 @@ function SectionTabs({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1 block text-sm font-semibold text-neutral-700">
+    <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
       {children}
     </label>
   );
@@ -198,7 +198,7 @@ function Field({
     <div>
       <Label>{label}</Label>
       {children}
-      {hint ? <div className="mt-2 text-xs leading-5 text-neutral-500">{hint}</div> : null}
+      {hint ? <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{hint}</div> : null}
     </div>
   );
 }
@@ -207,7 +207,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 ${
+      className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
       }`.trim()}
     />
@@ -218,7 +218,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 ${
+      className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
       }`.trim()}
     />
@@ -235,7 +235,7 @@ function ToggleBox({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-700">
+    <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">
       {label}
       <input
         type="checkbox"
@@ -248,7 +248,7 @@ function ToggleBox({
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -372,16 +372,16 @@ function BrandPreview({
   const accentSoft = hexToRgba(accentColor, 0.18);
 
   return (
-    <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+    <div className="rounded-[28px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-5 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
         Anteprima realistica branding team
       </div>
-      <div className="mt-2 text-sm leading-6 text-neutral-600">
+      <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
         Il brand piattaforma compare solo nella sidebar e nel piè di pagina delle stampe.
         Nell&apos;header pagina compare solo il branding del team, se attivato.
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[28px] border border-neutral-200 shadow-sm">
+      <div className="mt-5 overflow-hidden rounded-[28px] border border-white/10 shadow-sm">
         <div className="grid grid-cols-[240px_1fr]">
           <div className="min-h-[340px] p-4 text-white" style={{ backgroundColor: primaryColor }}>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -451,13 +451,13 @@ function BrandPreview({
           </div>
 
           <div className="bg-[var(--surface-page)] p-4">
-            <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className={`rounded-[24px] border border-neutral-200 bg-white shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
+            <div className="rounded-[28px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-5 shadow-sm">
+              <div className={`rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] shadow-sm ${config.compactHeader ? "p-4" : "p-5"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
                     {config.showLogoInHeader ? (
-                      <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2">
-                        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white">
+                      <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
+                        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[rgba(16,23,31,0.96)]">
                           <img
                             src={headerLogoUrl || "/logo.png"}
                             alt={teamName || "Team"}
@@ -465,20 +465,20 @@ function BrandPreview({
                           />
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                             team
                           </div>
-                          <div className="truncate text-sm font-bold text-neutral-900">
+                          <div className="truncate text-sm font-bold text-[var(--text-primary)]">
                             {teamName || "Nome team"}
                           </div>
                         </div>
                       </div>
                     ) : null}
 
-                    <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-neutral-900`}>
+                    <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-[var(--text-primary)]`}>
                       {labels.event} · Preview
                     </div>
-                    <div className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+                    <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
                       Header pagina con solo branding team, senza brand piattaforma.
                     </div>
                   </div>
@@ -492,33 +492,33 @@ function BrandPreview({
                 </div>
               </div>
 
-              <div className="mt-5 rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+              <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.045] p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                   Stampa scheda
                 </div>
-                <div className="mt-4 rounded-[24px] border border-neutral-200 bg-white p-4">
+                <div className="mt-4 rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                       {config.showLogoInPrint && config.printLetterheadMode !== "title_only" ? (
-                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
                           <img src={printLogoUrl || "/logo.png"} alt={teamName || "Team"} className="h-9 w-9 object-contain" />
                         </div>
                       ) : null}
                       <div>
-                        <div className="text-lg font-black text-neutral-900">{teamName || "Nome team"}</div>
+                        <div className="text-lg font-black text-[var(--text-primary)]">{teamName || "Nome team"}</div>
                         {config.printLetterheadMode === "logo_title_subtitle" ? (
-                          <div className="mt-1 text-sm text-neutral-500">
+                          <div className="mt-1 text-sm text-[var(--text-muted)]">
                             {teamSubtitle || "Sottotitolo team"}
                           </div>
                         ) : null}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-600">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
                       {config.printLetterheadMode}
                     </div>
                   </div>
 
-                  <div className="mt-5 border-t border-dashed border-neutral-200 pt-3 text-xs text-neutral-500">
+                  <div className="mt-5 border-t border-dashed border-white/10 pt-3 text-xs text-[var(--text-muted)]">
                     <div className="flex items-center gap-2">
                       <img src={brandConfig.logoPath} alt={brandConfig.appName} className="h-4 w-4 object-contain" />
                       <span className="font-semibold">{brandConfig.appName}</span>
@@ -532,11 +532,11 @@ function BrandPreview({
                 {[labels.vehicle, labels.component, labels.maintenance].map((label, index) => (
                   <div
                     key={`${label}-${index}`}
-                    className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm"
+                    className="rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-4 shadow-sm"
                   >
-                    <div className="text-sm font-semibold text-neutral-500">{label}</div>
-                    <div className="mt-2 text-2xl font-black text-neutral-900">{index + 2}</div>
-                    <div className="mt-1 text-xs text-neutral-500">Card KPI</div>
+                    <div className="text-sm font-semibold text-[var(--text-muted)]">{label}</div>
+                    <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">{index + 2}</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">Card KPI</div>
                   </div>
                 ))}
               </div>
@@ -971,7 +971,7 @@ async function saveAll() {
   if (loading || !settings || !previewBranding) {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
-        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+        <div className="rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
           Caricamento impostazioni...
         </div>
       </div>
@@ -1031,17 +1031,17 @@ async function saveAll() {
       <InfoBlock>
         Il nome e il logo della piattaforma sono gestiti centralmente. Restano visibili solo nella sidebar e nel piè di pagina delle stampe. In questa sezione il cliente personalizza solo il proprio team: nome, sottotitolo, loghi dedicati, colori e lessico operativo.
       </InfoBlock>
-      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Brand piattaforma fisso
         </div>
         <div className="mt-2 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
             <img src={brandConfig.logoPath} alt={brandConfig.appName} className="h-9 w-9 object-contain" />
           </div>
           <div>
-            <div className="text-sm font-bold text-neutral-900">{brandConfig.appName}</div>
-            <div className="text-xs text-neutral-500">{brandConfig.appDescription}</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">{brandConfig.appName}</div>
+            <div className="text-xs text-[var(--text-muted)]">{brandConfig.appDescription}</div>
           </div>
         </div>
       </div>
@@ -1107,12 +1107,12 @@ async function saveAll() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <ImageIcon size={16} />
               Upload logo sidebar
             </div>
-            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
               Carica logo
               <input
                 type="file"
@@ -1125,19 +1125,19 @@ async function saveAll() {
                 }}
               />
             </label>
-            <div className="mt-3 text-xs text-neutral-500">
+            <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "sidebar"
                 ? "Caricamento logo sidebar..."
                 : previewBranding.sidebar_logo_url || "Nessun logo sidebar selezionato"}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <MonitorSmartphone size={16} />
               Upload logo header
             </div>
-            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
               Carica logo
               <input
                 type="file"
@@ -1150,19 +1150,19 @@ async function saveAll() {
                 }}
               />
             </label>
-            <div className="mt-3 text-xs text-neutral-500">
+            <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "header"
                 ? "Caricamento logo header..."
                 : previewBranding.header_logo_url || "Nessun logo header selezionato"}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <ImageIcon size={16} />
               Upload logo stampa
             </div>
-            <label className="inline-flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+            <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
               Carica logo
               <input
                 type="file"
@@ -1175,7 +1175,7 @@ async function saveAll() {
                 }}
               />
             </label>
-            <div className="mt-3 text-xs text-neutral-500">
+            <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "print"
                 ? "Caricamento logo stampa..."
                 : previewBranding.print_logo_url || "Nessun logo stampa selezionato"}
@@ -1206,7 +1206,7 @@ async function saveAll() {
             checked={previewBranding.branding_config.compactHeader}
             onChange={(checked) => patchBrandingConfig("compactHeader", checked)}
           />
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-[var(--text-secondary)]">
             Il brand piattaforma non compare nelle intestazioni pagina: resta fisso solo nella sidebar e nel piè di pagina delle stampe.
           </div>
         </div>
@@ -1322,9 +1322,9 @@ async function saveAll() {
                 ([key, enabled]) => (
                   <label
                     key={key}
-                    className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3"
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3"
                   >
-                    <span className="font-semibold capitalize text-neutral-800">
+                    <span className="font-semibold capitalize text-[var(--text-primary)]">
                       {key}
                     </span>
                     <input
@@ -1392,7 +1392,7 @@ async function saveAll() {
             {definitions.map((row, index) => (
               <div
                 key={row.id}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 lg:grid-cols-[1fr_1.2fr_150px_110px_110px_120px_40px]"
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[1fr_1.2fr_150px_110px_110px_120px_40px]"
               >
                 <Input
                   value={row.code}
@@ -1474,7 +1474,7 @@ async function saveAll() {
                       prev.filter((_, itemIndex) => itemIndex !== index)
                     )
                   }
-                  className="rounded-xl bg-red-100 text-red-700 hover:bg-red-200"
+                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>
@@ -1518,7 +1518,7 @@ async function saveAll() {
             {checklists.map((group, groupIndex) => (
               <div
                 key={group.id}
-                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"
               >
                 <div className="mb-3 flex items-center gap-3">
                   <Input
@@ -1534,7 +1534,7 @@ async function saveAll() {
                     onClick={() =>
                       setChecklists((prev) => prev.filter((_, i) => i !== groupIndex))
                     }
-                    className="rounded-xl bg-red-100 px-3 py-3 text-red-700"
+                    className="rounded-xl bg-red-100 px-3 py-3 text-red-200"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -1617,7 +1617,7 @@ async function saveAll() {
                             )
                           )
                         }
-                        className="rounded-xl bg-red-100 text-red-700 hover:bg-red-200"
+                        className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
                       >
                         <Trash2 size={16} className="mx-auto" />
                       </button>
@@ -1647,7 +1647,7 @@ async function saveAll() {
                         )
                       )
                     }
-                    className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+                    className="rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                   >
                     Aggiungi voce
                   </button>
@@ -1684,7 +1684,7 @@ async function saveAll() {
             {setupFields.map((field, index) => (
               <div
                 key={field.id}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 lg:grid-cols-[1fr_1.2fr_180px_140px_120px_120px_40px]"
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[1fr_1.2fr_180px_140px_120px_120px_40px]"
               >
                 <Input
                   value={field.field_key}
@@ -1763,7 +1763,7 @@ async function saveAll() {
                   onClick={() =>
                     setSetupFields((prev) => prev.filter((_, i) => i !== index))
                   }
-                  className="rounded-xl bg-red-100 text-red-700 hover:bg-red-200"
+                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>
@@ -1807,7 +1807,7 @@ async function saveAll() {
             {widgets.map((widget, index) => (
               <div
                 key={widget.id}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 lg:grid-cols-[1fr_1.2fr_120px_120px_110px_40px]"
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[1fr_1.2fr_120px_120px_110px_40px]"
               >
                 <Input
                   value={widget.widget_code}
@@ -1877,7 +1877,7 @@ async function saveAll() {
                   onClick={() =>
                     setWidgets((prev) => prev.filter((_, i) => i !== index))
                   }
-                  className="rounded-xl bg-red-100 text-red-700 hover:bg-red-200"
+                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>

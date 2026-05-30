@@ -194,10 +194,10 @@ type ImportProgress = {
 };
 
 const inputClassName =
-  "w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
+  "w-full rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-3 text-sm text-[var(--text-secondary)] outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/15";
 
 const textareaClassName =
-  "min-h-[100px] w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
+  "min-h-[100px] w-full rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-3 text-sm text-[var(--text-secondary)] outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/15";
 
 const templateHeaders: CanonicalInventoryField[] = [
   "sku",
@@ -465,8 +465,8 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-semibold text-neutral-700">{label}</label>
-      {hint ? <div className="mb-2 text-xs text-neutral-500">{hint}</div> : null}
+      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">{label}</label>
+      {hint ? <div className="mb-2 text-xs text-[var(--text-muted)]">{hint}</div> : null}
       {children}
     </div>
   );
@@ -474,8 +474,8 @@ function Field({
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
-      <div className="mb-2 flex items-center gap-2 font-bold text-neutral-900">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm leading-6 text-[var(--text-secondary)]">
+      <div className="mb-2 flex items-center gap-2 font-bold text-[var(--text-primary)]">
         <Info size={16} />
         Nota import/export
       </div>
@@ -1896,16 +1896,16 @@ export default function InventoryPage() {
 
         return (
           <div className="w-28">
-            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
               {imageUrl ? (
                 <img src={imageUrl} alt={`Foto ${row.name}`} className="h-full w-full object-cover" />
               ) : (
-                <ImageIcon size={22} className="text-neutral-400" />
+                <ImageIcon size={22} className="text-[var(--text-muted)]" />
               )}
             </div>
             {canEditInventory ? (
               <div className="mt-2 flex flex-col gap-1">
-                <label className="cursor-pointer rounded-lg bg-neutral-100 px-2 py-1 text-center text-[11px] font-semibold text-neutral-700 hover:bg-neutral-200">
+                <label className="cursor-pointer rounded-lg bg-white/[0.075] px-2 py-1 text-center text-[11px] font-semibold text-[var(--text-secondary)] hover:bg-neutral-200">
                   {uploadingThisImage ? "Carico..." : imageUrl ? "Sostituisci" : "Carica"}
                   <input
                     type="file"
@@ -1924,7 +1924,7 @@ export default function InventoryPage() {
                     type="button"
                     onClick={() => void removeInventoryImage(row)}
                     disabled={Boolean(imageUploadingId)}
-                    className="rounded-lg bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-lg bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Trash2 size={11} className="mr-1 inline" />
                     Rimuovi
@@ -1938,18 +1938,18 @@ export default function InventoryPage() {
       case "article":
         return (
           <div>
-            <div className="font-semibold text-neutral-900">{row.name}</div>
-            <div className="mt-1 text-xs text-neutral-500">
+            <div className="font-semibold text-[var(--text-primary)]">{row.name}</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">
               {[row.brand, row.supplier_name].filter(Boolean).join(" · ") || "—"}
             </div>
             {row.notes ? (
-              <div className="mt-1 max-w-md text-xs leading-5 text-neutral-500">{row.notes}</div>
+              <div className="mt-1 max-w-md text-xs leading-5 text-[var(--text-muted)]">{row.notes}</div>
             ) : null}
           </div>
         );
       case "codes":
         return (
-          <div className="text-xs leading-5 text-neutral-600">
+          <div className="text-xs leading-5 text-[var(--text-secondary)]">
             <div>SKU: {row.sku || "—"}</div>
             <div>Forn.: {row.supplier_code || "—"}</div>
             <div>OEM: {row.manufacturer_code || "—"}</div>
@@ -1957,29 +1957,29 @@ export default function InventoryPage() {
           </div>
         );
       case "category":
-        return <span className="text-neutral-700">{row.category || "—"}</span>;
+        return <span className="text-[var(--text-secondary)]">{row.category || "—"}</span>;
       case "available":
         return (
           <div>
-            <span className={lowStock ? "font-semibold text-red-600" : "font-semibold text-neutral-900"}>
+            <span className={lowStock ? "font-semibold text-red-300" : "font-semibold text-[var(--text-primary)]"}>
               {formatNumber(available)}
             </span>
             {available !== quantity ? (
-              <div className="mt-1 text-xs text-neutral-500">Giacenza: {formatNumber(quantity)}</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">Giacenza: {formatNumber(quantity)}</div>
             ) : null}
           </div>
         );
       case "minimum":
-        return <span className="text-neutral-700">{formatNumber(minimum)}</span>;
+        return <span className="text-[var(--text-secondary)]">{formatNumber(minimum)}</span>;
       case "reserved":
-        return <span className="text-neutral-700">{formatNumber(reserved)}</span>;
+        return <span className="text-[var(--text-secondary)]">{formatNumber(reserved)}</span>;
       case "unit":
-        return <span className="text-neutral-700">{row.unit || "pz"}</span>;
+        return <span className="text-[var(--text-secondary)]">{row.unit || "pz"}</span>;
       case "location":
-        return <span className="text-neutral-700">{row.location || "—"}</span>;
+        return <span className="text-[var(--text-secondary)]">{row.location || "—"}</span>;
       case "cost":
         return (
-          <span className="text-neutral-700">
+          <span className="text-[var(--text-secondary)]">
             {row.unit_cost !== null && row.unit_cost !== undefined
               ? `${formatNumber(row.unit_cost)} ${row.currency || "EUR"}`
               : "—"}
@@ -1991,7 +1991,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => openEditItemForm(row)}
-              className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+              className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <Pencil size={12} className="mr-1 inline" />
               Modifica
@@ -1999,7 +1999,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => openMovementForm(row, "in")}
-              className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"
+              className="rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
             >
               <Plus size={12} className="mr-1 inline" />
               Carico
@@ -2007,7 +2007,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => openMovementForm(row, "out")}
-              className="rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              className="rounded-lg bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20"
             >
               <Minus size={12} className="mr-1 inline" />
               Scarico
@@ -2015,7 +2015,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => openMovementForm(row, "adjustment")}
-              className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+              className="rounded-lg bg-sky-500/10 px-2 py-1 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
             >
               <RefreshCw size={12} className="mr-1 inline" />
               Rettifica
@@ -2031,7 +2031,7 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={() => openMovementForm(row, "release_reserve")}
-                className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Rilascia
               </button>
@@ -2049,7 +2049,7 @@ export default function InventoryPage() {
           <button
             type="button"
             onClick={() => void openMovementHistory(row)}
-            className="rounded-lg bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-800 hover:bg-neutral-200"
+            className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
           >
             Storico
           </button>
@@ -2115,7 +2115,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={downloadTemplate}
-              className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+              className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <FileSpreadsheet size={16} className="mr-2 inline" />
               Template CSV
@@ -2126,7 +2126,7 @@ export default function InventoryPage() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
-                  className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} className="mr-2 inline" />
                   {importing ? "Import..." : "Importa CSV"}
@@ -2143,7 +2143,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => setColumnSettingsOpen(true)}
-              className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+              className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <Settings2 size={16} className="mr-2 inline" />
               Colonne
@@ -2209,7 +2209,7 @@ export default function InventoryPage() {
           </div>
         </div>
         {loading ? (
-          <div className="text-neutral-500">Caricamento magazzino...</div>
+          <div className="text-[var(--text-muted)]">Caricamento magazzino...</div>
         ) : rows.length === 0 ? (
           <EmptyState
             title="Nessun articolo registrato"
@@ -2228,7 +2228,7 @@ export default function InventoryPage() {
                 <button
                   type="button"
                   onClick={downloadTemplate}
-                  className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+                  className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
                 >
                   Scarica template CSV
                 </button>
@@ -2283,10 +2283,10 @@ export default function InventoryPage() {
             })}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-neutral-200">
-            <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
-              <thead className="bg-neutral-50">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="min-w-full divide-y divide-white/10 bg-[rgba(16,23,31,0.96)] text-sm">
+              <thead className="bg-white/[0.045]">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                   {columnOrder.map((column) => (
                     <th key={column} className="px-4 py-3">
                       {tableColumnLabels[column]}
@@ -2294,7 +2294,7 @@ export default function InventoryPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-white/10">
                 {filteredRows.map((row) => (
                   <tr key={row.id} className="align-top">
                     {columnOrder.map((column) => (
@@ -2312,18 +2312,18 @@ export default function InventoryPage() {
 
       {formOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">{editId ? "Modifica articolo" : "Nuovo articolo"}</h3>
-                <div className="mt-1 text-sm text-neutral-500">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">{editId ? "Modifica articolo" : "Nuovo articolo"}</h3>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
                   {editId ? "Aggiorna anagrafica, codici, soglie e posizione. Le quantità si modificano dai movimenti." : "Inserisci anagrafica, codici standard e quantità iniziale."}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeItemForm}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Chiudi
               </button>
@@ -2332,19 +2332,19 @@ export default function InventoryPage() {
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <Field label="Foto articolo" hint="Una foto principale aiuta a riconoscere rapidamente ricambi e componenti simili.">
-                  <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center">
-                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                  <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4 sm:flex-row sm:items-center">
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
                       {formImagePreview ? (
                         <img src={formImagePreview} alt="Anteprima foto articolo" className="h-full w-full object-cover" />
                       ) : (
-                        <ImageIcon size={28} className="text-neutral-400" />
+                        <ImageIcon size={28} className="text-[var(--text-muted)]" />
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-neutral-900">
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">
                         {formImageFile ? formImageFile.name : "Nessuna foto selezionata"}
                       </div>
-                      <div className="mt-1 text-xs leading-5 text-neutral-500">
+                      <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
                         Formati supportati: JPG, PNG, WEBP, GIF. Dimensione massima: 5 MB.
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -2362,7 +2362,7 @@ export default function InventoryPage() {
                           <button
                             type="button"
                             onClick={clearFormImage}
-                            className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+                            className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
                           >
                             Rimuovi selezione
                           </button>
@@ -2456,7 +2456,7 @@ export default function InventoryPage() {
                   value={form.quantity}
                   onChange={(event) => setForm({ ...form, quantity: event.target.value })}
                   disabled={Boolean(editId)}
-                  className={`${inputClassName} ${editId ? "bg-neutral-100 text-neutral-500" : ""}`}
+                  className={`${inputClassName} ${editId ? "bg-white/[0.075] text-[var(--text-muted)]" : ""}`}
                 />
               </Field>
 
@@ -2482,7 +2482,7 @@ export default function InventoryPage() {
                   value={form.reserved_quantity}
                   onChange={(event) => setForm({ ...form, reserved_quantity: event.target.value })}
                   disabled={Boolean(editId)}
-                  className={`${inputClassName} ${editId ? "bg-neutral-100 text-neutral-500" : ""}`}
+                  className={`${inputClassName} ${editId ? "bg-white/[0.075] text-[var(--text-muted)]" : ""}`}
                 />
               </Field>
 
@@ -2549,7 +2549,7 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={closeItemForm}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Annulla
               </button>
@@ -2570,21 +2570,21 @@ export default function InventoryPage() {
 
       {movementForm ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-2xl rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">
                   {getMovementTypeLabel(movementForm.movementType)} magazzino
                 </h3>
-                <div className="mt-1 text-sm text-neutral-500">
-                  Articolo: <span className="font-semibold text-neutral-700">{movementForm.itemName}</span>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
+                  Articolo: <span className="font-semibold text-[var(--text-secondary)]">{movementForm.itemName}</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeMovementForm}
                 disabled={movementSaving}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Chiudi
               </button>
@@ -2644,7 +2644,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={closeMovementForm}
                 disabled={movementSaving}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Annulla
               </button>
@@ -2668,32 +2668,32 @@ export default function InventoryPage() {
 
       {movementHistoryItem ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">Storico movimenti</h3>
-                <div className="mt-1 text-sm text-neutral-500">
-                  Articolo: <span className="font-semibold text-neutral-700">{movementHistoryItem.name}</span>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Storico movimenti</h3>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
+                  Articolo: <span className="font-semibold text-[var(--text-secondary)]">{movementHistoryItem.name}</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setMovementHistoryItem(null)}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Chiudi
               </button>
             </div>
 
-            <div className="mt-6 overflow-x-auto rounded-2xl border border-neutral-200">
+            <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
               {movementHistoryLoading ? (
-                <div className="p-6 text-sm text-neutral-500">Caricamento movimenti...</div>
+                <div className="p-6 text-sm text-[var(--text-muted)]">Caricamento movimenti...</div>
               ) : movementHistory.length === 0 ? (
-                <div className="p-6 text-sm text-neutral-500">Nessun movimento registrato per questo articolo.</div>
+                <div className="p-6 text-sm text-[var(--text-muted)]">Nessun movimento registrato per questo articolo.</div>
               ) : (
-                <table className="min-w-full divide-y divide-neutral-200 text-sm">
-                  <thead className="bg-neutral-50">
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                <table className="min-w-full divide-y divide-white/10 text-sm">
+                  <thead className="bg-white/[0.045]">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                       <th className="px-4 py-3">Data</th>
                       <th className="px-4 py-3">Tipo</th>
                       <th className="px-4 py-3">Delta</th>
@@ -2703,20 +2703,20 @@ export default function InventoryPage() {
                       <th className="px-4 py-3">Note</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-100">
+                  <tbody className="divide-y divide-white/10">
                     {movementHistory.map((movement) => (
                       <tr key={movement.id} className="align-top">
-                        <td className="px-4 py-3 text-neutral-600">{formatDateTime(movement.created_at)}</td>
-                        <td className="px-4 py-3 font-semibold text-neutral-900">
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{formatDateTime(movement.created_at)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                           {getMovementTypeLabel(movement.movement_type)}
                         </td>
-                        <td className={Number(movement.quantity_delta ?? 0) < 0 ? "px-4 py-3 font-semibold text-red-600" : "px-4 py-3 font-semibold text-green-700"}>
+                        <td className={Number(movement.quantity_delta ?? 0) < 0 ? "px-4 py-3 font-semibold text-red-300" : "px-4 py-3 font-semibold text-emerald-200"}>
                           {Number(movement.quantity_delta ?? 0) > 0 ? "+" : ""}{formatNumber(movement.quantity_delta)}
                         </td>
-                        <td className="px-4 py-3 text-neutral-600">{formatNumber(movement.quantity_before)}</td>
-                        <td className="px-4 py-3 text-neutral-600">{formatNumber(movement.quantity_after)}</td>
-                        <td className="px-4 py-3 text-neutral-600">{movement.reason || "—"}</td>
-                        <td className="px-4 py-3 text-neutral-600">{movement.notes || "—"}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{formatNumber(movement.quantity_before)}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{formatNumber(movement.quantity_after)}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{movement.reason || "—"}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{movement.notes || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2729,18 +2729,18 @@ export default function InventoryPage() {
 
       {columnSettingsOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-2xl rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">Ordine colonne magazzino</h3>
-                <div className="mt-1 text-sm text-neutral-500">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Ordine colonne magazzino</h3>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
                   Sposta le colonne nella posizione che preferisci. L’ordine viene salvato sul browser.
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setColumnSettingsOpen(false)}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Chiudi
               </button>
@@ -2750,18 +2750,18 @@ export default function InventoryPage() {
               {columnOrder.map((column, index) => (
                 <div
                   key={column}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3"
                 >
                   <div>
-                    <div className="font-semibold text-neutral-900">{tableColumnLabels[column]}</div>
-                    <div className="text-xs text-neutral-500">Posizione {index + 1}</div>
+                    <div className="font-semibold text-[var(--text-primary)]">{tableColumnLabels[column]}</div>
+                    <div className="text-xs text-[var(--text-muted)]">Posizione {index + 1}</div>
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => moveColumn(column, "left")}
                       disabled={index === 0}
-                      className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl bg-[rgba(16,23,31,0.96)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] ring-1 ring-white/15 hover:bg-white/[0.075] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Su
                     </button>
@@ -2769,7 +2769,7 @@ export default function InventoryPage() {
                       type="button"
                       onClick={() => moveColumn(column, "right")}
                       disabled={index === columnOrder.length - 1}
-                      className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl bg-[rgba(16,23,31,0.96)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] ring-1 ring-white/15 hover:bg-white/[0.075] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Giù
                     </button>
@@ -2782,7 +2782,7 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={resetColumnOrder}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200"
+                className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
                 Ripristina ordine standard
               </button>
@@ -2800,16 +2800,16 @@ export default function InventoryPage() {
 
       {importWizard ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             {importing ? (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/85 p-6 backdrop-blur-sm">
-                <div className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-6 text-center shadow-xl">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl modal-panel/85 p-6 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-6 text-center shadow-xl">
                   <Loader2 size={34} className="mx-auto animate-spin text-yellow-500" />
-                  <div className="mt-4 text-lg font-black text-neutral-900">Importazione in corso</div>
-                  <div className="mt-2 text-sm leading-6 text-neutral-600">
+                  <div className="mt-4 text-lg font-black text-[var(--text-primary)]">Importazione in corso</div>
+                  <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
                     Non chiudere la finestra e non ricaricare la pagina. Attendi il messaggio finale.
                   </div>
-                  <div className="mt-4 rounded-full bg-neutral-100 p-1">
+                  <div className="mt-4 rounded-full bg-white/[0.075] p-1">
                     <div
                       className="h-2 rounded-full bg-[var(--brand-accent)] transition-all"
                       style={{
@@ -2817,28 +2817,28 @@ export default function InventoryPage() {
                       }}
                     />
                   </div>
-                  <div className="mt-3 text-sm font-semibold text-neutral-800">
+                  <div className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
                     {importProgress?.done ?? 0} / {importProgress?.total ?? 0} righe processate
                   </div>
-                  <div className="mt-1 text-xs text-neutral-500">
+                  <div className="mt-1 text-xs text-[var(--text-muted)]">
                     {importProgress?.current || "Preparazione..."}
                   </div>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
-                    <div className="rounded-xl bg-neutral-50 p-2">
-                      <div className="font-bold text-neutral-900">{importProgress?.inserted ?? 0}</div>
-                      <div className="text-neutral-500">Creati</div>
+                    <div className="rounded-xl bg-white/[0.045] p-2">
+                      <div className="font-bold text-[var(--text-primary)]">{importProgress?.inserted ?? 0}</div>
+                      <div className="text-[var(--text-muted)]">Creati</div>
                     </div>
-                    <div className="rounded-xl bg-neutral-50 p-2">
-                      <div className="font-bold text-neutral-900">{importProgress?.updated ?? 0}</div>
-                      <div className="text-neutral-500">Agg.</div>
+                    <div className="rounded-xl bg-white/[0.045] p-2">
+                      <div className="font-bold text-[var(--text-primary)]">{importProgress?.updated ?? 0}</div>
+                      <div className="text-[var(--text-muted)]">Agg.</div>
                     </div>
-                    <div className="rounded-xl bg-neutral-50 p-2">
-                      <div className="font-bold text-neutral-900">{importProgress?.skipped ?? 0}</div>
-                      <div className="text-neutral-500">Saltati</div>
+                    <div className="rounded-xl bg-white/[0.045] p-2">
+                      <div className="font-bold text-[var(--text-primary)]">{importProgress?.skipped ?? 0}</div>
+                      <div className="text-[var(--text-muted)]">Saltati</div>
                     </div>
-                    <div className="rounded-xl bg-neutral-50 p-2">
-                      <div className="font-bold text-neutral-900">{importProgress?.movements ?? 0}</div>
-                      <div className="text-neutral-500">Mov.</div>
+                    <div className="rounded-xl bg-white/[0.045] p-2">
+                      <div className="font-bold text-[var(--text-primary)]">{importProgress?.movements ?? 0}</div>
+                      <div className="text-[var(--text-muted)]">Mov.</div>
                     </div>
                   </div>
                 </div>
@@ -2846,9 +2846,9 @@ export default function InventoryPage() {
             ) : null}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-neutral-900">Import guidato magazzino</h3>
-                <div className="mt-1 text-sm text-neutral-500">
-                  File: <span className="font-semibold text-neutral-700">{importWizard.fileName}</span> ·
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Import guidato magazzino</h3>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
+                  File: <span className="font-semibold text-[var(--text-secondary)]">{importWizard.fileName}</span> ·
                   Righe lette: {importWizard.rows.length} · Separatore rilevato: {importWizard.delimiter === "\t" ? "TAB" : importWizard.delimiter}
                 </div>
               </div>
@@ -2856,7 +2856,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => setImportWizard(null)}
                 disabled={importing}
-                className="rounded-xl bg-neutral-100 px-3 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Chiudi
               </button>
@@ -2869,55 +2869,55 @@ export default function InventoryPage() {
             ) : null}
 
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <CheckCircle2 size={16} />
                   Righe valide
                 </div>
-                <div className="mt-2 text-2xl font-black text-neutral-900">
+                <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.validRows ?? 0}
                 </div>
               </div>
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <AlertTriangle size={16} />
                   Avvisi
                 </div>
-                <div className="mt-2 text-2xl font-black text-neutral-900">
+                <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.warnings.length ?? 0}
                 </div>
               </div>
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <XCircle size={16} />
                   Errori
                 </div>
-                <div className="mt-2 text-2xl font-black text-neutral-900">
+                <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.errors.length ?? 0}
                 </div>
               </div>
             </div>
 
             {!mappedFields.includes("name") ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
                 Per importare devi associare almeno una colonna al campo “Nome articolo”.
               </div>
             ) : null}
 
             <div className="mt-6">
-              <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-[var(--text-muted)]">
                 Associazione colonne
               </h4>
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-neutral-200">
-                <table className="min-w-full divide-y divide-neutral-200 bg-white text-sm">
-                  <thead className="bg-neutral-50">
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
+                <table className="min-w-full divide-y divide-white/10 bg-[rgba(16,23,31,0.96)] text-sm">
+                  <thead className="bg-white/[0.045]">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                       <th className="px-4 py-3">Colonna file</th>
                       <th className="px-4 py-3">Esempio dati</th>
                       <th className="px-4 py-3">Campo da importare</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-100">
+                  <tbody className="divide-y divide-white/10">
                     {importWizard.headers.map((header, index) => {
                       const exampleValues = importWizard.rows
                         .slice(0, 3)
@@ -2927,12 +2927,12 @@ export default function InventoryPage() {
                       return (
                         <tr key={`${header}-${index}`} className="align-top">
                           <td className="px-4 py-3">
-                            <div className="font-semibold text-neutral-900">{header || `Colonna ${index + 1}`}</div>
-                            <div className="mt-1 text-xs text-neutral-500">
+                            <div className="font-semibold text-[var(--text-primary)]">{header || `Colonna ${index + 1}`}</div>
+                            <div className="mt-1 text-xs text-[var(--text-muted)]">
                               Proposta: {getImportFieldLabel(importWizard.mapping[index] ?? "ignore")}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-xs leading-5 text-neutral-600">
+                          <td className="px-4 py-3 text-xs leading-5 text-[var(--text-secondary)]">
                             {exampleValues.length ? exampleValues.join(" · ") : "—"}
                           </td>
                           <td className="px-4 py-3">
@@ -2960,30 +2960,30 @@ export default function InventoryPage() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <h4 className="font-bold text-neutral-900">Anteprima prime righe</h4>
-                <div className="mt-3 max-h-72 overflow-auto rounded-xl border border-neutral-200">
-                  <table className="min-w-full divide-y divide-neutral-200 text-xs">
-                    <thead className="bg-neutral-50">
+              <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)]">Anteprima prime righe</h4>
+                <div className="mt-3 max-h-72 overflow-auto rounded-xl border border-white/10">
+                  <table className="min-w-full divide-y divide-white/10 text-xs">
+                    <thead className="bg-white/[0.045]">
                       <tr>
                         {templateHeaders
                           .filter((field) => mappedFields.includes(field))
                           .slice(0, 8)
                           .map((field) => (
-                            <th key={field} className="px-3 py-2 text-left font-semibold text-neutral-500">
+                            <th key={field} className="px-3 py-2 text-left font-semibold text-[var(--text-muted)]">
                               {getImportFieldLabel(field)}
                             </th>
                           ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-100">
+                    <tbody className="divide-y divide-white/10">
                       {(importValidation?.records ?? []).slice(0, 5).map((record, index) => (
                         <tr key={index}>
                           {templateHeaders
                             .filter((field) => mappedFields.includes(field))
                             .slice(0, 8)
                             .map((field) => (
-                              <td key={field} className="px-3 py-2 text-neutral-700">
+                              <td key={field} className="px-3 py-2 text-[var(--text-secondary)]">
                                 {record[field] || "—"}
                               </td>
                             ))}
@@ -2994,11 +2994,11 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <h4 className="font-bold text-neutral-900">Validazione</h4>
+              <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)]">Validazione</h4>
                 <div className="mt-3 space-y-3 text-sm">
                   {importValidation?.errors.length ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
+                    <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-red-200">
                       <div className="font-bold">Errori da correggere</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
                         {importValidation.errors.slice(0, 6).map((error) => (
@@ -3010,13 +3010,13 @@ export default function InventoryPage() {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-green-700">
+                    <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-emerald-200">
                       Nessun errore bloccante rilevato.
                     </div>
                   )}
 
                   {importValidation?.warnings.length ? (
-                    <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-yellow-800">
+                    <div className="rounded-xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-yellow-100">
                       <div className="font-bold">Avvisi</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
                         {importValidation.warnings.slice(0, 5).map((warning) => (
@@ -3037,7 +3037,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => setImportWizard(null)}
                 disabled={importing}
-                className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Annulla
               </button>

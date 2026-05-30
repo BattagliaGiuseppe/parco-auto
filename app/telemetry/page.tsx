@@ -35,7 +35,7 @@ import { uploadTeamFile } from "@/lib/storage";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 
 const inputClassName =
-  "w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100";
+  "w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15";
 
 const selectClassName = inputClassName;
 
@@ -219,10 +219,10 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block space-y-2 text-sm font-semibold text-neutral-700">
+    <label className="block space-y-2 text-sm font-semibold text-[var(--text-secondary)]">
       <span className="flex items-center gap-2">
         {label}
-        {hint ? <span className="text-xs font-normal text-neutral-400">{hint}</span> : null}
+        {hint ? <span className="text-xs font-normal text-[var(--text-muted)]">{hint}</span> : null}
       </span>
       {children}
     </label>
@@ -231,8 +231,8 @@ function Field({
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
-      <div className="mb-2 flex items-center gap-2 font-bold text-yellow-950">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+      <div className="mb-2 flex items-center gap-2 font-bold text-yellow-100">
         <Info size={16} />
         Telemetria intelligente
       </div>
@@ -313,15 +313,15 @@ function statusClassName(status?: string | null) {
     case "analysis_ready":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "parsed":
-      return "border-sky-200 bg-sky-50 text-sky-700";
+      return "border-sky-400/30 bg-sky-500/10 text-sky-200";
     case "pending_parse":
-      return "border-yellow-200 bg-yellow-50 text-yellow-800";
+      return "border-yellow-400/25 bg-yellow-500/10 text-yellow-100";
     case "needs_review":
       return "border-orange-200 bg-orange-50 text-orange-700";
     case "error":
-      return "border-red-200 bg-red-50 text-red-700";
+      return "border-red-400/30 bg-red-500/10 text-red-200";
     default:
-      return "border-neutral-200 bg-neutral-50 text-neutral-600";
+      return "border-white/10 bg-white/[0.045] text-[var(--text-secondary)]";
   }
 }
 
@@ -1116,8 +1116,8 @@ function TrackMapSvg({
 
   if (allGps.length < 5) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
-        <div className="font-semibold text-neutral-800">Mappa pista non disponibile</div>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm text-[var(--text-muted)]">
+        <div className="font-semibold text-[var(--text-primary)]">Mappa pista non disponibile</div>
         <div className="mt-1 text-xs">
           Il file o il giro selezionato non contiene coordinate GPS valide sufficienti per ricostruire il tracciato.
         </div>
@@ -1169,20 +1169,20 @@ function TrackMapSvg({
     .slice(0, 5);
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+    <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Mappa pista GPS</div>
-          <div className="mt-1 text-xs text-neutral-500">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Mappa pista GPS</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)]">
             Il tracciato resta sempre completo. Lo zoom restringe solo il grafico; sulla mappa viene evidenziato il tratto analizzato.
           </div>
         </div>
-        <div className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">
+        <div className="rounded-full bg-white/[0.075] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
           {allGps.length} punti GPS
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-[300px] w-full">
           <rect x="0" y="0" width={width} height={height} fill="#fafafa" />
           <polyline
@@ -1253,7 +1253,7 @@ function TrackMapSvg({
         </svg>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-neutral-600">
+      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-[var(--text-secondary)]">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-neutral-900" /> tracciato completo</span>
           {isPrimaryZoomed ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> tratto analizzato {primaryLabel}</span> : <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {primaryLabel}</span>}
@@ -1261,7 +1261,7 @@ function TrackMapSvg({
           {visibleSpeedLosses.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600" /> perdita velocità</span> : null}
         </div>
         {activeSample ? (
-          <div className="rounded-xl bg-neutral-50 px-3 py-2">
+          <div className="rounded-xl bg-white/[0.045] px-3 py-2">
             Punto attuale: distanza {formatNumber(activeSample.distance_m, 1)} m · tempo {formatNumber(activeSample.time_seconds, 3)} s · velocità {formatNumber(getSampleValue(activeSample, "speed"), 1)} km/h
           </div>
         ) : null}
@@ -1434,7 +1434,7 @@ function SvgTelemetryChart({
 
   if (displaySamples.length === 0 || series.length === 0) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-6 text-sm text-[var(--text-muted)]">
         Nessun dato sufficiente per disegnare il grafico. Importa un CSV con campioni validi e almeno un canale numerico.
       </div>
     );
@@ -1443,52 +1443,52 @@ function SvgTelemetryChart({
   return (
     <div className="space-y-4">
       {hasComparison ? (
-        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+        <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-yellow-800">Confronto attivo</div>
-              <div className="mt-1 text-sm font-semibold text-neutral-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-yellow-100">Confronto attivo</div>
+              <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                 <span>{primaryLabel}</span>
-                <span className="mx-2 text-neutral-400">vs</span>
+                <span className="mx-2 text-[var(--text-muted)]">vs</span>
                 <span>{comparisonLabel}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-              <div className="rounded-xl bg-white/80 px-3 py-2">
-                <div className="text-neutral-500">Punti rif.</div>
-                <div className="font-bold text-neutral-900">{visiblePrimarySamples.length}</div>
+              <div className="rounded-xl bg-white/[0.08] px-3 py-2">
+                <div className="text-[var(--text-muted)]">Punti rif.</div>
+                <div className="font-bold text-[var(--text-primary)]">{visiblePrimarySamples.length}</div>
               </div>
-              <div className="rounded-xl bg-white/80 px-3 py-2">
-                <div className="text-neutral-500">Punti conf.</div>
-                <div className="font-bold text-neutral-900">{visibleComparisonSamples.length}</div>
+              <div className="rounded-xl bg-white/[0.08] px-3 py-2">
+                <div className="text-[var(--text-muted)]">Punti conf.</div>
+                <div className="font-bold text-[var(--text-primary)]">{visibleComparisonSamples.length}</div>
               </div>
-              <div className="rounded-xl bg-white/80 px-3 py-2">
-                <div className="text-neutral-500">V max rif.</div>
-                <div className="font-bold text-neutral-900">{formatNumber(channelMax(visiblePrimarySamples, "speed"), 1)} km/h</div>
+              <div className="rounded-xl bg-white/[0.08] px-3 py-2">
+                <div className="text-[var(--text-muted)]">V max rif.</div>
+                <div className="font-bold text-[var(--text-primary)]">{formatNumber(channelMax(visiblePrimarySamples, "speed"), 1)} km/h</div>
               </div>
-              <div className="rounded-xl bg-white/80 px-3 py-2">
-                <div className="text-neutral-500">V max conf.</div>
-                <div className="font-bold text-neutral-900">{formatNumber(channelMax(visibleComparisonSamples, "speed"), 1)} km/h</div>
+              <div className="rounded-xl bg-white/[0.08] px-3 py-2">
+                <div className="text-[var(--text-muted)]">V max conf.</div>
+                <div className="font-bold text-[var(--text-primary)]">{formatNumber(channelMax(visibleComparisonSamples, "speed"), 1)} km/h</div>
               </div>
             </div>
           </div>
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-neutral-200 bg-white p-3">
-        <div className="mb-3 flex flex-col gap-3 text-xs text-neutral-500 xl:flex-row xl:items-center xl:justify-between">
+      <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-3">
+        <div className="mb-3 flex flex-col gap-3 text-xs text-[var(--text-muted)] xl:flex-row xl:items-center xl:justify-between">
           <div>
-            Asse orizzontale: <span className="font-bold text-neutral-800">{analysisAxisLabel(axis)}</span>. Muovi il mouse sul grafico per leggere i valori; clicca per bloccare/sbloccare il riferimento.
-            {hasComparison ? <span className="ml-2 font-semibold text-yellow-700">Linea piena: {primaryLabel}. Linea tratteggiata: {comparisonLabel}.</span> : null}
+            Asse orizzontale: <span className="font-bold text-[var(--text-primary)]">{analysisAxisLabel(axis)}</span>. Muovi il mouse sul grafico per leggere i valori; clicca per bloccare/sbloccare il riferimento.
+            {hasComparison ? <span className="ml-2 font-semibold text-yellow-200">Linea piena: {primaryLabel}. Linea tratteggiata: {comparisonLabel}.</span> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setPresetZoom(0, 100)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+            <button type="button" onClick={() => setPresetZoom(0, 100)} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 font-semibold text-[var(--text-secondary)] transition hover:bg-[rgba(16,23,31,0.96)]">
               Tutto il giro
             </button>
-            <button type="button" onClick={() => setPresetZoom(25, 75)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+            <button type="button" onClick={() => setPresetZoom(25, 75)} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 font-semibold text-[var(--text-secondary)] transition hover:bg-[rgba(16,23,31,0.96)]">
               Zoom 50%
             </button>
-            <button type="button" onClick={() => setPresetZoom(37, 63)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+            <button type="button" onClick={() => setPresetZoom(37, 63)} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 font-semibold text-[var(--text-secondary)] transition hover:bg-[rgba(16,23,31,0.96)]">
               Zoom 25%
             </button>
             <button
@@ -1500,31 +1500,31 @@ function SvgTelemetryChart({
               }}
               className={`rounded-xl border px-3 py-1.5 font-semibold transition ${
                 invertDirection
-                  ? "border-yellow-300 bg-yellow-50 text-yellow-900 hover:bg-yellow-100"
-                  : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-white"
+                  ? "border-yellow-400/35 bg-yellow-500/10 text-yellow-100 hover:bg-yellow-500/20"
+                  : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-[rgba(16,23,31,0.96)]"
               }`}
             >
               {invertDirection ? "Verso invertito attivo" : "Inverti verso"}
             </button>
             {lockedIndex !== null ? (
-              <button type="button" onClick={() => setLockedIndex(null)} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5 font-semibold text-neutral-700 transition hover:bg-white">
+              <button type="button" onClick={() => setLockedIndex(null)} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 font-semibold text-[var(--text-secondary)] transition hover:bg-[rgba(16,23,31,0.96)]">
                 Sblocca riferimento
               </button>
             ) : null}
           </div>
         </div>
 
-        <div className="mb-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
-          <div className="mb-2 flex flex-col gap-1 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
-            <span className="font-semibold text-neutral-700">Finestra di analisi / zoom</span>
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+          <div className="mb-2 flex flex-col gap-1 text-xs text-[var(--text-muted)] md:flex-row md:items-center md:justify-between">
+            <span className="font-semibold text-[var(--text-secondary)]">Finestra di analisi / zoom</span>
             <span>
               {analysisAxisLabel(axis)}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)} {analysisAxisUnit(axis)}
-              {hasZoom ? <span className="ml-2 font-semibold text-yellow-700">zoom attivo</span> : null}
-              {invertDirection ? <span className="ml-2 font-semibold text-yellow-700">verso invertito</span> : null}
+              {hasZoom ? <span className="ml-2 font-semibold text-yellow-200">zoom attivo</span> : null}
+              {invertDirection ? <span className="ml-2 font-semibold text-yellow-200">verso invertito</span> : null}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-semibold text-[var(--text-secondary)]">
               Inizio finestra: {zoomStartPct}%
               <input
                 type="range"
@@ -1538,7 +1538,7 @@ function SvgTelemetryChart({
                 className="mt-2 w-full accent-yellow-500"
               />
             </label>
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-semibold text-[var(--text-secondary)]">
               Fine finestra: {zoomEndPct}%
               <input
                 type="range"
@@ -1554,15 +1554,15 @@ function SvgTelemetryChart({
             </label>
           </div>
           {invertDirection ? (
-            <div className="mt-3 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs leading-5 text-yellow-900">
+            <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs leading-5 text-yellow-100">
               Lettura invertita attiva: il cursore, il grafico e il pallino sulla pista scorrono nel verso opposto. Usala quando un export/logger visualizza il giro da fine a inizio.
             </div>
           ) : null}
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="rounded-2xl border border-neutral-100 bg-white p-2 text-xs text-neutral-500">
-            <div className="px-2 pb-2 font-semibold text-neutral-700">Grafico canali</div>
+          <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-2 text-xs text-[var(--text-muted)]">
+            <div className="px-2 pb-2 font-semibold text-[var(--text-secondary)]">Grafico canali</div>
             <div className="overflow-x-auto">
               <svg
             viewBox={`0 0 ${width} ${height}`}
@@ -1630,38 +1630,38 @@ function SvgTelemetryChart({
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_1fr]">
-        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Riferimento cursore</div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Riferimento cursore</div>
           {activeSample ? (
-            <div className="mt-2 space-y-1 text-neutral-700">
-              <div><span className="font-semibold text-neutral-900">Campione:</span> {activeSample.sample_index ?? activeIndex}</div>
-              <div><span className="font-semibold text-neutral-900">Tempo:</span> {formatNumber(activeSample.time_seconds, 3)} s</div>
-              <div><span className="font-semibold text-neutral-900">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
-              <div><span className="font-semibold text-neutral-900">Giro:</span> {activeSample.lap_number ?? "—"}</div>
+            <div className="mt-2 space-y-1 text-[var(--text-secondary)]">
+              <div><span className="font-semibold text-[var(--text-primary)]">Campione:</span> {activeSample.sample_index ?? activeIndex}</div>
+              <div><span className="font-semibold text-[var(--text-primary)]">Tempo:</span> {formatNumber(activeSample.time_seconds, 3)} s</div>
+              <div><span className="font-semibold text-[var(--text-primary)]">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
+              <div><span className="font-semibold text-[var(--text-primary)]">Giro:</span> {activeSample.lap_number ?? "—"}</div>
               {activeComparisonSample ? (
-                <div className="mt-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
+                <div className="mt-2 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
                   Confronto: tempo {formatNumber(activeComparisonSample.time_seconds, 3)} s · distanza {formatNumber(activeComparisonSample.distance_m, 2)} m · giro {activeComparisonSample.lap_number ?? "—"}
                 </div>
               ) : null}
             </div>
           ) : (
-            <div className="mt-2 text-neutral-500">Muovi il mouse sul grafico per leggere i valori.</div>
+            <div className="mt-2 text-[var(--text-muted)]">Muovi il mouse sul grafico per leggere i valori.</div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+        <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
           <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Dati nel punto selezionato</div>
-              <div className="text-xs text-neutral-500">Valori reali del riferimento, del confronto e differenza tra i due.</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Dati nel punto selezionato</div>
+              <div className="text-xs text-[var(--text-muted)]">Valori reali del riferimento, del confronto e differenza tra i due.</div>
             </div>
-            {activeSample && activeComparisonSample ? <div className="text-xs font-semibold text-yellow-700">Delta = riferimento - confronto</div> : null}
+            {activeSample && activeComparisonSample ? <div className="text-xs font-semibold text-yellow-200">Delta = riferimento - confronto</div> : null}
           </div>
           {activeSample ? (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500">
+                  <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <th className="py-2 pr-3">Canale</th>
                     <th className="py-2 pr-3">Riferimento</th>
                     {activeComparisonSample ? <th className="py-2 pr-3">Confronto</th> : null}
@@ -1674,14 +1674,14 @@ function SvgTelemetryChart({
                     const comparisonValue = activeComparisonSample ? getSampleValue(activeComparisonSample, item.channelKey) : null;
                     const delta = value !== null && comparisonValue !== null ? value - comparisonValue : null;
                     return (
-                      <tr key={item.channelKey} className="border-b border-neutral-100 last:border-0">
-                        <td className="py-2 pr-3 font-semibold text-neutral-800">
+                      <tr key={item.channelKey} className="border-b border-white/10 last:border-0">
+                        <td className="py-2 pr-3 font-semibold text-[var(--text-primary)]">
                           <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                           {item.label}{item.unit ? ` (${item.unit})` : ""}
                         </td>
-                        <td className="py-2 pr-3 text-neutral-700">{formatNumber(value, 3)}</td>
-                        {activeComparisonSample ? <td className="py-2 pr-3 text-neutral-700">{formatNumber(comparisonValue, 3)}</td> : null}
-                        {activeComparisonSample ? <td className={`py-2 pr-3 font-semibold ${delta !== null && Math.abs(delta) > 0 ? "text-neutral-900" : "text-neutral-400"}`}>{formatNumber(delta, 3)}</td> : null}
+                        <td className="py-2 pr-3 text-[var(--text-secondary)]">{formatNumber(value, 3)}</td>
+                        {activeComparisonSample ? <td className="py-2 pr-3 text-[var(--text-secondary)]">{formatNumber(comparisonValue, 3)}</td> : null}
+                        {activeComparisonSample ? <td className={`py-2 pr-3 font-semibold ${delta !== null && Math.abs(delta) > 0 ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>{formatNumber(delta, 3)}</td> : null}
                       </tr>
                     );
                   })}
@@ -1689,29 +1689,29 @@ function SvgTelemetryChart({
               </table>
             </div>
           ) : (
-            <div className="text-sm text-neutral-500">Nessun punto selezionato.</div>
+            <div className="text-sm text-[var(--text-muted)]">Nessun punto selezionato.</div>
           )}
         </div>
       </div>
 
       {hasComparison ? (
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Suggerimenti automatici da verificare</div>
+        <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Suggerimenti automatici da verificare</div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl bg-neutral-50 p-3 text-sm text-neutral-700">
-              <div className="font-semibold text-neutral-900">Sintesi canali selezionati nella finestra</div>
+            <div className="rounded-2xl bg-white/[0.045] p-3 text-sm text-[var(--text-secondary)]">
+              <div className="font-semibold text-[var(--text-primary)]">Sintesi canali selezionati nella finestra</div>
               <div className="mt-2 space-y-1 text-xs">
                 {series.slice(0, 6).map((item) => (
                   <div key={item.channelKey} className="flex items-center justify-between gap-3">
                     <span>{item.label}</span>
-                    <span className="font-semibold text-neutral-800">
+                    <span className="font-semibold text-[var(--text-primary)]">
                       max {formatNumber(item.primaryMax, 2)} / {formatNumber(item.comparisonMax, 2)} {item.unit}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="rounded-2xl bg-yellow-50 p-3 text-sm text-yellow-950">
+            <div className="rounded-2xl bg-yellow-500/10 p-3 text-sm text-yellow-100">
               <div className="font-semibold">Possibili punti dove il confronto perde velocità</div>
               {speedLosses.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-xs">
@@ -1724,7 +1724,7 @@ function SvgTelemetryChart({
               ) : (
                 <div className="mt-2 text-xs">Nella finestra attuale non vedo perdite velocità evidenti oltre 3 km/h. Prova a restringere la zona o selezionare il canale velocità.</div>
               )}
-              <div className="mt-2 text-[11px] text-yellow-800">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
+              <div className="mt-2 text-[11px] text-yellow-100">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
             </div>
           </div>
         </div>
@@ -1732,7 +1732,7 @@ function SvgTelemetryChart({
 
       <div className="flex flex-wrap gap-2">
         {series.map((item) => (
-          <span key={item.channelKey} className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700">
+          <span key={item.channelKey} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
             {item.label}{item.unit ? ` (${item.unit})` : ""}: {formatNumber(item.minY, 2)} / {formatNumber(item.maxY, 2)}
           </span>
@@ -2644,7 +2644,7 @@ export default function TelemetryPage() {
               </Field>
 
               {file && ["csv", "aim_export"].includes(form.data_format) ? (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+                <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-sm text-sky-200">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <div className="font-bold">Import guidato CSV disponibile</div>
@@ -2655,7 +2655,7 @@ export default function TelemetryPage() {
                     <button
                       type="button"
                       onClick={() => startCsvWizardFromFile(file, "new")}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-white px-4 py-2 text-xs font-bold text-sky-800 transition hover:bg-sky-100"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20"
                     >
                       <PlayCircle size={15} />
                       Leggi canali CSV
@@ -2768,7 +2768,7 @@ export default function TelemetryPage() {
               </Field>
 
               {selectedTurn ? (
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-xs leading-5 text-neutral-600">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-5 text-[var(--text-secondary)]">
                   Il turno selezionato aggiorna automaticamente evento, mezzo, pilota e sessione se questi dati sono
                   presenti sul turno.
                 </div>
@@ -2919,7 +2919,7 @@ export default function TelemetryPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-[var(--text-muted)]">
               Caricamento archivio telemetria...
             </div>
           ) : filtered.length === 0 ? (
@@ -2940,11 +2940,11 @@ export default function TelemetryPage() {
 
                 if (archiveViewMode === "compact") {
                   return (
-                    <div key={row.id} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                    <div key={row.id} className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 shadow-sm">
                       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="truncate text-sm font-bold text-neutral-900">
+                            <div className="truncate text-sm font-bold text-[var(--text-primary)]">
                               {row.file_name || "File telemetria"}
                             </div>
                             <span
@@ -2955,7 +2955,7 @@ export default function TelemetryPage() {
                               {statusLabel(row.import_status)}
                             </span>
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
+                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
                             <span>{formatDateTime(row.created_at)}</span>
                             <span>{safeText(event?.name)}</span>
                             <span>{safeText(car?.name)}</span>
@@ -2964,17 +2964,17 @@ export default function TelemetryPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-xs text-neutral-600 sm:grid-cols-5 xl:w-[520px]">
-                          <div><span className="font-bold text-neutral-900">{row.channels_count || rowChannels.length || 0}</span> canali</div>
-                          <div><span className="font-bold text-neutral-900">{row.laps_count || rowLaps.length || 0}</span> giri</div>
-                          <div><span className="font-bold text-neutral-900">{row.sampled_points_count || 0}</span> punti</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)] sm:grid-cols-5 xl:w-[520px]">
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.channels_count || rowChannels.length || 0}</span> canali</div>
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.laps_count || rowLaps.length || 0}</span> giri</div>
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.sampled_points_count || 0}</span> punti</div>
                           <div>Best {formatDuration(row.best_lap_seconds)}</div>
                           <div>{formatFileSize(row.file_size_bytes)}</div>
                         </div>
 
                         <div className="flex flex-wrap gap-2 xl:justify-end">
                           {canEditTelemetry ? (
-                            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 transition hover:bg-sky-100">
+                            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20">
                               <Database size={14} />
                               CSV
                               <input
@@ -2994,7 +2994,7 @@ export default function TelemetryPage() {
                             <button
                               type="button"
                               onClick={() => void openAnalysis(row)}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs font-semibold text-yellow-900 transition hover:bg-yellow-100"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-100 transition hover:bg-yellow-500/20"
                             >
                               <BarChart3 size={14} />
                               Analizza
@@ -3006,7 +3006,7 @@ export default function TelemetryPage() {
                               href={row.file_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                              className="inline-flex items-center justify-center rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                             >
                               Apri
                             </a>
@@ -3017,7 +3017,7 @@ export default function TelemetryPage() {
                               type="button"
                               onClick={() => void deleteTelemetryFile(row)}
                               disabled={deletingFileId === row.id}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {deletingFileId === row.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               Elimina
@@ -3030,11 +3030,11 @@ export default function TelemetryPage() {
                 }
 
                 return (
-                  <div key={row.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  <div key={row.id} className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-5 shadow-sm">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-base font-bold text-neutral-900">
+                          <div className="text-base font-bold text-[var(--text-primary)]">
                             {row.file_name || "File telemetria"}
                           </div>
                           <span
@@ -3045,12 +3045,12 @@ export default function TelemetryPage() {
                             {statusLabel(row.import_status)}
                           </span>
                         </div>
-                        <div className="mt-1 text-sm text-neutral-500">{formatDateTime(row.created_at)}</div>
+                        <div className="mt-1 text-sm text-[var(--text-muted)]">{formatDateTime(row.created_at)}</div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
                         {canEditTelemetry ? (
-                          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-100">
+                          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/20">
                             <Database size={15} />
                             Importa CSV
                             <input
@@ -3070,7 +3070,7 @@ export default function TelemetryPage() {
                           <button
                             type="button"
                             onClick={() => void openAnalysis(row)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm font-semibold text-yellow-900 transition hover:bg-yellow-100"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-100 transition hover:bg-yellow-500/20"
                           >
                             <BarChart3 size={15} />
                             Analizza
@@ -3082,7 +3082,7 @@ export default function TelemetryPage() {
                             href={row.file_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                            className="inline-flex items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                           >
                             Apri file
                           </a>
@@ -3093,7 +3093,7 @@ export default function TelemetryPage() {
                             type="button"
                             onClick={() => void deleteTelemetryFile(row)}
                             disabled={deletingFileId === row.id}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {deletingFileId === row.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                             Elimina
@@ -3102,7 +3102,7 @@ export default function TelemetryPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-neutral-700 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-[var(--text-secondary)] md:grid-cols-2 xl:grid-cols-3">
                       <div>Categoria: {categoryLabel(row.file_category)}</div>
                       <div>Formato: {safeText(row.data_format)}</div>
                       <div>Software: {safeText(row.source_software)}</div>
@@ -3126,13 +3126,13 @@ export default function TelemetryPage() {
                     </div>
 
                     {row.event_car_turn_id ? (
-                      <div className="mt-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-xs leading-5 text-neutral-600">
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-5 text-[var(--text-secondary)]">
                         Turno collegato: {turnLabels.get(row.event_car_turn_id) || row.event_car_turn_id}
                       </div>
                     ) : null}
 
                     {row.notes ? (
-                      <div className="mt-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm leading-6 text-yellow-900">
+                      <div className="mt-3 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm leading-6 text-yellow-100">
                         {row.notes}
                       </div>
                     ) : null}
@@ -3142,7 +3142,7 @@ export default function TelemetryPage() {
                         {row.tags.map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs font-semibold text-neutral-600"
+                            className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]"
                           >
                             #{tag}
                           </span>
@@ -3151,20 +3151,20 @@ export default function TelemetryPage() {
                     ) : null}
 
                     {rowChannels.length > 0 ? (
-                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
-                        <div className="mb-2 font-bold text-neutral-900">Canali importati</div>
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-sm text-[var(--text-secondary)]">
+                        <div className="mb-2 font-bold text-[var(--text-primary)]">Canali importati</div>
                         <div className="flex flex-wrap gap-2">
                           {rowChannels.slice(0, 12).map((channel) => (
                             <span
                               key={channel.id}
-                              className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-600"
+                              className="rounded-full border border-white/10 bg-[rgba(16,23,31,0.96)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]"
                             >
                               {channel.display_name || channel.channel_key}
                               {channel.unit ? ` (${channel.unit})` : ""}
                             </span>
                           ))}
                           {rowChannels.length > 12 ? (
-                            <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-500">
+                            <span className="rounded-full border border-white/10 bg-[rgba(16,23,31,0.96)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)]">
                               +{rowChannels.length - 12} altri
                             </span>
                           ) : null}
@@ -3180,7 +3180,7 @@ export default function TelemetryPage() {
                     ) : null}
 
                     {rowInsights.length > 0 ? (
-                      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                      <div className="mt-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 p-3 text-sm text-sky-200">
                         <div className="mb-2 font-bold">Insight tecnici</div>
                         <div className="space-y-2">
                           {rowInsights.slice(0, 3).map((insight) => (
@@ -3202,14 +3202,14 @@ export default function TelemetryPage() {
 
       {analysisFile ? (
         <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 ${analysisFullscreen ? "p-0" : "p-4"}`}>
-          <div className={`${analysisFullscreen ? "h-screen max-h-screen w-screen rounded-none" : "max-h-[92vh] w-full max-w-7xl rounded-3xl"} overflow-hidden bg-white shadow-2xl`}>
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
+          <div className={`${analysisFullscreen ? "h-screen max-h-screen w-screen rounded-none" : "max-h-[92vh] w-full max-w-7xl rounded-3xl"} overflow-hidden bg-[rgba(16,23,31,0.96)] shadow-2xl`}>
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
               <div>
-                <div className="flex items-center gap-2 text-lg font-bold text-neutral-900">
+                <div className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)]">
                   <BarChart3 className="h-5 w-5 text-yellow-600" />
                   Analisi telemetria
                 </div>
-                <div className="mt-1 text-sm text-neutral-500">
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
                   {analysisFile.file_name || "File telemetria"} · {analysisSamples.length} punti grafici
                 </div>
               </div>
@@ -3217,7 +3217,7 @@ export default function TelemetryPage() {
                 <button
                   type="button"
                   onClick={() => setAnalysisFullscreen((current) => !current)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                 >
                   {analysisFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                   {analysisFullscreen ? "Riduci" : "Tutto schermo"}
@@ -3232,7 +3232,7 @@ export default function TelemetryPage() {
                     setAnalysisCompareFileLap("best");
                     setAnalysisFullscreen(false);
                   }}
-                  className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50"
+                  className="rounded-xl border border-white/10 p-2 text-[var(--text-muted)] transition hover:bg-white/[0.045]"
                 >
                   <X size={18} />
                 </button>
@@ -3241,38 +3241,38 @@ export default function TelemetryPage() {
 
             <div className={`${analysisFullscreen ? "h-[calc(100vh-88px)]" : "max-h-[calc(92vh-88px)]"} overflow-y-auto p-5`}>
               {analysisLoading ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm font-semibold text-neutral-600">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-sm font-semibold text-[var(--text-secondary)]">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Caricamento campioni telemetria...
                 </div>
               ) : (
                 <>
                   <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Durata</div>
-                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatDuration(analysisFile.duration_seconds)}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Durata</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatDuration(analysisFile.duration_seconds)}</div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Best lap</div>
-                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatDuration(analysisFile.best_lap_seconds)}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Best lap</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatDuration(analysisFile.best_lap_seconds)}</div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">V max</div>
-                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatNumber(analysisFile.max_speed, 1)} km/h</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">V max</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatNumber(analysisFile.max_speed, 1)} km/h</div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">RPM max</div>
-                      <div className="mt-1 text-lg font-bold text-neutral-900">{formatNumber(analysisFile.max_rpm, 0)}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">RPM max</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatNumber(analysisFile.max_rpm, 0)}</div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Giri</div>
-                      <div className="mt-1 text-lg font-bold text-neutral-900">{analysisFile.laps_count || laps.filter((lap) => lap.telemetry_file_id === analysisFile.id).length}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Giri</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{analysisFile.laps_count || laps.filter((lap) => lap.telemetry_file_id === analysisFile.id).length}</div>
                     </div>
                   </div>
 
                   <div className={`${analysisFullscreen ? "mb-5 grid grid-cols-1 gap-4 2xl:grid-cols-[320px_1fr]" : "mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]"}`}>
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                      <div className="mb-3 text-sm font-bold text-neutral-900">Controlli analisi</div>
+                    <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Controlli analisi</div>
 
                       <Field label="Asse orizzontale" hint="come scorre il grafico">
                         <select
@@ -3365,20 +3365,20 @@ export default function TelemetryPage() {
                         ) : null}
 
                         {analysisCompareFileLoading ? (
-                          <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-xs font-semibold text-neutral-600">
+                          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-xs font-semibold text-[var(--text-secondary)]">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Caricamento file di confronto...
                           </div>
                         ) : null}
 
                         {analysisPrimaryLap !== "all" || analysisCompareFileId ? (
-                          <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">
+                          <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-xs leading-5 text-yellow-100">
                             Vista confronto: quando confronti giri, tempo e distanza partono da zero per facilitare la sovrapposizione. {chartCompareSamples.length > 0 ? `Delta tempi: ${formatNumber((primaryLapTime ?? 0) - (compareLapTime ?? 0), 3)} s.` : "Seleziona un giro o un altro file per sovrapporre i dati."}
                           </div>
                         ) : null}
                       </div>
 
-                      <div className="mt-4 mb-2 text-sm font-bold text-neutral-900">Canali da visualizzare</div>
+                      <div className="mt-4 mb-2 text-sm font-bold text-[var(--text-primary)]">Canali da visualizzare</div>
                       <div className={`${analysisFullscreen ? "max-h-[calc(100vh-420px)]" : "max-h-[360px]"} space-y-2 overflow-y-auto pr-1`}>
                         {channels
                           .filter((channel) => channel.telemetry_file_id === analysisFile.id)
@@ -3387,10 +3387,10 @@ export default function TelemetryPage() {
                             if (!key || ["time", "distance", "lap"].includes(key)) return null;
                             const checked = selectedAnalysisChannels.includes(key);
                             return (
-                              <label key={channel.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+                              <label key={channel.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm text-[var(--text-secondary)]">
                                 <span>
                                   <span className="font-semibold">{channelDisplayName(channel, key)}</span>
-                                  {channelUnit(channel, key) ? <span className="text-neutral-400"> · {channelUnit(channel, key)}</span> : null}
+                                  {channelUnit(channel, key) ? <span className="text-[var(--text-muted)]"> · {channelUnit(channel, key)}</span> : null}
                                 </span>
                                 <input
                                   type="checkbox"
@@ -3407,13 +3407,13 @@ export default function TelemetryPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="text-sm font-bold text-neutral-900">Grafico sensori</div>
-                          <div className="text-xs text-neutral-500">Muovi il cursore sul grafico per leggere valori reali. Il confronto, stesso file o altro file/turno, appare tratteggiato.</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]">Grafico sensori</div>
+                          <div className="text-xs text-[var(--text-muted)]">Muovi il cursore sul grafico per leggere valori reali. Il confronto, stesso file o altro file/turno, appare tratteggiato.</div>
                         </div>
-                        <div className="text-xs font-semibold text-neutral-500">
+                        <div className="text-xs font-semibold text-[var(--text-muted)]">
                           Canali selezionati: {selectedAnalysisChannels.length}
                         </div>
                       </div>
@@ -3431,11 +3431,11 @@ export default function TelemetryPage() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                      <div className="mb-3 text-sm font-bold text-neutral-900">Statistiche canali</div>
+                    <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Statistiche canali</div>
                       <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
-                          <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                        <table className="min-w-full divide-y divide-white/10 text-sm">
+                          <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                             <tr>
                               <th className="px-3 py-2">Canale</th>
                               <th className="px-3 py-2">Min</th>
@@ -3443,17 +3443,17 @@ export default function TelemetryPage() {
                               <th className="px-3 py-2">Media</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-neutral-100 bg-white">
+                          <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
                             {selectedAnalysisChannels.map((key) => {
                               const channel = channels.find((item) => item.telemetry_file_id === analysisFile.id && item.channel_key === key);
                               const stats = channelStats(analysisSamples, key);
                               const unit = channelUnit(channel, key);
                               return (
                                 <tr key={key}>
-                                  <td className="px-3 py-2 font-semibold text-neutral-800">{channelDisplayName(channel, key)}</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.min, 2)} {unit}</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.max, 2)} {unit}</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(stats.avg, 2)} {unit}</td>
+                                  <td className="px-3 py-2 font-semibold text-[var(--text-primary)]">{channelDisplayName(channel, key)}</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatNumber(stats.min, 2)} {unit}</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatNumber(stats.max, 2)} {unit}</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatNumber(stats.avg, 2)} {unit}</td>
                                 </tr>
                               );
                             })}
@@ -3462,11 +3462,11 @@ export default function TelemetryPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                      <div className="mb-3 text-sm font-bold text-neutral-900">Riepilogo giri</div>
+                    <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Riepilogo giri</div>
                       <div className="max-h-[330px] overflow-y-auto">
-                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
-                          <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                        <table className="min-w-full divide-y divide-white/10 text-sm">
+                          <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                             <tr>
                               <th className="px-3 py-2">Giro</th>
                               <th className="px-3 py-2">Tempo</th>
@@ -3474,16 +3474,16 @@ export default function TelemetryPage() {
                               <th className="px-3 py-2">V media</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-neutral-100 bg-white">
+                          <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
                             {laps
                               .filter((lap) => lap.telemetry_file_id === analysisFile.id)
                               .sort((a, b) => (a.lap_number || 0) - (b.lap_number || 0))
                               .map((lap) => (
                                 <tr key={lap.id}>
-                                  <td className="px-3 py-2 font-semibold text-neutral-800">{lap.lap_number || "—"}</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatDuration(lap.lap_time_seconds)}</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(lap.max_speed, 1)} km/h</td>
-                                  <td className="px-3 py-2 text-neutral-600">{formatNumber(lap.avg_speed, 1)} km/h</td>
+                                  <td className="px-3 py-2 font-semibold text-[var(--text-primary)]">{lap.lap_number || "—"}</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatDuration(lap.lap_time_seconds)}</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatNumber(lap.max_speed, 1)} km/h</td>
+                                  <td className="px-3 py-2 text-[var(--text-secondary)]">{formatNumber(lap.avg_speed, 1)} km/h</td>
                                 </tr>
                               ))}
                           </tbody>
@@ -3492,7 +3492,7 @@ export default function TelemetryPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+                  <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
                     Ora puoi analizzare una sessione completa, isolare un giro, sovrapporre un secondo giro dello stesso file e confrontare anche un altro file/turno già analizzato. Il prossimo passo sarà trasformare questi confronti in insight automatici sui punti di miglioramento.
                   </div>
                 </>
@@ -3504,11 +3504,11 @@ export default function TelemetryPage() {
 
       {csvWizard ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl modal-panel shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
               <div>
-                <div className="text-lg font-bold text-neutral-900">Import guidato CSV telemetria</div>
-                <div className="mt-1 text-sm text-neutral-500">
+                <div className="text-lg font-bold text-[var(--text-primary)]">Import guidato CSV telemetria</div>
+                <div className="mt-1 text-sm text-[var(--text-muted)]">
                   {csvWizard.fileName} · separatore {csvWizard.delimiter === "\t" ? "tab" : csvWizard.delimiter} · {csvWizard.rows.length} righe dati
                 </div>
               </div>
@@ -3516,18 +3516,18 @@ export default function TelemetryPage() {
                 type="button"
                 onClick={() => (csvWizard.importing ? null : setCsvWizard(null))}
                 disabled={csvWizard.importing}
-                className="rounded-xl border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-xl border border-white/10 p-2 text-[var(--text-muted)] transition hover:bg-white/[0.045] disabled:opacity-50"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="max-h-[calc(90vh-170px)] overflow-y-auto p-5">
-              <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+              <div className="mb-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
                 Controlla l'associazione proposta. Le colonne ignorate non verranno importate. Dopo la conferma salvo
                 riepilogo canali, giri e un campionamento dei dati per i grafici futuri.
                 {csvWizard.aimMetadata?.isAimCsv ? (
-                  <div className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5 text-yellow-900">
+                  <div className="mt-3 rounded-xl bg-white/[0.07] p-3 text-xs leading-5 text-yellow-100">
                     <strong>AIM CSV riconosciuto:</strong> {csvWizard.aimMetadata.session || "pista non indicata"} ·{" "}
                     {csvWizard.aimMetadata.vehicle || "veicolo non indicato"} ·{" "}
                     {csvWizard.aimMetadata.racer || "pilota non indicato"} ·{" "}
@@ -3543,7 +3543,7 @@ export default function TelemetryPage() {
               ) : null}
 
               {wizardValidation.errors.length > 0 ? (
-                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+                <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
                   <div className="font-bold">Errori da correggere</div>
                   {wizardValidation.errors.map((error) => (
                     <div key={error}>• {error}</div>
@@ -3560,9 +3560,9 @@ export default function TelemetryPage() {
                 </div>
               ) : null}
 
-              <div className="overflow-x-auto rounded-2xl border border-neutral-200">
-                <table className="min-w-full divide-y divide-neutral-200 text-sm">
-                  <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="min-w-full divide-y divide-white/10 text-sm">
+                  <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <tr>
                       <th className="px-4 py-3">Colonna file</th>
                       <th className="px-4 py-3">Unità</th>
@@ -3570,17 +3570,17 @@ export default function TelemetryPage() {
                       <th className="px-4 py-3">Campo telemetria</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-100 bg-white">
+                  <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
                     {csvWizard.headers.map((header, index) => (
                       <tr key={`${header}-${index}`}>
-                        <td className="px-4 py-3 font-semibold text-neutral-800">{header}</td>
-                        <td className="px-4 py-3 text-neutral-500">{csvWizard.units[header] || "—"}</td>
-                        <td className="max-w-xs truncate px-4 py-3 text-neutral-500">
+                        <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">{header}</td>
+                        <td className="px-4 py-3 text-[var(--text-muted)]">{csvWizard.units[header] || "—"}</td>
+                        <td className="max-w-xs truncate px-4 py-3 text-[var(--text-muted)]">
                           {csvWizard.rows[0]?.[index] || "—"}
                         </td>
                         <td className="px-4 py-3">
                           <select
-                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100"
+                            className="w-full rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15"
                             value={csvWizard.mapping[header] || "ignore"}
                             onChange={(event) =>
                               setCsvWizard({
@@ -3608,10 +3608,10 @@ export default function TelemetryPage() {
                 </table>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="mb-3 text-sm font-bold text-neutral-800">Anteprima prime righe</div>
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Anteprima prime righe</div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs text-neutral-600">
+                  <table className="min-w-full text-xs text-[var(--text-secondary)]">
                     <thead>
                       <tr>
                         {csvWizard.headers.slice(0, 8).map((header) => (
@@ -3623,7 +3623,7 @@ export default function TelemetryPage() {
                     </thead>
                     <tbody>
                       {csvWizard.rows.slice(0, 5).map((row, rowIndex) => (
-                        <tr key={rowIndex} className="border-t border-neutral-200">
+                        <tr key={rowIndex} className="border-t border-white/10">
                           {csvWizard.headers.slice(0, 8).map((header, columnIndex) => (
                             <td key={`${rowIndex}-${header}`} className="max-w-[180px] truncate px-3 py-2">
                               {row[columnIndex] || "—"}
@@ -3637,8 +3637,8 @@ export default function TelemetryPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-neutral-200 p-5 md:flex-row md:items-center md:justify-between">
-              <div className="text-xs leading-5 text-neutral-500">
+            <div className="flex flex-col gap-3 border-t border-white/10 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="text-xs leading-5 text-[var(--text-muted)]">
                 {csvWizard.mode === "new"
                   ? "Conferma la mappatura, poi salva il file telemetria per completare l'import."
                   : "Conferma la mappatura: i dati CSV sostituiranno l'eventuale import precedente di questo file."}
@@ -3648,7 +3648,7 @@ export default function TelemetryPage() {
                   type="button"
                   onClick={() => setCsvWizard(null)}
                   disabled={csvWizard.importing}
-                  className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50"
+                  className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045] disabled:opacity-50"
                 >
                   Annulla
                 </button>

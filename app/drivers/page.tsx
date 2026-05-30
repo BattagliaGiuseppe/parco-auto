@@ -277,10 +277,10 @@ function safeFileName(name: string) {
 function StatusPill({ tone, children }: { tone: "green" | "yellow" | "red" | "neutral" | "blue"; children: React.ReactNode }) {
   const classes = {
     green: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    yellow: "border-yellow-200 bg-yellow-50 text-yellow-800",
-    red: "border-red-200 bg-red-50 text-red-700",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    neutral: "border-neutral-200 bg-neutral-50 text-neutral-600",
+    yellow: "border-yellow-400/25 bg-yellow-500/10 text-yellow-100",
+    red: "border-red-400/30 bg-red-500/10 text-red-200",
+    blue: "border-sky-400/30 bg-sky-500/10 text-sky-200",
+    neutral: "border-white/10 bg-white/[0.045] text-[var(--text-secondary)]",
   }[tone];
   return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${classes}`}>{children}</span>;
 }
@@ -874,7 +874,7 @@ export default function DriversPage() {
       />
 
       {!canEditDrivers ? (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+        <div className="rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-200">
           Hai accesso in sola lettura a questo modulo.
         </div>
       ) : null}
@@ -887,7 +887,7 @@ export default function DriversPage() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -917,12 +917,12 @@ export default function DriversPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm font-semibold text-neutral-500">Caricamento piloti...</div>
+            <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-6 text-sm font-semibold text-[var(--text-muted)]">Caricamento piloti...</div>
           ) : filteredDrivers.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center">
-              <Users className="mx-auto mb-3 h-8 w-8 text-neutral-400" />
-              <p className="text-base font-bold text-neutral-800">Nessun pilota trovato</p>
-              <p className="mt-1 text-sm text-neutral-500">Crea il primo pilota o modifica i filtri di ricerca.</p>
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-8 text-center">
+              <Users className="mx-auto mb-3 h-8 w-8 text-[var(--text-muted)]" />
+              <p className="text-base font-bold text-[var(--text-primary)]">Nessun pilota trovato</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Crea il primo pilota o modifica i filtri di ricerca.</p>
             </div>
           ) : viewMode === "compact" ? (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
@@ -999,23 +999,23 @@ export default function DriversPage() {
                 const performance = performanceByDriver[driver.id];
                 const recentPerformance = performanceDetailsByDriver[driver.id] || [];
                 return (
-                  <div key={driver.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                  <div key={driver.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] shadow-sm">
                     <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex min-w-0 gap-4">
-                        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver)} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-neutral-400" />}
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.075]">
+                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver)} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-[var(--text-muted)]" />}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-black text-neutral-900">{getDriverName(driver)}</h3>
+                            <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver)}</h3>
                             {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
                             {driver.is_active === false ? <StatusPill tone="neutral">Non attivo</StatusPill> : <StatusPill tone="green">Attivo</StatusPill>}
                             {alerts ? <StatusPill tone="yellow">Scadenze da verificare</StatusPill> : null}
                           </div>
-                          <p className="mt-1 text-sm font-semibold text-neutral-500">{driver.nickname || "Nessun nickname"}</p>
-                          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-600">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || "Email non inserita"}</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || "Telefono non inserito"}</span>
+                          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || "Nessun nickname"}</p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || "Email non inserita"}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || "Telefono non inserito"}</span>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <ExpiryPill label="Licenza" value={driver.license_expires_at} />
@@ -1026,10 +1026,10 @@ export default function DriversPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:justify-end">
-                        <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50">
+                        <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
                           Eventi
                         </Link>
-                        <button onClick={() => printDriverCard(driver)} className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50">
+                        <button onClick={() => printDriverCard(driver)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
                           <Printer className="h-4 w-4" /> Stampa
                         </button>
                         <button
@@ -1038,7 +1038,7 @@ export default function DriversPage() {
                             setDocForm(emptyDocumentForm);
                             setDocFile(null);
                           }}
-                          className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50"
+                          className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                         >
                           Dettaglio ({docs.length} doc)
                         </button>
@@ -1048,7 +1048,7 @@ export default function DriversPage() {
                               <Edit3 className="h-4 w-4" /> Modifica
                             </button>
                             {driver.photo_path ? (
-                              <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">
+                              <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-400/30 px-3 py-2 text-sm font-bold text-red-200 hover:bg-red-500/10">
                                 Rimuovi foto
                               </button>
                             ) : null}
@@ -1057,14 +1057,14 @@ export default function DriversPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 md:grid-cols-4">
+                    <div className="grid gap-3 border-t border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-[var(--text-secondary)] md:grid-cols-4">
                       <InfoLine label="Nazionalità" value={driver.nationality} />
                       <InfoLine label="Licenza" value={[driver.license_category, driver.license_number].filter(Boolean).join(" · ") || null} />
                       <InfoLine label="Emergenza" value={[driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || null} />
                       <InfoLine label="Taglie" value={[driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || null} />
                     </div>
 
-                    <div className="grid gap-3 border-t border-neutral-100 bg-white px-4 py-3 text-sm text-neutral-700 md:grid-cols-5">
+                    <div className="grid gap-3 border-t border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] md:grid-cols-5">
                       <PerformanceMini label="Eventi" value={performance ? String(performance.events_count) : "0"} icon={<Trophy className="h-4 w-4" />} />
                       <PerformanceMini label="Turni" value={performance ? String(performance.turns_count) : "0"} icon={<TimerReset className="h-4 w-4" />} />
                       <PerformanceMini label="Ore guida" value={performance ? `${performance.total_hours} h` : "0 h"} icon={<CalendarClock className="h-4 w-4" />} />
@@ -1073,11 +1073,11 @@ export default function DriversPage() {
                     </div>
 
                     {expanded ? (
-                      <div className="border-t border-neutral-200 bg-white p-4">
+                      <div className="border-t border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                         <div className="mb-4 grid gap-4">
                           <div>
-                            <h4 className="font-black text-neutral-900">Performance eventi</h4>
-                            <p className="text-sm font-semibold text-neutral-500">Dati calcolati dai turni/eventi collegati al pilota.</p>
+                            <h4 className="font-black text-[var(--text-primary)]">Performance eventi</h4>
+                            <p className="text-sm font-semibold text-[var(--text-muted)]">Dati calcolati dai turni/eventi collegati al pilota.</p>
                           </div>
                           <div className="grid gap-3 md:grid-cols-4">
                             <PerformanceBox label="Eventi disputati" value={performance ? String(performance.events_count) : "0"} />
@@ -1086,8 +1086,8 @@ export default function DriversPage() {
                             <PerformanceBox label="Best lap" value={formatLapTime(performance?.best_lap_ms)} />
                           </div>
                           {recentPerformance.length > 0 ? (
-                            <div className="overflow-hidden rounded-2xl border border-neutral-200">
-                              <div className="grid grid-cols-6 gap-2 bg-neutral-50 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-neutral-500">
+                            <div className="overflow-hidden rounded-2xl border border-white/10">
+                              <div className="grid grid-cols-6 gap-2 bg-white/[0.045] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-[var(--text-muted)]">
                                 <span>Data</span>
                                 <span className="col-span-2">Evento</span>
                                 <span>Auto</span>
@@ -1095,7 +1095,7 @@ export default function DriversPage() {
                                 <span>Best</span>
                               </div>
                               {recentPerformance.map((row) => (
-                                <div key={row.id} className="grid grid-cols-6 gap-2 border-t border-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700">
+                                <div key={row.id} className="grid grid-cols-6 gap-2 border-t border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
                                   <span>{formatDateTime(row.recorded_at)}</span>
                                   <span className="col-span-2 truncate">{row.event_name}</span>
                                   <span className="truncate">{row.car_name}</span>
@@ -1105,7 +1105,7 @@ export default function DriversPage() {
                               ))}
                             </div>
                           ) : (
-                            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm font-semibold text-neutral-500">
+                            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-4 text-sm font-semibold text-[var(--text-muted)]">
                               Nessun turno/evento ancora collegato a questo pilota.
                             </div>
                           )}
@@ -1113,39 +1113,39 @@ export default function DriversPage() {
 
                         <div className="mb-4 flex items-center justify-between gap-3">
                           <div>
-                            <h4 className="font-black text-neutral-900">Documenti e scadenze</h4>
-                            <p className="text-sm font-semibold text-neutral-500">Licenze, certificati, liberatorie e file collegati al pilota.</p>
+                            <h4 className="font-black text-[var(--text-primary)]">Documenti e scadenze</h4>
+                            <p className="text-sm font-semibold text-[var(--text-muted)]">Licenze, certificati, liberatorie e file collegati al pilota.</p>
                           </div>
                         </div>
 
                         {docs.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm font-semibold text-neutral-500">Nessun documento registrato per questo pilota.</div>
+                          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-4 text-sm font-semibold text-[var(--text-muted)]">Nessun documento registrato per questo pilota.</div>
                         ) : (
                           <div className="mb-4 grid gap-2">
                             {docs.map((doc) => {
                               const tone = expiryTone(doc.expires_at);
                               return (
-                                <div key={doc.id} className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-3 md:flex-row md:items-center md:justify-between">
+                                <div key={doc.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 p-3 md:flex-row md:items-center md:justify-between">
                                   <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <FileText className="h-4 w-4 text-neutral-500" />
-                                      <span className="font-black text-neutral-900">{doc.title || getDocumentLabel(doc.document_type)}</span>
+                                      <FileText className="h-4 w-4 text-[var(--text-muted)]" />
+                                      <span className="font-black text-[var(--text-primary)]">{doc.title || getDocumentLabel(doc.document_type)}</span>
                                       <StatusPill tone={tone === "expired" ? "red" : tone === "expiring" ? "yellow" : tone === "ok" ? "green" : "neutral"}>
                                         {doc.expires_at ? `Scade ${formatDate(doc.expires_at)}` : "Senza scadenza"}
                                       </StatusPill>
                                     </div>
-                                    <p className="mt-1 text-xs font-semibold text-neutral-500">
+                                    <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
                                       {getDocumentLabel(doc.document_type)} · {doc.document_number || "Numero non inserito"} · Emesso {formatDate(doc.issued_at)}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {doc.file_path ? (
-                                      <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-xs font-bold hover:bg-neutral-50">
+                                      <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]">
                                         <Eye className="h-4 w-4" /> Apri file
                                       </button>
                                     ) : null}
                                     {canEditDrivers ? (
-                                      <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50">
+                                      <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
                                         <Trash2 className="h-4 w-4" /> Elimina
                                       </button>
                                     ) : null}
@@ -1157,8 +1157,8 @@ export default function DriversPage() {
                         )}
 
                         {canEditDrivers ? (
-                          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                            <h5 className="mb-3 font-black text-neutral-900">Aggiungi documento</h5>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                            <h5 className="mb-3 font-black text-[var(--text-primary)]">Aggiungi documento</h5>
                             <div className="grid gap-3 md:grid-cols-3">
                               <UiField label="Tipo documento">
                                 <select value={docForm.document_type} onChange={(e) => setDocForm((prev) => ({ ...prev, document_type: e.target.value }))} className={selectClass}>
@@ -1203,13 +1203,13 @@ export default function DriversPage() {
 
       {open && canEditDrivers ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-black text-neutral-900">{editId ? "Modifica pilota" : "Nuovo pilota"}</h2>
-                <p className="mt-1 text-sm font-semibold text-neutral-500">Compila anagrafica, contatti, taglie e scadenze principali.</p>
+                <h2 className="text-xl font-black text-[var(--text-primary)]">{editId ? "Modifica pilota" : "Nuovo pilota"}</h2>
+                <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Compila anagrafica, contatti, taglie e scadenze principali.</p>
               </div>
-              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-neutral-100"><X className="h-5 w-5" /></button>
+              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]"><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -1280,9 +1280,9 @@ export default function DriversPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <p className="mb-3 text-sm font-black text-neutral-800">Foto pilota</p>
-                  <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <p className="mb-3 text-sm font-black text-[var(--text-primary)]">Foto pilota</p>
+                  <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
                     {photoPreview ? <img src={photoPreview} alt="Anteprima pilota" className="h-full w-full object-cover" /> : <UserRound className="h-12 w-12 text-neutral-300" />}
                   </div>
                   <input
@@ -1306,7 +1306,7 @@ export default function DriversPage() {
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button onClick={resetDriverModal} className="rounded-xl border border-neutral-200 px-4 py-2 font-bold hover:bg-neutral-50">Annulla</button>
+              <button onClick={resetDriverModal} className="rounded-xl border border-white/10 px-4 py-2 font-bold hover:bg-white/[0.045]">Annulla</button>
               <button onClick={saveDriver} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-5 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
                 <CheckCircle2 className="h-4 w-4" /> {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Crea pilota"}
               </button>
@@ -1321,19 +1321,19 @@ export default function DriversPage() {
 function InfoLine({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="mt-1 truncate font-bold text-neutral-800">{value || "—"}</p>
+      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+      <p className="mt-1 truncate font-bold text-[var(--text-primary)]">{value || "—"}</p>
     </div>
   );
 }
 
 function PerformanceMini({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2">
-      <span className="text-neutral-400">{icon}</span>
+    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
+      <span className="text-[var(--text-muted)]">{icon}</span>
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-neutral-400">{label}</p>
-        <p className="truncate font-black text-neutral-900">{value}</p>
+        <p className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+        <p className="truncate font-black text-[var(--text-primary)]">{value}</p>
       </div>
     </div>
   );
@@ -1341,9 +1341,9 @@ function PerformanceMini({ label, value, icon }: { label: string; value: string;
 
 function PerformanceBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-neutral-900">{value}</p>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+      <p className="mt-1 text-lg font-black text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }
