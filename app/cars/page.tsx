@@ -23,6 +23,8 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import { Button } from "@/components/Button";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
 
@@ -178,6 +180,7 @@ export default function CarsPage() {
     Record<string, ComponentForm>
   >({});
   const [toast, setToast] = useState("");
+  const [viewMode, setViewMode] = usePersistedViewMode("cars-view-mode");
 
   async function loadAll() {
     setLoading(true);
@@ -530,17 +533,22 @@ export default function CarsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Ricerca mezzi"
-        subtitle="Filtro rapido per nome o telaio"
+        title="Ricerca e vista mezzi"
+        subtitle="La vista sintetica è pensata per consultare subito il parco auto senza appesantire la pagina."
       >
-        <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.035] px-4 py-3">
-          <Search size={18} className="text-[var(--text-muted)]" />
-          <input
-            className="w-full bg-transparent text-[var(--text-primary)] outline-none placeholder:text-white/30"
-            placeholder="Cerca nome mezzo o telaio"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.035] px-4 py-3">
+            <Search size={18} className="text-[var(--text-muted)]" />
+            <input
+              className="w-full bg-transparent text-[var(--text-primary)] outline-none placeholder:text-white/30"
+              placeholder="Cerca nome mezzo o telaio"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-start lg:justify-end">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
       </SectionCard>
 
@@ -551,6 +559,55 @@ export default function CarsPage() {
           title="Nessun mezzo registrato"
           description="Crea il primo mezzo o modifica le definizioni in impostazioni."
         />
+      ) : viewMode === "compact" ? (
+        <SectionCard
+          title="Elenco mezzi"
+          subtitle="Vista sintetica di default: righe compatte, stato e azioni principali sempre visibili."
+        >
+          <div className="space-y-3">
+            {filteredCars.map((car) => {
+              const criticalCount = car.components.filter(
+                (component) => getComponentStatus(component).label !== "OK",
+              ).length;
+              return (
+                <div key={car.id} className="data-row">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr_0.55fr_0.55fr_0.6fr_auto] xl:items-center">
+                    <div>
+                      <div className="font-extrabold uppercase tracking-[0.03em] text-[var(--text-primary)]">
+                        {car.name}
+                      </div>
+                      <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                        Telaio {car.chassis_number || "—"}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 xl:col-span-3">
+                      <MiniStat label="Ore" value={formatComponentHours(car.hours)} />
+                      <MiniStat label="Componenti" value={String(car.components.length)} />
+                      <MiniStat label="Critici" value={String(criticalCount)} />
+                    </div>
+                    <div className="flex xl:justify-center">
+                      <StatusBadge
+                        label={criticalCount > 0 ? "Da controllare" : "Pronto"}
+                        tone={criticalCount > 0 ? "yellow" : "green"}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2 xl:justify-end">
+                      <Link href={`/cars/${car.id}`} className="race-action-secondary px-3 py-2 text-sm">
+                        Apri
+                      </Link>
+                      {canEditCars ? (
+                        <button onClick={() => openEdit(car)} className="race-action-secondary px-3 py-2 text-sm">
+                          <Edit size={15} className="mr-1 inline" />
+                          Modifica
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
       ) : (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           {filteredCars.map((car) => (

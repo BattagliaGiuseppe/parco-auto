@@ -22,6 +22,8 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import {
   UiField,
   uiInputClassName,
@@ -136,6 +138,7 @@ export default function MountsPage() {
   >("all");
   const [carFilter, setCarFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = usePersistedViewMode("mounts-view-mode");
 
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "info";
@@ -238,6 +241,22 @@ export default function MountsPage() {
       return true;
     });
   }, [mounts, statusFilter, carFilter, search]);
+
+  const groupedMounts = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; rows: MountRow[] }>();
+    for (const mount of filteredMounts) {
+      const label = mount.cars?.name || "Auto non definita";
+      const key = mount.cars?.id || "__no_car";
+      const group = groups.get(key) || { key, label, rows: [] };
+      group.rows.push(mount);
+      groups.set(key, group);
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.label === "Auto non definita") return 1;
+      if (b.label === "Auto non definita") return -1;
+      return a.label.localeCompare(b.label, "it");
+    });
+  }, [filteredMounts]);
 
   const canChooseActor =
     canEditMounts && (teamRole === "owner" || teamRole === "admin");
@@ -554,7 +573,7 @@ export default function MountsPage() {
           subtitle="Riduci lo storico per stato, auto o ricerca libera."
           className={canEditMounts ? "" : "xl:col-span-2"}
         >
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr_auto] xl:items-center">
             <select
               className={uiInputClassName}
               value={statusFilter}
@@ -589,6 +608,9 @@ export default function MountsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            <div className="flex justify-start xl:justify-end">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
         </SectionCard>
       </div>
@@ -604,6 +626,52 @@ export default function MountsPage() {
             title="Nessun montaggio registrato"
             description="Quando monterai un componente, comparirà qui lo storico completo."
           />
+        ) : viewMode === "compact" ? (
+          <div className="space-y-5">
+            {groupedMounts.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+                  <div className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--brand-accent)]">
+                    {group.label}
+                  </div>
+                  <div className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
+                    {group.rows.length} movimenti
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {group.rows.map((mount) => (
+                    <div key={mount.id} className="data-row">
+                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.55fr_0.65fr_0.65fr_auto] xl:items-center">
+                        <div>
+                          <div className="font-bold uppercase text-[var(--text-primary)]">
+                            {(mount.components?.type || "Componente").replace(/_/g, " ")} · {mount.components?.identifier || "senza codice"}
+                          </div>
+                          <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                            {mount.reason || "Nessuna nota tecnica"}
+                          </div>
+                        </div>
+                        <InfoMini label="Montato" value={formatDate(mount.mounted_at)} />
+                        <InfoMini label="Smontato" value={formatDate(mount.removed_at)} />
+                        <StatusBadge label={mount.removed_at ? "Storico" : "Attivo"} tone={mount.removed_at ? "neutral" : "green"} />
+                        <div className="flex justify-end">
+                          {!mount.removed_at && canEditMounts ? (
+                            <button
+                              type="button"
+                              onClick={() => unmount(mount.id, mount.components?.id)}
+                              className="race-action-danger px-4 py-2 text-sm"
+                            >
+                              <Unlink size={16} className="mr-2 inline" />
+                              Smonta
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {filteredMounts.map((mount) => (
@@ -682,6 +750,19 @@ export default function MountsPage() {
           </div>
         )}
       </SectionCard>
+    </div>
+  );
+}
+
+function InfoMini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="race-mini-panel">
+      <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
+        {value}
+      </div>
     </div>
   );
 }

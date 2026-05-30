@@ -22,6 +22,8 @@ import StatusBadge from "@/components/StatusBadge";
 import PagePermissionState from "@/components/PagePermissionState";
 import ModalShell from "@/components/ModalShell";
 import { Button } from "@/components/Button";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import {
   uiInputClassName,
   uiSelectClassName,
@@ -131,6 +133,7 @@ export default function ComponentsPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [viewMode, setViewMode] = usePersistedViewMode("components-view-mode");
 
   async function loadAll() {
     setLoading(true);
@@ -216,6 +219,22 @@ export default function ComponentsPage() {
       return true;
     });
   }, [rows, statusFilter, carFilter, typeFilter, search]);
+
+  const groupedByCar = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; rows: ComponentRow[] }>();
+    for (const row of filtered) {
+      const label = normalizeCarName(row.car) || "Componenti non montati";
+      const key = row.car_id || "__unmounted";
+      const group = groups.get(key) || { key, label, rows: [] };
+      group.rows.push(row);
+      groups.set(key, group);
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.label === "Componenti non montati") return 1;
+      if (b.label === "Componenti non montati") return -1;
+      return a.label.localeCompare(b.label, "it");
+    });
+  }, [filtered]);
 
   const stats = useMemo(() => {
     const statuses = rows.map((row) => getStatus(row));
@@ -449,7 +468,7 @@ export default function ComponentsPage() {
         title="Filtri"
         subtitle="Trova rapidamente i componenti montati, in attenzione o da revisionare."
       >
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.75fr_0.75fr_0.75fr_0.75fr_auto] lg:items-center">
           <div className="relative lg:col-span-2">
             <Search
               size={17}
@@ -508,16 +527,68 @@ export default function ComponentsPage() {
               </option>
             ))}
           </select>
+
+          <div className="flex justify-start lg:justify-end">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Elenco componenti">
+      <SectionCard
+        title="Elenco componenti"
+        subtitle="Default raggruppato per auto: più veloce da leggere, con passaggio alla vista a schede quando serve il dettaglio completo."
+      >
         {loading ? (
           <div className="text-[var(--text-secondary)]">
             Caricamento componenti...
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState title="Nessun componente trovato" />
+        ) : viewMode === "compact" ? (
+          <div className="space-y-5">
+            {groupedByCar.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+                  <div className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--brand-accent)]">
+                    {group.label}
+                  </div>
+                  <div className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
+                    {group.rows.length} componenti
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {group.rows.map((row) => {
+                    const status = getStatus(row);
+                    const info = getHoursInfo(row);
+                    const carName = normalizeCarName(row.car);
+                    return (
+                      <div key={row.id} className="data-row">
+                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.9fr_0.75fr_0.75fr_auto] xl:items-center">
+                          <div>
+                            <div className="font-extrabold text-[var(--text-primary)]">
+                              {row.type} · {row.identifier}
+                            </div>
+                            <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                              {carName || "Non montato"}
+                            </div>
+                          </div>
+                          <InfoMini label="Ore rev." value={formatHours(info.revisionHours)} />
+                          <InfoMini label="Vita acc." value={formatHours(info.lifeHours)} />
+                          <InfoMini label="Ore residue" value={info.remainingHours === null ? "—" : formatHours(info.remainingHours)} />
+                          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                            <StatusBadge label={status.label} tone={status.tone} />
+                            <Link href={`/components/${row.id}`} className="race-action-secondary px-3 py-2 text-sm">
+                              Apri
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {filtered.map((row) => {

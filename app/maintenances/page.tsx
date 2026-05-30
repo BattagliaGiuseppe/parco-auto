@@ -14,6 +14,8 @@ import {
   Boxes,
   RotateCcw,
   Info,
+  Search,
+  Filter,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
@@ -23,6 +25,8 @@ import PagePermissionState from "@/components/PagePermissionState";
 import StatusBadge from "@/components/StatusBadge";
 import ModalShell from "@/components/ModalShell";
 import { Button } from "@/components/Button";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import {
   uiInputClassName,
   uiSelectClassName,
@@ -87,6 +91,12 @@ export default function MaintenancesPage() {
   const [teamUsers, setTeamUsers] = useState<any[]>([]);
   const [teamRole, setTeamRole] = useState("viewer");
   const [toast, setToast] = useState("");
+  const [viewMode, setViewMode] = usePersistedViewMode("maintenances-view-mode");
+  const [maintenanceCarFilter, setMaintenanceCarFilter] = useState("");
+  const [maintenanceStatusFilter, setMaintenanceStatusFilter] = useState<
+    "all" | "open" | "completed"
+  >("all");
+  const [maintenanceSearch, setMaintenanceSearch] = useState("");
 
   async function fetchMaintenances() {
     setLoading(true);
@@ -165,6 +175,34 @@ export default function MaintenancesPage() {
 
   const selectedComponent =
     components.find((component) => component.id === form.componentId) || null;
+
+  const filteredMaintenances = useMemo(() => {
+    const q = maintenanceSearch.trim().toLowerCase();
+    return maintenances.filter((m) => {
+      if (maintenanceCarFilter && m.car_id?.id !== maintenanceCarFilter) return false;
+      if (maintenanceStatusFilter === "open" && m.status === "completed") return false;
+      if (maintenanceStatusFilter === "completed" && m.status !== "completed") return false;
+      const haystack = `${m.type || ""} ${m.car_id?.name || ""} ${m.component_id?.identifier || ""} ${m.component_id?.type || ""} ${m.notes || ""}`.toLowerCase();
+      if (q && !haystack.includes(q)) return false;
+      return true;
+    });
+  }, [maintenances, maintenanceCarFilter, maintenanceStatusFilter, maintenanceSearch]);
+
+  const groupedMaintenances = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; rows: any[] }>();
+    for (const m of filteredMaintenances) {
+      const label = m.car_id?.name || "Senza mezzo";
+      const key = m.car_id?.id || "__no_car";
+      const group = groups.get(key) || { key, label, rows: [] };
+      group.rows.push(m);
+      groups.set(key, group);
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.label === "Senza mezzo") return 1;
+      if (b.label === "Senza mezzo") return -1;
+      return a.label.localeCompare(b.label, "it");
+    });
+  }, [filteredMaintenances]);
 
   function showToast(message: string) {
     setToast(message);
@@ -388,14 +426,108 @@ export default function MaintenancesPage() {
         </div>
       </SectionCard>
 
+      <SectionCard
+        title="Filtri e vista manutenzioni"
+        subtitle="Di default lo storico è sintetico e raggruppato per mezzo; puoi filtrare o passare alle schede dettagliate."
+      >
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_220px_auto] lg:items-center">
+          <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.035] p-3">
+            <Search size={18} className="text-[var(--text-muted)]" />
+            <input
+              className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-white/30"
+              placeholder="Cerca intervento, componente o note"
+              value={maintenanceSearch}
+              onChange={(e) => setMaintenanceSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className={uiSelectClassName}
+            value={maintenanceCarFilter}
+            onChange={(e) => setMaintenanceCarFilter(e.target.value)}
+          >
+            <option value="">Tutte le auto</option>
+            {cars.map((car) => (
+              <option key={car.id} value={car.id}>
+                {car.name}
+              </option>
+            ))}
+          </select>
+          <div className="relative">
+            <Filter size={17} className="absolute left-3 top-3.5 text-[var(--text-muted)]" />
+            <select
+              className="form-control-dark py-3 pl-10 pr-3"
+              value={maintenanceStatusFilter}
+              onChange={(e) =>
+                setMaintenanceStatusFilter(e.target.value as typeof maintenanceStatusFilter)
+              }
+            >
+              <option value="all">Tutti gli stati</option>
+              <option value="open">Aperte</option>
+              <option value="completed">Completate</option>
+            </select>
+          </div>
+          <div className="flex justify-start lg:justify-end">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </div>
+        </div>
+      </SectionCard>
+
       <SectionCard title="Storico interventi">
         {loading ? (
           <div className="text-[var(--text-secondary)]">Caricamento...</div>
-        ) : maintenances.length === 0 ? (
-          <EmptyState title="Nessuna manutenzione registrata" />
+        ) : filteredMaintenances.length === 0 ? (
+          <EmptyState title="Nessuna manutenzione trovata" />
+        ) : viewMode === "compact" ? (
+          <div className="space-y-5">
+            {groupedMaintenances.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+                  <div className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--brand-accent)]">
+                    {group.label}
+                  </div>
+                  <div className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
+                    {group.rows.length} interventi
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {group.rows.map((m) => (
+                    <div key={m.id} className="data-row">
+                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.1fr_1fr_0.55fr_0.55fr_auto] xl:items-center">
+                        <div>
+                          <div className="font-bold text-[var(--text-primary)]">{m.type}</div>
+                          <div className="mt-1 text-sm text-[var(--text-secondary)]">
+                            {m.component_id?.identifier
+                              ? `${m.component_id?.type || "Componente"} · ${m.component_id?.identifier}`
+                              : "—"}
+                          </div>
+                        </div>
+                        <InfoMini
+                          label="Data"
+                          value={m.date ? new Date(m.date).toLocaleDateString("it-IT") : "—"}
+                        />
+                        <InfoMini label="Priorità" value={m.priority || "—"} />
+                        <StatusBadge
+                          label={m.status === "completed" ? "Completata" : "Aperta"}
+                          tone={m.status === "completed" ? "green" : "yellow"}
+                        />
+                        <div className="flex justify-end">
+                          {canEditMaintenances ? (
+                            <button onClick={() => openForEdit(m)} className="race-action-secondary px-3 py-2 text-sm">
+                              <Edit size={16} className="mr-2 inline" />
+                              Modifica
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {maintenances.map((m) => (
+            {filteredMaintenances.map((m) => (
               <div key={m.id} className="data-row">
                 <div className="flex items-start justify-between gap-3">
                   <div>
