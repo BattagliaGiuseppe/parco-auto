@@ -8,13 +8,19 @@ import {
   CalendarRange,
   CheckCircle2,
   Clock3,
+  Copy,
   Edit3,
+  ExternalLink,
+  KeyRound,
   LogIn,
   LogOut,
   MapPin,
   Plus,
+  QrCode,
+  RefreshCw,
   RotateCcw,
   Search,
+  TabletSmartphone,
   TimerReset,
   UserRound,
   UsersRound,
@@ -45,6 +51,10 @@ type StaffMember = {
   phone: string | null;
   role_label: string | null;
   is_active: boolean;
+  badge_code_hint?: string | null;
+  pin_hint?: string | null;
+  badge_rotated_at?: string | null;
+  pin_rotated_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -120,6 +130,14 @@ type ResetFormState = {
   reset_at: string;
   notify_user: boolean;
   note: string;
+};
+
+type BadgeResult = {
+  badge_code?: string | null;
+  pin_code?: string | null;
+  badge_hint?: string | null;
+  pin_hint?: string | null;
+  generated_at?: string | null;
 };
 
 const LOCATION_LABELS: Record<LocationLabel, string> = {
@@ -240,6 +258,34 @@ function getNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getAppOrigin() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+function buildKioskUrl(params?: Record<string, string | null | undefined>) {
+  const origin = getAppOrigin();
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value) search.set(key, value);
+  });
+  const query = search.toString();
+  return `${origin}/attendance/kiosk${query ? `?${query}` : ""}`;
+}
+
+function qrImageUrl(value: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(value)}`;
+}
+
+async function copyToClipboard(value: string) {
+  if (!value || typeof navigator === "undefined") return;
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    // fallback silenzioso: il testo resta visibile a schermo
+  }
+}
+
 export default function AttendancePage() {
   const access = usePermissionAccess();
   const [viewMode, setViewMode] = usePersistedViewMode("parcoauto.attendance.viewMode", "compact");
@@ -289,6 +335,16 @@ export default function AttendancePage() {
   });
   const [savingReset, setSavingReset] = useState(false);
 
+  const [badgeModalMember, setBadgeModalMember] = useState<StaffMember | null>(null);
+  const [badgeResult, setBadgeResult] = useState<BadgeResult | null>(null);
+  const [badgeGeneratePin, setBadgeGeneratePin] = useState(true);
+  const [badgeCustomPin, setBadgeCustomPin] = useState("");
+  const [badgeGenerating, setBadgeGenerating] = useState(false);
+
+  const [eventQrModalOpen, setEventQrModalOpen] = useState(false);
+  const [eventQrEventId, setEventQrEventId] = useState("");
+  const [eventQrLocation, setEventQrLocation] = useState<LocationLabel>("pista");
+
   const [detailMember, setDetailMember] = useState<StaffMember | null>(null);
   const [detailMonth, setDetailMonth] = useState(getCurrentMonthValue());
   const [detailRecords, setDetailRecords] = useState<AttendanceRecord[]>([]);
@@ -299,6 +355,7 @@ export default function AttendancePage() {
   const canClockSelf = access.hasPermission("attendance.clock_self", ["owner", "admin", "engineer", "mechanic", "viewer"]);
   const canManage = access.hasPermission("attendance.manage", ["owner", "admin"]);
   const canExport = access.hasPermission("attendance.export", ["owner", "admin"]);
+  const canKiosk = access.hasPermission("attendance.kiosk", ["owner", "admin"]);
 
   const activeRecords = useMemo(() => records.filter((row) => !row.check_out_at), [records]);
   const activeStaffIds = useMemo(() => new Set(activeRecords.map((row) => row.staff_member_id)), [activeRecords]);
@@ -675,6 +732,46 @@ export default function AttendancePage() {
     }
   }
 
+  function openBadgeModal(member: StaffMember) {
+    setBadgeModalMember(member);
+    setBadgeResult(null);
+    setBadgeGeneratePin(true);
+    setBadgeCustomPin("");
+  }
+
+  async function generateBadgeCredentials() {
+    if (!access.ctx || !canManage || !badgeModalMember) return;
+    setBadgeGenerating(true);
+    setError("");
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc("attendance_generate_badge_credentials", {
+        p_team_id: access.ctx.teamId,
+        p_staff_member_id: badgeModalMember.id,
+        p_regenerate_badge: true,
+        p_generate_pin: badgeGeneratePin,
+        p_pin_code: badgeCustomPin.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      setBadgeResult((data || {}) as BadgeResult);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Errore durante la generazione badge/PIN.");
+    } finally {
+      setBadgeGenerating(false);
+    }
+  }
+
+  function getEventQrLink() {
+    return buildKioskUrl({ eventId: eventQrEventId || undefined, location: eventQrLocation });
+  }
+
+  function openEventQrModal() {
+    setEventQrEventId(events[0]?.id || "");
+    setEventQrLocation("pista");
+    setEventQrModalOpen(true);
+  }
+
   function openMemberDetail(member: StaffMember) {
     setDetailMember(member);
     setDetailMonth(getCurrentMonthValue());
@@ -750,6 +847,18 @@ export default function AttendancePage() {
         icon={<UsersRound size={22} />}
         actions={
           <div className="flex flex-wrap gap-2">
+            {canKiosk ? (
+              <>
+                <Button variant="secondary" onClick={() => { window.location.href = "/attendance/kiosk"; }}>
+                  <TabletSmartphone size={16} className="mr-2" />
+                  Kiosk tablet
+                </Button>
+                <Button variant="secondary" onClick={openEventQrModal}>
+                  <QrCode size={16} className="mr-2" />
+                  QR evento
+                </Button>
+              </>
+            ) : null}
             {canManage ? (
               <>
                 <Button variant="secondary" onClick={() => openAdminClockModal(undefined, "in")}>Timbratura staff</Button>
@@ -839,6 +948,7 @@ export default function AttendancePage() {
                   onAdminClock={(mode) => openAdminClockModal(member, mode)}
                   onEditRecord={latestRecord ? () => openEditRecordModal(latestRecord) : undefined}
                   onReset={() => openResetModal(member)}
+                  onBadge={() => openBadgeModal(member)}
                   onOpenDetail={() => openMemberDetail(member)}
                 />
               );
@@ -1101,6 +1211,139 @@ export default function AttendancePage() {
         </ModalShell>
       ) : null}
 
+
+      {badgeModalMember ? (
+        <ModalShell
+          title={`Badge e PIN · ${getStaffLabel(badgeModalMember)}`}
+          subtitle="Genera un badge personale per aprire il kiosk presenze da tablet e un PIN rapido come alternativa. I codici completi sono visibili solo subito dopo la generazione."
+          maxWidth="max-w-4xl"
+          onClose={() => setBadgeModalMember(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setBadgeModalMember(null)} disabled={badgeGenerating}>Chiudi</Button>
+              <Button onClick={generateBadgeCredentials} disabled={badgeGenerating}>
+                <RefreshCw size={16} className="mr-2" />
+                {badgeGenerating ? "Generazione..." : "Genera / rigenera"}
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+            <div className="space-y-4">
+              <div className="race-card-grid p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge label={badgeModalMember.badge_code_hint ? `Badge attivo · ****${badgeModalMember.badge_code_hint}` : "Badge non generato"} tone={badgeModalMember.badge_code_hint ? "green" : "neutral"} />
+                  <StatusBadge label={badgeModalMember.pin_hint ? `PIN · ****${badgeModalMember.pin_hint}` : "PIN non generato"} tone={badgeModalMember.pin_hint ? "blue" : "neutral"} />
+                </div>
+                <div className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                  Per sicurezza il codice completo viene mostrato una sola volta. Se viene perso, rigenera il badge o il PIN e ristampa la tessera.
+                </div>
+              </div>
+
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
+                <span className="text-sm font-bold text-[var(--text-primary)]">Genera anche PIN rapido</span>
+                <input type="checkbox" checked={badgeGeneratePin} onChange={(event) => setBadgeGeneratePin(event.target.checked)} />
+              </label>
+
+              {badgeGeneratePin ? (
+                <UiField label="PIN personalizzato opzionale">
+                  <input
+                    className={uiInputClassName}
+                    value={badgeCustomPin}
+                    onChange={(event) => setBadgeCustomPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="Lascia vuoto per generarlo automaticamente"
+                    inputMode="numeric"
+                  />
+                </UiField>
+              ) : null}
+
+              {badgeResult?.badge_code ? (
+                <div className="race-card-grid p-4">
+                  <div className="racing-kicker text-[var(--brand-accent)]">Codici generati</div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <CredentialBox label="Codice badge" value={badgeResult.badge_code} />
+                    <CredentialBox label="PIN rapido" value={badgeResult.pin_code || "Non generato"} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={() => copyToClipboard(buildKioskUrl({ badge: badgeResult.badge_code || undefined }))}>
+                      <Copy size={15} className="mr-2" />
+                      Copia link badge
+                    </Button>
+                    <Button variant="ghost" onClick={() => { window.open(buildKioskUrl({ badge: badgeResult.badge_code || undefined }), "_blank"); }}>
+                      <ExternalLink size={15} className="mr-2" />
+                      Apri kiosk
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="race-card-grid flex flex-col items-center justify-center p-5 text-center">
+              {badgeResult?.badge_code ? (
+                <>
+                  <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(buildKioskUrl({ badge: badgeResult.badge_code }))} alt="QR badge personale" />
+                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR badge personale</div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Scansionandolo dal tablet si apre il kiosk con badge già compilato.</div>
+                </>
+              ) : (
+                <>
+                  <QrCode size={56} className="text-[var(--brand-accent)]" />
+                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR pronto dopo la generazione</div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Genera badge/PIN per stampare o salvare la tessera personale.</div>
+                </>
+              )}
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
+
+      {eventQrModalOpen ? (
+        <ModalShell
+          title="QR evento / pista"
+          subtitle="Apri questa schermata sul tablet o stampa il QR evento. Chi timbra dovrà inserire badge o PIN, con evento e luogo già precompilati."
+          maxWidth="max-w-4xl"
+          onClose={() => setEventQrModalOpen(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setEventQrModalOpen(false)}>Chiudi</Button>
+              <Button onClick={() => copyToClipboard(getEventQrLink())}>
+                <Copy size={15} className="mr-2" />
+                Copia link
+              </Button>
+              <Button variant="secondary" onClick={() => { window.open(getEventQrLink(), "_blank"); }}>
+                <ExternalLink size={15} className="mr-2" />
+                Apri kiosk evento
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+            <div className="space-y-4">
+              <UiField label="Evento collegato">
+                <select className={uiSelectClassName} value={eventQrEventId} onChange={(event) => setEventQrEventId(event.target.value)}>
+                  <option value="">Nessun evento</option>
+                  {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
+                </select>
+              </UiField>
+              <UiField label="Luogo predefinito">
+                <select className={uiSelectClassName} value={eventQrLocation} onChange={(event) => setEventQrLocation(event.target.value as LocationLabel)}>
+                  {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </UiField>
+              <div className="race-card-grid p-4 text-sm leading-6 text-[var(--text-secondary)]">
+                Il QR evento non identifica da solo il dipendente: serve comunque badge o PIN. In questo modo il tablet può restare in pista senza scegliere manualmente l'evento a ogni timbratura.
+              </div>
+              <CredentialBox label="Link kiosk evento" value={getEventQrLink()} />
+            </div>
+            <div className="race-card-grid flex flex-col items-center justify-center p-5 text-center">
+              <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(getEventQrLink())} alt="QR evento presenze" />
+              <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR evento</div>
+              <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Scansione rapida per aprire il kiosk con evento già selezionato.</div>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
+
       {resetModalOpen ? (
         <ModalShell
           title="Azzera contatore periodo"
@@ -1173,6 +1416,15 @@ function MiniInfo({ icon, label, value }: { icon: ReactNode; label: string; valu
   );
 }
 
+function CredentialBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-2 break-all font-mono text-sm font-black text-[var(--text-primary)]">{value}</div>
+    </div>
+  );
+}
+
 function StaffStatsRow({
   member,
   summary,
@@ -1182,6 +1434,7 @@ function StaffStatsRow({
   onAdminClock,
   onEditRecord,
   onReset,
+  onBadge,
   onOpenDetail,
 }: {
   member: StaffMember;
@@ -1192,6 +1445,7 @@ function StaffStatsRow({
   onAdminClock: (mode: AdminClockMode) => void;
   onEditRecord?: () => void;
   onReset: () => void;
+  onBadge: () => void;
   onOpenDetail: () => void;
 }) {
   return (
@@ -1220,6 +1474,7 @@ function StaffStatsRow({
               <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita" : "Entrata"}</Button>
               <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!latestRecord}>Modifica</Button>
               <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onReset}>Azzera</Button>
+              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onBadge}>Badge/PIN</Button>
             </>
           ) : null}
         </div>
