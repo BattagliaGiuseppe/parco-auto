@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  BarChart3,
+  Bell,
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Edit3,
   LogIn,
   LogOut,
   MapPin,
   Plus,
+  RotateCcw,
   Search,
-  ShieldCheck,
   TimerReset,
   UserRound,
   UsersRound,
@@ -30,6 +33,7 @@ import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 
 type LocationLabel = "sede" | "pista" | "altro";
 type AttendanceSource = "self" | "admin" | "kiosk" | "qr_event";
+type AdminClockMode = "in" | "out";
 
 type StaffMember = {
   id: string;
@@ -69,12 +73,52 @@ type AttendanceRecord = {
   event?: EventOption | null;
 };
 
+type AttendanceSummary = {
+  staff_member_id: string;
+  minutes_all_time: number;
+  minutes_since_reset: number;
+  records_count: number;
+  days_worked: number;
+  last_reset_at: string | null;
+  last_check_in_at: string | null;
+  latest_record_id: string | null;
+  open_record_id: string | null;
+};
+
 type StaffFormState = {
   full_name: string;
   email: string;
   phone: string;
   role_label: string;
   is_active: boolean;
+};
+
+type AdminClockFormState = {
+  mode: AdminClockMode;
+  staff_member_id: string;
+  at: string;
+  location_label: LocationLabel;
+  event_id: string;
+  note: string;
+};
+
+type EditRecordFormState = {
+  record_id: string;
+  staff_member_id: string;
+  check_in_at: string;
+  check_out_at: string;
+  check_in_location_label: LocationLabel;
+  check_out_location_label: LocationLabel;
+  event_id: string;
+  check_in_note: string;
+  check_out_note: string;
+};
+
+type ResetFormState = {
+  staff_member_id: string;
+  reset_at: string;
+  notify_user: boolean;
+  note: string;
 };
 
 const LOCATION_LABELS: Record<LocationLabel, string> = {
@@ -138,6 +182,18 @@ function startOfTodayIso() {
   return d.toISOString();
 }
 
+function toDatetimeLocal(value?: string | null) {
+  const d = value ? new Date(value) : new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function datetimeLocalToIso(value: string) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function getStaffLabel(staff: StaffMember | null | undefined) {
   if (!staff) return "Membro team";
   return staff.full_name || staff.email || "Membro team";
@@ -148,12 +204,18 @@ function getLocationLabel(value: string | null | undefined) {
   return LOCATION_LABELS[value as LocationLabel] || value;
 }
 
+function getNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export default function AttendancePage() {
   const access = usePermissionAccess();
   const [viewMode, setViewMode] = usePersistedViewMode("parcoauto.attendance.viewMode", "compact");
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [summaries, setSummaries] = useState<AttendanceSummary[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null);
 
@@ -172,6 +234,30 @@ export default function AttendancePage() {
   const [staffForm, setStaffForm] = useState<StaffFormState>(EMPTY_STAFF_FORM);
   const [savingStaff, setSavingStaff] = useState(false);
 
+  const [adminClockModalOpen, setAdminClockModalOpen] = useState(false);
+  const [adminClockForm, setAdminClockForm] = useState<AdminClockFormState>({
+    mode: "in",
+    staff_member_id: "",
+    at: toDatetimeLocal(),
+    location_label: "sede",
+    event_id: "",
+    note: "",
+  });
+  const [savingAdminClock, setSavingAdminClock] = useState(false);
+
+  const [editRecordModalOpen, setEditRecordModalOpen] = useState(false);
+  const [editRecordForm, setEditRecordForm] = useState<EditRecordFormState | null>(null);
+  const [savingRecordEdit, setSavingRecordEdit] = useState(false);
+
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetForm, setResetForm] = useState<ResetFormState>({
+    staff_member_id: "",
+    reset_at: toDatetimeLocal(),
+    notify_user: true,
+    note: "",
+  });
+  const [savingReset, setSavingReset] = useState(false);
+
   const canView = access.hasPermission("attendance.view", ["owner", "admin", "engineer", "mechanic", "viewer"]);
   const canClockSelf = access.hasPermission("attendance.clock_self", ["owner", "admin", "engineer", "mechanic", "viewer"]);
   const canManage = access.hasPermission("attendance.manage", ["owner", "admin"]);
@@ -179,10 +265,22 @@ export default function AttendancePage() {
 
   const activeRecords = useMemo(() => records.filter((row) => !row.check_out_at), [records]);
   const activeStaffIds = useMemo(() => new Set(activeRecords.map((row) => row.staff_member_id)), [activeRecords]);
+  const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
+  const summaryByStaffId = useMemo(() => new Map(summaries.map((summary) => [summary.staff_member_id, summary])), [summaries]);
   const currentOpenRecord = useMemo(
     () => activeRecords.find((row) => row.staff_member_id === currentStaff?.id) || null,
     [activeRecords, currentStaff?.id]
   );
+  const latestRecordByStaffId = useMemo(() => {
+    const map = new Map<string, AttendanceRecord>();
+    for (const record of records) {
+      const current = map.get(record.staff_member_id);
+      if (!current || new Date(record.check_in_at).getTime() > new Date(current.check_in_at).getTime()) {
+        map.set(record.staff_member_id, record);
+      }
+    }
+    return map;
+  }, [records]);
 
   const todayRecords = useMemo(() => records.filter((row) => new Date(row.check_in_at) >= new Date(startOfTodayIso())), [records]);
   const todayMinutes = useMemo(
@@ -193,6 +291,10 @@ export default function AttendancePage() {
     () => activeRecords.filter((row) => row.check_in_location_label === "pista").length,
     [activeRecords]
   );
+  const periodMinutes = useMemo(
+    () => summaries.reduce((sum, summary) => sum + getNumber(summary.minutes_since_reset), 0),
+    [summaries]
+  );
 
   async function loadData() {
     if (!access.ctx || !canView) return;
@@ -202,16 +304,16 @@ export default function AttendancePage() {
     try {
       const ctx = access.ctx;
       const since = new Date();
-      since.setDate(since.getDate() - 21);
+      since.setDate(since.getDate() - 180);
       since.setHours(0, 0, 0, 0);
 
       const ensureRes = canClockSelf
         ? await supabase.rpc("attendance_ensure_staff_member", { p_team_id: ctx.teamId })
-        : { data: null, error: null } as any;
+        : ({ data: null, error: null } as any);
 
       if (ensureRes.error) throw ensureRes.error;
 
-      const [staffRes, recordsRes, eventsRes] = await Promise.all([
+      const [staffRes, recordsRes, eventsRes, summaryRes] = await Promise.all([
         supabase
           .from("team_staff_members")
           .select("*")
@@ -227,18 +329,20 @@ export default function AttendancePage() {
           .eq("team_id", ctx.teamId)
           .gte("check_in_at", since.toISOString())
           .order("check_in_at", { ascending: false })
-          .limit(250),
+          .limit(1000),
         supabase
           .from("events")
           .select("id,name,date")
           .eq("team_id", ctx.teamId)
           .order("date", { ascending: false })
           .limit(80),
+        supabase.rpc("attendance_staff_summary", { p_team_id: ctx.teamId }),
       ]);
 
       if (staffRes.error) throw staffRes.error;
       if (recordsRes.error) throw recordsRes.error;
       if (eventsRes.error) throw eventsRes.error;
+      if (summaryRes.error) throw summaryRes.error;
 
       const normalizedRecords: AttendanceRecord[] = ((recordsRes.data || []) as any[]).map((row) => ({
         ...row,
@@ -246,9 +350,22 @@ export default function AttendancePage() {
         event: normalizeRelation<EventOption>(row.event),
       }));
 
+      const normalizedSummaries: AttendanceSummary[] = ((summaryRes.data || []) as any[]).map((row) => ({
+        staff_member_id: row.staff_member_id,
+        minutes_all_time: getNumber(row.minutes_all_time),
+        minutes_since_reset: getNumber(row.minutes_since_reset),
+        records_count: getNumber(row.records_count),
+        days_worked: getNumber(row.days_worked),
+        last_reset_at: row.last_reset_at ?? null,
+        last_check_in_at: row.last_check_in_at ?? null,
+        latest_record_id: row.latest_record_id ?? null,
+        open_record_id: row.open_record_id ?? null,
+      }));
+
       setStaff((staffRes.data || []) as StaffMember[]);
       setRecords(normalizedRecords);
       setEvents((eventsRes.data || []) as EventOption[]);
+      setSummaries(normalizedSummaries);
       setCurrentStaff(normalizeRelation<StaffMember>(ensureRes.data));
     } catch (err: any) {
       setError(err.message || "Errore durante il caricamento presenze.");
@@ -292,6 +409,11 @@ export default function AttendancePage() {
         .includes(q);
     });
   }, [locationFilter, records, search, statusFilter]);
+
+  const filteredSummaryRows = useMemo(
+    () => filteredStaff.map((member) => ({ member, summary: summaryByStaffId.get(member.id) || null })),
+    [filteredStaff, summaryByStaffId]
+  );
 
   async function clockIn() {
     if (!access.ctx || !canClockSelf) return;
@@ -371,6 +493,148 @@ export default function AttendancePage() {
     }
   }
 
+  function openAdminClockModal(member?: StaffMember, mode: AdminClockMode = "in") {
+    setAdminClockForm({
+      mode,
+      staff_member_id: member?.id || "",
+      at: toDatetimeLocal(),
+      location_label: mode === "out" ? "sede" : clockLocation,
+      event_id: mode === "in" ? clockEventId : "",
+      note: "",
+    });
+    setAdminClockModalOpen(true);
+  }
+
+  async function saveAdminClock() {
+    if (!access.ctx || !canManage || !adminClockForm.staff_member_id) return;
+    const atIso = datetimeLocalToIso(adminClockForm.at);
+    if (!atIso) {
+      setError("Inserisci data e ora valide.");
+      return;
+    }
+
+    setSavingAdminClock(true);
+    setError("");
+
+    try {
+      const rpcName = adminClockForm.mode === "in" ? "attendance_admin_clock_in" : "attendance_admin_clock_out";
+      const params = adminClockForm.mode === "in"
+        ? {
+            p_team_id: access.ctx.teamId,
+            p_staff_member_id: adminClockForm.staff_member_id,
+            p_location_label: adminClockForm.location_label,
+            p_event_id: adminClockForm.event_id || null,
+            p_note: adminClockForm.note.trim() || null,
+            p_check_in_at: atIso,
+          }
+        : {
+            p_team_id: access.ctx.teamId,
+            p_staff_member_id: adminClockForm.staff_member_id,
+            p_location_label: adminClockForm.location_label,
+            p_note: adminClockForm.note.trim() || null,
+            p_check_out_at: atIso,
+          };
+
+      const { error: rpcError } = await supabase.rpc(rpcName, params as any);
+      if (rpcError) throw rpcError;
+      setAdminClockModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Errore durante la timbratura amministrativa.");
+    } finally {
+      setSavingAdminClock(false);
+    }
+  }
+
+  function openEditRecordModal(record: AttendanceRecord) {
+    setEditRecordForm({
+      record_id: record.id,
+      staff_member_id: record.staff_member_id,
+      check_in_at: toDatetimeLocal(record.check_in_at),
+      check_out_at: record.check_out_at ? toDatetimeLocal(record.check_out_at) : "",
+      check_in_location_label: (record.check_in_location_label as LocationLabel) || "sede",
+      check_out_location_label: (record.check_out_location_label as LocationLabel) || ((record.check_in_location_label as LocationLabel) || "sede"),
+      event_id: record.event_id || "",
+      check_in_note: record.check_in_note || "",
+      check_out_note: record.check_out_note || "",
+    });
+    setEditRecordModalOpen(true);
+  }
+
+  async function saveRecordEdit() {
+    if (!access.ctx || !canManage || !editRecordForm) return;
+    const checkInIso = datetimeLocalToIso(editRecordForm.check_in_at);
+    const checkOutIso = editRecordForm.check_out_at ? datetimeLocalToIso(editRecordForm.check_out_at) : null;
+    if (!checkInIso) {
+      setError("Inserisci una data di entrata valida.");
+      return;
+    }
+
+    setSavingRecordEdit(true);
+    setError("");
+
+    try {
+      const { error: rpcError } = await supabase.rpc("attendance_admin_update_record", {
+        p_team_id: access.ctx.teamId,
+        p_record_id: editRecordForm.record_id,
+        p_staff_member_id: editRecordForm.staff_member_id,
+        p_event_id: editRecordForm.event_id || null,
+        p_check_in_at: checkInIso,
+        p_check_out_at: checkOutIso,
+        p_check_in_location_label: editRecordForm.check_in_location_label,
+        p_check_out_location_label: checkOutIso ? editRecordForm.check_out_location_label : null,
+        p_check_in_note: editRecordForm.check_in_note.trim() || null,
+        p_check_out_note: editRecordForm.check_out_note.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      setEditRecordModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Errore durante la modifica della timbratura.");
+    } finally {
+      setSavingRecordEdit(false);
+    }
+  }
+
+  function openResetModal(member: StaffMember) {
+    setResetForm({
+      staff_member_id: member.id,
+      reset_at: toDatetimeLocal(),
+      notify_user: true,
+      note: "",
+    });
+    setResetModalOpen(true);
+  }
+
+  async function saveResetCounter() {
+    if (!access.ctx || !canManage || !resetForm.staff_member_id) return;
+    const resetIso = datetimeLocalToIso(resetForm.reset_at);
+    if (!resetIso) {
+      setError("Inserisci data e ora valide per l'azzeramento.");
+      return;
+    }
+
+    setSavingReset(true);
+    setError("");
+
+    try {
+      const { error: rpcError } = await supabase.rpc("attendance_reset_counter", {
+        p_team_id: access.ctx.teamId,
+        p_staff_member_id: resetForm.staff_member_id,
+        p_reset_at: resetIso,
+        p_note: resetForm.note.trim() || null,
+        p_notify_user: resetForm.notify_user,
+      });
+      if (rpcError) throw rpcError;
+      setResetModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Errore durante l'azzeramento del contatore.");
+    } finally {
+      setSavingReset(false);
+    }
+  }
+
   if (access.loading) {
     return <PagePermissionState title="Presenze" subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="loading" />;
   }
@@ -395,26 +659,32 @@ export default function AttendancePage() {
     <div className="page-shell">
       <PageHeader
         title="Presenze"
-        subtitle="Controllo presenze del team, timbrature in sede o in pista e storico ore degli ultimi giorni."
+        subtitle="Controllo presenze del team, timbrature in sede o in pista, riepiloghi per utente e contatori periodo azzerabili."
         icon={<UsersRound size={22} />}
         actions={
-          canManage ? (
-            <Button onClick={openStaffModal}>
-              <Plus size={16} className="mr-2" />
-              Nuovo staff
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {canManage ? (
+              <>
+                <Button variant="secondary" onClick={() => openAdminClockModal(undefined, "in")}>Timbratura staff</Button>
+                <Button onClick={openStaffModal}>
+                  <Plus size={16} className="mr-2" />
+                  Nuovo staff
+                </Button>
+              </>
+            ) : null}
+          </div>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <QuickStat icon={<CheckCircle2 size={18} />} label="Presenti ora" value={String(activeRecords.length)} tone="green" />
         <QuickStat icon={<MapPin size={18} />} label="In pista" value={String(trackPresence)} tone={trackPresence ? "yellow" : "blue"} />
         <QuickStat icon={<TimerReset size={18} />} label="Ore oggi" value={formatDuration(todayMinutes)} tone="blue" />
+        <QuickStat icon={<BarChart3 size={18} />} label="Ore periodo" value={formatDuration(periodMinutes)} tone="yellow" />
         <QuickStat icon={<UsersRound size={18} />} label="Staff attivo" value={String(staff.filter((member) => member.is_active).length)} tone="yellow" />
       </div>
 
-      <SectionCard title="Timbratura rapida" subtitle="Usa questa area dal tuo accesso personale. Per la pista collega la timbratura a un evento." actions={<StatusBadge label={currentOpenRecord ? "Presente" : "Non presente"} tone={currentOpenRecord ? "green" : "neutral"} />}>
+      <SectionCard title="Timbratura rapida" subtitle="Usa questa area dal tuo accesso personale. Owner e admin possono usare anche la timbratura staff." actions={<StatusBadge label={currentOpenRecord ? "Presente" : "Non presente"} tone={currentOpenRecord ? "green" : "neutral"} />}>
         {error ? (
           <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-200">
             {error}
@@ -461,9 +731,37 @@ export default function AttendancePage() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Riepilogo ore per utente" subtitle="Contatore periodo azzerabile senza cancellare lo storico: le ore totali restano sempre tracciate." actions={canExport ? <StatusBadge label="Storico conservato" tone="blue" /> : null}>
+        {loading ? (
+          <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento statistiche...</div>
+        ) : filteredSummaryRows.length === 0 ? (
+          <EmptyState title="Nessun riepilogo disponibile" description="Aggiungi lo staff o modifica i filtri." />
+        ) : (
+          <div className="space-y-3">
+            {filteredSummaryRows.map(({ member, summary }) => {
+              const activeRecord = activeRecords.find((row) => row.staff_member_id === member.id) || null;
+              const latestRecord = latestRecordByStaffId.get(member.id) || null;
+              return (
+                <StaffStatsRow
+                  key={member.id}
+                  member={member}
+                  summary={summary}
+                  activeRecord={activeRecord}
+                  latestRecord={latestRecord}
+                  canManage={canManage}
+                  onAdminClock={(mode) => openAdminClockModal(member, mode)}
+                  onEditRecord={latestRecord ? () => openEditRecordModal(latestRecord) : undefined}
+                  onReset={() => openResetModal(member)}
+                />
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+
       <SectionCard
         title="Console presenze"
-        subtitle="Vista sintetica di default con stato attuale dello staff e storico degli ultimi 21 giorni."
+        subtitle="Vista sintetica con stato attuale dello staff e vista schede con storico timbrature modificabile dagli admin."
         actions={<ViewModeToggle value={viewMode} onChange={setViewMode} />}
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_0.8fr_0.8fr]">
@@ -494,7 +792,17 @@ export default function AttendancePage() {
               ) : (
                 filteredStaff.map((member) => {
                   const activeRecord = activeRecords.find((row) => row.staff_member_id === member.id) || null;
-                  return <StaffRow key={member.id} staff={member} activeRecord={activeRecord} />;
+                  const latestRecord = latestRecordByStaffId.get(member.id) || null;
+                  return (
+                    <StaffRow
+                      key={member.id}
+                      staff={member}
+                      activeRecord={activeRecord}
+                      canManage={canManage}
+                      onAdminClock={(mode) => openAdminClockModal(member, mode)}
+                      onEditRecord={latestRecord ? () => openEditRecordModal(latestRecord) : undefined}
+                    />
+                  );
                 })
               )}
             </div>
@@ -503,7 +811,7 @@ export default function AttendancePage() {
               {filteredRecords.length === 0 ? (
                 <div className="xl:col-span-2"><EmptyState title="Nessuna timbratura trovata" /></div>
               ) : (
-                filteredRecords.map((record) => <AttendanceRecordCard key={record.id} record={record} />)
+                filteredRecords.map((record) => <AttendanceRecordCard key={record.id} record={record} canManage={canManage} onEdit={() => openEditRecordModal(record)} />)
               )}
             </div>
           )}
@@ -542,11 +850,149 @@ export default function AttendancePage() {
           </div>
         </ModalShell>
       ) : null}
+
+      {adminClockModalOpen ? (
+        <ModalShell
+          title={adminClockForm.mode === "in" ? "Entrata staff" : "Uscita staff"}
+          subtitle="Owner e admin possono registrare o correggere rapidamente la timbratura di qualsiasi membro del team."
+          onClose={() => setAdminClockModalOpen(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setAdminClockModalOpen(false)} disabled={savingAdminClock}>Annulla</Button>
+              <Button onClick={saveAdminClock} disabled={savingAdminClock || !adminClockForm.staff_member_id}>{savingAdminClock ? "Salvataggio..." : "Registra timbratura"}</Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UiField label="Tipo timbratura">
+              <select className={uiSelectClassName} value={adminClockForm.mode} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, mode: event.target.value as AdminClockMode }))}>
+                <option value="in">Entrata</option>
+                <option value="out">Uscita</option>
+              </select>
+            </UiField>
+            <UiField label="Membro staff">
+              <select className={uiSelectClassName} value={adminClockForm.staff_member_id} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, staff_member_id: event.target.value }))}>
+                <option value="">Seleziona membro</option>
+                {staff.map((member) => <option key={member.id} value={member.id}>{getStaffLabel(member)}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Data e ora">
+              <input className={uiInputClassName} type="datetime-local" value={adminClockForm.at} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, at: event.target.value }))} />
+            </UiField>
+            <UiField label="Luogo">
+              <select className={uiSelectClassName} value={adminClockForm.location_label} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, location_label: event.target.value as LocationLabel }))}>
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </UiField>
+            {adminClockForm.mode === "in" ? (
+              <UiField label="Evento / pista">
+                <select className={uiSelectClassName} value={adminClockForm.event_id} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, event_id: event.target.value }))}>
+                  <option value="">Nessun evento</option>
+                  {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
+                </select>
+              </UiField>
+            ) : null}
+            <div className={adminClockForm.mode === "in" ? "" : "md:col-span-2"}>
+              <UiField label="Nota">
+                <textarea className={uiTextareaClassName} value={adminClockForm.note} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, note: event.target.value }))} placeholder="Motivo o dettaglio della timbratura manuale..." />
+              </UiField>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
+
+      {editRecordModalOpen && editRecordForm ? (
+        <ModalShell
+          title="Modifica timbratura"
+          subtitle="Correzione amministrativa: lo storico resta tracciato con data aggiornamento e utente che effettua la modifica."
+          onClose={() => setEditRecordModalOpen(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setEditRecordModalOpen(false)} disabled={savingRecordEdit}>Annulla</Button>
+              <Button onClick={saveRecordEdit} disabled={savingRecordEdit}>{savingRecordEdit ? "Salvataggio..." : "Salva modifiche"}</Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UiField label="Membro staff">
+              <select className={uiSelectClassName} value={editRecordForm.staff_member_id} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, staff_member_id: event.target.value }) : prev)}>
+                {staff.map((member) => <option key={member.id} value={member.id}>{getStaffLabel(member)}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Evento / pista">
+              <select className={uiSelectClassName} value={editRecordForm.event_id} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, event_id: event.target.value }) : prev)}>
+                <option value="">Nessun evento</option>
+                {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Entrata">
+              <input className={uiInputClassName} type="datetime-local" value={editRecordForm.check_in_at} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_in_at: event.target.value }) : prev)} />
+            </UiField>
+            <UiField label="Uscita">
+              <input className={uiInputClassName} type="datetime-local" value={editRecordForm.check_out_at} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_out_at: event.target.value }) : prev)} />
+            </UiField>
+            <UiField label="Luogo entrata">
+              <select className={uiSelectClassName} value={editRecordForm.check_in_location_label} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_in_location_label: event.target.value as LocationLabel }) : prev)}>
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Luogo uscita">
+              <select className={uiSelectClassName} value={editRecordForm.check_out_location_label} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_out_location_label: event.target.value as LocationLabel }) : prev)}>
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Nota entrata">
+              <textarea className={uiTextareaClassName} value={editRecordForm.check_in_note} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_in_note: event.target.value }) : prev)} />
+            </UiField>
+            <UiField label="Nota uscita">
+              <textarea className={uiTextareaClassName} value={editRecordForm.check_out_note} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_out_note: event.target.value }) : prev)} />
+            </UiField>
+          </div>
+        </ModalShell>
+      ) : null}
+
+      {resetModalOpen ? (
+        <ModalShell
+          title="Azzera contatore periodo"
+          subtitle="L'azzeramento non cancella lo storico: crea solo un nuovo punto di partenza per il contatore ore del membro selezionato."
+          onClose={() => setResetModalOpen(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setResetModalOpen(false)} disabled={savingReset}>Annulla</Button>
+              <Button variant="danger" onClick={saveResetCounter} disabled={savingReset || !resetForm.staff_member_id}>{savingReset ? "Salvataggio..." : "Azzera contatore"}</Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UiField label="Membro staff">
+              <select className={uiSelectClassName} value={resetForm.staff_member_id} onChange={(event) => setResetForm((prev) => ({ ...prev, staff_member_id: event.target.value }))}>
+                <option value="">Seleziona membro</option>
+                {staff.map((member) => <option key={member.id} value={member.id}>{getStaffLabel(member)}</option>)}
+              </select>
+            </UiField>
+            <UiField label="Data nuovo conteggio">
+              <input className={uiInputClassName} type="datetime-local" value={resetForm.reset_at} onChange={(event) => setResetForm((prev) => ({ ...prev, reset_at: event.target.value }))} />
+            </UiField>
+            <label className="md:col-span-2 flex items-center justify-between gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+              <span className="flex items-center gap-2 font-semibold">
+                <Bell size={16} />
+                Registra richiesta notifica all'utente
+              </span>
+              <input type="checkbox" checked={resetForm.notify_user} onChange={(event) => setResetForm((prev) => ({ ...prev, notify_user: event.target.checked }))} />
+            </label>
+            <div className="md:col-span-2">
+              <UiField label="Nota azzeramento">
+                <textarea className={uiTextareaClassName} value={resetForm.note} onChange={(event) => setResetForm((prev) => ({ ...prev, note: event.target.value }))} placeholder="Es. chiusura periodo, pagamento ore, consuntivo evento..." />
+              </UiField>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
     </div>
   );
 }
 
-function QuickStat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: "green" | "yellow" | "red" | "blue" }) {
+function QuickStat({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: "green" | "yellow" | "red" | "blue" }) {
   const toneClass = {
     green: "text-emerald-300",
     yellow: "text-amber-300",
@@ -565,7 +1011,7 @@ function QuickStat({ icon, label, value, tone }: { icon: React.ReactNode; label:
   );
 }
 
-function MiniInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MiniInfo({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="race-mini-panel p-3">
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -577,7 +1023,73 @@ function MiniInfo({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function StaffRow({ staff, activeRecord }: { staff: StaffMember; activeRecord: AttendanceRecord | null }) {
+function StaffStatsRow({
+  member,
+  summary,
+  activeRecord,
+  latestRecord,
+  canManage,
+  onAdminClock,
+  onEditRecord,
+  onReset,
+}: {
+  member: StaffMember;
+  summary: AttendanceSummary | null;
+  activeRecord: AttendanceRecord | null;
+  latestRecord: AttendanceRecord | null;
+  canManage: boolean;
+  onAdminClock: (mode: AdminClockMode) => void;
+  onEditRecord?: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="data-row grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.85fr_0.85fr_0.75fr_1.25fr] xl:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge label={activeRecord ? "Presente" : "Assente"} tone={activeRecord ? "green" : "neutral"} />
+          {activeRecord ? <StatusBadge label={getLocationLabel(activeRecord.check_in_location_label)} tone={activeRecord.check_in_location_label === "pista" ? "yellow" : "blue"} /> : null}
+        </div>
+        <div className="mt-3 text-base font-black text-[var(--text-primary)]">{getStaffLabel(member)}</div>
+        <div className="mt-1 text-sm text-[var(--text-secondary)]">{[member.role_label, member.email].filter(Boolean).join(" · ") || "Nessun dettaglio"}</div>
+      </div>
+
+      <MetricBlock label="Ore periodo" value={formatDuration(getNumber(summary?.minutes_since_reset))} tone="yellow" />
+      <MetricBlock label="Ore totali" value={formatDuration(getNumber(summary?.minutes_all_time))} tone="blue" />
+      <MetricBlock label="Timbrature" value={String(summary?.records_count || 0)} tone="green" />
+
+      <div className="flex flex-col gap-2 xl:items-end">
+        <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          Ultimo reset: <span className="text-[var(--text-secondary)]">{formatDateTime(summary?.last_reset_at)}</span>
+        </div>
+        <div className="flex flex-wrap gap-2 xl:justify-end">
+          {canManage ? (
+            <>
+              <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita" : "Entrata"}</Button>
+              <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!latestRecord}>Modifica</Button>
+              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onReset}>Azzera</Button>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricBlock({ label, value, tone }: { label: string; value: string; tone: "green" | "yellow" | "blue" }) {
+  const toneClass = {
+    green: "text-emerald-300",
+    yellow: "text-amber-300",
+    blue: "text-blue-300",
+  }[tone];
+  return (
+    <div>
+      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className={`technical-number mt-1 text-xl font-black ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord }: { staff: StaffMember; activeRecord: AttendanceRecord | null; canManage: boolean; onAdminClock: (mode: AdminClockMode) => void; onEditRecord?: () => void }) {
   return (
     <div className="data-row flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
@@ -594,17 +1106,32 @@ function StaffRow({ staff, activeRecord }: { staff: StaffMember; activeRecord: A
         <MiniInfo icon={<LogIn size={15} />} label="Entrata" value={activeRecord ? formatTime(activeRecord.check_in_at) : "—"} />
         <MiniInfo icon={<Clock3 size={15} />} label="Durata" value={activeRecord ? formatDuration(minutesBetween(activeRecord.check_in_at)) : "—"} />
       </div>
+      {canManage ? (
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita admin" : "Entrata admin"}</Button>
+          <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}>Modifica</Button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function AttendanceRecordCard({ record }: { record: AttendanceRecord }) {
+function AttendanceRecordCard({ record, canManage, onEdit }: { record: AttendanceRecord; canManage: boolean; onEdit: () => void }) {
   const isOpen = !record.check_out_at;
   return (
     <div className="race-card-grid p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge label={isOpen ? "Presente" : "Chiusa"} tone={isOpen ? "green" : "neutral"} />
-        <StatusBadge label={getLocationLabel(record.check_in_location_label)} tone={record.check_in_location_label === "pista" ? "yellow" : "blue"} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge label={isOpen ? "Presente" : "Chiusa"} tone={isOpen ? "green" : "neutral"} />
+          <StatusBadge label={getLocationLabel(record.check_in_location_label)} tone={record.check_in_location_label === "pista" ? "yellow" : "blue"} />
+          {record.check_in_source === "admin" || record.check_out_source === "admin" ? <StatusBadge label="Corretta admin" tone="purple" /> : null}
+        </div>
+        {canManage ? (
+          <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEdit}>
+            <Edit3 size={13} className="mr-1.5" />
+            Modifica
+          </Button>
+        ) : null}
       </div>
       <h3 className="mt-4 text-xl font-black text-[var(--text-primary)]">{getStaffLabel(record.staff_member)}</h3>
       <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
