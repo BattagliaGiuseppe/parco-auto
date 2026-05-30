@@ -119,6 +119,7 @@ const DEFAULT_MODULES = {
   telemetry: true,
   documents: true,
   mounts: true,
+  tasks: true,
 };
 
 const DEFAULT_LABELS = {

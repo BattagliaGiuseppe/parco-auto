@@ -33,6 +33,7 @@ type Event = { id: string; name: string; date: string | null; circuit_id: { name
 type Maintenance = { id: string; type: string | null; status: string | null; priority: string | null; date: string | null; car_id: { name: string | null } | null; component_id: { identifier: string | null } | null };
 type DriverDoc = { id: string; expires_at: string | null; driver_id: { first_name: string | null; last_name: string | null } | null };
 type Inventory = { id: string; name: string; quantity: number | null; minimum_quantity: number | null; reserved_quantity: number | null };
+type Task = { id: string; title: string; status: string | null; priority: string | null; due_date: string | null; car_id: { name: string | null } | null; assigned_to_team_user_id: { name: string | null; email: string | null } | null };
 
 function componentSeverity(component: Component) {
   return getDashboardComponentSeverity(component);
@@ -62,13 +63,14 @@ export default function DashboardPage() {
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [driverDocs, setDriverDocs] = useState<DriverDoc[]>([]);
   const [inventory, setInventory] = useState<Inventory[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const ctx = await getCurrentTeamContext();
-        const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes] = await Promise.all([
+        const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes, tasksRes] = await Promise.all([
           supabase.from("app_settings").select("team_name,vehicle_type,labels,modules").eq("team_id", ctx.teamId).single(),
           supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,order_index").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
           supabase.from("cars").select("id,name,hours").eq("team_id", ctx.teamId).order("name", { ascending: true }),
@@ -77,6 +79,7 @@ export default function DashboardPage() {
           supabase.from("maintenances").select("id,type,status,priority,date,car_id(name),component_id(identifier)").eq("team_id", ctx.teamId).order("created_at", { ascending: false }).limit(12),
           supabase.from("driver_documents").select("id,expires_at,driver_id(first_name,last_name)").eq("team_id", ctx.teamId).not("expires_at", "is", null).order("expires_at", { ascending: true }).limit(8),
           supabase.from("inventory_items").select("id,name,quantity,minimum_quantity,reserved_quantity").eq("team_id", ctx.teamId).order("name", { ascending: true }),
+          supabase.from("tasks").select("id,title,status,priority,due_date,car_id(name),assigned_to_team_user_id(name,email)").eq("team_id", ctx.teamId).neq("status", "done").neq("status", "cancelled").order("created_at", { ascending: false }).limit(8),
         ]);
         setSettings((settingsRes.data || null) as AppSettings | null);
         setWidgets(((widgetsRes.data || []) as Widget[]).filter((w) => w.is_enabled));
@@ -119,6 +122,20 @@ const normalizedDriverDocs: DriverDoc[] = (driverDocsRes.data || []).map((row: a
 
 setDriverDocs(normalizedDriverDocs);
 setInventory((inventoryRes.data || []) as Inventory[]);
+const normalizedTasks: Task[] = !tasksRes.error
+  ? ((tasksRes.data || []) as any[]).map((row) => ({
+      id: row.id,
+      title: row.title,
+      status: row.status,
+      priority: row.priority,
+      due_date: row.due_date,
+      car_id: Array.isArray(row.car_id) ? row.car_id[0] ?? { name: null } : row.car_id ?? { name: null },
+      assigned_to_team_user_id: Array.isArray(row.assigned_to_team_user_id)
+        ? row.assigned_to_team_user_id[0] ?? { name: null, email: null }
+        : row.assigned_to_team_user_id ?? { name: null, email: null },
+    }))
+  : [];
+setTasks(normalizedTasks);
       } finally {
         setLoading(false);
       }
@@ -134,6 +151,7 @@ setInventory((inventoryRes.data || []) as Inventory[]);
   const openMaintenances = useMemo(() => maintenances.filter((m) => m.status !== "completed").slice(0, 6), [maintenances]);
   const expiringDriverDocs = useMemo(() => driverDocs.filter((row) => row.expires_at && isFutureOrToday(row.expires_at)).slice(0, 6), [driverDocs]);
   const lowStock = useMemo(() => inventory.filter((row) => Number(row.quantity || 0) <= Number(row.minimum_quantity || 0)), [inventory]);
+  const openTasks = useMemo(() => tasks.filter((row) => row.status !== "done" && row.status !== "cancelled"), [tasks]);
   const carsReady = useMemo(() => {
     const problemCarIds = new Set(components.filter((c) => componentSeverity(c) >= 2 && c.car_id).map((c) => c.car_id as string));
     return cars.filter((car) => !problemCarIds.has(car.id)).length;
@@ -275,6 +293,26 @@ setInventory((inventoryRes.data || []) as Inventory[]);
             )}
           </SectionCard>
         );
+      case "tasks_open":
+        return (
+          <SectionCard key={code} title={label} subtitle="Promemoria e attività operative ancora aperte">
+            {openTasks.length === 0 ? <EmptyState title="Nessuna attività aperta" /> : (
+              <div className="space-y-3">
+                {openTasks.slice(0, 8).map((row) => (
+                  <div key={row.id} className="data-row flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-extrabold text-[var(--text-primary)]">{row.title}</div>
+                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                        {row.car_id?.name || "Senza auto collegata"} · Assegnata a {row.assigned_to_team_user_id?.name || row.assigned_to_team_user_id?.email || "nessuno"} · Scadenza {formatDate(row.due_date)}
+                      </div>
+                    </div>
+                    <Link href="/tasks" className="race-action-link text-sm">Apri</Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        );
       case "inventory_low_stock":
         return (
           <SectionCard key={code} title={label} subtitle="Articoli sotto la scorta minima">
@@ -303,6 +341,7 @@ setInventory((inventoryRes.data || []) as Inventory[]);
     { widget_code: "components_alerts", label: "Componenti critici", is_enabled: true, size: "md", order_index: 2 },
     { widget_code: "upcoming_events", label: "Prossimi eventi", is_enabled: true, size: "md", order_index: 3 },
     { widget_code: "maintenances_open", label: "Manutenzioni aperte", is_enabled: true, size: "md", order_index: 4 },
+    { widget_code: "tasks_open", label: "Attività aperte", is_enabled: true, size: "md", order_index: 5 },
   ];
 
   if (loading) {
@@ -328,11 +367,12 @@ setInventory((inventoryRes.data || []) as Inventory[]);
       <StatsGrid items={stats} />
 
       <SectionCard title="Quadro operativo" subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <QuickPill icon={<CarFront size={16} />} label={`${labels.vehicle} registrati`} value={String(cars.length)} />
           <QuickPill icon={<Wrench size={16} />} label="Componenti con warning" value={String(warningComponents.length)} />
           <QuickPill icon={<Users size={16} />} label={`${labels.driver} con documenti in scadenza`} value={String(expiringDriverDocs.length)} />
           <QuickPill icon={<Package size={16} />} label="Magazzino sotto soglia" value={String(lowStock.length)} />
+          <QuickPill icon={<ClipboardList size={16} />} label="Attività aperte" value={String(openTasks.length)} />
         </div>
       </SectionCard>
 

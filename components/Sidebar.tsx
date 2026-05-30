@@ -18,6 +18,7 @@ import {
   Layers3,
   X,
   ShieldCheck,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { brandConfig } from "@/lib/brand";
@@ -128,6 +129,7 @@ export default function Sidebar() {
       { href: "/drivers", label: theme.labels.driver, icon: <Users size={18} />, enabled: modules.drivers !== false && has("drivers.view") },
       { href: "/inventory", label: theme.labels.inventory, icon: <Package size={18} />, enabled: modules.inventory !== false && has("inventory.view") },
       { href: "/telemetry", label: "Telemetria", icon: <Activity size={18} />, enabled: modules.telemetry !== false && has("telemetry.view") },
+      { href: "/tasks", label: "Attività", icon: <ClipboardList size={18} />, enabled: modules.tasks !== false && has("tasks.view") },
       { href: "/settings", label: "Impostazioni", icon: <Settings size={18} />, enabled: canManageSettings },
       { href: "/settings/team", label: "Team & Accessi", icon: <ShieldCheck size={18} />, enabled: canManageTeam },
     ],
@@ -138,6 +140,7 @@ export default function Sidebar() {
       modules.inventory,
       modules.mounts,
       modules.telemetry,
+      modules.tasks,
       settings?.enable_events,
       settings?.enable_maintenances,
       permissionCodes,

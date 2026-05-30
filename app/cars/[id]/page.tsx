@@ -10,6 +10,8 @@ import {
   Info,
   Printer,
   Wrench,
+  ClipboardList,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import PageHeader from "@/components/PageHeader";
@@ -45,6 +47,17 @@ type RevisionItem = {
   date: string;
   description: string | null;
   reset_hours: boolean;
+};
+
+type CarTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string | null;
+  priority: string | null;
+  due_date: string | null;
+  assigned_to_team_user_id: { name: string | null; email: string | null } | null;
+  component_id: { type: string | null; identifier: string | null } | null;
 };
 
 function formatHours(value: number | null | undefined) {
@@ -112,6 +125,7 @@ export default function CarDetailPage() {
 
   const [car, setCar] = useState<CarData | null>(null);
   const [revisions, setRevisions] = useState<Record<string, RevisionItem[]>>({});
+  const [tasks, setTasks] = useState<CarTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -176,6 +190,34 @@ export default function CarDetailPage() {
         setRevisions(revisionMap);
       } else {
         setRevisions({});
+      }
+
+      const { data: taskRows, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id,title,description,status,priority,due_date,assigned_to_team_user_id(name,email),component_id(type,identifier)")
+        .eq("car_id", id)
+        .not("status", "in", "(done,cancelled)")
+        .order("created_at", { ascending: false })
+        .limit(8);
+
+      if (!tasksError) {
+        const normalizedTasks: CarTask[] = ((taskRows || []) as any[]).map((row) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          status: row.status,
+          priority: row.priority,
+          due_date: row.due_date,
+          assigned_to_team_user_id: Array.isArray(row.assigned_to_team_user_id)
+            ? row.assigned_to_team_user_id[0] ?? { name: null, email: null }
+            : row.assigned_to_team_user_id ?? { name: null, email: null },
+          component_id: Array.isArray(row.component_id)
+            ? row.component_id[0] ?? null
+            : row.component_id ?? null,
+        }));
+        setTasks(normalizedTasks);
+      } else {
+        setTasks([]);
       }
     } catch (err: any) {
       setError(err.message || "Errore nel caricamento della vettura");
@@ -299,6 +341,41 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
+        title="Attività aperte"
+        subtitle="Promemoria e lavori da fare collegati a questo mezzo."
+        actions={<Link href="/tasks" className="race-action-secondary px-4 py-2 text-sm">Apri attività</Link>}
+      >
+        {tasks.length === 0 ? (
+          <EmptyState
+            title="Nessuna attività aperta per questo mezzo"
+            description="Quando crei un promemoria collegato a questa auto lo ritroverai direttamente qui."
+          />
+        ) : (
+          <div className="space-y-3">
+            {tasks.map((task) => (
+              <div key={task.id} className="data-row flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <TaskChip label={task.priority === "urgent" ? "Urgente" : task.priority === "high" ? "Alta" : task.priority === "low" ? "Bassa" : "Media"} tone={task.priority === "urgent" ? "red" : task.priority === "high" ? "yellow" : "blue"} />
+                    <TaskChip label={task.status === "in_progress" ? "In corso" : task.status === "waiting" ? "In attesa" : "Da fare"} tone={task.status === "waiting" ? "yellow" : task.status === "in_progress" ? "blue" : "purple"} />
+                  </div>
+                  <div className="mt-3 text-lg font-black text-[var(--text-primary)]">{task.title}</div>
+                  <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                    {task.component_id?.identifier ? `${task.component_id.type || "Componente"} · ${task.component_id.identifier}` : "Attività generale del mezzo"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
+                  <span className="inline-flex items-center gap-2"><CalendarDays size={15} /> {formatDate(task.due_date)}</span>
+                  <span>Assegnata: {task.assigned_to_team_user_id?.name || task.assigned_to_team_user_id?.email || "—"}</span>
+                  <Link href="/tasks" className="race-action-link">Gestisci</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title="Componenti montati"
         subtitle="Controlla ore, soglie, scadenze e ultima revisione dei componenti attivi sul mezzo."
       >
@@ -390,6 +467,22 @@ export default function CarDetailPage() {
       </SectionCard>
     </div>
   );
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("it-IT");
+}
+
+function TaskChip({ label, tone }: { label: string; tone: "red" | "yellow" | "blue" | "purple" }) {
+  const classes = {
+    red: "border-red-400/35 bg-red-400/10 text-red-300",
+    yellow: "border-amber-400/35 bg-amber-400/10 text-amber-300",
+    blue: "border-blue-400/35 bg-blue-400/10 text-blue-300",
+    purple: "border-purple-400/35 bg-purple-400/10 text-purple-300",
+  }[tone];
+
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${classes}`}>{label}</span>;
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
