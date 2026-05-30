@@ -1474,7 +1474,7 @@ async function saveAll() {
                       prev.filter((_, itemIndex) => itemIndex !== index)
                     )
                   }
-                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
+                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>
@@ -1534,7 +1534,7 @@ async function saveAll() {
                     onClick={() =>
                       setChecklists((prev) => prev.filter((_, i) => i !== groupIndex))
                     }
-                    className="rounded-xl bg-red-100 px-3 py-3 text-red-200"
+                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -1617,7 +1617,7 @@ async function saveAll() {
                             )
                           )
                         }
-                        className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
+                        className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                       >
                         <Trash2 size={16} className="mx-auto" />
                       </button>
@@ -1763,7 +1763,7 @@ async function saveAll() {
                   onClick={() =>
                     setSetupFields((prev) => prev.filter((_, i) => i !== index))
                   }
-                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
+                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>
@@ -1877,7 +1877,7 @@ async function saveAll() {
                   onClick={() =>
                     setWidgets((prev) => prev.filter((_, i) => i !== index))
                   }
-                  className="rounded-xl bg-red-100 text-red-200 hover:bg-red-200"
+                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                 >
                   <Trash2 size={16} className="mx-auto" />
                 </button>
