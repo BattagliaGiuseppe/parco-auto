@@ -13,11 +13,16 @@ import {
   Info,
   Image as ImageIcon,
   MonitorSmartphone,
+  Database,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { uploadTeamFile } from "@/lib/storage";
-import { dispatchBrandingRefresh } from "@/lib/brandingTheme";
+import { buildBrandingTheme, dispatchBrandingRefresh } from "@/lib/brandingTheme";
 import { brandConfig } from "@/lib/brand";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
@@ -61,6 +66,8 @@ type AppSettingsRow = {
   dashboard_layout: any;
   labels?: Record<string, string> | null;
   branding?: BrandingPayload;
+  theme_tokens?: Record<string, string> | null;
+  updated_at?: string | null;
 };
 
 type ComponentDefinition = {
@@ -112,6 +119,23 @@ type DashboardWidget = {
   size: string;
   order_index: number;
 };
+
+type SettingsHealthSnapshot = {
+  can_manage?: boolean;
+  save_rpc_available?: boolean;
+  settings_count?: number;
+  settings_updated_at?: string | null;
+  counts?: Record<string, number>;
+  manager_write_policies?: Record<string, number>;
+  checked_at?: string;
+};
+
+type SaveVerification = {
+  checkedAt: string;
+  ok: boolean;
+  message: string;
+};
+
 
 const DEFAULT_MODULES = {
   drivers: true,
@@ -190,6 +214,7 @@ function SectionTabs({
     ["checklists", "Check-up"],
     ["setup", "Setup"],
     ["dashboard", "Dashboard"],
+    ["audit", "Stato salvataggio"],
   ];
 
   return (
@@ -301,6 +326,65 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "Non disponibile";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Non disponibile";
+  return date.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function StatusPill({
+  ok,
+  label,
+}: {
+  ok: boolean;
+  label: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] ${
+        ok
+          ? "border-emerald-400/30 bg-emerald-500/12 text-emerald-200"
+          : "border-red-400/30 bg-red-500/12 text-red-200"
+      }`}
+    >
+      {ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+      {label}
+    </span>
+  );
+}
+
+function AuditMetric({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: React.ReactNode;
+  helper?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">{value}</div>
+      {helper ? <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{helper}</div> : null}
+    </div>
+  );
+}
+
+function arraysHaveSameContent(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  return a.every((item, index) => item === b[index]);
 }
 
 function normalizeHex(value: string, fallback: string) {
@@ -610,10 +694,42 @@ export default function SettingsPage() {
     message: string;
   } | null>(null);
   const [section, setSection] = useState("branding");
+  const [health, setHealth] = useState<SettingsHealthSnapshot | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [lastSaveVerification, setLastSaveVerification] = useState<SaveVerification | null>(null);
+
+  async function loadHealth(teamId?: string) {
+    try {
+      const ctx = teamId ? null : await getCurrentTeamContext();
+      const currentTeamId = teamId || ctx?.teamId;
+      if (!currentTeamId) return;
+
+      const { data, error } = await supabase.rpc("get_settings_control_center_health", {
+        p_team_id: currentTeamId,
+      });
+
+      if (error) {
+        setHealth(null);
+        setHealthError(error.message);
+        return;
+      }
+
+      setHealth((data || null) as SettingsHealthSnapshot | null);
+      setHealthError(null);
+    } catch (error) {
+      setHealth(null);
+      setHealthError(
+        error instanceof Error
+          ? error.message
+          : "Impossibile verificare lo stato del Control Center."
+      );
+    }
+  }
 
   async function loadAll() {
     setLoading(true);
     setLoadError(null);
+    setHealthError(null);
     setFeedback(null);
     try {
       const ctx = await getCurrentTeamContext();
@@ -688,6 +804,8 @@ export default function SettingsPage() {
           items: items.filter((item) => item.checklist_id === group.id),
         }))
       );
+
+      await loadHealth(ctx.teamId);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "Errore caricamento impostazioni.";
@@ -703,6 +821,29 @@ export default function SettingsPage() {
       void loadAll();
     }
   }, [access.loading, access.canManageSettings]);
+
+  const effectiveBrandingTheme = useMemo(
+    () => (settings ? buildBrandingTheme(settings) : null),
+    [settings]
+  );
+
+  const themeCompatibilityWarnings = useMemo(() => {
+    if (!settings || !effectiveBrandingTheme) return [] as string[];
+    const warnings: string[] = [];
+    const requestedPrimary = normalizeHex(settings.primary_color, "#171717");
+    const requestedSecondary = normalizeHex(settings.secondary_color, "#262626");
+    if (requestedPrimary !== effectiveBrandingTheme.colors.primary) {
+      warnings.push(
+        "Primary color troppo chiaro per il tema Dark Race Control: nell'app reale viene usato un fallback scuro per proteggere la leggibilità."
+      );
+    }
+    if (requestedSecondary !== effectiveBrandingTheme.colors.secondary) {
+      warnings.push(
+        "Secondary color troppo chiaro per superfici dark: nell'app reale viene usato un fallback scuro."
+      );
+    }
+    return warnings;
+  }, [effectiveBrandingTheme, settings]);
 
   if (access.loading) {
     return (
@@ -973,18 +1114,81 @@ async function saveAll() {
 
       if (error) throw error;
 
+      const [verifySettingsRes, verifyDefinitionsRes, verifyChecklistsRes, verifySetupRes, verifyWidgetsRes] =
+        await Promise.all([
+          supabase
+            .from("app_settings")
+            .select("team_name, primary_color, secondary_color, accent_color, updated_at")
+            .eq("team_id", ctx.teamId)
+            .maybeSingle(),
+          supabase
+            .from("team_component_definitions")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", ctx.teamId),
+          supabase
+            .from("team_checklists")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", ctx.teamId),
+          supabase
+            .from("team_setup_fields")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", ctx.teamId),
+          supabase
+            .from("team_dashboard_widgets")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", ctx.teamId),
+        ]);
+
+      const verificationIssues: string[] = [];
+      if (verifySettingsRes.error) verificationIssues.push(`Impostazioni generali: ${verifySettingsRes.error.message}`);
+      if (verifyDefinitionsRes.error) verificationIssues.push(`Componenti standard: ${verifyDefinitionsRes.error.message}`);
+      if (verifyChecklistsRes.error) verificationIssues.push(`Checklist: ${verifyChecklistsRes.error.message}`);
+      if (verifySetupRes.error) verificationIssues.push(`Setup: ${verifySetupRes.error.message}`);
+      if (verifyWidgetsRes.error) verificationIssues.push(`Dashboard: ${verifyWidgetsRes.error.message}`);
+
+      const verifySettings = verifySettingsRes.data as any;
+      if (verifySettings && verifySettings.team_name !== settings.team_name) {
+        verificationIssues.push("Nome team salvato diverso dal valore richiesto.");
+      }
+
+      const countChecks = [
+        { label: "componenti standard", expected: cleanDefinitions.length, actual: verifyDefinitionsRes.count ?? 0 },
+        { label: "checklist", expected: cleanChecklists.length, actual: verifyChecklistsRes.count ?? 0 },
+        { label: "campi setup", expected: cleanSetupFields.length, actual: verifySetupRes.count ?? 0 },
+        { label: "widget dashboard", expected: cleanWidgets.length, actual: verifyWidgetsRes.count ?? 0 },
+      ];
+
+      for (const check of countChecks) {
+        if (check.expected !== check.actual) {
+          verificationIssues.push(
+            `Conteggio ${check.label} non allineato: attesi ${check.expected}, salvati ${check.actual}.`
+          );
+        }
+      }
+
+      const verificationOk = verificationIssues.length === 0;
+      setLastSaveVerification({
+        checkedAt: new Date().toISOString(),
+        ok: verificationOk,
+        message: verificationOk
+          ? "Rilettura database completata: le sezioni principali risultano allineate."
+          : verificationIssues.join(" · "),
+      });
+
       dispatchBrandingRefresh();
 
       setFeedback({
-        type: "success",
-        message: "Control Center aggiornato correttamente.",
+        type: verificationOk ? "success" : "error",
+        message: verificationOk
+          ? "Control Center aggiornato e verificato sul database."
+          : `Salvataggio completato, ma la verifica ha rilevato anomalie: ${verificationIssues.join(" · ")}`,
       });
       await loadAll();
     } catch (err) {
       console.error(err);
       setFeedback({
         type: "error",
-        message: "Errore salvataggio impostazioni. Verifica di aver eseguito db/settings_hardening_patch.sql.",
+        message: "Errore salvataggio impostazioni. Verifica di aver eseguito db/settings_hardening_patch.sql e db/settings_control_center_audit_patch.sql.",
       });
     } finally {
       setSaving(false);
@@ -1014,6 +1218,17 @@ async function saveAll() {
       </div>
     );
   }
+
+  const loadedSectionCounts = {
+    componenti: definitions.length,
+    checklist: checklists.length,
+    setup: setupFields.length,
+    dashboard: widgets.length,
+  };
+
+  const databaseCounts = health?.counts || {};
+  const saveRpcReady = health?.save_rpc_available === true;
+  const managerCanWrite = health?.can_manage === true;
 
   return (
     <div className={`flex flex-col gap-6 p-6`}>
@@ -1050,6 +1265,74 @@ async function saveAll() {
           e dashboard. Le impostazioni salvate diventano la base operativa del team e influenzano
           direttamente il lavoro su auto, componenti, eventi e check-up.
         </InfoBlock>
+      </SectionCard>
+
+      <SectionCard
+        title="Stato Control Center"
+        subtitle="Controlla se le impostazioni sono caricate, salvabili e realmente allineate al database."
+        actions={
+          <button
+            type="button"
+            onClick={() => void loadHealth()}
+            className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:bg-white/[0.12]"
+          >
+            <RefreshCw size={14} className="mr-2 inline" />
+            Ricontrolla
+          </button>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <AuditMetric
+            label="RPC salvataggio"
+            value={<StatusPill ok={saveRpcReady} label={saveRpcReady ? "OK" : "Da verificare"} />}
+            helper="Verifica che la funzione transazionale sia disponibile sul database."
+          />
+          <AuditMetric
+            label="Permesso scrittura"
+            value={<StatusPill ok={managerCanWrite} label={managerCanWrite ? "Owner/Admin" : "Non abilitato"} />}
+            helper="Solo owner/admin devono poter modificare il Control Center."
+          />
+          <AuditMetric
+            label="Ultimo salvataggio DB"
+            value={<span className="text-base font-black">{formatDateTime(health?.settings_updated_at || settings.updated_at)}</span>}
+            helper="Timestamp letto dal database, non dalla sola preview locale."
+          />
+          <AuditMetric
+            label="Ultima verifica"
+            value={<span className="text-base font-black">{formatDateTime(health?.checked_at || lastSaveVerification?.checkedAt)}</span>}
+            helper={lastSaveVerification?.message || "Esegui un salvataggio o ricontrolla lo stato."}
+          />
+        </div>
+
+        {healthError ? (
+          <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <div>
+                <div className="font-bold">Diagnostica database non disponibile</div>
+                <div className="mt-1 text-red-100/80">
+                  {healthError}. Se hai appena caricato questa patch, esegui la query <strong>db/settings_control_center_audit_patch.sql</strong>.
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {themeCompatibilityWarnings.length > 0 ? (
+          <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+            <div className="flex items-start gap-3">
+              <Eye size={18} className="mt-0.5 shrink-0" />
+              <div>
+                <div className="font-bold">Differenza tra preview locale e tema realmente applicato</div>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {themeCompatibilityWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       <SectionCard
@@ -1293,6 +1576,37 @@ async function saveAll() {
               onChange={(e) => patchSetting("accent_color", e.target.value)}
             />
           </Field>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+            <Eye size={16} />
+            Tema effettivo applicato
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {[
+              { label: "Primary", requested: normalizeHex(settings.primary_color, "#171717"), applied: effectiveBrandingTheme?.colors.primary || "#171717" },
+              { label: "Secondary", requested: normalizeHex(settings.secondary_color, "#262626"), applied: effectiveBrandingTheme?.colors.secondary || "#262626" },
+              { label: "Accent", requested: normalizeHex(settings.accent_color, "#facc15"), applied: effectiveBrandingTheme?.colors.accent || "#facc15" },
+            ].map((color) => (
+              <div key={color.label} className="rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-3 text-xs text-[var(--text-secondary)]">
+                <div className="font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{color.label}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="h-7 w-7 rounded-lg border border-white/10" style={{ backgroundColor: color.requested }} />
+                  <span>richiesto {color.requested}</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="h-7 w-7 rounded-lg border border-white/10" style={{ backgroundColor: color.applied }} />
+                  <span>applicato {color.applied}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {themeCompatibilityWarnings.length > 0 ? (
+            <div className="mt-4 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-sm leading-6 text-yellow-100">
+              Alcuni colori richiesti non sono applicati perché romperebbero il contrasto del tema scuro. La preview locale mostra il valore scelto, mentre il tema reale usa il valore applicato qui sopra.
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1974,6 +2288,91 @@ async function saveAll() {
             </button>
           </div>
         </SectionCard>
+      ) : null}
+
+      {section === "audit" ? (
+        <div className="space-y-6">
+          <SectionCard
+            title="Diagnostica salvataggio"
+            subtitle="Serve a capire se una modifica è solo in preview, salvata sul database o applicata realmente al tema globale."
+            actions={
+              <button
+                type="button"
+                onClick={() => void loadAll()}
+                className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:bg-white/[0.12]"
+              >
+                <RefreshCw size={14} className="mr-2 inline" />
+                Ricarica tutto
+              </button>
+            }
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <AuditMetric label="Impostazioni" value={health?.settings_count ?? "—"} helper="Record app_settings per il team." />
+              <AuditMetric label="Componenti" value={databaseCounts.component_definitions ?? loadedSectionCounts.componenti} helper={`Caricati in UI: ${loadedSectionCounts.componenti}`} />
+              <AuditMetric label="Checklist" value={databaseCounts.checklists ?? loadedSectionCounts.checklist} helper={`Caricate in UI: ${loadedSectionCounts.checklist}`} />
+              <AuditMetric label="Setup" value={databaseCounts.setup_fields ?? loadedSectionCounts.setup} helper={`Caricati in UI: ${loadedSectionCounts.setup}`} />
+              <AuditMetric label="Widget" value={databaseCounts.dashboard_widgets ?? loadedSectionCounts.dashboard} helper={`Caricati in UI: ${loadedSectionCounts.dashboard}`} />
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                  <Database size={16} />
+                  Stato database
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.045] px-3 py-2">
+                    <span>RPC transazionale</span>
+                    <StatusPill ok={saveRpcReady} label={saveRpcReady ? "Disponibile" : "Mancante"} />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.045] px-3 py-2">
+                    <span>Scrittura owner/admin</span>
+                    <StatusPill ok={managerCanWrite} label={managerCanWrite ? "OK" : "Bloccata"} />
+                  </div>
+                  <div className="rounded-xl bg-white/[0.045] px-3 py-2">
+                    <div className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Ultimo updated_at</div>
+                    <div className="mt-1 font-semibold text-[var(--text-primary)]">{formatDateTime(health?.settings_updated_at || settings.updated_at)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                  <Eye size={16} />
+                  Tema richiesto vs tema applicato
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Primary", requested: normalizeHex(settings.primary_color, "#171717"), applied: effectiveBrandingTheme?.colors.primary || "#171717" },
+                    { label: "Secondary", requested: normalizeHex(settings.secondary_color, "#262626"), applied: effectiveBrandingTheme?.colors.secondary || "#262626" },
+                    { label: "Accent", requested: normalizeHex(settings.accent_color, "#facc15"), applied: effectiveBrandingTheme?.colors.accent || "#facc15" },
+                  ].map((color) => (
+                    <div key={color.label} className="rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{color.label}</div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
+                        <div>
+                          <div className="mb-1">Richiesto</div>
+                          <div className="h-8 rounded-lg border border-white/10" style={{ backgroundColor: color.requested }} />
+                          <div className="mt-1 font-mono">{color.requested}</div>
+                        </div>
+                        <div>
+                          <div className="mb-1">Applicato</div>
+                          <div className="h-8 rounded-lg border border-white/10" style={{ backgroundColor: color.applied }} />
+                          <div className="mt-1 font-mono">{color.applied}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {themeCompatibilityWarnings.length === 0 ? (
+                  <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                    I colori richiesti sono compatibili con il tema reale.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </SectionCard>
+        </div>
       ) : null}
     </div>
   );
