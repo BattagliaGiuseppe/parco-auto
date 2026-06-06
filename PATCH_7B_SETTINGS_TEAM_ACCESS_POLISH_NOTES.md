@@ -1,34 +1,27 @@
-"use client";
+# Patch 7B — Settings / Team Access polish
 
-import { useEffect, useState } from "react";
+Intervento mirato sulle ultime incoerenze grafiche viste negli screenshot di Impostazioni e Team & Accessi.
 
-export type ViewMode = "compact" | "cards";
+## File modificati
 
-export function usePersistedViewMode(
-  storageKey: string,
-  defaultValue: ViewMode = "compact",
-) {
-  const [viewMode, setViewModeState] = useState<ViewMode>(defaultValue);
+- `app/settings/page.tsx`
+- `app/settings/team/page.tsx`
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved === "compact" || saved === "cards") {
-        setViewModeState(saved);
-      }
-    } catch {
-      // Local storage non disponibile: manteniamo la vista di default.
-    }
-  }, [storageKey]);
+## Cosa cambia
 
-  function setViewMode(next: ViewMode) {
-    setViewModeState(next);
-    try {
-      window.localStorage.setItem(storageKey, next);
-    } catch {
-      // Ignora ambienti dove localStorage non è disponibile.
-    }
-  }
+- Tab di Impostazioni non più chiari/bianchi in stato inattivo.
+- Snapshot Team in Team & Accessi convertito al tema Dark Race Control.
+- Card membri, override e permessi effettivi più coerenti con il resto della webapp.
+- Select, pulsanti secondari e messaggi informativi più leggibili su sfondo scuro.
+- Matrice permessi con righe, bordi e testi coerenti con il tema dark.
+- Nota prodotto e box di supporto convertiti a card scure.
 
-  return [viewMode, setViewMode] as const;
-}
+## Supabase
+
+Nessuna query da eseguire. Patch solo frontend/UI.
+
+## Verifiche
+
+- `npm ci --ignore-scripts --no-audit --no-fund` OK
+- `npx tsc --noEmit --pretty false` OK
+- `npm run build` compila CSS/webpack e arriva alla fase interna Next di controllo dati/tipi; nel container va in timeout come nelle patch precedenti.

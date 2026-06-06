@@ -1,297 +1,50 @@
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import {
-  canManageTeamRole,
-  getCurrentTeamContext,
-  TeamContext,
-  TeamRole,
-} from "@/lib/teamContext";
+# Patch 5A.2 — Contrast & Modal Refinement
 
-export type AppPermission = {
-  code: string;
-  label: string | null;
-  description: string | null;
-};
+Questa patch corregge il problema principale emerso dopo la Patch 5A: il tema Dark Race Control era attivo, ma diversi testi risultavano troppo scuri o poco leggibili.
 
-export type RolePermissionRow = {
-  role: TeamRole | string;
-  permission_code: string;
-};
+## Diagnosi
 
-export type TeamUserPermissionOverride = {
-  id?: string;
-  team_user_id: string;
-  permission_code: string;
-  is_allowed: boolean;
-};
+Il problema non era solo nelle classi delle card: `BrandThemeProvider` applicava al documento token provenienti dal tema/branding precedente, con valori chiari come testo scuro e superfici chiare. Questo sovrascriveva le variabili CSS del nuovo tema dark dopo il caricamento della pagina.
 
-export type PermissionAccessState = {
-  loading: boolean;
-  error: string | null;
-  ctx: TeamContext | null;
-  permissionCodes: string[];
-  hasPermission: (
-    permissionCode: string | string[],
-    fallbackRoles?: string[]
-  ) => boolean;
-  canManageSettings: boolean;
-  canManageTeam: boolean;
-};
+## Interventi principali
 
-type PermissionAccessSnapshot = {
-  cacheKey: string;
-  ctx: TeamContext;
-  permissionCodes: string[];
-};
+- Aggiornati i default di `lib/brandingTheme.ts` al tema Dark Race Control.
+- Aggiunti controlli per impedire che vecchi `theme_tokens` chiari sovrascrivano testo e superfici del tema dark.
+- Rafforzati i token applicati al documento: `--text-primary`, `--text-secondary`, `--surface-*`, `--border-*`.
+- Aumentato il contrasto di `data-row`, card interne, mini pannelli e tabelle.
+- Migliorata la leggibilità di input, select, textarea e placeholder.
+- Rifinito `ModalShell` e bottoni secondari.
+- Corretti testi legacy nel report evento che usavano ancora `text-neutral-600` e risultavano quasi invisibili.
+- Convertito `InfoBlock` e badge evento in stile coerente con il tema dark.
 
-let permissionAccessCache: PermissionAccessSnapshot | null = null;
-let permissionAccessInflight: Promise<PermissionAccessSnapshot> | null = null;
+## File principali modificati
 
-export function invalidatePermissionAccessCache() {
-  permissionAccessCache = null;
-  permissionAccessInflight = null;
-}
+- `lib/brandingTheme.ts`
+- `app/globals.css`
+- `components/SectionCard.tsx`
+- `components/StatsGrid.tsx`
+- `components/ModalShell.tsx`
+- `components/Button.tsx`
+- `app/dashboard/page.tsx`
+- `app/calendar/[eventId]/page.tsx`
 
-export function buildRolePermissionMap(rows: RolePermissionRow[]) {
-  return rows.reduce<Record<string, Set<string>>>((acc, row) => {
-    if (!acc[row.role]) {
-      acc[row.role] = new Set<string>();
-    }
+## Supabase
 
-    acc[row.role].add(row.permission_code);
-    return acc;
-  }, {});
-}
+Non serve lanciare query Supabase.
 
-export function buildTeamUserOverrideMap(rows: TeamUserPermissionOverride[]) {
-  return rows.reduce<Record<string, Record<string, boolean>>>((acc, row) => {
-    if (!acc[row.team_user_id]) {
-      acc[row.team_user_id] = {};
-    }
+## Verifiche
 
-    acc[row.team_user_id][row.permission_code] = row.is_allowed;
-    return acc;
-  }, {});
-}
+- `npm ci --ignore-scripts --no-audit --no-fund` OK
+- `npx tsc --noEmit --pretty false` OK
+- `npm run build` compila correttamente CSS/webpack e arriva a `Collecting page data ...`; nel container va in timeout come nelle patch precedenti.
 
-export function getEffectivePermissionCodes(params: {
-  role: string;
-  rolePermissions: RolePermissionRow[];
-  overrides?: TeamUserPermissionOverride[];
-}) {
-  const roleMap = buildRolePermissionMap(params.rolePermissions);
-  const base = new Set(Array.from(roleMap[params.role] || []));
+## Test consigliato
 
-  for (const override of params.overrides || []) {
-    if (override.is_allowed) {
-      base.add(override.permission_code);
-    } else {
-      base.delete(override.permission_code);
-    }
-  }
+Controllare in Vercel Preview:
 
-  return Array.from(base).sort();
-}
-
-export function hasPermissionCode(
-  permissionCodes: string[],
-  permissionCode: string | string[]
-) {
-  const required = Array.isArray(permissionCode) ? permissionCode : [permissionCode];
-  return required.some((code) => permissionCodes.includes(code));
-}
-
-export function hasPermissionOrRole(params: {
-  permissionCodes: string[];
-  permissionCode: string | string[];
-  role?: string | null;
-  fallbackRoles?: string[];
-}) {
-  if (hasPermissionCode(params.permissionCodes, params.permissionCode)) {
-    return true;
-  }
-
-  if (!params.role || !params.fallbackRoles?.length) {
-    return false;
-  }
-
-  return params.fallbackRoles.includes(params.role);
-}
-
-export async function getPermissionCatalog(): Promise<AppPermission[]> {
-  const { data, error } = await supabase
-    .from("app_permissions")
-    .select("code, label, description")
-    .order("code", { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data || []) as AppPermission[];
-}
-
-export async function getRolePermissions(): Promise<RolePermissionRow[]> {
-  const { data, error } = await supabase
-    .from("role_permissions")
-    .select("role, permission_code")
-    .order("role", { ascending: true })
-    .order("permission_code", { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data || []) as RolePermissionRow[];
-}
-
-export async function getTeamUserPermissionOverrides(teamUserIds: string[]) {
-  if (teamUserIds.length === 0) {
-    return [] as TeamUserPermissionOverride[];
-  }
-
-  const { data, error } = await supabase
-    .from("team_user_permissions")
-    .select("id, team_user_id, permission_code, is_allowed")
-    .in("team_user_id", teamUserIds)
-    .order("permission_code", { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data || []) as TeamUserPermissionOverride[];
-}
-
-export async function getCurrentUserEffectivePermissions() {
-  const ctx = await getCurrentTeamContext();
-
-  const [rolePermissions, overrides] = await Promise.all([
-    getRolePermissions(),
-    getTeamUserPermissionOverrides([ctx.teamUserId]),
-  ]);
-
-  return getEffectivePermissionCodes({
-    role: ctx.role,
-    rolePermissions,
-    overrides: overrides.filter((row) => row.team_user_id === ctx.teamUserId),
-  });
-}
-
-async function loadPermissionAccessSnapshot(force = false) {
-  const currentCtx = await getCurrentTeamContext();
-  const cacheKey = `${currentCtx.teamUserId}:${currentCtx.role}`;
-
-  if (!force && permissionAccessCache?.cacheKey === cacheKey) {
-    return permissionAccessCache;
-  }
-
-  if (!force && permissionAccessInflight) {
-    return permissionAccessInflight;
-  }
-
-  permissionAccessInflight = (async () => {
-    const [rolePermissions, overrides] = await Promise.all([
-      getRolePermissions(),
-      getTeamUserPermissionOverrides([currentCtx.teamUserId]),
-    ]);
-
-    const permissionCodes = getEffectivePermissionCodes({
-      role: currentCtx.role,
-      rolePermissions,
-      overrides: overrides.filter(
-        (row) => row.team_user_id === currentCtx.teamUserId
-      ),
-    });
-
-    const snapshot: PermissionAccessSnapshot = {
-      cacheKey,
-      ctx: currentCtx,
-      permissionCodes,
-    };
-
-    permissionAccessCache = snapshot;
-    return snapshot;
-  })();
-
-  try {
-    return await permissionAccessInflight;
-  } finally {
-    permissionAccessInflight = null;
-  }
-}
-
-export function usePermissionAccess(): PermissionAccessState {
-  const [loading, setLoading] = useState(!permissionAccessCache);
-  const [error, setError] = useState<string | null>(null);
-  const [ctx, setCtx] = useState<TeamContext | null>(permissionAccessCache?.ctx ?? null);
-  const [permissionCodes, setPermissionCodes] = useState<string[]>(
-    permissionAccessCache?.permissionCodes ?? []
-  );
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      if (!permissionAccessCache) {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const snapshot = await loadPermissionAccessSnapshot();
-
-        if (!active) return;
-
-        setCtx(snapshot.ctx);
-        setPermissionCodes(snapshot.permissionCodes);
-      } catch (error) {
-        console.error("Errore caricamento permessi:", error);
-
-        if (!active) return;
-
-        setCtx(null);
-        setPermissionCodes([]);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Errore durante la verifica dei permessi."
-        );
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const hasPermission = useCallback(
-    (permissionCode: string | string[], fallbackRoles?: string[]) => {
-      return hasPermissionOrRole({
-        permissionCodes,
-        permissionCode,
-        role: ctx?.role ?? null,
-        fallbackRoles,
-      });
-    },
-    [ctx?.role, permissionCodes]
-  );
-
-  return {
-    loading,
-    error,
-    ctx,
-    permissionCodes,
-    hasPermission,
-    canManageSettings: hasPermission("settings.manage", ["owner", "admin"]),
-    canManageTeam:
-      hasPermission("team.manage", ["owner", "admin"]) ||
-      canManageTeamRole(ctx?.role),
-  };
-}
+1. Dashboard — Quadro operativo, Mezzi pronti, Componenti critici.
+2. Evento — report evento e tabella riepilogo.
+3. Modale nuovo evento.
+4. Manutenzioni — modale aggiungi manutenzione.
+5. Montaggi — form e filtri.
+6. Auto e Componenti — card e testi interni.
