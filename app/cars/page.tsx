@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   CarFront,
   Search,
@@ -15,6 +14,8 @@ import {
   Info,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { uploadTeamFile } from "@/lib/storage";
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
@@ -27,6 +28,7 @@ import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
+import { safeLowerLabel } from "@/lib/controlCenter";
 
 type CarRow = {
   id: string;
@@ -34,6 +36,7 @@ type CarRow = {
   chassis_number: string | null;
   hours: number | null;
   notes: string | null;
+  image_url: string | null;
   components: ComponentRow[];
 };
 
@@ -163,6 +166,9 @@ function getDefinitionCategoryCopy(definition: Definition) {
 
 export default function CarsPage() {
   const access = usePermissionAccess();
+  const { theme } = useBrandTheme();
+  const vehicleLabel = theme.labels.vehicle || "Auto";
+  const vehicleLabelLower = safeLowerLabel(vehicleLabel);
   const canViewCars = access.hasPermission("cars.view");
   const canEditCars = access.hasPermission("cars.edit", ["owner", "admin"]);
   const [cars, setCars] = useState<CarRow[]>([]);
@@ -176,6 +182,8 @@ export default function CarsPage() {
   const [name, setName] = useState("");
   const [chassis, setChassis] = useState("");
   const [notes, setNotes] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [componentForms, setComponentForms] = useState<
     Record<string, ComponentForm>
   >({});
@@ -190,7 +198,7 @@ export default function CarsPage() {
         supabase
           .from("cars")
           .select(
-            `id,name,chassis_number,hours,notes,components(id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours)`,
+            `id,name,chassis_number,hours,notes,image_url,components(id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours)`,
           )
           .eq("team_id", ctx.teamId)
           .order("created_at", { ascending: false }),
@@ -235,7 +243,7 @@ export default function CarsPage() {
   const stats = useMemo(
     () => [
       {
-        label: "Mezzi",
+        label: vehicleLabel,
         value: String(cars.length),
         icon: <CarFront size={18} />,
       },
@@ -264,7 +272,7 @@ export default function CarsPage() {
         icon: <Search size={18} />,
       },
     ],
-    [cars, definitions.length, allComponents.length],
+    [cars, definitions.length, allComponents.length, vehicleLabel],
   );
 
   const filteredCars = useMemo(() => {
@@ -283,6 +291,7 @@ export default function CarsPage() {
     setName("");
     setChassis("");
     setNotes("");
+    setImageUrl("");
     setComponentForms(
       Object.fromEntries(
         definitions.map((def) => [
@@ -327,6 +336,7 @@ export default function CarsPage() {
     setName(car.name);
     setChassis(car.chassis_number || "");
     setNotes(car.notes || "");
+    setImageUrl(car.image_url || "");
     setComponentForms(next);
     setOpen(true);
   }
@@ -415,6 +425,33 @@ export default function CarsPage() {
     }
   }
 
+  async function handleCarImageUpload(file?: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Carica un file immagine valido.");
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Immagine troppo grande. Limite massimo 3 MB.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const upload = await uploadTeamFile({
+        file,
+        area: "car-images",
+        recordId: editing?.id || "new-car",
+      });
+      setImageUrl(upload.publicUrl);
+    } catch (error) {
+      console.error(error);
+      alert("Errore caricamento immagine mezzo.");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   async function saveCar() {
     if (!canEditCars) return;
     if (!name.trim() || !chassis.trim()) {
@@ -432,6 +469,7 @@ export default function CarsPage() {
             name: name.trim(),
             chassis_number: chassis.trim(),
             notes: notes || null,
+            image_url: imageUrl || null,
           })
           .eq("team_id", ctx.teamId)
           .eq("id", editing.id);
@@ -445,6 +483,7 @@ export default function CarsPage() {
               name: name.trim(),
               chassis_number: chassis.trim(),
               notes: notes || null,
+              image_url: imageUrl || null,
             },
           ])
           .select("id")
@@ -454,12 +493,12 @@ export default function CarsPage() {
       }
       await createOrAttachComponents(carId!);
       setOpen(false);
-      setToast(editing ? "Auto aggiornata" : "Auto creata");
+      setToast("Scheda salvata");
       setTimeout(() => setToast(""), 2500);
       await loadAll();
     } catch (error) {
       console.error(error);
-      alert("Errore salvataggio auto");
+      alert("Errore salvataggio scheda");
     } finally {
       setSaving(false);
     }
@@ -468,8 +507,8 @@ export default function CarsPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Auto"
-        subtitle="Anagrafica mezzi e configurazione componenti"
+        title={vehicleLabel}
+        subtitle={`Anagrafica ${vehicleLabelLower} e configurazione componenti`}
         icon={<CarFront size={22} />}
         state="loading"
       />
@@ -479,8 +518,8 @@ export default function CarsPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Auto"
-        subtitle="Anagrafica mezzi e configurazione componenti"
+        title={vehicleLabel}
+        subtitle={`Anagrafica ${vehicleLabelLower} e configurazione componenti`}
         icon={<CarFront size={22} />}
         state="error"
         message={access.error}
@@ -491,11 +530,11 @@ export default function CarsPage() {
   if (!canViewCars) {
     return (
       <PagePermissionState
-        title="Auto"
-        subtitle="Anagrafica mezzi e configurazione componenti"
+        title={vehicleLabel}
+        subtitle={`Anagrafica ${vehicleLabelLower} e configurazione componenti`}
         icon={<CarFront size={22} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo auto."
+        message={`Il tuo ruolo non ha accesso al modulo ${vehicleLabelLower}.`}
       />
     );
   }
@@ -509,14 +548,14 @@ export default function CarsPage() {
       ) : null}
 
       <PageHeader
-        title="Scheda Mezzi"
-        subtitle="Gestione mezzo, componenti standard, documenti e stampa tecnica"
+        title={`Scheda ${vehicleLabel}`}
+        subtitle={`Gestione ${vehicleLabelLower}, componenti standard, documenti e stampa tecnica`}
         icon={<CarFront size={22} />}
         actions={
           canEditCars ? (
             <Button onClick={openCreate}>
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi mezzo
+              Aggiungi scheda
             </Button>
           ) : undefined
         }
@@ -533,15 +572,15 @@ export default function CarsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Ricerca e vista mezzi"
-        subtitle="La vista sintetica è pensata per consultare subito il parco auto senza appesantire la pagina."
+        title={`Ricerca e vista ${vehicleLabel}`}
+        subtitle={`La vista sintetica è pensata per consultare subito ${vehicleLabelLower} senza appesantire la pagina.`}
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.035] px-4 py-3">
             <Search size={18} className="text-[var(--text-muted)]" />
             <input
               className="w-full bg-transparent text-[var(--text-primary)] outline-none placeholder:text-white/30"
-              placeholder="Cerca nome mezzo o telaio"
+              placeholder={`Cerca nome ${vehicleLabelLower} o telaio`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -553,15 +592,15 @@ export default function CarsPage() {
       </SectionCard>
 
       {loading ? (
-        <div className="text-[var(--text-secondary)]">Caricamento mezzi...</div>
+        <div className="text-[var(--text-secondary)]">Caricamento schede...</div>
       ) : filteredCars.length === 0 ? (
         <EmptyState
-          title="Nessun mezzo registrato"
-          description="Crea il primo mezzo o modifica le definizioni in impostazioni."
+          title="Nessun elemento registrato"
+          description="Crea la prima scheda o modifica le definizioni in impostazioni."
         />
       ) : viewMode === "compact" ? (
         <SectionCard
-          title="Elenco mezzi"
+          title={`Elenco ${vehicleLabel}`}
           subtitle="Vista sintetica di default: righe compatte, stato e azioni principali sempre visibili."
         >
           <div className="space-y-3">
@@ -617,11 +656,9 @@ export default function CarsPage() {
               subtitle={`Telaio ${car.chassis_number || "—"}`}
             >
               <div className="mb-4">
-                <Image
-                  src="/mia-foto.png"
-                  alt="Mezzo"
-                  width={1200}
-                  height={500}
+                <img
+                  src={car.image_url || "/mia-foto.png"}
+                  alt={vehicleLabel}
                   className="h-40 w-full rounded-2xl object-cover"
                 />
               </div>
@@ -721,13 +758,13 @@ export default function CarsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
           <div className="modal-panel dark-scrollbar max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl p-6">
             <PageHeader
-              title={editing ? `Modifica ${editing.name}` : "Nuovo mezzo"}
-              subtitle="Crea o aggiorna il mezzo e associa i componenti definiti dal template del team"
+              title={editing ? `Modifica ${editing.name}` : "Nuova scheda"}
+              subtitle={`Crea o aggiorna la scheda e associa i componenti definiti dal template del team`}
             />
             <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
-              <SectionCard title="Identità mezzo">
+              <SectionCard title={`Identità scheda`}>
                 <div className="space-y-4">
-                  <Field label="Nome mezzo" required>
+                  <Field label="Nome" required>
                     <input
                       className="form-control-dark"
                       value={name}
@@ -747,6 +784,36 @@ export default function CarsPage() {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
+                  </Field>
+                  <Field label="Immagine scheda">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/25">
+                        <img
+                          src={imageUrl || "/mia-foto.png"}
+                          alt="Anteprima immagine scheda"
+                          className="h-32 w-full object-cover"
+                        />
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="form-control-dark"
+                        disabled={uploadingImage}
+                        onChange={(event) => void handleCarImageUpload(event.target.files?.[0])}
+                      />
+                      <div className="text-xs leading-5 text-[var(--text-secondary)]">
+                        Puoi sostituire l'immagine mostrata nelle schede. Formati immagine, massimo 3 MB.
+                      </div>
+                      {imageUrl ? (
+                        <button
+                          type="button"
+                          className="race-action-secondary px-3 py-2 text-xs"
+                          onClick={() => setImageUrl("")}
+                        >
+                          Rimuovi immagine personalizzata
+                        </button>
+                      ) : null}
+                    </div>
                   </Field>
                 </div>
               </SectionCard>
@@ -1030,7 +1097,7 @@ export default function CarsPage() {
                   ? "Salvataggio..."
                   : editing
                     ? "Salva modifiche"
-                    : "Crea mezzo"}
+                    : "Salva scheda"}
               </button>
             </div>
           </div>

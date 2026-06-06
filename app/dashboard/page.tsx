@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import { formatComponentHours, getDashboardComponentSeverity } from "@/lib/componentStatus";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
-import { dashboardWidgetClassName, getDashboardWidgetDisplayLabel, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole } from "@/lib/controlCenter";
+import { dashboardWidgetClassName, getDashboardWidgetDisplayLabel, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole, safeLowerLabel } from "@/lib/controlCenter";
 
 type AppSettings = {
   team_name: string;
@@ -180,7 +180,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 
   const stats: StatItem[] = [
     {
-      label: `${labels.vehicle} pronti`,
+      label: `Prontezza · ${labels.vehicle}`,
       value: `${carsReady}/${cars.length}`,
       icon: <CheckCircle2 size={18} />,
       helper: cars.length === 0 ? "Nessun mezzo registrato" : "Senza warning componenti",
@@ -194,14 +194,14 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       tone: urgentComponents.length > 0 ? "red" : "green",
     },
     {
-      label: "Manutenzioni aperte",
+      label: `Da completare · ${labels.maintenance}`,
       value: String(openMaintenances.length),
       icon: <Wrench size={18} />,
       helper: "Interventi non completati",
       tone: openMaintenances.length > 0 ? "yellow" : "green",
     },
     {
-      label: `${labels.event} prossimi`,
+      label: `Calendario · ${labels.event}`,
       value: String(upcomingEvents.length),
       icon: <CalendarDays size={18} />,
       helper: "Calendario operativo",
@@ -213,8 +213,8 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
     switch (code) {
       case "cars_ready":
         return (
-          <SectionCard key={code} title={label} subtitle={`Prontezza attuale dei ${labels.vehicle.toLowerCase()}`}>
-            {cars.length === 0 ? <EmptyState title={`Nessun ${labels.vehicle.toLowerCase()} registrato`} /> : (
+          <SectionCard key={code} title={label} subtitle={`Prontezza operativa · ${safeLowerLabel(labels.vehicle)}`}>
+            {cars.length === 0 ? <EmptyState title="Nessun elemento registrato" /> : (
               <div className="space-y-3">
                 {cars.map((car) => {
                   const hasProblems = components.some((c) => c.car_id === car.id && componentSeverity(c) >= 2);
@@ -375,7 +375,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
     { widget_code: "cars_ready", label: "Mezzi pronti", is_enabled: true, size: "md", role_scope: "all", order_index: 1 },
     { widget_code: "components_alerts", label: "Componenti critici", is_enabled: true, size: "md", role_scope: "all", order_index: 2 },
     { widget_code: "upcoming_events", label: "Prossimi eventi", is_enabled: true, size: "md", role_scope: "all", order_index: 3 },
-    { widget_code: "maintenances_open", label: "Manutenzioni aperte", is_enabled: true, size: "md", role_scope: "all", order_index: 4 },
+    { widget_code: "maintenances_open", label: `Da completare · ${labels.maintenance}`, is_enabled: true, size: "md", role_scope: "all", order_index: 4 },
     { widget_code: "tasks_open", label: "Attività aperte", is_enabled: true, size: "md", role_scope: "all", order_index: 5 },
   ];
 
@@ -403,11 +403,11 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 
       <SectionCard title="Quadro operativo" subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <QuickPill icon={<CarFront size={16} />} label={`${labels.vehicle} registrati`} value={String(cars.length)} />
-          <QuickPill icon={<Wrench size={16} />} label={`${labels.component} con warning`} value={String(warningComponents.length)} />
-          <QuickPill icon={<Users size={16} />} label={`${labels.driver} con documenti in scadenza`} value={String(expiringDriverDocs.length)} />
-          <QuickPill icon={<Package size={16} />} label={`${labels.inventory} sotto soglia`} value={String(lowStock.length)} />
-          <QuickPill icon={<ClipboardList size={16} />} label={`${labels.tasks} aperte`} value={String(openTasks.length)} />
+          <QuickPill icon={<CarFront size={16} />} label={`Totale · ${labels.vehicle}`} value={String(cars.length)} />
+          <QuickPill icon={<Wrench size={16} />} label={`Warning · ${labels.component}`} value={String(warningComponents.length)} />
+          <QuickPill icon={<Users size={16} />} label={`Documenti · ${labels.driver}`} value={String(expiringDriverDocs.length)} />
+          <QuickPill icon={<Package size={16} />} label={`Sotto soglia · ${labels.inventory}`} value={String(lowStock.length)} />
+          <QuickPill icon={<ClipboardList size={16} />} label={`Aperte · ${labels.tasks}`} value={String(openTasks.length)} />
         </div>
       </SectionCard>
 

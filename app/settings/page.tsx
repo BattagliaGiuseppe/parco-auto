@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Save,
   Settings,
@@ -44,6 +44,7 @@ import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import ModalShell from "@/components/ModalShell";
 import { usePermissionAccess } from "@/lib/permissions";
 
 type BrandingConfig = {
@@ -744,6 +745,8 @@ export default function SettingsPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [lastSaveVerification, setLastSaveVerification] = useState<SaveVerification | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [pendingNavigationHref, setPendingNavigationHref] = useState<string | null>(null);
+  const skipUnsavedGuardRef = useRef(false);
 
   async function loadHealth(teamId?: string) {
     try {
@@ -886,6 +889,7 @@ export default function SettingsPage() {
     if (!hasUnsavedChanges) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (skipUnsavedGuardRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -910,18 +914,20 @@ export default function SettingsPage() {
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
 
-      const canLeave = window.confirm(
-        "Hai modifiche non salvate nel Control Center. Se cambi pagina le perderai. Vuoi uscire comunque?"
-      );
-      if (!canLeave) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingNavigationHref(url.href);
     };
 
     document.addEventListener("click", handleDocumentClick, true);
     return () => document.removeEventListener("click", handleDocumentClick, true);
   }, [hasUnsavedChanges]);
+
+  function discardChangesAndNavigate() {
+    if (!pendingNavigationHref) return;
+    skipUnsavedGuardRef.current = true;
+    window.location.assign(pendingNavigationHref);
+  }
 
   const effectiveBrandingTheme = useMemo(
     () => (settings ? buildBrandingTheme(settings) : null),
@@ -2599,6 +2605,37 @@ async function saveAll() {
             </div>
           </SectionCard>
         </div>
+      ) : null}
+
+      {pendingNavigationHref ? (
+        <ModalShell
+          title="Modifiche non salvate"
+          subtitle="Hai modifiche aperte nel Control Center. Se cambi pagina le modifiche non salvate verranno perse."
+          maxWidth="max-w-xl"
+          onClose={() => setPendingNavigationHref(null)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="race-action-secondary px-4 py-2"
+                onClick={() => setPendingNavigationHref(null)}
+              >
+                Resta e salva
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-2 font-black text-red-100 transition hover:bg-red-500/25"
+                onClick={discardChangesAndNavigate}
+              >
+                Esci senza salvare
+              </button>
+            </>
+          }
+        >
+          <div className="race-info-box text-sm leading-6">
+            Le modifiche sono ancora solo nella pagina Impostazioni. Premi <strong>Salva Control Center</strong> per renderle definitive, oppure esci senza salvare.
+          </div>
+        </ModalShell>
       ) : null}
     </div>
   );

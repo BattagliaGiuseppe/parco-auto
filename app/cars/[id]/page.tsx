@@ -19,6 +19,8 @@ import SectionCard from "@/components/SectionCard";
 import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
+import { safeLowerLabel } from "@/lib/controlCenter";
 
 type CarComponent = {
   id: string;
@@ -38,6 +40,7 @@ type CarData = {
   name: string;
   chassis_number: string | null;
   hours: number | null;
+  image_url: string | null;
   components: CarComponent[];
 };
 
@@ -122,6 +125,9 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 
 export default function CarDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { theme } = useBrandTheme();
+  const vehicleLabel = theme.labels.vehicle || "Auto";
+  const vehicleLabelLower = safeLowerLabel(vehicleLabel);
 
   const [car, setCar] = useState<CarData | null>(null);
   const [revisions, setRevisions] = useState<Record<string, RevisionItem[]>>({});
@@ -142,6 +148,7 @@ export default function CarDetailPage() {
             name,
             chassis_number,
             hours,
+            image_url,
             components (
               id,
               type,
@@ -166,6 +173,7 @@ export default function CarDetailPage() {
         name: data.name,
         chassis_number: data.chassis_number,
         hours: data.hours,
+        image_url: data.image_url || null,
         components: (data.components || []) as CarComponent[],
       };
 
@@ -245,7 +253,7 @@ export default function CarDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="race-card-grid px-6 py-5 text-sm text-[var(--text-secondary)]">
-          Caricamento mezzo...
+          Caricamento scheda...
         </div>
       </div>
     );
@@ -256,7 +264,7 @@ export default function CarDetailPage() {
       <div className={`flex flex-col gap-6 p-6`}>
         <FormStatusBanner
           type="error"
-          message={error || "Vettura non trovata"}
+          message={error || "Scheda non trovata"}
         />
       </div>
     );
@@ -264,10 +272,10 @@ export default function CarDetailPage() {
 
   const stats = [
     {
-      label: "Ore auto",
+      label: "Ore",
       value: formatHours(car.hours),
       icon: <GaugeCircle size={18} />,
-      helper: "Ore complessive registrate sul mezzo",
+      helper: "Ore complessive registrate",
     },
     {
       label: "Componenti montati",
@@ -285,7 +293,7 @@ export default function CarDetailPage() {
       label: "Telaio",
       value: car.chassis_number || "—",
       icon: <CarFront size={18} />,
-      helper: "Codice telaio del mezzo",
+      helper: `Codice telaio · ${vehicleLabelLower}`,
     },
   ];
 
@@ -293,7 +301,7 @@ export default function CarDetailPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={car.name}
-        subtitle="Scheda mezzo con componenti montati, soglie e storico revisioni"
+        subtitle={`Scheda ${vehicleLabelLower} con componenti montati, soglie e storico revisioni`}
         icon={<CarFront size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -330,11 +338,18 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Panoramica mezzo"
-        subtitle="Identità del mezzo e ore complessive registrate"
+        title={`Panoramica ${vehicleLabel}`}
+        subtitle="Identità, immagine e ore complessive registrate"
       >
+        <div className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+          <img
+            src={car.image_url || "/mia-foto.png"}
+            alt={car.name}
+            className="h-56 w-full object-cover"
+          />
+        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <InfoCard label="Mezzo" value={car.name} />
+          <InfoCard label={vehicleLabel} value={car.name} />
           <InfoCard label="Telaio" value={car.chassis_number || "—"} />
           <InfoCard label="Ore vettura" value={formatHours(car.hours)} />
         </div>
@@ -348,7 +363,7 @@ export default function CarDetailPage() {
         {tasks.length === 0 ? (
           <EmptyState
             title="Nessuna attività aperta per questo mezzo"
-            description="Quando crei un promemoria collegato a questa auto lo ritroverai direttamente qui."
+            description="Quando crei un promemoria collegato a questa scheda lo ritroverai direttamente qui."
           />
         ) : (
           <div className="space-y-3">
@@ -361,7 +376,7 @@ export default function CarDetailPage() {
                   </div>
                   <div className="mt-3 text-lg font-black text-[var(--text-primary)]">{task.title}</div>
                   <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                    {task.component_id?.identifier ? `${task.component_id.type || "Componente"} · ${task.component_id.identifier}` : "Attività generale del mezzo"}
+                    {task.component_id?.identifier ? `${task.component_id.type || "Componente"} · ${task.component_id.identifier}` : "Attività generale"}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">

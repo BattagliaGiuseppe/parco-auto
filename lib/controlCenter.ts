@@ -310,28 +310,35 @@ export type DashboardWidgetLabelLike = {
   config?: Record<string, unknown> | null;
 };
 
+export function safeLowerLabel(value: string | null | undefined) {
+  return String(value || "").trim().toLocaleLowerCase("it-IT");
+}
+
 export function getDashboardWidgetAutoLabel(
   code: string,
   labels?: Partial<Record<ControlCenterLabelKey, string>> | null
 ) {
   const normalized = normalizeControlCenterLabels(labels);
+  // Le label automatiche evitano aggettivi maschile/femminile/plurale.
+  // In questo modo la terminologia globale può essere "Auto", "Mezzi",
+  // "Vetture", "Ricambi", ecc. senza creare frasi grammaticalmente errate.
   switch (code) {
     case "cars_ready":
-      return `${normalized.vehicle} pronti`;
+      return `Prontezza · ${normalized.vehicle}`;
     case "components_alerts":
-      return `${normalized.component} critici`;
+      return `Criticità · ${normalized.component}`;
     case "upcoming_events":
-      return `Prossimi ${normalized.event.toLowerCase()}`;
+      return `Calendario · ${normalized.event}`;
     case "maintenances_open":
-      return `${normalized.maintenance} aperte`;
+      return `Da completare · ${normalized.maintenance}`;
     case "drivers_documents":
-      return `Documenti ${normalized.driver.toLowerCase()}`;
+      return `Documenti · ${normalized.driver}`;
     case "tasks_open":
-      return `${normalized.tasks} aperte`;
+      return `Aperte · ${normalized.tasks}`;
     case "inventory_low_stock":
-      return `${normalized.inventory} sotto soglia`;
+      return `Sotto soglia · ${normalized.inventory}`;
     case "attendance_today":
-      return `${normalized.attendance} oggi`;
+      return `Oggi · ${normalized.attendance}`;
     default:
       return getDashboardWidgetLabel(code);
   }
