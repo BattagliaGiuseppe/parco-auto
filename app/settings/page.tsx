@@ -46,6 +46,8 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import ModalShell from "@/components/ModalShell";
 import { usePermissionAccess } from "@/lib/permissions";
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type BrandingConfig = {
   showLogoInHeader: boolean;
@@ -727,6 +729,7 @@ function BrandPreview({
 
 export default function SettingsPage() {
   const access = usePermissionAccess();
+  const { setLanguage, t } = useLanguage();
   const [settings, setSettings] = useState<AppSettingsRow | null>(null);
   const [definitions, setDefinitions] = useState<ComponentDefinition[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
@@ -1530,13 +1533,23 @@ async function saveAll() {
             />
           </Field>
 
-          <Field label="Lingua piattaforma">
+          <Field
+            label={t("language.platform")}
+            hint={t("language.helper")}
+          >
             <Select
               value={previewBranding.language}
-              onChange={(e) => patchBranding("language", e.target.value)}
+              onChange={(e) => {
+                patchBranding("language", e.target.value);
+                setLanguage(e.target.value);
+              }}
+              data-no-translate="true"
             >
-              <option value="it">Italiano</option>
-              <option value="en">English</option>
+              {SUPPORTED_LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code}>
+                  {language.label}
+                </option>
+              ))}
             </Select>
           </Field>
         </div>

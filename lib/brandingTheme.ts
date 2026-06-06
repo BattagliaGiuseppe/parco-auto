@@ -1,4 +1,5 @@
 import { brandConfig } from "@/lib/brand";
+import { normalizeLanguage } from "@/lib/i18n";
 import { DEFAULT_CONTROL_CENTER_LABELS, type ControlCenterLabels } from "@/lib/controlCenter";
 
 export type BrandingLabels = ControlCenterLabels;
@@ -238,7 +239,7 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
     platformSubtitle: brandConfig.appDescription,
     vendorName: brandConfig.vendorName,
     faviconUrl: brandConfig.faviconPath,
-    language: readString((branding as any).language || raw?.language, "it"),
+    language: normalizeLanguage(readString((branding as any).language || raw?.language, "it")),
     teamName: readString(raw?.team_name, brandConfig.defaultTeamName),
     teamSubtitle: readString(raw?.team_subtitle, brandConfig.defaultTeamSubtitle),
     sidebarLogoUrl,
@@ -333,7 +334,8 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
   root.style.setProperty("--border-default", theme.colors.borderDefault);
   root.style.setProperty("--border-strong", "rgba(255,255,255,0.24)");
   root.style.setProperty("--border-on-dark", "rgba(255,255,255,0.14)");
-  root.lang = theme.language || "it";
+  root.lang = normalizeLanguage(theme.language || "it");
+  root.dataset.language = normalizeLanguage(theme.language || "it");
 
   const link =
     (document.querySelector("link[rel='icon']") as HTMLLinkElement | null) ||

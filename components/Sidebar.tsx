@@ -31,6 +31,8 @@ import {
 } from "@/lib/teamContext";
 import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LanguageSelector from "@/components/LanguageSelector";
 import { MODULE_REGISTRY, getModuleLabel, isModuleEnabled, type ModuleId } from "@/lib/controlCenter";
 
 type NavItem = {
@@ -51,6 +53,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useBrandTheme();
+  const { t } = useLanguage();
 
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<SettingsShape | null>(null);
@@ -200,7 +203,7 @@ export default function Sidebar() {
         onClick={() => setOpen((o) => !o)}
         className="fixed left-4 top-4 z-50 rounded-lg p-2 shadow-lg lg:hidden"
         style={mobileButtonStyle}
-        aria-label="Apri menu"
+        aria-label={t("common.openMenu", "Apri menu")}
       >
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -229,7 +232,7 @@ export default function Sidebar() {
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                    piattaforma
+                    {t("common.platform")}
                   </div>
                   <div className="truncate text-sm font-black tracking-tight text-white">
                     {brandConfig.appName}
@@ -257,7 +260,7 @@ export default function Sidebar() {
                     className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
                     style={{ color: "var(--brand-accent)" }}
                   >
-                    team
+                    {t("common.team")}
                   </div>
                   <div className="mt-1 truncate text-lg font-black tracking-tight text-white">{theme.teamName}</div>
                 </div>
@@ -272,7 +275,7 @@ export default function Sidebar() {
                   className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
                   style={secondaryBadgeStyle}
                 >
-                  Ruolo: {TEAM_ROLE_LABELS[teamRole as keyof typeof TEAM_ROLE_LABELS] || teamRole}
+                  {t("common.role")}: {TEAM_ROLE_LABELS[teamRole as keyof typeof TEAM_ROLE_LABELS] || teamRole}
                 </div>
               ) : null}
             </div>
@@ -281,7 +284,7 @@ export default function Sidebar() {
           <div className="sidebar-scroll flex-1 space-y-6 overflow-y-auto pr-1">
             <div>
               <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-                Core
+                {t("common.core")}
               </div>
 
               <nav className="space-y-1">
@@ -307,12 +310,14 @@ export default function Sidebar() {
           </div>
 
           <div className="mt-6 space-y-3">
+            <LanguageSelector />
+
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-4">
               <div className="flex items-center gap-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.42)]" />
                 <div>
-                  <div className="text-sm font-extrabold text-white">Tutto operativo</div>
-                  <div className="mt-0.5 text-xs text-white/52">Sistema sincronizzato</div>
+                  <div className="text-sm font-extrabold text-white">{t("common.allOperational")}</div>
+                  <div className="mt-0.5 text-xs text-white/52">{t("common.systemSynced")}</div>
                 </div>
               </div>
             </div>
@@ -322,7 +327,7 @@ export default function Sidebar() {
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               <LogOut size={18} />
-              Logout
+              {t("common.logout")}
             </button>
           </div>
         </div>
