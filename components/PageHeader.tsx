@@ -23,7 +23,7 @@ export default function PageHeader({
         <div className="flex min-w-0 items-start gap-4">
           {icon ? (
             <div
-              className={`flex shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-[var(--brand-accent)] shadow-sm ${
+              className={`flex shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-[var(--brand-primary-signal)] shadow-sm ${
                 compact ? "h-12 w-12" : "h-14 w-14"
               }`}
             >

@@ -31,6 +31,8 @@ export type BrandingTheme = {
     secondary: string;
     accent: string;
     onAccent: string;
+    primarySignal: string;
+    secondarySignal: string;
     primarySoft: string;
     secondarySoft: string;
     accentSoft: string;
@@ -129,6 +131,19 @@ function getHexLuminance(hex: string) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+
+function resolveSignalColor(value: string | null | undefined, fallback: string) {
+  if (!isValidHex(value)) return fallback;
+  const normalized = normalizeHex(value, fallback);
+  const luminance = getHexLuminance(normalized);
+
+  // Nel tema scuro il colore identità deve essere visibile. Se il team sceglie
+  // un colore troppo scuro lo manteniamo come token tecnico, ma usiamo il
+  // fallback come segnale grafico per titoli, bordi attivi e indicatori.
+  if (luminance < 0.11) return fallback;
+  return normalized;
+}
+
 function resolveDarkSurfaceToken(value: string | null | undefined, fallback: string) {
   if (!isValidHex(value)) return fallback;
   const normalized = normalizeHex(value, fallback);
@@ -169,6 +184,8 @@ export const DEFAULT_BRANDING_THEME: BrandingTheme = {
     secondary: "#111821",
     accent: normalizeHex(brandConfig.themeColor, "#f8c400"),
     onAccent: getContrastText(normalizeHex(brandConfig.themeColor, "#f8c400")),
+    primarySignal: normalizeHex(brandConfig.themeColor, "#f8c400"),
+    secondarySignal: "#38a8ff",
     primarySoft: hexToRgba("#f8c400", 0.1),
     secondarySoft: hexToRgba("#94a3b8", 0.12),
     accentSoft: hexToRgba(normalizeHex(brandConfig.themeColor, "#f8c400"), 0.18),
@@ -242,6 +259,8 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
       secondary,
       accent,
       onAccent: getContrastText(accent),
+      primarySignal: resolveSignalColor(primary, accent),
+      secondarySignal: resolveSignalColor(secondary, "#38a8ff"),
       primarySoft: hexToRgba(primary, 0.08),
       secondarySoft: hexToRgba(secondary, 0.08),
       accentSoft: hexToRgba(accent, 0.18),
@@ -280,13 +299,19 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
   const primaryRgb = hexToRgb(theme.colors.primary);
   const secondaryRgb = hexToRgb(theme.colors.secondary);
   const accentRgb = hexToRgb(theme.colors.accent);
+  const primarySignalRgb = hexToRgb(theme.colors.primarySignal);
+  const secondarySignalRgb = hexToRgb(theme.colors.secondarySignal);
 
   root.style.setProperty("--brand-primary", theme.colors.primary);
   root.style.setProperty("--brand-secondary", theme.colors.secondary);
   root.style.setProperty("--brand-accent", theme.colors.accent);
+  root.style.setProperty("--brand-primary-signal", theme.colors.primarySignal);
+  root.style.setProperty("--brand-secondary-signal", theme.colors.secondarySignal);
   root.style.setProperty("--brand-primary-rgb", `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}`);
   root.style.setProperty("--brand-secondary-rgb", `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}`);
   root.style.setProperty("--brand-accent-rgb", `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
+  root.style.setProperty("--brand-primary-signal-rgb", `${primarySignalRgb.r}, ${primarySignalRgb.g}, ${primarySignalRgb.b}`);
+  root.style.setProperty("--brand-secondary-signal-rgb", `${secondarySignalRgb.r}, ${secondarySignalRgb.g}, ${secondarySignalRgb.b}`);
   root.style.setProperty("--brand-on-accent", theme.colors.onAccent);
   root.style.setProperty("--brand-primary-soft", theme.colors.primarySoft);
   root.style.setProperty("--brand-secondary-soft", theme.colors.secondarySoft);

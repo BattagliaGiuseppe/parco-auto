@@ -159,6 +159,33 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 
   const labels = theme.labels;
 
+  function dashboardDisplayLabel(widget: Widget) {
+    const fixedDefault = getDashboardWidgetMeta(widget.widget_code)?.label || "";
+    const custom = widget.label?.trim();
+    if (custom && custom !== fixedDefault) return custom;
+
+    switch (widget.widget_code) {
+      case "cars_ready":
+        return `${labels.vehicle} pronti`;
+      case "components_alerts":
+        return `${labels.component} critici`;
+      case "upcoming_events":
+        return `Prossimi ${labels.event.toLowerCase()}`;
+      case "maintenances_open":
+        return `${labels.maintenance} aperte`;
+      case "drivers_documents":
+        return `Documenti ${labels.driver.toLowerCase()}`;
+      case "tasks_open":
+        return `${labels.tasks} aperte`;
+      case "inventory_low_stock":
+        return `${labels.inventory} sotto soglia`;
+      case "attendance_today":
+        return `${labels.attendance} oggi`;
+      default:
+        return fixedDefault || custom || "Widget";
+    }
+  }
+
   const urgentComponents = useMemo(() => components.filter((c) => componentSeverity(c) >= 3), [components]);
   const warningComponents = useMemo(() => components.filter((c) => componentSeverity(c) === 2), [components]);
   const upcomingEvents = useMemo(() => events.filter((e) => isFutureOrToday(e.date)).slice(0, 5), [events]);
@@ -399,10 +426,10 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       <SectionCard title="Quadro operativo" subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <QuickPill icon={<CarFront size={16} />} label={`${labels.vehicle} registrati`} value={String(cars.length)} />
-          <QuickPill icon={<Wrench size={16} />} label="Componenti con warning" value={String(warningComponents.length)} />
+          <QuickPill icon={<Wrench size={16} />} label={`${labels.component} con warning`} value={String(warningComponents.length)} />
           <QuickPill icon={<Users size={16} />} label={`${labels.driver} con documenti in scadenza`} value={String(expiringDriverDocs.length)} />
-          <QuickPill icon={<Package size={16} />} label="Magazzino sotto soglia" value={String(lowStock.length)} />
-          <QuickPill icon={<ClipboardList size={16} />} label="Attività aperte" value={String(openTasks.length)} />
+          <QuickPill icon={<Package size={16} />} label={`${labels.inventory} sotto soglia`} value={String(lowStock.length)} />
+          <QuickPill icon={<ClipboardList size={16} />} label={`${labels.tasks} aperte`} value={String(openTasks.length)} />
         </div>
       </SectionCard>
 
@@ -414,7 +441,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
             return !meta?.requiredModule || isModuleEnabled(settings, meta.requiredModule);
           })
           .map((widget) => {
-            const rendered = renderWidget(widget.widget_code, widget.label);
+            const rendered = renderWidget(widget.widget_code, dashboardDisplayLabel(widget));
             if (!rendered) return null;
             return (
               <div key={widget.widget_code} className={dashboardWidgetClassName(widget.size)}>

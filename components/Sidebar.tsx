@@ -164,7 +164,7 @@ export default function Sidebar() {
 
   const asideStyle: CSSProperties = {
     background:
-      "radial-gradient(circle at 8% 6%, rgba(var(--brand-primary-rgb),0.32), transparent 16rem), radial-gradient(circle at 88% 14%, rgba(var(--brand-accent-rgb),0.12), transparent 13rem), linear-gradient(180deg, rgba(8,11,15,0.99), rgba(10,15,21,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
+      "radial-gradient(circle at 8% 6%, rgba(var(--brand-primary-signal-rgb),0.24), transparent 16rem), radial-gradient(circle at 88% 14%, rgba(var(--brand-accent-rgb),0.12), transparent 13rem), linear-gradient(180deg, rgba(8,11,15,0.99), rgba(10,15,21,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
     borderRightColor: "rgba(255,255,255,0.1)",
     color: "#ffffff",
     boxShadow: "18px 0 52px rgba(0,0,0,0.34)",
@@ -172,7 +172,7 @@ export default function Sidebar() {
 
   const mobileButtonStyle: CSSProperties = {
     backgroundColor: "var(--brand-primary)",
-    color: "var(--brand-accent)",
+    color: "var(--brand-primary-signal)",
   };
 
   const fixedBrandCardStyle: CSSProperties = {
@@ -252,7 +252,7 @@ export default function Sidebar() {
                 <div className="min-w-0">
                   <div
                     className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-                    style={{ color: "var(--brand-accent)" }}
+                    style={{ color: "var(--brand-primary-signal)" }}
                   >
                     team
                   </div>

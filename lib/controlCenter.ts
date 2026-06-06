@@ -308,7 +308,8 @@ export function normalizeWidgetSize(value?: string | null): "sm" | "md" | "lg" |
 export function dashboardWidgetClassName(size?: string | null) {
   switch (normalizeWidgetSize(size)) {
     case "sm":
-      return "xl:col-span-4";
+      // Evitiamo widget da 1/3 colonna: con contenuti reali diventano stretti e troppo alti.
+      return "xl:col-span-6";
     case "lg":
       return "xl:col-span-8";
     case "xl":

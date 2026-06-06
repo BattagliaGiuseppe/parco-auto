@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Eye,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
@@ -102,7 +104,7 @@ type ChecklistItem = {
   id: string;
   label: string;
   input_type: string;
-  options?: string[] | null;
+  options?: string[] | string | null;
   is_required: boolean;
   order_index: number;
 };
@@ -114,7 +116,7 @@ type SetupField = {
   group_name: string;
   field_type: string;
   unit: string | null;
-  options?: string[] | null;
+  options?: string[] | string | null;
   position: string;
   order_index: number;
   is_required: boolean;
@@ -176,8 +178,17 @@ function normalizeSetupOptions(value: unknown): string[] {
   return [];
 }
 
-function optionsToText(value?: string[] | null) {
+function optionsToText(value?: string[] | string | null) {
+  if (typeof value === "string") return value;
   return normalizeSetupOptions(value).join("\n");
+}
+
+function moveArrayItem<T>(items: T[], fromIndex: number, toIndex: number) {
+  if (toIndex < 0 || toIndex >= items.length) return items;
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
 }
 
 
@@ -1975,7 +1986,7 @@ async function saveAll() {
                                     ? {
                                         ...g,
                                         items: g.items.map((it, j) =>
-                                          j === itemIndex ? { ...it, options: normalizeSetupOptions(e.target.value) } : it
+                                          j === itemIndex ? { ...it, options: e.target.value } : it
                                         ),
                                       }
                                     : g
@@ -2134,7 +2145,7 @@ async function saveAll() {
                       onChange={(e) =>
                         setSetupFields((prev) =>
                           prev.map((item, i) =>
-                            i === index ? { ...item, options: normalizeSetupOptions(e.target.value) } : item
+                            i === index ? { ...item, options: e.target.value } : item
                           )
                         )
                       }
@@ -2194,8 +2205,33 @@ async function saveAll() {
             {widgets.map((widget, index) => (
               <div
                 key={widget.id}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[1fr_1.2fr_120px_120px_110px_40px]"
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:grid-cols-[92px_1fr_1.2fr_120px_120px_110px_40px]"
               >
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-xs font-black text-[var(--text-secondary)]">
+                    {index + 1}
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setWidgets((prev) => moveArrayItem(prev, index, index - 1))}
+                      disabled={index === 0}
+                      className="rounded-lg border border-white/10 bg-white/[0.06] p-1.5 text-[var(--text-secondary)] hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Sposta widget su"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWidgets((prev) => moveArrayItem(prev, index, index + 1))}
+                      disabled={index === widgets.length - 1}
+                      className="rounded-lg border border-white/10 bg-white/[0.06] p-1.5 text-[var(--text-secondary)] hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Sposta widget giù"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                  </div>
+                </div>
                 <Select
                   value={widget.widget_code}
                   onChange={(e) => {
@@ -2254,10 +2290,10 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="sm">Small</option>
-                  <option value="md">Medium</option>
-                  <option value="lg">Large</option>
-                  <option value="xl">Full width</option>
+                  <option value="sm">Compatto</option>
+                  <option value="md">Standard</option>
+                  <option value="lg">Ampio</option>
+                  <option value="xl">Riga intera</option>
                 </Select>
                 <ToggleBox
                   label="Attivo"
