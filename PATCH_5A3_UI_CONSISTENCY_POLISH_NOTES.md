@@ -1,56 +1,31 @@
-# Patch 5A.3 — UI Consistency Polish
+import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 
-Questa patch parte dalla 5A.2 validata e si concentra sulle piccole incoerenze grafiche rimaste tra le pagine principali.
+const BUCKET = 'team-files';
 
-## Obiettivo
+export async function uploadTeamFile(params: {
+  file: File;
+  area: string;
+  recordId?: string;
+}) {
+  const ctx = await getCurrentTeamContext();
+  const safeName = params.file.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+  const path = `${ctx.teamId}/${params.area}/${params.recordId || 'generic'}/${Date.now()}-${safeName}`;
 
-Uniformare i componenti residui ancora troppo chiari o non allineati al tema **Dark Race Control**, senza cambiare logica dati o database.
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, params.file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
 
-## Modifiche principali
+  if (uploadError) throw uploadError;
 
-### Dettaglio auto
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
 
-- Convertite le card di **Panoramica mezzo** da box bianchi a mini-panel dark coerenti.
-- Convertite le card dei **componenti montati** allo stile `data-row`.
-- Resi coerenti badge, metriche componente e CTA “Apri componente”.
-- Corretto il doppio suffisso ore in “Ore vettura”.
-
-### Documenti auto
-
-- Convertito il form **Nuovo documento** al sistema `form-control-dark`.
-- Reso più coerente il file input con stile dark/racing.
-- Convertite le card dell’**Archivio documenti** allo stile `data-row`.
-- Convertiti info box e note documento allo stile dark con accento giallo.
-
-### Dettaglio evento / console mezzo
-
-- Resi coerenti `StatusChip`, riepiloghi e card dei turni tecnici.
-- Migliorati i bottoni secondari e quelli di eliminazione.
-- Rimossi residui chiari nei pulsanti di conferma inline.
-
-### Componenti condivisi
-
-- `InlineConfirmButton` ora è coerente con il tema dark.
-- `FormStatusBanner` ora usa superfici e colori compatibili con Dark Race Control.
-- Rafforzati i CSS di `race-mini-panel` e `race-card-grid` per migliore separazione visiva.
-- Aggiunto styling custom per `input[type=file]` in `form-control-dark`.
-
-## Supabase
-
-Nessuna query Supabase da lanciare.
-
-## Verifiche
-
-- `npm ci --ignore-scripts --no-audit --no-fund` OK
-- `npx tsc --noEmit --pretty false` OK
-- `npm run build` compila correttamente CSS/webpack e arriva alla fase interna Next di controllo tipi. Nel container va in timeout come nelle patch precedenti, ma senza errori di compilazione.
-
-## File principali modificati
-
-- `app/globals.css`
-- `app/cars/[id]/page.tsx`
-- `app/cars/[id]/documents/page.tsx`
-- `app/calendar/[eventId]/page.tsx`
-- `app/calendar/[eventId]/car/[eventCarId]/page.tsx`
-- `components/FormStatusBanner.tsx`
-- `components/InlineConfirmButton.tsx`
+  return {
+    path,
+    publicUrl: data.publicUrl,
+    fileName: params.file.name,
+    mimeType: params.file.type || null,
+    sizeBytes: params.file.size || null,
+  };
+}

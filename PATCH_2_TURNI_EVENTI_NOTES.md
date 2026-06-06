@@ -1,113 +1,199 @@
-# Patch 2 — Turni eventi, salvataggio atomico e contatori ore
+-- =========================================
+-- PARCO AUTO · TASK & PROMEMORIA PATCH
+-- Modulo attività collegate ad auto, componenti, eventi, magazzino e piloti
+-- =========================================
 
-Questa patch lavora sul ramo generale e non modifica la logica Telemetria.
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
 
-## File modificati
+create table if not exists public.tasks (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null,
+  title text not null,
+  description text,
+  area text not null default 'team',
+  status text not null default 'todo',
+  priority text not null default 'medium',
+  due_date date,
+  assigned_to_team_user_id uuid references public.team_users(id) on delete set null,
+  car_id uuid references public.cars(id) on delete set null,
+  component_id uuid references public.components(id) on delete set null,
+  event_id uuid references public.events(id) on delete set null,
+  maintenance_id uuid references public.maintenances(id) on delete set null,
+  inventory_item_id uuid references public.inventory_items(id) on delete set null,
+  driver_id uuid references public.drivers(id) on delete set null,
+  created_by_team_user_id uuid references public.team_users(id) on delete set null,
+  created_by_auth_user_id uuid default auth.uid(),
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint tasks_area_check check (area in ('auto','componenti','manutenzioni','magazzino','eventi','piloti','team','amministrazione','altro')),
+  constraint tasks_status_check check (status in ('todo','in_progress','waiting','done','cancelled')),
+  constraint tasks_priority_check check (priority in ('low','medium','high','urgent'))
+);
 
-- `app/calendar/[eventId]/car/[eventCarId]/turns/page.tsx`
-- `db/event_turns_atomic_counters_patch.sql`
+create index if not exists idx_tasks_team_status on public.tasks(team_id, status);
+create index if not exists idx_tasks_team_due_date on public.tasks(team_id, due_date);
+create index if not exists idx_tasks_team_car on public.tasks(team_id, car_id);
+create index if not exists idx_tasks_team_assignee on public.tasks(team_id, assigned_to_team_user_id);
+create index if not exists idx_tasks_team_area on public.tasks(team_id, area);
 
-## Cosa cambia
+drop trigger if exists trg_set_updated_at_tasks on public.tasks;
+create trigger trg_set_updated_at_tasks
+before update on public.tasks
+for each row execute function public.set_updated_at();
 
-### 1. Salvataggio turno atomico
+create table if not exists public.task_comments (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null,
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  author_team_user_id uuid references public.team_users(id) on delete set null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
 
-La pagina Turni non salva più prima `event_car_turns` e poi `event_car_turn_metrics` con due operazioni frontend separate.
+create index if not exists idx_task_comments_task on public.task_comments(task_id, created_at desc);
 
-Ora usa la RPC:
+create table if not exists public.task_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null,
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  label text not null,
+  is_done boolean not null default false,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
-```sql
-save_event_car_turn_with_metrics(...)
-```
+create index if not exists idx_task_checklist_items_task on public.task_checklist_items(task_id, sort_order);
 
-La funzione salva in un'unica transazione:
+drop trigger if exists trg_set_updated_at_task_checklist_items on public.task_checklist_items;
+create trigger trg_set_updated_at_task_checklist_items
+before update on public.task_checklist_items
+for each row execute function public.set_updated_at();
 
-- turno base;
-- metriche tecniche;
-- riferimenti team/evento/mezzo/sessione/pilota;
-- lascia al trigger il calcolo ore auto/componenti.
+alter table public.tasks enable row level security;
+alter table public.task_comments enable row level security;
+alter table public.task_checklist_items enable row level security;
 
-Se una parte fallisce, viene annullato tutto.
+-- Tasks
+ drop policy if exists tasks_select_team on public.tasks;
+drop policy if exists tasks_insert_team on public.tasks;
+drop policy if exists tasks_update_team on public.tasks;
+drop policy if exists tasks_delete_team_manager on public.tasks;
 
-### 2. Cancellazione turno team-scoped
+create policy tasks_select_team
+on public.tasks
+for select
+using (public.is_team_member(team_id));
 
-La pagina Turni usa ora la RPC:
+create policy tasks_insert_team
+on public.tasks
+for insert
+with check (public.is_team_member(team_id));
 
-```sql
-delete_event_car_turn(...)
-```
+create policy tasks_update_team
+on public.tasks
+for update
+using (public.is_team_member(team_id))
+with check (public.is_team_member(team_id));
 
-La cancellazione è vincolata al team e il trigger sottrae automaticamente i minuti dai contatori.
+create policy tasks_delete_team_manager
+on public.tasks
+for delete
+using (public.is_team_manager(team_id));
 
-### 3. Trigger contatori consolidato
+-- Comments
+ drop policy if exists task_comments_select_team on public.task_comments;
+drop policy if exists task_comments_insert_team on public.task_comments;
+drop policy if exists task_comments_update_manager on public.task_comments;
+drop policy if exists task_comments_delete_manager on public.task_comments;
 
-La patch SQL ricrea il trigger:
+create policy task_comments_select_team
+on public.task_comments
+for select
+using (public.is_team_member(team_id));
 
-```sql
-trg_sync_turn_hours_to_assets
-```
+create policy task_comments_insert_team
+on public.task_comments
+for insert
+with check (public.is_team_member(team_id));
 
-su `event_car_turns`, con gestione delta per:
+create policy task_comments_update_manager
+on public.task_comments
+for update
+using (public.is_team_manager(team_id))
+with check (public.is_team_manager(team_id));
 
-- inserimento turno;
-- modifica minuti;
-- modifica data/ora turno;
-- modifica mezzo evento;
-- eliminazione turno.
+create policy task_comments_delete_manager
+on public.task_comments
+for delete
+using (public.is_team_manager(team_id));
 
-Il delta aggiorna:
+-- Checklist
+ drop policy if exists task_checklist_items_select_team on public.task_checklist_items;
+drop policy if exists task_checklist_items_insert_team on public.task_checklist_items;
+drop policy if exists task_checklist_items_update_team on public.task_checklist_items;
+drop policy if exists task_checklist_items_delete_team on public.task_checklist_items;
 
-- `cars.hours`;
-- `cars.total_hours`;
-- `car_components.hours_used` per i montaggi attivi alla data/ora del turno;
-- `components.hours`;
-- `components.life_hours`;
-- `components.work_hours`.
+create policy task_checklist_items_select_team
+on public.task_checklist_items
+for select
+using (public.is_team_member(team_id));
 
-### 4. Validazioni lato database
+create policy task_checklist_items_insert_team
+on public.task_checklist_items
+for insert
+with check (public.is_team_member(team_id));
 
-La RPC controlla:
+create policy task_checklist_items_update_team
+on public.task_checklist_items
+for update
+using (public.is_team_member(team_id))
+with check (public.is_team_member(team_id));
 
-- utente membro del team;
-- evento appartenente al team;
-- mezzo evento appartenente all'evento corretto;
-- sessione appartenente allo stesso evento;
-- pilota appartenente allo stesso team;
-- minuti maggiori di zero;
-- giri non negativi;
-- carburante finale non superiore a quello iniziale;
-- condizione tracciato valida.
+create policy task_checklist_items_delete_team
+on public.task_checklist_items
+for delete
+using (public.is_team_member(team_id));
 
-### 5. Piccola chiarezza UI
+-- Permessi applicativi
+insert into public.app_permissions (code, label, description)
+values
+  ('tasks.view', 'Visualizza attività', 'Accesso al modulo attività e promemoria'),
+  ('tasks.edit', 'Gestisci attività', 'Creazione e modifica attività e promemoria'),
+  ('tasks.assign', 'Assegna attività', 'Assegnazione attività ai membri del team'),
+  ('tasks.delete', 'Elimina attività', 'Eliminazione attività e promemoria')
+on conflict (code) do update
+set label = excluded.label,
+    description = excluded.description;
 
-Nel drawer turno è ora indicato che il salvataggio aggiorna insieme turno, metriche, ore auto e ore componenti.
+insert into public.role_permissions (role, permission_code)
+values
+  ('owner', 'tasks.view'),
+  ('owner', 'tasks.edit'),
+  ('owner', 'tasks.assign'),
+  ('owner', 'tasks.delete'),
+  ('admin', 'tasks.view'),
+  ('admin', 'tasks.edit'),
+  ('admin', 'tasks.assign'),
+  ('admin', 'tasks.delete'),
+  ('engineer', 'tasks.view'),
+  ('engineer', 'tasks.edit'),
+  ('engineer', 'tasks.assign'),
+  ('mechanic', 'tasks.view'),
+  ('mechanic', 'tasks.edit'),
+  ('viewer', 'tasks.view')
+on conflict do nothing;
 
-## Query Supabase da eseguire
-
-Eseguire solo:
-
-```text
-db/event_turns_atomic_counters_patch.sql
-```
-
-Non serve rilanciare le patch precedenti se sono già state applicate.
-
-## Test consigliati in Vercel Preview
-
-1. Crea un turno da 10 minuti.
-2. Verifica che l'auto aumenti di circa 0,17 ore.
-3. Verifica che i componenti montati aumentino dello stesso delta.
-4. Modifica il turno da 10 a 20 minuti.
-5. Verifica che venga aggiunto solo il delta di altri 10 minuti, non 20 completi.
-6. Cancella il turno.
-7. Verifica che i minuti vengano sottratti dai contatori.
-8. Prova a salvare un turno con fuel finale superiore a fuel iniziale: deve bloccarlo.
-
-## Verifiche tecniche eseguite
-
-- `npm ci --ignore-scripts --no-audit --no-fund` completato correttamente.
-- `npx tsc --noEmit --pretty false` completato correttamente.
-- `npm run build` compila correttamente la fase webpack, poi nel container resta bloccato/va in timeout durante la fase interna Next `Linting and checking validity of types ...`. Il typecheck diretto passa.
-
-## Nota Next.js
-
-Durante `npm ci`, npm segnala ancora che `next@15.5.7` ha una vulnerabilità nota. Non è stato aggiornato in questa patch per evitare di cambiare versione framework insieme alla logica turni.
+-- Attiva il modulo attività nelle impostazioni esistenti, senza alterare le altre preferenze.
+update public.app_settings
+set modules = coalesce(modules, '{}'::jsonb) || '{"tasks": true}'::jsonb
+where modules is null or not (modules ? 'tasks');
