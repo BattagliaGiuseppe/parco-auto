@@ -29,7 +29,10 @@ import {
   DASHBOARD_WIDGET_REGISTRY,
   DEFAULT_CONTROL_CENTER_LABELS,
   MODULE_REGISTRY,
+  getDashboardWidgetAutoLabel,
+  getDashboardWidgetDisplayLabel,
   getDashboardWidgetLabel,
+  getDashboardWidgetLabelMode,
   getModuleLabel,
   normalizeControlCenterModules,
   normalizeControlCenterLabels,
@@ -130,6 +133,7 @@ type DashboardWidget = {
   is_enabled: boolean;
   size: string;
   order_index: number;
+  config?: Record<string, unknown> | null;
 };
 
 type SettingsHealthSnapshot = {
@@ -189,6 +193,56 @@ function moveArrayItem<T>(items: T[], fromIndex: number, toIndex: number) {
   const [item] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, item);
   return next;
+}
+
+function buildSettingsSnapshot(
+  settings: AppSettingsRow | null,
+  definitions: ComponentDefinition[],
+  checklists: ChecklistGroup[],
+  setupFields: SetupField[],
+  widgets: DashboardWidget[]
+) {
+  if (!settings) return "";
+  return JSON.stringify({
+    settings: {
+      team_name: settings.team_name,
+      team_subtitle: settings.team_subtitle || "",
+      primary_color: settings.primary_color,
+      secondary_color: settings.secondary_color,
+      accent_color: settings.accent_color,
+      vehicle_type: settings.vehicle_type,
+      default_warning_hours: settings.default_warning_hours,
+      default_revision_hours: settings.default_revision_hours,
+      default_expiry_alert_days: settings.default_expiry_alert_days,
+      modules: settings.modules || {},
+      labels: settings.labels || {},
+      branding: settings.branding || {},
+      dashboard_layout: settings.dashboard_layout || {},
+    },
+    definitions: definitions.map((row) => ({ ...row })),
+    checklists: checklists.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({ ...item, options: normalizeSetupOptions(item.options) })),
+    })),
+    setupFields: setupFields.map((field) => ({ ...field, options: normalizeSetupOptions(field.options) })),
+    widgets: widgets.map((widget) => ({
+      ...widget,
+      config: widget.config || {},
+    })),
+  });
+}
+
+function withWidgetLabelMode(
+  widget: DashboardWidget,
+  mode: "auto" | "custom",
+  labels?: Record<string, string> | null
+): DashboardWidget {
+  const nextConfig = { ...(widget.config || {}), label_mode: mode };
+  return {
+    ...widget,
+    config: nextConfig,
+    label: mode === "auto" ? getDashboardWidgetAutoLabel(widget.widget_code, labels as any) : widget.label,
+  };
 }
 
 
@@ -689,6 +743,7 @@ export default function SettingsPage() {
   const [health, setHealth] = useState<SettingsHealthSnapshot | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [lastSaveVerification, setLastSaveVerification] = useState<SaveVerification | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   async function loadHealth(teamId?: string) {
     try {
@@ -778,24 +833,30 @@ export default function SettingsPage() {
         branding: buildBrandingFromSettings(rawSettings),
       };
 
-      setSettings(normalizedSettings);
-      setDefinitions((defsRes.data || []) as ComponentDefinition[]);
-      setSetupFields(
-        ((setupRes.data || []) as SetupField[]).map((field) => ({
-          ...field,
-          options: normalizeSetupOptions((field as any).options),
-        }))
-      );
-      setWidgets((widgetsRes.data || []) as DashboardWidget[]);
-
+      const nextDefinitions = (defsRes.data || []) as ComponentDefinition[];
+      const nextSetupFields = ((setupRes.data || []) as SetupField[]).map((field) => ({
+        ...field,
+        options: normalizeSetupOptions((field as any).options),
+      }));
+      const nextWidgets = ((widgetsRes.data || []) as DashboardWidget[]).map((widget) => ({
+        ...widget,
+        config: (widget as any).config || {},
+      }));
       const groups = (groupsRes.data || []) as any[];
       const items = (itemsRes.data || []) as any[];
-      setChecklists(
-        groups.map((group) => ({
-          ...group,
-          items: items.filter((item) => item.checklist_id === group.id).map((item) => ({ ...item, options: normalizeSetupOptions((item as any).options) })),
-        }))
-      );
+      const nextChecklists = groups.map((group) => ({
+        ...group,
+        items: items
+          .filter((item) => item.checklist_id === group.id)
+          .map((item) => ({ ...item, options: normalizeSetupOptions((item as any).options) })),
+      }));
+
+      setSettings(normalizedSettings);
+      setDefinitions(nextDefinitions);
+      setSetupFields(nextSetupFields);
+      setWidgets(nextWidgets);
+      setChecklists(nextChecklists);
+      setSavedSnapshot(buildSettingsSnapshot(normalizedSettings, nextDefinitions, nextChecklists, nextSetupFields, nextWidgets));
 
       await loadHealth(ctx.teamId);
     } catch (error) {
@@ -808,16 +869,65 @@ export default function SettingsPage() {
     }
   }
 
+  const currentSnapshot = useMemo(
+    () => buildSettingsSnapshot(settings, definitions, checklists, setupFields, widgets),
+    [settings, definitions, checklists, setupFields, widgets]
+  );
+
+  const hasUnsavedChanges = Boolean(savedSnapshot && currentSnapshot && currentSnapshot !== savedSnapshot && !saving);
+
   useEffect(() => {
     if (!access.loading && access.canManageSettings) {
       void loadAll();
     }
   }, [access.loading, access.canManageSettings]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+
+      const rawHref = anchor.getAttribute("href") || "";
+      if (!rawHref || rawHref.startsWith("#") || rawHref.startsWith("mailto:") || rawHref.startsWith("tel:")) return;
+
+      const url = new URL(anchor.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+
+      const canLeave = window.confirm(
+        "Hai modifiche non salvate nel Control Center. Se cambi pagina le perderai. Vuoi uscire comunque?"
+      );
+      if (!canLeave) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => document.removeEventListener("click", handleDocumentClick, true);
+  }, [hasUnsavedChanges]);
+
   const effectiveBrandingTheme = useMemo(
     () => (settings ? buildBrandingTheme(settings) : null),
     [settings]
   );
+
 
   const themeCompatibilityWarnings = useMemo(() => {
     if (!settings || !effectiveBrandingTheme) return [] as string[];
@@ -936,6 +1046,29 @@ export default function SettingsPage() {
         },
       },
     });
+  }
+
+  function patchWidgetLabelMode(index: number, mode: "auto" | "custom") {
+    setWidgets((prev) =>
+      prev.map((widget, i) =>
+        i === index
+          ? withWidgetLabelMode(widget, mode, settings?.labels || DEFAULT_LABELS)
+          : widget
+      )
+    );
+  }
+
+  function patchWidgetCode(index: number, nextCode: string) {
+    setWidgets((prev) =>
+      prev.map((widget, i) => {
+        if (i !== index) return widget;
+        const mode = getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS);
+        const nextWidget = { ...widget, widget_code: nextCode };
+        return mode === "custom"
+          ? nextWidget
+          : withWidgetLabelMode(nextWidget, "auto", settings?.labels || DEFAULT_LABELS);
+      })
+    );
   }
 
 async function uploadBrandAsset(kind: "sidebar" | "header" | "print", file: File) {
@@ -1068,15 +1201,21 @@ async function saveAll() {
 
       const cleanWidgets = widgets
         .filter((widget) => widget.widget_code.trim())
-        .map((widget, index) => ({
-          role_scope: widget.role_scope || "all",
-          widget_code: widget.widget_code.trim(),
-          label: widget.label.trim() || getDashboardWidgetLabel(widget.widget_code),
-          is_enabled: widget.is_enabled,
-          size: widget.size || "md",
-          order_index: index + 1,
-          config: {},
-        }));
+        .map((widget, index) => {
+          const labelMode = getDashboardWidgetLabelMode(widget, settings.labels || DEFAULT_LABELS);
+          const label = labelMode === "custom"
+            ? widget.label.trim() || getDashboardWidgetAutoLabel(widget.widget_code, settings.labels || DEFAULT_LABELS)
+            : getDashboardWidgetAutoLabel(widget.widget_code, settings.labels || DEFAULT_LABELS);
+          return {
+            role_scope: widget.role_scope || "all",
+            widget_code: widget.widget_code.trim(),
+            label,
+            is_enabled: widget.is_enabled,
+            size: widget.size || "md",
+            order_index: index + 1,
+            config: { ...(widget.config || {}), label_mode: labelMode },
+          };
+        });
 
       const { error } = await supabase.rpc("save_team_settings_bundle", {
         p_team_id: ctx.teamId,
@@ -1239,6 +1378,13 @@ async function saveAll() {
 
       {feedback ? (
         <FormStatusBanner type={feedback.type} message={feedback.message} />
+      ) : null}
+
+      {hasUnsavedChanges ? (
+        <FormStatusBanner
+          type="info"
+          message="Ci sono modifiche non salvate. Salva prima di cambiare pagina, oppure conferma l'uscita quando richiesto."
+        />
       ) : null}
 
       <SectionCard>
@@ -2234,16 +2380,7 @@ async function saveAll() {
                 </div>
                 <Select
                   value={widget.widget_code}
-                  onChange={(e) => {
-                    const nextCode = e.target.value;
-                    setWidgets((prev) =>
-                      prev.map((item, i) =>
-                        i === index
-                          ? { ...item, widget_code: nextCode, label: item.label || getDashboardWidgetLabel(nextCode) }
-                          : item
-                      )
-                    );
-                  }}
+                  onChange={(e) => patchWidgetCode(index, e.target.value)}
                 >
                   <option value="">Seleziona widget</option>
                   {DASHBOARD_WIDGET_OPTIONS.map((option) => (
@@ -2252,17 +2389,53 @@ async function saveAll() {
                     </option>
                   ))}
                 </Select>
-                <Input
-                  value={widget.label}
-                  onChange={(e) =>
-                    setWidgets((prev) =>
-                      prev.map((item, i) =>
-                        i === index ? { ...item, label: e.target.value } : item
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => patchWidgetLabelMode(index, "auto")}
+                      className={`rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-[0.12em] transition ${
+                        getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "auto"
+                          ? "border-[rgba(var(--brand-accent-rgb),0.55)] bg-[rgba(var(--brand-accent-rgb),0.18)] text-[var(--brand-accent)]"
+                          : "border-white/10 bg-white/[0.04] text-[var(--text-muted)] hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => patchWidgetLabelMode(index, "custom")}
+                      className={`rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-[0.12em] transition ${
+                        getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "custom"
+                          ? "border-[rgba(var(--brand-accent-rgb),0.55)] bg-[rgba(var(--brand-accent-rgb),0.18)] text-[var(--brand-accent)]"
+                          : "border-white/10 bg-white/[0.04] text-[var(--text-muted)] hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                  <Input
+                    value={
+                      getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "auto"
+                        ? getDashboardWidgetDisplayLabel(widget, settings?.labels || DEFAULT_LABELS)
+                        : widget.label
+                    }
+                    onChange={(e) =>
+                      setWidgets((prev) =>
+                        prev.map((item, i) =>
+                          i === index
+                            ? { ...item, label: e.target.value, config: { ...(item.config || {}), label_mode: "custom" } }
+                            : item
+                        )
                       )
-                    )
-                  }
-                  placeholder="Etichetta"
-                />
+                    }
+                    disabled={getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "auto"}
+                    placeholder="Etichetta widget"
+                  />
+                  <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+                    Auto segue la terminologia globale. Custom sovrascrive solo questo widget.
+                  </p>
+                </div>
                 <Select
                   value={widget.role_scope}
                   onChange={(e) =>
@@ -2326,10 +2499,11 @@ async function saveAll() {
                     id: `temp-${Date.now()}`,
                     role_scope: "all",
                     widget_code: "cars_ready",
-                    label: getDashboardWidgetLabel("cars_ready"),
+                    label: getDashboardWidgetAutoLabel("cars_ready", settings?.labels || DEFAULT_LABELS),
                     is_enabled: true,
                     size: "md",
                     order_index: prev.length + 1,
+                    config: { label_mode: "auto" },
                   },
                 ])
               }

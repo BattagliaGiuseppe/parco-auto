@@ -301,6 +301,73 @@ export function getDashboardWidgetLabel(code: string) {
   return getDashboardWidgetMeta(code)?.label || "Widget dashboard";
 }
 
+
+export type DashboardWidgetLabelMode = "auto" | "custom";
+
+export type DashboardWidgetLabelLike = {
+  widget_code: string;
+  label?: string | null;
+  config?: Record<string, unknown> | null;
+};
+
+export function getDashboardWidgetAutoLabel(
+  code: string,
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+) {
+  const normalized = normalizeControlCenterLabels(labels);
+  switch (code) {
+    case "cars_ready":
+      return `${normalized.vehicle} pronti`;
+    case "components_alerts":
+      return `${normalized.component} critici`;
+    case "upcoming_events":
+      return `Prossimi ${normalized.event.toLowerCase()}`;
+    case "maintenances_open":
+      return `${normalized.maintenance} aperte`;
+    case "drivers_documents":
+      return `Documenti ${normalized.driver.toLowerCase()}`;
+    case "tasks_open":
+      return `${normalized.tasks} aperte`;
+    case "inventory_low_stock":
+      return `${normalized.inventory} sotto soglia`;
+    case "attendance_today":
+      return `${normalized.attendance} oggi`;
+    default:
+      return getDashboardWidgetLabel(code);
+  }
+}
+
+export function getDashboardWidgetLabelMode(
+  widget: DashboardWidgetLabelLike,
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+): DashboardWidgetLabelMode {
+  const configuredMode = typeof widget.config?.label_mode === "string" ? widget.config.label_mode : null;
+  if (configuredMode === "custom") return "custom";
+  if (configuredMode === "auto") return "auto";
+
+  const currentLabel = (widget.label || "").trim();
+  if (!currentLabel) return "auto";
+
+  const defaultLabels = DEFAULT_CONTROL_CENTER_LABELS;
+  const knownAutomaticLabels = new Set([
+    getDashboardWidgetLabel(widget.widget_code),
+    getDashboardWidgetAutoLabel(widget.widget_code, defaultLabels),
+    getDashboardWidgetAutoLabel(widget.widget_code, labels),
+    widget.widget_code,
+  ].map((value) => String(value || "").trim()).filter(Boolean));
+
+  return knownAutomaticLabels.has(currentLabel) ? "auto" : "custom";
+}
+
+export function getDashboardWidgetDisplayLabel(
+  widget: DashboardWidgetLabelLike,
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+) {
+  return getDashboardWidgetLabelMode(widget, labels) === "custom"
+    ? (widget.label || "Widget").trim() || "Widget"
+    : getDashboardWidgetAutoLabel(widget.widget_code, labels);
+}
+
 export function normalizeWidgetSize(value?: string | null): "sm" | "md" | "lg" | "xl" {
   return value === "sm" || value === "lg" || value === "xl" ? value : "md";
 }

@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import { formatComponentHours, getDashboardComponentSeverity } from "@/lib/componentStatus";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
-import { dashboardWidgetClassName, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole } from "@/lib/controlCenter";
+import { dashboardWidgetClassName, getDashboardWidgetDisplayLabel, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole } from "@/lib/controlCenter";
 
 type AppSettings = {
   team_name: string;
@@ -30,6 +30,7 @@ type Widget = {
   size: string;
   role_scope?: string | null;
   order_index: number;
+  config?: Record<string, unknown> | null;
 };
 
 type Car = { id: string; name: string; hours: number | null; components?: any[] };
@@ -83,7 +84,7 @@ export default function DashboardPage() {
         todayStart.setHours(0, 0, 0, 0);
         const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes, tasksRes, attendanceRes] = await Promise.all([
           supabase.from("app_settings").select("team_name,vehicle_type,labels,modules,enable_events,enable_maintenances").eq("team_id", ctx.teamId).single(),
-          supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,role_scope,order_index").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
+          supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,role_scope,order_index,config").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
           supabase.from("cars").select("id,name,hours").eq("team_id", ctx.teamId).order("name", { ascending: true }),
           supabase.from("components").select("id,type,identifier,expiry_date,hours,warning_threshold_hours,revision_threshold_hours,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
           supabase.from("events").select("id,name,date,circuit_id(name)").eq("team_id", ctx.teamId).order("date", { ascending: true }),
@@ -160,30 +161,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
   const labels = theme.labels;
 
   function dashboardDisplayLabel(widget: Widget) {
-    const fixedDefault = getDashboardWidgetMeta(widget.widget_code)?.label || "";
-    const custom = widget.label?.trim();
-    if (custom && custom !== fixedDefault) return custom;
-
-    switch (widget.widget_code) {
-      case "cars_ready":
-        return `${labels.vehicle} pronti`;
-      case "components_alerts":
-        return `${labels.component} critici`;
-      case "upcoming_events":
-        return `Prossimi ${labels.event.toLowerCase()}`;
-      case "maintenances_open":
-        return `${labels.maintenance} aperte`;
-      case "drivers_documents":
-        return `Documenti ${labels.driver.toLowerCase()}`;
-      case "tasks_open":
-        return `${labels.tasks} aperte`;
-      case "inventory_low_stock":
-        return `${labels.inventory} sotto soglia`;
-      case "attendance_today":
-        return `${labels.attendance} oggi`;
-      default:
-        return fixedDefault || custom || "Widget";
-    }
+    return getDashboardWidgetDisplayLabel(widget, labels);
   }
 
   const urgentComponents = useMemo(() => components.filter((c) => componentSeverity(c) >= 3), [components]);
