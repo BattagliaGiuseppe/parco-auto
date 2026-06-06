@@ -31,6 +31,7 @@ import {
 } from "@/lib/teamContext";
 import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
+import { MODULE_REGISTRY, getModuleLabel, isModuleEnabled, type ModuleId } from "@/lib/controlCenter";
 
 type NavItem = {
   href: string;
@@ -43,6 +44,7 @@ type SettingsShape = {
   enable_events?: boolean;
   enable_maintenances?: boolean;
   modules?: Record<string, boolean> | null;
+  labels?: Record<string, string> | null;
 };
 
 export default function Sidebar() {
@@ -72,6 +74,7 @@ export default function Sidebar() {
               enable_events: appSettings.enable_events ?? undefined,
               enable_maintenances: appSettings.enable_maintenances ?? undefined,
               modules: appSettings.modules ?? null,
+              labels: appSettings.labels ?? null,
             }
           : null;
 
@@ -109,52 +112,48 @@ export default function Sidebar() {
     };
   }, []);
 
-  const modules = settings?.modules ?? {};
   const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
   const canManageSettings = has("settings.manage") || canManageTeamRole(teamRole);
   const canManageTeam = has("team.manage") || canManageTeamRole(teamRole);
 
-  const links: NavItem[] = useMemo(
-    () => [
+  const moduleIcons: Partial<Record<ModuleId, ReactNode>> = {
+    cars: <CarFront size={18} />,
+    components: <Boxes size={18} />,
+    maintenances: <Wrench size={18} />,
+    mounts: <Layers3 size={18} />,
+    events: <CalendarDays size={18} />,
+    drivers: <Users size={18} />,
+    inventory: <Package size={18} />,
+    telemetry: <Activity size={18} />,
+    tasks: <ClipboardList size={18} />,
+    attendance: <TimerReset size={18} />,
+  };
+
+  const links: NavItem[] = useMemo(() => {
+    const moduleLinks: NavItem[] = MODULE_REGISTRY
+      .filter((module) => module.visibleInControlCenter && module.route !== "/cars")
+      .map((module) => ({
+        href: module.route,
+        label: getModuleLabel(module.id, theme.labels),
+        icon: moduleIcons[module.id] || <LayoutDashboard size={18} />,
+        enabled:
+          isModuleEnabled(settings, module.id) &&
+          (!module.permission || has(module.permission)),
+      }));
+
+    return [
       { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-      { href: "/cars", label: theme.labels.vehicle, icon: <CarFront size={18} />, enabled: has("cars.view") },
-      { href: "/components", label: theme.labels.component, icon: <Boxes size={18} />, enabled: has("components.view") },
       {
-        href: "/maintenances",
-        label: theme.labels.maintenance,
-        icon: <Wrench size={18} />,
-        enabled: settings?.enable_maintenances !== false && has("maintenances.view"),
+        href: "/cars",
+        label: getModuleLabel("cars", theme.labels),
+        icon: <CarFront size={18} />,
+        enabled: isModuleEnabled(settings, "cars") && has("cars.view"),
       },
-      { href: "/mounts", label: "Montaggi", icon: <Layers3 size={18} />, enabled: modules.mounts !== false && has("mounts.view") },
-      { href: "/calendar", label: theme.labels.event, icon: <CalendarDays size={18} />, enabled: settings?.enable_events !== false && has("events.view") },
-      { href: "/drivers", label: theme.labels.driver, icon: <Users size={18} />, enabled: modules.drivers !== false && has("drivers.view") },
-      { href: "/inventory", label: theme.labels.inventory, icon: <Package size={18} />, enabled: modules.inventory !== false && has("inventory.view") },
-      { href: "/telemetry", label: "Telemetria", icon: <Activity size={18} />, enabled: modules.telemetry !== false && has("telemetry.view") },
-      { href: "/tasks", label: "Attività", icon: <ClipboardList size={18} />, enabled: modules.tasks !== false && has("tasks.view") },
-      { href: "/attendance", label: "Presenze", icon: <TimerReset size={18} />, enabled: modules.attendance !== false && has("attendance.view") },
-      { href: "/settings", label: "Impostazioni", icon: <Settings size={18} />, enabled: canManageSettings },
-      { href: "/settings/team", label: "Team & Accessi", icon: <ShieldCheck size={18} />, enabled: canManageTeam },
-    ],
-    [
-      canManageSettings,
-      canManageTeam,
-      modules.drivers,
-      modules.inventory,
-      modules.mounts,
-      modules.telemetry,
-      modules.tasks,
-      modules.attendance,
-      settings?.enable_events,
-      settings?.enable_maintenances,
-      permissionCodes,
-      theme.labels.component,
-      theme.labels.driver,
-      theme.labels.event,
-      theme.labels.inventory,
-      theme.labels.maintenance,
-      theme.labels.vehicle,
-    ]
-  );
+      ...moduleLinks,
+      { href: "/settings", label: getModuleLabel("settings", theme.labels), icon: <Settings size={18} />, enabled: canManageSettings },
+      { href: "/settings/team", label: getModuleLabel("team_access", theme.labels), icon: <ShieldCheck size={18} />, enabled: canManageTeam },
+    ];
+  }, [canManageSettings, canManageTeam, permissionCodes, settings, teamRole, theme.labels]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -165,7 +164,7 @@ export default function Sidebar() {
 
   const asideStyle: CSSProperties = {
     background:
-      "linear-gradient(180deg, rgba(10,12,11,0.99), rgba(17,20,17,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
+      "radial-gradient(circle at 8% 6%, rgba(var(--brand-primary-rgb),0.32), transparent 16rem), radial-gradient(circle at 88% 14%, rgba(var(--brand-accent-rgb),0.12), transparent 13rem), linear-gradient(180deg, rgba(8,11,15,0.99), rgba(10,15,21,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
     borderRightColor: "rgba(255,255,255,0.1)",
     color: "#ffffff",
     boxShadow: "18px 0 52px rgba(0,0,0,0.34)",
@@ -214,8 +213,9 @@ export default function Sidebar() {
         style={asideStyle}
       >
         <div className={`flex h-full flex-col px-4 py-5`}>
-          <div className="mb-4 px-2">
-            <div className="rounded-2xl border px-4 py-3" style={fixedBrandCardStyle}>
+          {theme.brandingConfig.showPlatformNameInSidebar ? (
+            <div className="mb-4 px-2">
+              <div className="rounded-2xl border px-4 py-3" style={fixedBrandCardStyle}>
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
                   <img
@@ -233,8 +233,9 @@ export default function Sidebar() {
                   </div>
                 </div>
               </div>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="mb-6 px-2">
             <div className="rounded-3xl border px-4 py-4" style={teamCardStyle}>

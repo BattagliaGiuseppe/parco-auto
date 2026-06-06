@@ -233,7 +233,7 @@ export default function CarDocumentsPage() {
                     {new Date(row.uploaded_at).toLocaleString("it-IT")}
                   </div>
                   {row.notes ? (
-                    <div className="mt-3 rounded-2xl border border-[rgba(248,196,0,0.28)] bg-[rgba(248,196,0,0.08)] p-3 text-sm leading-6 text-yellow-100">
+                    <div className="mt-3 rounded-2xl border border-[rgba(var(--brand-accent-rgb),0.28)] bg-[rgba(var(--brand-accent-rgb),0.08)] p-3 text-sm leading-6 text-[var(--brand-accent)]">
                       {row.notes}
                     </div>
                   ) : null}

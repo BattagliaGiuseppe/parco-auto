@@ -3016,7 +3016,7 @@ export default function InventoryPage() {
                   )}
 
                   {importValidation?.warnings.length ? (
-                    <div className="rounded-xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-yellow-100">
+                    <div className="rounded-xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-[var(--brand-accent)]">
                       <div className="font-bold">Avvisi</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
                         {importValidation.warnings.slice(0, 5).map((warning) => (

@@ -11,12 +11,16 @@ import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import { formatComponentHours, getDashboardComponentSeverity } from "@/lib/componentStatus";
+import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
+import { dashboardWidgetClassName, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole } from "@/lib/controlCenter";
 
 type AppSettings = {
   team_name: string;
   vehicle_type: string;
   labels: Record<string, string> | null;
   modules: Record<string, boolean> | null;
+  enable_events?: boolean | null;
+  enable_maintenances?: boolean | null;
 };
 
 type Widget = {
@@ -24,6 +28,7 @@ type Widget = {
   label: string;
   is_enabled: boolean;
   size: string;
+  role_scope?: string | null;
   order_index: number;
 };
 
@@ -34,6 +39,7 @@ type Maintenance = { id: string; type: string | null; status: string | null; pri
 type DriverDoc = { id: string; expires_at: string | null; driver_id: { first_name: string | null; last_name: string | null } | null };
 type Inventory = { id: string; name: string; quantity: number | null; minimum_quantity: number | null; reserved_quantity: number | null };
 type Task = { id: string; title: string; status: string | null; priority: string | null; due_date: string | null; car_id: { name: string | null } | null; assigned_to_team_user_id: { name: string | null; email: string | null } | null };
+type AttendanceRecord = { id: string; check_in_at: string | null; check_out_at: string | null; check_in_location_label: string | null };
 
 function componentSeverity(component: Component) {
   return getDashboardComponentSeverity(component);
@@ -64,15 +70,20 @@ export default function DashboardPage() {
   const [driverDocs, setDriverDocs] = useState<DriverDoc[]>([]);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [teamRole, setTeamRole] = useState<string | null>(null);
+  const { theme } = useBrandTheme();
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const ctx = await getCurrentTeamContext();
-        const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes, tasksRes] = await Promise.all([
-          supabase.from("app_settings").select("team_name,vehicle_type,labels,modules").eq("team_id", ctx.teamId).single(),
-          supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,order_index").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes, tasksRes, attendanceRes] = await Promise.all([
+          supabase.from("app_settings").select("team_name,vehicle_type,labels,modules,enable_events,enable_maintenances").eq("team_id", ctx.teamId).single(),
+          supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,role_scope,order_index").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
           supabase.from("cars").select("id,name,hours").eq("team_id", ctx.teamId).order("name", { ascending: true }),
           supabase.from("components").select("id,type,identifier,expiry_date,hours,warning_threshold_hours,revision_threshold_hours,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
           supabase.from("events").select("id,name,date,circuit_id(name)").eq("team_id", ctx.teamId).order("date", { ascending: true }),
@@ -80,7 +91,9 @@ export default function DashboardPage() {
           supabase.from("driver_documents").select("id,expires_at,driver_id(first_name,last_name)").eq("team_id", ctx.teamId).not("expires_at", "is", null).order("expires_at", { ascending: true }).limit(8),
           supabase.from("inventory_items").select("id,name,quantity,minimum_quantity,reserved_quantity").eq("team_id", ctx.teamId).order("name", { ascending: true }),
           supabase.from("tasks").select("id,title,status,priority,due_date,car_id(name),assigned_to_team_user_id(name,email)").eq("team_id", ctx.teamId).neq("status", "done").neq("status", "cancelled").order("created_at", { ascending: false }).limit(8),
+          supabase.from("attendance_records").select("id,check_in_at,check_out_at,check_in_location_label").eq("team_id", ctx.teamId).gte("check_in_at", todayStart.toISOString()).order("check_in_at", { ascending: false }).limit(50),
         ]);
+        setTeamRole(ctx.role || null);
         setSettings((settingsRes.data || null) as AppSettings | null);
         setWidgets(((widgetsRes.data || []) as Widget[]).filter((w) => w.is_enabled));
         setCars((carsRes.data || []) as Car[]);
@@ -136,6 +149,7 @@ const normalizedTasks: Task[] = !tasksRes.error
     }))
   : [];
 setTasks(normalizedTasks);
+setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as AttendanceRecord[]) : []);
       } finally {
         setLoading(false);
       }
@@ -143,7 +157,7 @@ setTasks(normalizedTasks);
     void load();
   }, []);
 
-  const labels = settings?.labels || { vehicle: "Auto", driver: "Pilota", event: "Evento", turn: "Turno" };
+  const labels = theme.labels;
 
   const urgentComponents = useMemo(() => components.filter((c) => componentSeverity(c) >= 3), [components]);
   const warningComponents = useMemo(() => components.filter((c) => componentSeverity(c) === 2), [components]);
@@ -152,6 +166,8 @@ setTasks(normalizedTasks);
   const expiringDriverDocs = useMemo(() => driverDocs.filter((row) => row.expires_at && isFutureOrToday(row.expires_at)).slice(0, 6), [driverDocs]);
   const lowStock = useMemo(() => inventory.filter((row) => Number(row.quantity || 0) <= Number(row.minimum_quantity || 0)), [inventory]);
   const openTasks = useMemo(() => tasks.filter((row) => row.status !== "done" && row.status !== "cancelled"), [tasks]);
+  const attendanceOpen = useMemo(() => attendanceRecords.filter((row) => !row.check_out_at), [attendanceRecords]);
+  const attendanceInTrack = useMemo(() => attendanceRecords.filter((row) => (row.check_in_location_label || "").toLowerCase().includes("pista")), [attendanceRecords]);
   const carsReady = useMemo(() => {
     const problemCarIds = new Set(components.filter((c) => componentSeverity(c) >= 2 && c.car_id).map((c) => c.car_id as string));
     return cars.filter((car) => !problemCarIds.has(car.id)).length;
@@ -331,17 +347,31 @@ setTasks(normalizedTasks);
             )}
           </SectionCard>
         );
+      case "attendance_today":
+        return (
+          <SectionCard key={code} title={label} subtitle="Persone presenti oggi e timbrature aperte">
+            {attendanceRecords.length === 0 ? <EmptyState title="Nessuna timbratura oggi" /> : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <QuickPill icon={<Users size={16} />} label="Presenti ora" value={String(attendanceOpen.length)} />
+                  <QuickPill icon={<CalendarDays size={16} />} label="In pista" value={String(attendanceInTrack.length)} />
+                </div>
+                <Link href="/attendance" className="race-action-link text-sm">Apri presenze →</Link>
+              </div>
+            )}
+          </SectionCard>
+        );
       default:
         return null;
     }
   }
 
   const effectiveWidgets = widgets.length > 0 ? widgets : [
-    { widget_code: "cars_ready", label: "Mezzi pronti", is_enabled: true, size: "md", order_index: 1 },
-    { widget_code: "components_alerts", label: "Componenti critici", is_enabled: true, size: "md", order_index: 2 },
-    { widget_code: "upcoming_events", label: "Prossimi eventi", is_enabled: true, size: "md", order_index: 3 },
-    { widget_code: "maintenances_open", label: "Manutenzioni aperte", is_enabled: true, size: "md", order_index: 4 },
-    { widget_code: "tasks_open", label: "Attività aperte", is_enabled: true, size: "md", order_index: 5 },
+    { widget_code: "cars_ready", label: "Mezzi pronti", is_enabled: true, size: "md", role_scope: "all", order_index: 1 },
+    { widget_code: "components_alerts", label: "Componenti critici", is_enabled: true, size: "md", role_scope: "all", order_index: 2 },
+    { widget_code: "upcoming_events", label: "Prossimi eventi", is_enabled: true, size: "md", role_scope: "all", order_index: 3 },
+    { widget_code: "maintenances_open", label: "Manutenzioni aperte", is_enabled: true, size: "md", role_scope: "all", order_index: 4 },
+    { widget_code: "tasks_open", label: "Attività aperte", is_enabled: true, size: "md", role_scope: "all", order_index: 5 },
   ];
 
   if (loading) {
@@ -357,7 +387,7 @@ setTasks(normalizedTasks);
         actions={
           <Link
             href="/settings"
-            className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] shadow-[0_12px_24px_rgba(250,204,21,0.28)] transition hover:-translate-y-px hover:brightness-95"
+            className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] shadow-[0_12px_24px_rgba(var(--brand-accent-rgb),0.28)] transition hover:-translate-y-px hover:brightness-95"
           >
             Configura dashboard
           </Link>
@@ -376,8 +406,22 @@ setTasks(normalizedTasks);
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        {effectiveWidgets.map((widget) => renderWidget(widget.widget_code, widget.label)).filter(Boolean)}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        {effectiveWidgets
+          .filter((widget) => isWidgetVisibleForRole(widget.role_scope, teamRole))
+          .filter((widget) => {
+            const meta = getDashboardWidgetMeta(widget.widget_code);
+            return !meta?.requiredModule || isModuleEnabled(settings, meta.requiredModule);
+          })
+          .map((widget) => {
+            const rendered = renderWidget(widget.widget_code, widget.label);
+            if (!rendered) return null;
+            return (
+              <div key={widget.widget_code} className={dashboardWidgetClassName(widget.size)}>
+                {rendered}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClassName: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-[0_14px_28px_rgba(248,196,0,0.18)] hover:brightness-95",
+    "bg-[var(--brand-accent)] text-[var(--brand-on-accent)] shadow-[0_14px_28px_rgba(var(--brand-accent-rgb),0.18)] hover:brightness-95",
   secondary:
     "border border-white/25 bg-white/[0.075] text-[var(--text-primary)] hover:border-[var(--brand-accent)]/50 hover:bg-white/[0.12]",
   danger:

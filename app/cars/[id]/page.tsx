@@ -99,7 +99,7 @@ function getThresholdBadge(component: CarComponent) {
   if (warning !== null && warning !== undefined && hours >= warning) {
     return {
       label: "In attenzione",
-      className: "border-yellow-300/35 bg-yellow-300/10 text-yellow-100",
+      className: "border-yellow-300/35 bg-yellow-300/10 text-[var(--brand-accent)]",
     };
   }
 

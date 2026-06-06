@@ -1,14 +1,7 @@
 import { brandConfig } from "@/lib/brand";
+import { DEFAULT_CONTROL_CENTER_LABELS, type ControlCenterLabels } from "@/lib/controlCenter";
 
-export type BrandingLabels = {
-  vehicle: string;
-  driver: string;
-  event: string;
-  turn: string;
-  component: string;
-  maintenance: string;
-  inventory: string;
-};
+export type BrandingLabels = ControlCenterLabels;
 
 export type BrandingConfig = {
   showLogoInHeader: boolean;
@@ -72,15 +65,7 @@ export type RawBrandingSettings = {
   } | null;
 };
 
-const DEFAULT_LABELS: BrandingLabels = {
-  vehicle: "Auto",
-  driver: "Pilota",
-  event: "Evento",
-  turn: "Turno",
-  component: "Componente",
-  maintenance: "Manutenzione",
-  inventory: "Magazzino",
-};
+const DEFAULT_LABELS: BrandingLabels = DEFAULT_CONTROL_CENTER_LABELS;
 
 const DEFAULT_CONFIG: BrandingConfig = {
   showLogoInHeader: true,
@@ -206,8 +191,8 @@ export function buildBrandingTheme(raw?: RawBrandingSettings | null): BrandingTh
   };
 
   const accent = normalizeHex(readString(raw?.accent_color), DEFAULT_BRANDING_THEME.colors.accent);
-  const primary = resolveDarkSurfaceToken(readString(raw?.primary_color), DEFAULT_BRANDING_THEME.colors.primary);
-  const secondary = resolveDarkSurfaceToken(readString(raw?.secondary_color), DEFAULT_BRANDING_THEME.colors.secondary);
+  const primary = normalizeHex(readString(raw?.primary_color), DEFAULT_BRANDING_THEME.colors.primary);
+  const secondary = normalizeHex(readString(raw?.secondary_color), DEFAULT_BRANDING_THEME.colors.secondary);
 
   const labels = {
     ...DEFAULT_LABELS,
@@ -292,9 +277,16 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
   if (typeof document === "undefined") return;
 
   const root = document.documentElement;
+  const primaryRgb = hexToRgb(theme.colors.primary);
+  const secondaryRgb = hexToRgb(theme.colors.secondary);
+  const accentRgb = hexToRgb(theme.colors.accent);
+
   root.style.setProperty("--brand-primary", theme.colors.primary);
   root.style.setProperty("--brand-secondary", theme.colors.secondary);
   root.style.setProperty("--brand-accent", theme.colors.accent);
+  root.style.setProperty("--brand-primary-rgb", `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}`);
+  root.style.setProperty("--brand-secondary-rgb", `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}`);
+  root.style.setProperty("--brand-accent-rgb", `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
   root.style.setProperty("--brand-on-accent", theme.colors.onAccent);
   root.style.setProperty("--brand-primary-soft", theme.colors.primarySoft);
   root.style.setProperty("--brand-secondary-soft", theme.colors.secondarySoft);
@@ -331,7 +323,7 @@ export function applyBrandingThemeToDocument(theme: BrandingTheme) {
     metaTheme.name = "theme-color";
     document.head.appendChild(metaTheme);
   }
-  metaTheme.content = theme.colors.primary;
+  metaTheme.content = theme.colors.surfacePage;
 }
 
 export function dispatchBrandingRefresh() {

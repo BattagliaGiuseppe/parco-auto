@@ -24,7 +24,8 @@ import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
-import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+import { UiField, uiInputClassName, uiSelectClassName, uiTextareaClassName } from "@/components/UiField";
+import { normalizeOptions } from "@/lib/controlCenter";
 
 function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -125,7 +126,7 @@ function ActionTile({
   return (
     <Link
       href={href}
-      className="race-card-grid p-5 transition hover:-translate-y-0.5 hover:border-[rgba(248,196,0,0.28)]"
+      className="race-card-grid p-5 transition hover:-translate-y-0.5 hover:border-[rgba(var(--brand-accent-rgb),0.28)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div
@@ -161,7 +162,7 @@ export default function EventCarPage() {
   const [setupFields, setSetupFields] = useState<any[]>([]);
   const [setupData, setSetupData] = useState<Record<string, any>>({});
   const [checklists, setChecklists] = useState<any[]>([]);
-  const [checkData, setCheckData] = useState<Record<string, { status: string; note: string }>>({});
+  const [checkData, setCheckData] = useState<Record<string, { status?: string; note?: string; value?: any }>>({});
 
   const [selectedDriver, setSelectedDriver] = useState("");
   const [feedback, setFeedback] = useState<{
@@ -353,7 +354,7 @@ export default function EventCarPage() {
   );
 
   const checklistSummary = useMemo(() => {
-    const rows = Object.values(checkData || {}) as Array<{ status?: string; note?: string }>;
+    const rows = Object.values(checkData || {}) as Array<{ status?: string; note?: string; value?: any }>;
     return {
       total: rows.length,
       problems: rows.filter((row) => row.status === "problem").length,
@@ -712,29 +713,60 @@ export default function EventCarPage() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {setupFields.map((field: any) => (
-                <UiField key={field.id} label={field.label}>
-                  {field.field_type === "textarea" ? (
-                    <textarea
-                      disabled={!canEditEvents}
-                      className={`${uiTextareaClassName} ${!canEditEvents ? "opacity-70" : ""}`}
-                      value={setupData[field.field_key] || ""}
-                      onChange={(e) =>
-                        setSetupData({ ...setupData, [field.field_key]: e.target.value })
-                      }
-                    />
-                  ) : (
-                    <input
-                      disabled={!canEditEvents}
-                      className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
-                      value={setupData[field.field_key] || ""}
-                      onChange={(e) =>
-                        setSetupData({ ...setupData, [field.field_key]: e.target.value })
-                      }
-                    />
-                  )}
-                </UiField>
-              ))}
+              {setupFields.map((field: any) => {
+                const fieldType = field.field_type || "text";
+                const currentValue = setupData[field.field_key] ?? "";
+                const options = normalizeOptions(field.options);
+
+                return (
+                  <UiField key={field.id} label={`${field.label}${field.unit ? ` (${field.unit})` : ""}`}>
+                    {fieldType === "textarea" ? (
+                      <textarea
+                        disabled={!canEditEvents}
+                        className={`${uiTextareaClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                        value={currentValue || ""}
+                        onChange={(e) =>
+                          setSetupData({ ...setupData, [field.field_key]: e.target.value })
+                        }
+                      />
+                    ) : fieldType === "select" ? (
+                      <select
+                        disabled={!canEditEvents}
+                        className={`${uiSelectClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                        value={currentValue || ""}
+                        onChange={(e) =>
+                          setSetupData({ ...setupData, [field.field_key]: e.target.value })
+                        }
+                      >
+                        <option value="">Seleziona...</option>
+                        {options.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    ) : fieldType === "checkbox" ? (
+                      <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">
+                        <span>{field.label}</span>
+                        <input
+                          type="checkbox"
+                          disabled={!canEditEvents}
+                          checked={Boolean(currentValue)}
+                          onChange={(e) => setSetupData({ ...setupData, [field.field_key]: e.target.checked })}
+                        />
+                      </label>
+                    ) : (
+                      <input
+                        disabled={!canEditEvents}
+                        type={fieldType === "number" ? "number" : fieldType === "date" ? "date" : "text"}
+                        className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                        value={currentValue || ""}
+                        onChange={(e) =>
+                          setSetupData({ ...setupData, [field.field_key]: e.target.value })
+                        }
+                      />
+                    )}
+                  </UiField>
+                );
+              })}
             </div>
           )}
           {canEditEvents ? (
@@ -777,53 +809,98 @@ export default function EventCarPage() {
                 >
                   <div className="font-bold text-[var(--text-primary)]">{group.name}</div>
                   <div className="mt-3 space-y-3">
-                    {group.items.map((item: any) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_200px]"
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-[var(--text-primary)]">
-                            {item.label}
+                    {group.items.map((item: any) => {
+                      const inputType = item.input_type || "status";
+                      const itemData = checkData[item.id] || { status: "ok", note: "", value: "" };
+                      const options = normalizeOptions(item.options);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]"
+                        >
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--text-primary)]">
+                              {item.label}{item.is_required ? " *" : ""}
+                            </div>
+                            <textarea
+                              disabled={!canEditEvents}
+                              className={`${uiTextareaClassName} mt-2 ${!canEditEvents ? "opacity-70" : ""}`}
+                              placeholder="Nota tecnica"
+                              value={itemData.note || ""}
+                              onChange={(e) =>
+                                setCheckData({
+                                  ...checkData,
+                                  [item.id]: {
+                                    ...itemData,
+                                    status: itemData.status || "ok",
+                                    note: e.target.value,
+                                  },
+                                })
+                              }
+                            />
                           </div>
-                          <textarea
-                            disabled={!canEditEvents}
-                            className={`${uiTextareaClassName} mt-2 ${!canEditEvents ? "opacity-70" : ""}`}
-                            placeholder="Nota tecnica"
-                            value={checkData[item.id]?.note || ""}
-                            onChange={(e) =>
-                              setCheckData({
-                                ...checkData,
-                                [item.id]: {
-                                  status: checkData[item.id]?.status || "ok",
-                                  note: e.target.value,
-                                },
-                              })
-                            }
-                          />
+
+                          {inputType === "status" ? (
+                            <UiField label="Esito">
+                              <select
+                                disabled={!canEditEvents}
+                                className={`${uiSelectClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                                value={itemData.status || "ok"}
+                                onChange={(e) =>
+                                  setCheckData({
+                                    ...checkData,
+                                    [item.id]: {
+                                      ...itemData,
+                                      status: e.target.value,
+                                      note: itemData.note || "",
+                                    },
+                                  })
+                                }
+                              >
+                                <option value="ok">OK</option>
+                                <option value="check">Da controllare</option>
+                                <option value="problem">Problema</option>
+                              </select>
+                            </UiField>
+                          ) : inputType === "checkbox" ? (
+                            <UiField label="Conferma">
+                              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">
+                                <span>Completato</span>
+                                <input
+                                  type="checkbox"
+                                  disabled={!canEditEvents}
+                                  checked={Boolean(itemData.value)}
+                                  onChange={(e) => setCheckData({ ...checkData, [item.id]: { ...itemData, value: e.target.checked } })}
+                                />
+                              </label>
+                            </UiField>
+                          ) : inputType === "select" ? (
+                            <UiField label="Valore">
+                              <select
+                                disabled={!canEditEvents}
+                                className={`${uiSelectClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                                value={itemData.value || ""}
+                                onChange={(e) => setCheckData({ ...checkData, [item.id]: { ...itemData, value: e.target.value } })}
+                              >
+                                <option value="">Seleziona...</option>
+                                {options.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </UiField>
+                          ) : (
+                            <UiField label="Valore">
+                              <input
+                                disabled={!canEditEvents}
+                                type={inputType === "number" ? "number" : inputType === "date" ? "date" : "text"}
+                                className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
+                                value={itemData.value || ""}
+                                onChange={(e) => setCheckData({ ...checkData, [item.id]: { ...itemData, value: e.target.value } })}
+                              />
+                            </UiField>
+                          )}
                         </div>
-                        <UiField label="Esito">
-                          <select
-                            disabled={!canEditEvents}
-                            className={`${uiInputClassName} ${!canEditEvents ? "opacity-70" : ""}`}
-                            value={checkData[item.id]?.status || "ok"}
-                            onChange={(e) =>
-                              setCheckData({
-                                ...checkData,
-                                [item.id]: {
-                                  status: e.target.value,
-                                  note: checkData[item.id]?.note || "",
-                                },
-                              })
-                            }
-                          >
-                            <option value="ok">OK</option>
-                            <option value="check">Da controllare</option>
-                            <option value="problem">Problema</option>
-                          </select>
-                        </UiField>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

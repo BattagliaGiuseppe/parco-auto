@@ -231,8 +231,8 @@ function Field({
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
-      <div className="mb-2 flex items-center gap-2 font-bold text-yellow-100">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
+      <div className="mb-2 flex items-center gap-2 font-bold text-[var(--brand-accent)]">
         <Info size={16} />
         Telemetria intelligente
       </div>
@@ -315,7 +315,7 @@ function statusClassName(status?: string | null) {
     case "parsed":
       return "border-sky-400/30 bg-sky-500/10 text-sky-200";
     case "pending_parse":
-      return "border-yellow-400/25 bg-yellow-500/10 text-yellow-100";
+      return "border-yellow-400/25 bg-yellow-500/10 text-[var(--brand-accent)]";
     case "needs_review":
       return "border-orange-200 bg-orange-50 text-orange-700";
     case "error":
@@ -1446,7 +1446,7 @@ function SvgTelemetryChart({
         <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-yellow-100">Confronto attivo</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--brand-accent)]">Confronto attivo</div>
               <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                 <span>{primaryLabel}</span>
                 <span className="mx-2 text-[var(--text-muted)]">vs</span>
@@ -1500,7 +1500,7 @@ function SvgTelemetryChart({
               }}
               className={`rounded-xl border px-3 py-1.5 font-semibold transition ${
                 invertDirection
-                  ? "border-yellow-400/35 bg-yellow-500/10 text-yellow-100 hover:bg-yellow-500/20"
+                  ? "border-yellow-400/35 bg-yellow-500/10 text-[var(--brand-accent)] hover:bg-yellow-500/20"
                   : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-[rgba(16,23,31,0.96)]"
               }`}
             >
@@ -1554,7 +1554,7 @@ function SvgTelemetryChart({
             </label>
           </div>
           {invertDirection ? (
-            <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs leading-5 text-yellow-100">
+            <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs leading-5 text-[var(--brand-accent)]">
               Lettura invertita attiva: il cursore, il grafico e il pallino sulla pista scorrono nel verso opposto. Usala quando un export/logger visualizza il giro da fine a inizio.
             </div>
           ) : null}
@@ -1639,7 +1639,7 @@ function SvgTelemetryChart({
               <div><span className="font-semibold text-[var(--text-primary)]">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
               <div><span className="font-semibold text-[var(--text-primary)]">Giro:</span> {activeSample.lap_number ?? "—"}</div>
               {activeComparisonSample ? (
-                <div className="mt-2 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
+                <div className="mt-2 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-[var(--brand-accent)]">
                   Confronto: tempo {formatNumber(activeComparisonSample.time_seconds, 3)} s · distanza {formatNumber(activeComparisonSample.distance_m, 2)} m · giro {activeComparisonSample.lap_number ?? "—"}
                 </div>
               ) : null}
@@ -1711,7 +1711,7 @@ function SvgTelemetryChart({
                 ))}
               </div>
             </div>
-            <div className="rounded-2xl bg-yellow-500/10 p-3 text-sm text-yellow-100">
+            <div className="rounded-2xl bg-yellow-500/10 p-3 text-sm text-[var(--brand-accent)]">
               <div className="font-semibold">Possibili punti dove il confronto perde velocità</div>
               {speedLosses.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-xs">
@@ -1724,7 +1724,7 @@ function SvgTelemetryChart({
               ) : (
                 <div className="mt-2 text-xs">Nella finestra attuale non vedo perdite velocità evidenti oltre 3 km/h. Prova a restringere la zona o selezionare il canale velocità.</div>
               )}
-              <div className="mt-2 text-[11px] text-yellow-100">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
+              <div className="mt-2 text-[11px] text-[var(--brand-accent)]">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
             </div>
           </div>
         </div>
@@ -2994,7 +2994,7 @@ export default function TelemetryPage() {
                             <button
                               type="button"
                               onClick={() => void openAnalysis(row)}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-100 transition hover:bg-yellow-500/20"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-[var(--brand-accent)] transition hover:bg-yellow-500/20"
                             >
                               <BarChart3 size={14} />
                               Analizza
@@ -3070,7 +3070,7 @@ export default function TelemetryPage() {
                           <button
                             type="button"
                             onClick={() => void openAnalysis(row)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-100 transition hover:bg-yellow-500/20"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-[var(--brand-accent)] transition hover:bg-yellow-500/20"
                           >
                             <BarChart3 size={15} />
                             Analizza
@@ -3132,7 +3132,7 @@ export default function TelemetryPage() {
                     ) : null}
 
                     {row.notes ? (
-                      <div className="mt-3 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm leading-6 text-yellow-100">
+                      <div className="mt-3 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm leading-6 text-[var(--brand-accent)]">
                         {row.notes}
                       </div>
                     ) : null}
@@ -3372,7 +3372,7 @@ export default function TelemetryPage() {
                         ) : null}
 
                         {analysisPrimaryLap !== "all" || analysisCompareFileId ? (
-                          <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-xs leading-5 text-yellow-100">
+                          <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-xs leading-5 text-[var(--brand-accent)]">
                             Vista confronto: quando confronti giri, tempo e distanza partono da zero per facilitare la sovrapposizione. {chartCompareSamples.length > 0 ? `Delta tempi: ${formatNumber((primaryLapTime ?? 0) - (compareLapTime ?? 0), 3)} s.` : "Seleziona un giro o un altro file per sovrapporre i dati."}
                           </div>
                         ) : null}
@@ -3492,7 +3492,7 @@ export default function TelemetryPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+                  <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
                     Ora puoi analizzare una sessione completa, isolare un giro, sovrapporre un secondo giro dello stesso file e confrontare anche un altro file/turno già analizzato. Il prossimo passo sarà trasformare questi confronti in insight automatici sui punti di miglioramento.
                   </div>
                 </>
@@ -3523,11 +3523,11 @@ export default function TelemetryPage() {
             </div>
 
             <div className="max-h-[calc(90vh-170px)] overflow-y-auto p-5">
-              <div className="mb-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+              <div className="mb-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
                 Controlla l'associazione proposta. Le colonne ignorate non verranno importate. Dopo la conferma salvo
                 riepilogo canali, giri e un campionamento dei dati per i grafici futuri.
                 {csvWizard.aimMetadata?.isAimCsv ? (
-                  <div className="mt-3 rounded-xl bg-white/[0.07] p-3 text-xs leading-5 text-yellow-100">
+                  <div className="mt-3 rounded-xl bg-white/[0.07] p-3 text-xs leading-5 text-[var(--brand-accent)]">
                     <strong>AIM CSV riconosciuto:</strong> {csvWizard.aimMetadata.session || "pista non indicata"} ·{" "}
                     {csvWizard.aimMetadata.vehicle || "veicolo non indicato"} ·{" "}
                     {csvWizard.aimMetadata.racer || "pilota non indicato"} ·{" "}

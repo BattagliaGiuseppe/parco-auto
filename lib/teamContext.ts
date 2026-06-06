@@ -50,6 +50,7 @@ export type TeamSettings = {
   enable_maintenances?: boolean | null;
   enable_notes?: boolean | null;
   modules?: Record<string, boolean> | null;
+  labels?: Record<string, string> | null;
   branding?: Record<string, unknown> | null;
   vehicle_type?: string | null;
   preferences?: Record<string, unknown> | null;

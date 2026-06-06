@@ -21,7 +21,7 @@ export default function SectionCard({
             <div className="min-w-0">
               {title ? (
                 <div className="flex items-center gap-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)] shadow-[0_0_0_4px_rgba(250,204,21,0.14)]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)] shadow-[0_0_0_4px_rgba(var(--brand-accent-rgb),0.14)]" />
                   <h2 className="racing-heading text-[23px] font-bold uppercase italic leading-none tracking-[0.025em] text-[var(--brand-accent)] md:text-[26px]">
                     {title}
                   </h2>

@@ -8,10 +8,13 @@
   --brand-primary: #070a0d;
   --brand-secondary: #111821;
   --brand-accent: #f8c400;
+  --brand-primary-rgb: 7, 10, 13;
+  --brand-secondary-rgb: 17, 24, 33;
+  --brand-accent-rgb: 248, 196, 0;
   --brand-on-accent: #101010;
-  --brand-primary-soft: rgba(248, 196, 0, 0.1);
-  --brand-secondary-soft: rgba(148, 163, 184, 0.12);
-  --brand-accent-soft: rgba(248, 196, 0, 0.16);
+  --brand-primary-soft: rgba(var(--brand-primary-rgb), 0.1);
+  --brand-secondary-soft: rgba(var(--brand-secondary-rgb), 0.16);
+  --brand-accent-soft: rgba(var(--brand-accent-rgb), 0.16);
 
   --surface-page: #080c10;
   --surface-page-soft: #0b1117;
@@ -55,7 +58,7 @@
     font-family: var(--font-body);
     @apply antialiased;
     background:
-      radial-gradient(circle at 74% 0%, rgba(248, 196, 0, 0.16), transparent 25rem),
+      radial-gradient(circle at 74% 0%, rgba(var(--brand-accent-rgb), 0.16), transparent 25rem),
       radial-gradient(circle at 10% 12%, rgba(56, 168, 255, 0.09), transparent 24rem),
       linear-gradient(180deg, #080b0f 0%, #0b1016 42%, #080c10 100%);
     color: var(--text-primary);
@@ -98,7 +101,7 @@
   .app-chassis {
     background:
       linear-gradient(135deg, rgba(255, 255, 255, 0.028) 0 25%, transparent 25% 50%, rgba(255, 255, 255, 0.018) 50% 75%, transparent 75%) 0 0 / 30px 30px,
-      radial-gradient(circle at top right, rgba(248, 196, 0, 0.14), transparent 24rem),
+      radial-gradient(circle at top right, rgba(var(--brand-accent-rgb), 0.14), transparent 24rem),
       radial-gradient(circle at 22% 8%, rgba(56, 168, 255, 0.08), transparent 22rem),
       linear-gradient(180deg, #070a0d 0%, #0b1117 100%);
   }
@@ -117,7 +120,7 @@
     pointer-events: none;
     background:
       linear-gradient(135deg, rgba(255,255,255,0.035) 0 25%, transparent 25% 50%, rgba(255,255,255,0.02) 50% 75%, transparent 75%) 0 0 / 28px 28px,
-      radial-gradient(circle at 78% -18%, rgba(248, 196, 0, 0.22), transparent 24rem),
+      radial-gradient(circle at 78% -18%, rgba(var(--brand-accent-rgb), 0.22), transparent 24rem),
       linear-gradient(180deg, rgba(6, 9, 12, 0.98), rgba(11, 16, 22, 0.78), rgba(8, 12, 16, 0));
     z-index: 0;
   }
@@ -149,7 +152,7 @@
     position: relative;
     overflow: hidden;
     background:
-      radial-gradient(circle at 82% 18%, rgba(248, 196, 0, 0.12), transparent 22rem),
+      radial-gradient(circle at 82% 18%, rgba(var(--brand-accent-rgb), 0.12), transparent 22rem),
       linear-gradient(135deg, rgba(8, 12, 16, 0.98), rgba(15, 20, 27, 0.96)),
       linear-gradient(135deg, rgba(255,255,255,0.04) 0 25%, transparent 25% 50%, rgba(255,255,255,0.022) 50% 75%, transparent 75%) 0 0 / 26px 26px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -163,7 +166,7 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: 4px;
-    background: linear-gradient(180deg, var(--brand-accent), rgba(248, 196, 0, 0.25), transparent);
+    background: linear-gradient(180deg, var(--brand-accent), rgba(var(--brand-accent-rgb), 0.25), transparent);
   }
 
   .race-control-panel::after {
@@ -192,7 +195,7 @@
     height: 3px;
     width: 82px;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--brand-accent), rgba(248, 196, 0, 0));
+    background: linear-gradient(90deg, var(--brand-accent), rgba(var(--brand-accent-rgb), 0));
   }
 
   .race-section-card {
@@ -211,14 +214,14 @@
     right: 0;
     top: 0;
     height: 1px;
-    background: linear-gradient(90deg, rgba(248, 196, 0, 0.75), rgba(248, 196, 0, 0.12), transparent 74%);
+    background: linear-gradient(90deg, rgba(var(--brand-accent-rgb), 0.75), rgba(var(--brand-accent-rgb), 0.12), transparent 74%);
     z-index: 2;
   }
 
   .section-card-header {
     position: relative;
     background:
-      radial-gradient(circle at right top, rgba(248, 196, 0, 0.12), transparent 13rem),
+      radial-gradient(circle at right top, rgba(var(--brand-accent-rgb), 0.12), transparent 13rem),
       linear-gradient(135deg, rgba(14, 20, 27, 0.98), rgba(9, 13, 18, 0.98));
     border-bottom: 1px solid rgba(255, 255, 255, 0.09);
     color: var(--text-on-dark);
@@ -260,7 +263,7 @@
     bottom: 0.82rem;
     width: 3px;
     border-radius: 999px;
-    background: linear-gradient(180deg, var(--brand-accent), rgba(248, 196, 0, 0.15));
+    background: linear-gradient(180deg, var(--brand-accent), rgba(var(--brand-accent-rgb), 0.15));
     opacity: 0.72;
   }
 
@@ -273,7 +276,7 @@
   }
 
   .data-row:hover {
-    border-color: rgba(248, 196, 0, 0.34);
+    border-color: rgba(var(--brand-accent-rgb), 0.34);
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
     transform: translateY(-1px);
   }
@@ -303,7 +306,7 @@
     height: 7rem;
     width: 7rem;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(248, 196, 0, 0.11), transparent 64%);
+    background: radial-gradient(circle, rgba(var(--brand-accent-rgb), 0.11), transparent 64%);
     pointer-events: none;
   }
 
@@ -314,7 +317,7 @@
     border-radius: 0.85rem;
     font-weight: 900;
     transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 10px 22px rgba(248, 196, 0, 0.18);
+    box-shadow: 0 10px 22px rgba(var(--brand-accent-rgb), 0.18);
   }
 
   .btn-primary:hover {
@@ -343,8 +346,8 @@
   }
 
   .sidebar-link-active {
-    background: linear-gradient(90deg, rgba(248, 196, 0, 0.18), rgba(255, 255, 255, 0.045));
-    border-color: rgba(248, 196, 0, 0.28);
+    background: linear-gradient(90deg, rgba(var(--brand-accent-rgb), 0.18), rgba(255, 255, 255, 0.045));
+    border-color: rgba(var(--brand-accent-rgb), 0.28);
     color: var(--brand-accent);
   }
 
@@ -357,7 +360,7 @@
     width: 3px;
     border-radius: 999px;
     background: var(--brand-accent);
-    box-shadow: 0 0 18px rgba(248, 196, 0, 0.35);
+    box-shadow: 0 0 18px rgba(var(--brand-accent-rgb), 0.35);
   }
 
   .card {
@@ -369,9 +372,9 @@
   }
 
   .race-info-box {
-    border: 1px solid rgba(248, 196, 0, 0.30);
-    background: linear-gradient(180deg, rgba(248, 196, 0, 0.12), rgba(248, 196, 0, 0.055));
-    color: #ffe27a;
+    border: 1px solid rgba(var(--brand-accent-rgb), 0.30);
+    background: linear-gradient(180deg, rgba(var(--brand-accent-rgb), 0.12), rgba(var(--brand-accent-rgb), 0.055));
+    color: var(--brand-accent);
     border-radius: 1rem;
     padding: 1rem;
   }
@@ -413,7 +416,7 @@
   .race-action-secondary:hover {
     background: rgba(255,255,255,0.085);
     color: var(--text-primary);
-    border-color: rgba(248, 196, 0, 0.28);
+    border-color: rgba(var(--brand-accent-rgb), 0.28);
     transform: translateY(-1px);
   }
 
@@ -437,7 +440,7 @@
 
   .modal-panel {
     background:
-      radial-gradient(circle at 88% 0%, rgba(248,196,0,0.15), transparent 16rem),
+      radial-gradient(circle at 88% 0%, rgba(var(--brand-accent-rgb),0.15), transparent 16rem),
       linear-gradient(180deg, rgba(24, 32, 42, 0.995), rgba(13, 20, 28, 0.995));
     color: var(--text-primary);
     border: 1px solid rgba(255,255,255,0.22);
@@ -458,7 +461,7 @@
 
   .form-control-dark:focus {
     border-color: var(--brand-accent);
-    box-shadow: 0 0 0 4px rgba(248,196,0,0.13);
+    box-shadow: 0 0 0 4px rgba(var(--brand-accent-rgb),0.13);
   }
 
   .form-control-dark::placeholder { color: rgba(216,222,233,0.62); }
@@ -472,9 +475,9 @@
 
   input[type="file"].form-control-dark::file-selector-button {
     margin-right: 0.8rem;
-    border: 1px solid rgba(248,196,0,0.34);
+    border: 1px solid rgba(var(--brand-accent-rgb),0.34);
     border-radius: 0.75rem;
-    background: rgba(248,196,0,0.14);
+    background: rgba(var(--brand-accent-rgb),0.14);
     color: var(--brand-accent);
     padding: 0.48rem 0.72rem;
     font-weight: 900;
@@ -482,7 +485,7 @@
   }
 
   input[type="file"].form-control-dark:hover::file-selector-button {
-    background: rgba(248,196,0,0.22);
+    background: rgba(var(--brand-accent-rgb),0.22);
   }
 
   input[type="date"].form-control-dark::-webkit-calendar-picker-indicator,

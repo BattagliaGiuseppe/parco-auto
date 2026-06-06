@@ -23,6 +23,15 @@ import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { uploadTeamFile } from "@/lib/storage";
 import { buildBrandingTheme, dispatchBrandingRefresh } from "@/lib/brandingTheme";
+import {
+  DASHBOARD_WIDGET_REGISTRY,
+  DEFAULT_CONTROL_CENTER_LABELS,
+  MODULE_REGISTRY,
+  getDashboardWidgetLabel,
+  getModuleLabel,
+  normalizeControlCenterModules,
+  normalizeControlCenterLabels,
+} from "@/lib/controlCenter";
 import { brandConfig } from "@/lib/brand";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
@@ -93,6 +102,7 @@ type ChecklistItem = {
   id: string;
   label: string;
   input_type: string;
+  options?: string[] | null;
   is_required: boolean;
   order_index: number;
 };
@@ -137,26 +147,9 @@ type SaveVerification = {
 };
 
 
-const DEFAULT_MODULES = {
-  drivers: true,
-  performance: true,
-  inventory: true,
-  telemetry: true,
-  documents: true,
-  mounts: true,
-  tasks: true,
-  attendance: true,
-};
+const DEFAULT_MODULES = normalizeControlCenterModules(null);
 
-const DEFAULT_LABELS = {
-  vehicle: "Auto",
-  driver: "Pilota",
-  event: "Evento",
-  turn: "Turno",
-  component: "Componente",
-  maintenance: "Manutenzione",
-  inventory: "Magazzino",
-};
+const DEFAULT_LABELS = DEFAULT_CONTROL_CENTER_LABELS;
 
 const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
   showLogoInHeader: true,
@@ -168,19 +161,7 @@ const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
   printLetterheadMode: "logo_title_subtitle",
 };
 
-const DASHBOARD_WIDGET_OPTIONS = [
-  { code: "cars_ready", label: "Mezzi pronti" },
-  { code: "components_alerts", label: "Componenti critici" },
-  { code: "upcoming_events", label: "Prossimi eventi" },
-  { code: "maintenances_open", label: "Manutenzioni aperte" },
-  { code: "drivers_documents", label: "Documenti piloti" },
-  { code: "tasks_open", label: "Attività aperte" },
-  { code: "inventory_low_stock", label: "Magazzino sotto soglia" },
-] as const;
-
-function getDashboardWidgetLabel(code: string) {
-  return DASHBOARD_WIDGET_OPTIONS.find((item) => item.code === code)?.label || "Widget dashboard";
-}
+const DASHBOARD_WIDGET_OPTIONS = DASHBOARD_WIDGET_REGISTRY;
 
 function normalizeSetupOptions(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -319,7 +300,7 @@ function ToggleBox({
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -781,8 +762,8 @@ export default function SettingsPage() {
       const normalizedSettings: AppSettingsRow = {
         ...rawSettings,
         dashboard_layout: rawSettings.dashboard_layout || {},
-        modules: { ...DEFAULT_MODULES, ...(rawSettings.modules || {}) },
-        labels: { ...DEFAULT_LABELS, ...(rawSettings.labels || {}) },
+        modules: normalizeControlCenterModules(rawSettings),
+        labels: normalizeControlCenterLabels(rawSettings.labels as any),
         branding: buildBrandingFromSettings(rawSettings),
       };
 
@@ -801,7 +782,7 @@ export default function SettingsPage() {
       setChecklists(
         groups.map((group) => ({
           ...group,
-          items: items.filter((item) => item.checklist_id === group.id),
+          items: items.filter((item) => item.checklist_id === group.id).map((item) => ({ ...item, options: normalizeSetupOptions((item as any).options) })),
         }))
       );
 
@@ -833,14 +814,10 @@ export default function SettingsPage() {
     const requestedPrimary = normalizeHex(settings.primary_color, "#171717");
     const requestedSecondary = normalizeHex(settings.secondary_color, "#262626");
     if (requestedPrimary !== effectiveBrandingTheme.colors.primary) {
-      warnings.push(
-        "Primary color troppo chiaro per il tema Dark Race Control: nell'app reale viene usato un fallback scuro per proteggere la leggibilità."
-      );
+      warnings.push("Primary color non valido: verrà usato il fallback sicuro.");
     }
     if (requestedSecondary !== effectiveBrandingTheme.colors.secondary) {
-      warnings.push(
-        "Secondary color troppo chiaro per superfici dark: nell'app reale viene usato un fallback scuro."
-      );
+      warnings.push("Secondary color non valido: verrà usato il fallback sicuro.");
     }
     return warnings;
   }, [effectiveBrandingTheme, settings]);
@@ -1058,6 +1035,7 @@ async function saveAll() {
             .map((item, itemIndex) => ({
               label: item.label.trim(),
               input_type: item.input_type || "status",
+              options: item.input_type === "select" ? normalizeSetupOptions(item.options) : [],
               is_required: item.is_required,
               order_index: itemIndex + 1,
             })),
@@ -1319,7 +1297,7 @@ async function saveAll() {
         ) : null}
 
         {themeCompatibilityWarnings.length > 0 ? (
-          <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+          <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
             <div className="flex items-start gap-3">
               <Eye size={18} className="mt-0.5 shrink-0" />
               <div>
@@ -1603,7 +1581,7 @@ async function saveAll() {
             ))}
           </div>
           {themeCompatibilityWarnings.length > 0 ? (
-            <div className="mt-4 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-sm leading-6 text-yellow-100">
+            <div className="mt-4 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-sm leading-6 text-[var(--brand-accent)]">
               Alcuni colori richiesti non sono applicati perché romperebbero il contrasto del tema scuro. La preview locale mostra il valore scelto, mentre il tema reale usa il valore applicato qui sopra.
             </div>
           ) : null}
@@ -1633,9 +1611,9 @@ async function saveAll() {
       sidebarLogoUrl={previewBranding.sidebar_logo_url}
       headerLogoUrl={previewBranding.header_logo_url}
       printLogoUrl={previewBranding.print_logo_url}
-      primaryColor={normalizeHex(settings.primary_color, "#171717")}
-      secondaryColor={normalizeHex(settings.secondary_color, "#262626")}
-      accentColor={normalizeHex(settings.accent_color, "#facc15")}
+      primaryColor={effectiveBrandingTheme?.colors.primary || normalizeHex(settings.primary_color, "#171717")}
+      secondaryColor={effectiveBrandingTheme?.colors.secondary || normalizeHex(settings.secondary_color, "#262626")}
+      accentColor={effectiveBrandingTheme?.colors.accent || normalizeHex(settings.accent_color, "#facc15")}
       labels={{ ...DEFAULT_LABELS, ...(settings.labels || {}) }}
       config={previewBranding.branding_config}
     />
@@ -1669,28 +1647,37 @@ async function saveAll() {
             subtitle="Attiva i moduli e governa alert e soglie di default."
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {Object.entries({ ...(settings.modules || DEFAULT_MODULES) }).map(
-                ([key, enabled]) => (
+              {MODULE_REGISTRY.filter((module) => module.visibleInControlCenter).map((module) => {
+                const enabled = normalizeControlCenterModules(settings)[module.id];
+                const dependenciesDisabled = module.dependsOn?.filter((dep) => !normalizeControlCenterModules(settings)[dep]) || [];
+                return (
                   <label
-                    key={key}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3"
+                    key={module.id}
+                    className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3"
                   >
-                    <span className="font-semibold capitalize text-[var(--text-primary)]">
-                      {key}
+                    <span>
+                      <span className="block font-semibold text-[var(--text-primary)]">
+                        {getModuleLabel(module.id, settings.labels)}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">
+                        {module.description}
+                        {dependenciesDisabled.length > 0 ? ` Dipende da: ${dependenciesDisabled.map((dep) => getModuleLabel(dep, settings.labels)).join(", ")}.` : ""}
+                      </span>
                     </span>
                     <input
                       type="checkbox"
                       checked={!!enabled}
+                      disabled={dependenciesDisabled.length > 0}
                       onChange={(e) =>
                         patchSetting("modules", {
-                          ...(settings.modules || DEFAULT_MODULES),
-                          [key]: e.target.checked,
+                          ...normalizeControlCenterModules(settings),
+                          [module.id]: e.target.checked,
                         })
                       }
                     />
                   </label>
-                )
-              )}
+                );
+              })}
             </div>
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Warning ore default">
@@ -1894,7 +1881,7 @@ async function saveAll() {
                   {group.items.map((item, itemIndex) => (
                     <div
                       key={item.id}
-                      className="grid grid-cols-1 gap-3 md:grid-cols-[1.5fr_160px_110px_40px]"
+                      className="grid grid-cols-1 gap-3 md:grid-cols-[1.5fr_170px_110px_40px]"
                     >
                       <Input
                         value={item.label}
@@ -1936,6 +1923,9 @@ async function saveAll() {
                         <option value="status">Status</option>
                         <option value="text">Testo</option>
                         <option value="number">Numero</option>
+                        <option value="select">Select</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="date">Data</option>
                       </Select>
                       <ToggleBox
                         label="Obbl."
@@ -1972,6 +1962,30 @@ async function saveAll() {
                       >
                         <Trash2 size={16} className="mx-auto" />
                       </button>
+                      {item.input_type === "select" ? (
+                        <div className="md:col-span-4">
+                          <Label>Opzioni select</Label>
+                          <Textarea
+                            rows={3}
+                            value={optionsToText(item.options)}
+                            onChange={(e) =>
+                              setChecklists((prev) =>
+                                prev.map((g, i) =>
+                                  i === groupIndex
+                                    ? {
+                                        ...g,
+                                        items: g.items.map((it, j) =>
+                                          j === itemIndex ? { ...it, options: normalizeSetupOptions(e.target.value) } : it
+                                        ),
+                                      }
+                                    : g
+                                )
+                              )
+                            }
+                            placeholder={"Una opzione per riga\nOK\nDa verificare\nSostituire"}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -1989,6 +2003,7 @@ async function saveAll() {
                                     id: `temp-${Date.now()}`,
                                     label: "",
                                     input_type: "status",
+                                    options: [],
                                     is_required: true,
                                     order_index: g.items.length + 1,
                                   },
@@ -2242,6 +2257,7 @@ async function saveAll() {
                   <option value="sm">Small</option>
                   <option value="md">Medium</option>
                   <option value="lg">Large</option>
+                  <option value="xl">Full width</option>
                 </Select>
                 <ToggleBox
                   label="Attivo"

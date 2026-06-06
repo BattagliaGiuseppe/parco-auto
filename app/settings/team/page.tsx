@@ -84,7 +84,7 @@ function MemberStatusBadge({ active }: { active: boolean }) {
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -581,7 +581,7 @@ export default function TeamAccessPage() {
                       </div>
 
                       {isLastOwner ? (
-                        <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
+                        <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-[var(--brand-accent)]">
                           Questo è l&apos;ultimo owner attivo del team: non può essere disattivato né retrocesso finché non esiste un altro owner attivo.
                         </div>
                       ) : null}
@@ -792,7 +792,7 @@ export default function TeamAccessPage() {
                     {selectedMemberEffectivePermissions.map((code) => (
                       <span
                         key={code}
-                        className="inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-100"
+                        className="inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-[var(--brand-accent)]"
                       >
                         {code}
                       </span>
