@@ -308,14 +308,15 @@ export function normalizeWidgetSize(value?: string | null): "sm" | "md" | "lg" |
 export function dashboardWidgetClassName(size?: string | null) {
   switch (normalizeWidgetSize(size)) {
     case "sm":
-      // Evitiamo widget da 1/3 colonna: con contenuti reali diventano stretti e troppo alti.
-      return "xl:col-span-6";
+      // Vista compatta: utile solo su schermi molto larghi; su desktop normali resta leggibile.
+      return "min-w-0 xl:col-span-6 2xl:col-span-4";
     case "lg":
-      return "xl:col-span-8";
+      // Ampio: sui desktop normali occupa tutta la riga per evitare widget stretti e troppo alti.
+      return "min-w-0 xl:col-span-12 2xl:col-span-8";
     case "xl":
-      return "xl:col-span-12";
+      return "min-w-0 xl:col-span-12";
     default:
-      return "xl:col-span-6";
+      return "min-w-0 xl:col-span-6";
   }
 }
 

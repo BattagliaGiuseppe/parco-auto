@@ -163,16 +163,19 @@ export default function Sidebar() {
   const visibleLinks = links.filter((item) => item.enabled !== false);
 
   const asideStyle: CSSProperties = {
+    // Il primary color identifica il team e deve cambiare la "pelle" della sidebar,
+    // non il testo del menu. Manteniamo overlay scuri per preservare leggibilità anche
+    // con colori team molto accesi.
     background:
-      "radial-gradient(circle at 8% 6%, rgba(var(--brand-primary-signal-rgb),0.24), transparent 16rem), radial-gradient(circle at 88% 14%, rgba(var(--brand-accent-rgb),0.12), transparent 13rem), linear-gradient(180deg, rgba(8,11,15,0.99), rgba(10,15,21,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
+      "radial-gradient(circle at 10% 4%, rgba(var(--brand-primary-rgb),0.72), transparent 18rem), radial-gradient(circle at 90% 12%, rgba(var(--brand-secondary-rgb),0.28), transparent 15rem), linear-gradient(180deg, rgba(var(--brand-primary-rgb),0.42), rgba(7,10,14,0.96) 46%, rgba(7,10,14,0.99)), linear-gradient(135deg, rgba(255,255,255,0.05) 0 25%, transparent 25% 50%, rgba(255,255,255,0.025) 50% 75%, transparent 75%) 0 0 / 28px 28px",
     borderRightColor: "rgba(255,255,255,0.1)",
     color: "#ffffff",
     boxShadow: "18px 0 52px rgba(0,0,0,0.34)",
   };
 
   const mobileButtonStyle: CSSProperties = {
-    backgroundColor: "var(--brand-primary)",
-    color: "var(--brand-primary-signal)",
+    backgroundColor: "rgba(var(--brand-primary-rgb),0.86)",
+    color: "#ffffff",
   };
 
   const fixedBrandCardStyle: CSSProperties = {
@@ -186,8 +189,8 @@ export default function Sidebar() {
   };
 
   const secondaryBadgeStyle: CSSProperties = {
-    backgroundColor: "var(--brand-secondary-soft)",
-    borderColor: "var(--brand-secondary-soft)",
+    backgroundColor: "rgba(var(--brand-secondary-rgb),0.22)",
+    borderColor: "rgba(var(--brand-secondary-rgb),0.32)",
     color: "#ffffff",
   };
 
@@ -252,7 +255,7 @@ export default function Sidebar() {
                 <div className="min-w-0">
                   <div
                     className="truncate text-xs font-semibold uppercase tracking-[0.18em]"
-                    style={{ color: "var(--brand-primary-signal)" }}
+                    style={{ color: "var(--brand-accent)" }}
                   >
                     team
                   </div>

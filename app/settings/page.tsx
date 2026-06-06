@@ -2290,9 +2290,9 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="sm">Compatto</option>
-                  <option value="md">Standard</option>
-                  <option value="lg">Ampio</option>
+                  <option value="sm">Compatto · su schermi larghi</option>
+                  <option value="md">Standard · mezza riga</option>
+                  <option value="lg">Ampio · riga larga</option>
                   <option value="xl">Riga intera</option>
                 </Select>
                 <ToggleBox
