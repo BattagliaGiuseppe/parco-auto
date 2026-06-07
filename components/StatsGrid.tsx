@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { translateKnownText } from "@/lib/i18n";
 
 export type StatItem = {
   label: string;
@@ -30,18 +29,19 @@ const accentClassName: Record<NonNullable<StatItem["tone"]>, string> = {
 };
 
 export default function StatsGrid({ items }: { items: StatItem[] }) {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const tone = item.tone || "neutral";
+        const translatedLabel = t(`ui.${item.label}`, item.label);
         return (
           <div key={`${item.label}-${item.value}`} className="stat-card p-5 transition hover:-translate-y-0.5">
             <div className={`absolute left-0 top-0 z-10 h-full w-1.5 ${accentClassName[tone]}`} />
             <div className="relative z-10 flex items-start justify-between gap-3 pl-2">
               <div className="min-w-0">
-                <div className="racing-kicker text-[var(--text-secondary)]">{translateKnownText(item.label, language)}</div>
+                <div className="racing-kicker text-[var(--text-secondary)]">{translatedLabel}</div>
                 <div
                   className={`technical-number mt-3 text-[38px] font-black leading-none tracking-tight ${toneClassName[tone]} ${
                     item.valueClassName || ""
@@ -57,7 +57,9 @@ export default function StatsGrid({ items }: { items: StatItem[] }) {
               ) : null}
             </div>
             {item.helper ? (
-              <div className="relative z-10 mt-3 pl-2 text-sm leading-5 text-[var(--text-secondary)]">{translateKnownText(item.helper, language)}</div>
+              <div className="relative z-10 mt-3 pl-2 text-sm leading-5 text-[var(--text-secondary)]">
+                {t(`ui.${item.helper}`, item.helper)}
+              </div>
             ) : null}
           </div>
         );

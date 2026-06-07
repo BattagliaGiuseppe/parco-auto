@@ -1,6 +1,7 @@
 "use client";
 
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type PrintLetterheadProps = {
   title: string;
@@ -13,7 +14,8 @@ export default function PrintLetterhead({
   subtitle,
   rightMeta = [],
 }: PrintLetterheadProps) {
-  const today = new Date().toLocaleDateString("it-IT");
+  const { t, language } = useLanguage();
+  const today = new Date().toLocaleDateString(language === "it" ? "it-IT" : language);
   const { theme } = useBrandTheme();
   const mode = theme.brandingConfig.printLetterheadMode || "logo_title_subtitle";
   const logoSrc =
@@ -37,24 +39,24 @@ export default function PrintLetterhead({
             ) : null}
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                team
+                {t("common.team", "team")}
               </div>
               <div className="mt-1 text-2xl font-black text-[var(--text-primary)]">
                 {theme.teamName}
               </div>
               {showSubtitle ? (
                 <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {subtitle || theme.teamSubtitle || ""}
+                  {subtitle ? t(`ui.${subtitle}`, subtitle) : theme.teamSubtitle || ""}
                 </div>
               ) : null}
             </div>
           </div>
 
           <div className="grid min-w-[220px] grid-cols-1 gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-secondary)]">
-            <MetaRow label="Documento" value={title} />
-            <MetaRow label="Data stampa" value={today} />
+            <MetaRow label={t("print.document", "Documento")} value={t(`ui.${title}`, title)} />
+            <MetaRow label={t("print.date", "Data stampa")} value={today} />
             {rightMeta.map((item) => (
-              <MetaRow key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
+              <MetaRow key={`${item.label}-${item.value}`} label={t(`ui.${item.label}`, item.label)} value={item.value} />
             ))}
           </div>
         </div>

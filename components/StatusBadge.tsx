@@ -1,7 +1,6 @@
 "use client";
 
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { translateKnownText } from "@/lib/i18n";
 
 export default function StatusBadge({
   label,
@@ -10,7 +9,7 @@ export default function StatusBadge({
   label: string;
   tone?: "neutral" | "green" | "yellow" | "red" | "blue" | "purple";
 }) {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const classes = {
     neutral: "border-white/15 bg-white/[0.06] text-white/72 before:bg-white/42",
     green: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 before:bg-emerald-400",
@@ -24,7 +23,7 @@ export default function StatusBadge({
     <span
       className={`relative inline-flex items-center gap-2 rounded-md border py-1 pl-2.5 pr-3 text-[10px] font-black uppercase tracking-[0.14em] before:h-1.5 before:w-1.5 before:rounded-full ${classes[tone]}`}
     >
-      {translateKnownText(label, language)}
+      {t(`ui.${label}`, label)}
     </span>
   );
 }

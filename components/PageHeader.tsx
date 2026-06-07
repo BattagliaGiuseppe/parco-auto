@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { translateKnownText } from "@/lib/i18n";
 
 export default function PageHeader({
   title,
@@ -17,10 +16,8 @@ export default function PageHeader({
   actions?: ReactNode;
 }) {
   const { theme } = useBrandTheme();
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const compact = theme.brandingConfig.compactHeader;
-  const translatedTitle = translateKnownText(title, language);
-  const translatedSubtitle = subtitle ? translateKnownText(subtitle, language) : subtitle;
 
   return (
     <header className={`race-control-panel ${compact ? "p-5" : "p-6 md:p-7"}`}>
@@ -47,7 +44,7 @@ export default function PageHeader({
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate racing-kicker text-white/55">{t("common.team")}</div>
+                  <div className="truncate racing-kicker text-white/55">{t("common.team", "team")}</div>
                   <div className="truncate text-sm font-extrabold text-white">
                     {theme.teamName}
                   </div>
@@ -67,12 +64,12 @@ export default function PageHeader({
                 compact ? "text-[30px]" : "text-4xl md:text-[52px]"
               }`}
             >
-              {translatedTitle}
+              {t(`ui.${title}`, title)}
             </h1>
 
             {subtitle ? (
               <p className="mt-3 max-w-3xl text-sm leading-6 text-white/68 md:text-[15px]">
-                {translatedSubtitle}
+                {t(`ui.${subtitle}`, subtitle)}
               </p>
             ) : null}
           </div>

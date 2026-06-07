@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { translateKnownText } from "@/lib/i18n";
 
 export function UiField({
   label,
@@ -13,13 +12,17 @@ export function UiField({
   hint?: string;
   children: ReactNode;
 }) {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-bold text-[var(--text-primary)]">{translateKnownText(label, language)}</span>
+      <span className="text-sm font-bold text-[var(--text-primary)]">{t(`ui.${label}`, label)}</span>
       {children}
-      {hint ? <span className="block text-xs leading-5 text-[var(--text-secondary)]">{translateKnownText(hint, language)}</span> : null}
+      {hint ? (
+        <span className="block text-xs leading-5 text-[var(--text-secondary)]">
+          {t(`ui.${hint}`, hint)}
+        </span>
+      ) : null}
     </label>
   );
 }

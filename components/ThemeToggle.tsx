@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function ThemeToggle() {
+  const { t } = useLanguage();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -27,8 +29,10 @@ export default function ThemeToggle() {
     <button
       onClick={toggleTheme}
       className="px-3 py-1 rounded bg-gray-300 dark:bg-gray-700"
+      aria-label={dark ? t("theme.dark", "Tema scuro") : t("theme.light", "Tema chiaro")}
+      title={dark ? t("theme.dark", "Tema scuro") : t("theme.light", "Tema chiaro")}
     >
-      {dark ? "🌙 Dark" : "☀️ Light"}
+      {dark ? `🌙 ${t("theme.darkShort", "Scuro")}` : `☀️ ${t("theme.lightShort", "Chiaro")}`}
     </button>
   );
 }

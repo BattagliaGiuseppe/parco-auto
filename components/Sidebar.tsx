@@ -301,7 +301,7 @@ export default function Sidebar() {
                       onClick={() => setOpen(false)}
                     >
                       {link.icon}
-                      <span>{link.label}</span>
+                      <span>{t(`ui.${link.label}`, link.label)}</span>
                     </Link>
                   );
                 })}

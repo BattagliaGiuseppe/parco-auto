@@ -1,7 +1,6 @@
 "use client";
 
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { translateKnownText } from "@/lib/i18n";
 
 export default function FormStatusBanner({
   type,
@@ -12,7 +11,7 @@ export default function FormStatusBanner({
   message: string;
   className?: string;
 }) {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const classes =
     type === "success"
       ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
@@ -24,7 +23,7 @@ export default function FormStatusBanner({
     <div
       className={`rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 shadow-[0_12px_34px_rgba(0,0,0,0.18)] ${classes} ${className}`.trim()}
     >
-      {translateKnownText(message, language)}
+      {t(`ui.${message}`, message)}
     </div>
   );
 }

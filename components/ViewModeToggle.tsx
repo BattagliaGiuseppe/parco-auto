@@ -23,9 +23,11 @@ export default function ViewModeToggle({ value, onChange }: Props) {
             : "text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
         }`}
         aria-pressed={value === "compact"}
+        aria-label={t("view.compact", "Sintetica")}
+        title={t("view.compact", "Sintetica")}
       >
         <List size={15} />
-        {t("viewMode.compact", "Sintetica")}
+        {t("view.compact", "Sintetica")}
       </button>
       <button
         type="button"
@@ -36,9 +38,11 @@ export default function ViewModeToggle({ value, onChange }: Props) {
             : "text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
         }`}
         aria-pressed={value === "cards"}
+        aria-label={t("view.cards", "Schede")}
+        title={t("view.cards", "Schede")}
       >
         <LayoutGrid size={15} />
-        {t("viewMode.cards", "Schede")}
+        {t("view.cards", "Schede")}
       </button>
     </div>
   );

@@ -5,9 +5,11 @@ import ThemeToggle from "./ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function Navbar() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
@@ -28,12 +30,12 @@ export default function Navbar() {
   return (
     <nav className="flex justify-between items-center p-4 shadow-md bg-gray-100 dark:bg-gray-800">
       <div className="flex gap-4">
-        <Link href="/">🏠 Home</Link>
+        <Link href="/">🏠 {t("nav.home", "Home")}</Link>
         {session && (
           <>
-            <Link href="/cars">🚗 Auto</Link>
-            <Link href="/components">⚙️ Componenti</Link>
-            <Link href="/maintenances">🛠️ Manutenzioni</Link>
+            <Link href="/cars">🚗 {t("module.cars", "Auto")}</Link>
+            <Link href="/components">⚙️ {t("module.components", "Componenti")}</Link>
+            <Link href="/maintenances">🛠️ {t("module.maintenances", "Manutenzioni")}</Link>
           </>
         )}
       </div>
@@ -44,11 +46,11 @@ export default function Navbar() {
             onClick={handleLogout}
             className="px-3 py-1 bg-red-500 text-white rounded"
           >
-            Logout
+            {t("common.logout", "Logout")}
           </button>
         ) : (
           <Link href="/login" className="px-3 py-1 bg-blue-600 text-white rounded">
-            Login
+            {t("auth.login", "Login")}
           </Link>
         )}
       </div>
