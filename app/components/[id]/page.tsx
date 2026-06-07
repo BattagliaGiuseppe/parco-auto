@@ -1178,6 +1178,8 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="modal-panel dark-scrollbar max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl p-6">
@@ -1195,7 +1197,7 @@ function ModalShell({
           <button
             onClick={onClose}
             className="rounded-xl bg-neutral-100 p-2 text-[var(--text-secondary)] hover:bg-neutral-200"
-            aria-label={tr("Chiudi")}
+            aria-label={t("common.close", "Chiudi")}
           >
             <X size={18} />
           </button>
