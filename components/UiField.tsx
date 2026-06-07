@@ -1,4 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import { translateKnownText } from "@/lib/i18n";
 
 export function UiField({
   label,
@@ -9,11 +13,13 @@ export function UiField({
   hint?: string;
   children: ReactNode;
 }) {
+  const { language } = useLanguage();
+
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
+      <span className="text-sm font-bold text-[var(--text-primary)]">{translateKnownText(label, language)}</span>
       {children}
-      {hint ? <span className="block text-xs leading-5 text-[var(--text-secondary)]">{hint}</span> : null}
+      {hint ? <span className="block text-xs leading-5 text-[var(--text-secondary)]">{translateKnownText(hint, language)}</span> : null}
     </label>
   );
 }

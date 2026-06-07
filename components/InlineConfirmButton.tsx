@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import { translateKnownText } from "@/lib/i18n";
 
 export default function InlineConfirmButton({
   label = "Elimina",
@@ -22,6 +24,7 @@ export default function InlineConfirmButton({
   compact?: boolean;
   icon?: React.ReactNode;
 }) {
+  const { language, t } = useLanguage();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +43,7 @@ export default function InlineConfirmButton({
       <div className={compact ? "flex items-center gap-2" : "flex flex-col gap-3 rounded-2xl border border-red-400/25 bg-red-400/10 p-3"}>
         <div className="flex items-center gap-2 text-sm font-semibold text-red-100">
           <AlertTriangle size={16} />
-          <span>{message}</span>
+          <span>{translateKnownText(message, language)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -49,14 +52,14 @@ export default function InlineConfirmButton({
             disabled={busy}
             className="race-action-danger bg-red-500/20 px-4 py-2.5 text-sm disabled:opacity-70"
           >
-            {busy ? "Attendi..." : confirmLabel}
+            {busy ? t("common.wait", "Attendi...") : translateKnownText(confirmLabel, language)}
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
             className="race-action-secondary px-4 py-2.5 text-sm"
           >
-            {cancelLabel}
+            {translateKnownText(cancelLabel, language)}
           </button>
         </div>
       </div>
@@ -67,7 +70,7 @@ export default function InlineConfirmButton({
     <button type="button" onClick={() => setConfirming(true)} className={className}>
       <span className="inline-flex items-center gap-2">
         {icon ? icon : null}
-        <span>{label}</span>
+        <span>{translateKnownText(label, language)}</span>
       </span>
     </button>
   );

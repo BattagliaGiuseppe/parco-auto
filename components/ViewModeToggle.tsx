@@ -2,6 +2,7 @@
 
 import { LayoutGrid, List } from "lucide-react";
 import type { ViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type Props = {
   value: ViewMode;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export default function ViewModeToggle({ value, onChange }: Props) {
+  const { t } = useLanguage();
+
   return (
     <div className="inline-flex rounded-2xl border border-white/15 bg-white/[0.045] p-1">
       <button
@@ -22,7 +25,7 @@ export default function ViewModeToggle({ value, onChange }: Props) {
         aria-pressed={value === "compact"}
       >
         <List size={15} />
-        Sintetica
+        {t("viewMode.compact", "Sintetica")}
       </button>
       <button
         type="button"
@@ -35,7 +38,7 @@ export default function ViewModeToggle({ value, onChange }: Props) {
         aria-pressed={value === "cards"}
       >
         <LayoutGrid size={15} />
-        Schede
+        {t("viewMode.cards", "Schede")}
       </button>
     </div>
   );

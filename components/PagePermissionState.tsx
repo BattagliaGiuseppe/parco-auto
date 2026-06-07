@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import EmptyState from "@/components/EmptyState";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import { translateKnownText } from "@/lib/i18n";
 
 export default function PagePermissionState({
   title,
@@ -18,6 +20,7 @@ export default function PagePermissionState({
   state: "loading" | "error" | "denied";
   message?: string;
 }) {
+  const { language } = useLanguage();
   const copy =
     state === "loading"
       ? {
@@ -38,7 +41,7 @@ export default function PagePermissionState({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={title} subtitle={subtitle} icon={icon} />
+      <PageHeader title={translateKnownText(title, language)} subtitle={translateKnownText(subtitle, language)} icon={icon} />
       <SectionCard>
         <EmptyState title={copy.title} description={copy.description} />
       </SectionCard>
