@@ -17,11 +17,13 @@ import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
+  const translatedChildren = typeof children === "string" ? t(`ui.${children.trim()}`, children) : children;
   return (
     <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
-        <div>{children}</div>
+        <div>{translatedChildren}</div>
       </div>
     </div>
   );
@@ -219,7 +221,7 @@ export default function CarDocumentsPage() {
                 className="btn-primary inline-flex items-center px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Upload size={16} className="mr-2 inline" />
-                {saving ? "Caricamento..." : "Aggiungi documento"}
+                {saving ? tr("Caricamento...") : tr("Aggiungi documento")}
               </button>
             </div>
           </div>

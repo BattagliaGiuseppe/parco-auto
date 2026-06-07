@@ -33,6 +33,7 @@ import FormStatusBanner from "@/components/FormStatusBanner";
 import InlineConfirmButton from "@/components/InlineConfirmButton";
 import PagePermissionState from "@/components/PagePermissionState";
 import { UiField, uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type EventInfo = {
   id: string;
@@ -488,23 +489,25 @@ function StatusChip({
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
       <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
 
 function SmallMetric({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
@@ -517,9 +520,10 @@ function CompareSection({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{t(`ui.${title}`, title)}</div>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -607,9 +611,10 @@ function DetailGrid({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">{t(`ui.${title}`, title)}</div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">{children}</div>
     </div>
   );

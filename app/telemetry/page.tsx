@@ -220,11 +220,12 @@ function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <label className="block space-y-2 text-sm font-semibold text-[var(--text-secondary)]">
       <span className="flex items-center gap-2">
-        {label}
-        {hint ? <span className="text-xs font-normal text-[var(--text-muted)]">{hint}</span> : null}
+        {t(`ui.${label}`, label)}
+        {hint ? <span className="text-xs font-normal text-[var(--text-muted)]">{t(`ui.${hint}`, hint)}</span> : null}
       </span>
       {children}
     </label>
@@ -232,13 +233,15 @@ function Field({
 }
 
 function InfoBlock({ children }: { children: ReactNode }) {
+  const { t } = useLanguage();
+  const translatedChildren = typeof children === "string" ? t(`ui.${children.trim()}`, children) : children;
   return (
     <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="mb-2 flex items-center gap-2 font-bold text-[var(--brand-accent)]">
         <Info size={16} />
-        Telemetria intelligente
+        {t("ui.Telemetria intelligente", "Telemetria intelligente")}
       </div>
-      {children}
+      {translatedChildren}
     </div>
   );
 }
@@ -2653,7 +2656,7 @@ export default function TelemetryPage() {
                     <div>
                       <div className="font-bold"><LocalizedText text="Import guidato CSV disponibile" /></div>
                       <div className="mt-1 text-xs leading-5">
-                        Leggo intestazioni e prime righe, propongo la mappatura dei canali e salvo un campionamento per i grafici futuri.
+                        <LocalizedText text="Leggo intestazioni e prime righe, propongo la mappatura dei canali e salvo un campionamento per i grafici futuri." />
                       </div>
                     </div>
                     <button
@@ -2662,7 +2665,7 @@ export default function TelemetryPage() {
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20"
                     >
                       <PlayCircle size={15} />
-                      Leggi canali CSV
+                      <LocalizedText text="Leggi canali CSV" />
                     </button>
                   </div>
                 </div>
@@ -2679,11 +2682,11 @@ export default function TelemetryPage() {
                           {parsedCsvDraft.summary.channels_count} canali · {parsedCsvDraft.summary.samples_count} campioni letti · {parsedCsvDraft.summary.sampled_points_count} punti salvati per grafici · {parsedCsvDraft.summary.laps_count} giri rilevati.
                         </div>
                         <div className="mt-2 text-xs font-semibold text-emerald-800">
-                          Passaggio finale: clicca “Salva telemetria analizzata”. Dopo il salvataggio il file comparirà nell’archivio con il pulsante “Analizza”.
+                          <LocalizedText text="Passaggio finale: clicca “Salva telemetria analizzata”. Dopo il salvataggio il file comparirà nell’archivio con il pulsante “Analizza”." />
                         </div>
                         {parsedCsvDraft.summary.warnings.length > 0 ? (
                           <div className="mt-2 text-xs text-emerald-800">
-                            Avvisi: {parsedCsvDraft.summary.warnings.join(" ")}
+                            <LocalizedText text="Avvisi" />: {parsedCsvDraft.summary.warnings.join(" ")}
                           </div>
                         ) : null}
                       </div>
@@ -2695,7 +2698,7 @@ export default function TelemetryPage() {
                       className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Upload size={15} />
-                      {saving ? "Salvataggio..." : "Salva telemetria analizzata"}
+                      {saving ? tr("Salvataggio...") : tr("Salva telemetria analizzata")}
                     </button>
                   </div>
                 </div>
@@ -2773,8 +2776,7 @@ export default function TelemetryPage() {
 
               {selectedTurn ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-5 text-[var(--text-secondary)]">
-                  Il turno selezionato aggiorna automaticamente evento, mezzo, pilota e sessione se questi dati sono
-                  presenti sul turno.
+                  <LocalizedText text="Il turno selezionato aggiorna automaticamente evento, mezzo, pilota e sessione se questi dati sono presenti sul turno." />
                 </div>
               ) : null}
 
@@ -3024,7 +3026,7 @@ export default function TelemetryPage() {
                               className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {deletingFileId === row.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                              Elimina
+                              <LocalizedText text="Elimina" />
                             </button>
                           ) : null}
                         </div>
@@ -3056,7 +3058,7 @@ export default function TelemetryPage() {
                         {canEditTelemetry ? (
                           <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/20">
                             <Database size={15} />
-                            Importa CSV
+                            <LocalizedText text="Importa CSV" />
                             <input
                               type="file"
                               accept=".csv,.txt"
@@ -3107,26 +3109,26 @@ export default function TelemetryPage() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-[var(--text-secondary)] md:grid-cols-2 xl:grid-cols-3">
-                      <div>Categoria: {categoryLabel(row.file_category)}</div>
-                      <div>Formato: {safeText(row.data_format)}</div>
-                      <div>Software: {safeText(row.source_software)}</div>
-                      <div>Logger: {safeText(row.logger_model)}</div>
-                      <div>Tracciato: {safeText(row.track_name)}</div>
-                      <div>Evento: {safeText(event?.name)}</div>
-                      <div>Mezzo: {safeText(car?.name)}</div>
-                      <div>Pilota: {driverName(driver)}</div>
-                      <div>Sessione: {safeText(session?.name)}</div>
-                      <div>Turno: {row.event_car_turn_id ? "Collegato" : "—"}</div>
-                      <div>Canali: {row.channels_count || rowChannels.length || 0}</div>
-                      <div>Giri: {row.laps_count || rowLaps.length || 0}</div>
-                      <div>Campioni letti: {row.samples_count || 0}</div>
-                      <div>Punti grafici: {row.sampled_points_count || 0}</div>
-                      <div>Durata: {formatDuration(row.duration_seconds)}</div>
-                      <div>Best lap: {formatDuration(row.best_lap_seconds)}</div>
+                      <div>{tr("Categoria")}: {categoryLabel(row.file_category)}</div>
+                      <div>{tr("Formato")}: {safeText(row.data_format)}</div>
+                      <div>{tr("Software")}: {safeText(row.source_software)}</div>
+                      <div>{tr("Logger")}: {safeText(row.logger_model)}</div>
+                      <div>{tr("Tracciato")}: {safeText(row.track_name)}</div>
+                      <div>{tr("Evento")}: {safeText(event?.name)}</div>
+                      <div>{tr("Mezzo")}: {safeText(car?.name)}</div>
+                      <div>{tr("Pilota")}: {driverName(driver)}</div>
+                      <div>{tr("Sessione")}: {safeText(session?.name)}</div>
+                      <div>{tr("Turno")}: {row.event_car_turn_id ? "Collegato" : "—"}</div>
+                      <div>{tr("Canali")}: {row.channels_count || rowChannels.length || 0}</div>
+                      <div>{tr("Giri")}: {row.laps_count || rowLaps.length || 0}</div>
+                      <div>{tr("Campioni letti")}: {row.samples_count || 0}</div>
+                      <div>{tr("Punti grafici")}: {row.sampled_points_count || 0}</div>
+                      <div>{tr("Durata")}: {formatDuration(row.duration_seconds)}</div>
+                      <div>{tr("Best lap")}: {formatDuration(row.best_lap_seconds)}</div>
                       <div>V max: {formatNumber(row.max_speed, 1)} km/h</div>
                       <div>RPM max: {formatNumber(row.max_rpm, 0)}</div>
-                      <div>Gas medio: {formatNumber(row.avg_throttle, 1)}%</div>
-                      <div>Freno medio: {formatNumber(row.avg_brake, 1)}</div>
+                      <div>{tr("Gas medio")}: {formatNumber(row.avg_throttle, 1)}%</div>
+                      <div>{tr("Freno medio")}: {formatNumber(row.avg_brake, 1)}</div>
                     </div>
 
                     {row.event_car_turn_id ? (

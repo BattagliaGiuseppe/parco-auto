@@ -26,6 +26,7 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { UiField, uiInputClassName, uiSelectClassName, uiTextareaClassName } from "@/components/UiField";
 import { normalizeOptions } from "@/lib/controlCenter";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -100,12 +101,13 @@ function StatusChip({
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel p-4">
       <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="technical-number mt-2 text-lg font-black text-[var(--text-primary)]">{value}</div>
+      <div className="technical-number mt-2 text-lg font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }

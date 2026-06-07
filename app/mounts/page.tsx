@@ -658,7 +658,7 @@ export default function MountsPage() {
                               className="race-action-danger px-4 py-2 text-sm"
                             >
                               <Unlink size={16} className="mr-2 inline" />
-                              Smonta
+                              <LocalizedText text="Smonta" />
                             </button>
                           ) : null}
                         </div>
@@ -696,7 +696,7 @@ export default function MountsPage() {
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="race-mini-panel">
                     <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                      Montato il
+                      <LocalizedText text="Montato il" />
                     </div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {formatDate(mount.mounted_at)}
@@ -716,7 +716,7 @@ export default function MountsPage() {
 
                   <div className="race-mini-panel sm:col-span-2">
                     <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                      Smontato il
+                      <LocalizedText text="Smontato il" />
                     </div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {formatDate(mount.removed_at)}
@@ -752,13 +752,14 @@ export default function MountsPage() {
 }
 
 function InfoMini({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel">
       <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
       <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
-        {value}
+        {t(`ui.${value}`, value)}
       </div>
     </div>
   );

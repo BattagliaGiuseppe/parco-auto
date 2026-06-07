@@ -425,7 +425,7 @@ export default function ComponentsPage() {
 
       {!canEditComponents ? (
         <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 
@@ -443,8 +443,7 @@ export default function ComponentsPage() {
               <LocalizedText text="Ore da revisione" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
-              Sono le ore accumulate dall’ultima revisione/reset e guidano
-              warning e soglia revisione.
+              <LocalizedText text="Sono le ore accumulate dall’ultima revisione/reset e guidano warning e soglia revisione." />
             </div>
           </div>
           <div className="race-mini-panel">
@@ -452,8 +451,7 @@ export default function ComponentsPage() {
               <LocalizedText text="Ore vita accumulate" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
-              Sono lo storico totale del componente: aumentano con i turni e non
-              vengono azzerate dalle revisioni.
+              <LocalizedText text="Sono lo storico totale del componente: aumentano con i turni e non vengono azzerate dalle revisioni." />
             </div>
           </div>
           <div className="race-mini-panel">
@@ -843,12 +841,13 @@ export default function ComponentsPage() {
 }
 
 function InfoMini({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel">
       <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="mt-1 font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="mt-1 font-bold text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
@@ -862,10 +861,11 @@ function Field({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
       {children}

@@ -21,6 +21,7 @@ import PagePermissionState from "@/components/PagePermissionState";
 import { Button } from "@/components/Button";
 import { UiField, uiInputClassName, uiSelectClassName, uiTextareaClassName } from "@/components/UiField";
 import StatusBadge from "@/components/StatusBadge";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type LocationLabel = "sede" | "pista" | "altro";
 type KioskMode = "toggle" | "in" | "out";
@@ -340,12 +341,13 @@ export default function AttendanceKioskPage() {
 }
 
 function KioskInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel flex items-start gap-3 p-4">
       <div className="mt-0.5 text-[var(--brand-accent)]">{icon}</div>
       <div className="min-w-0">
-        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-        <div className="mt-1 text-sm font-bold leading-5 text-[var(--text-primary)]">{value}</div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
+        <div className="mt-1 text-sm font-bold leading-5 text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
       </div>
     </div>
   );

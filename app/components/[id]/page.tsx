@@ -546,7 +546,7 @@ export default function ComponentDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
-          Caricamento componente...
+          <LocalizedText text="Caricamento componente..." />
         </div>
       </div>
     );
@@ -595,7 +595,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-red-50 px-4 py-2 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <Unlink size={16} className="mr-2 inline" />
-                    {savingMount ? "Smontaggio..." : "Smonta componente"}
+                    {savingMount ? tr("Smontaggio...") : tr("Smonta componente")}
                   </button>
                 ) : (
                   <button
@@ -1077,7 +1077,7 @@ export default function ComponentDetailPage() {
               />
               <div>
                 <div className="font-semibold text-[var(--text-primary)]">
-                  Azzera le ore del componente
+                  <LocalizedText text="Azzera le ore del componente" />
                 </div>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
                   Attivalo solo se la revisione riporta il componente a zero ore
@@ -1217,10 +1217,11 @@ function Field({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
       {children}
@@ -1229,19 +1230,21 @@ function Field({
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   return (
     <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-      {children}
+      {typeof children === "string" ? t(`ui.${children}`, children) : children}
     </div>
   );
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
-      <div className="text-sm text-[var(--text-muted)]">{label}</div>
+      <div className="text-sm text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
       <div className="mt-1 text-base font-bold text-[var(--text-primary)]">
-        {value}
+        {t(`ui.${value}`, value)}
       </div>
     </div>
   );

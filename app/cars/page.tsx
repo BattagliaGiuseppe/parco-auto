@@ -567,7 +567,7 @@ export default function CarsPage() {
 
       {!canEditCars ? (
         <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 
@@ -714,7 +714,7 @@ export default function CarsPage() {
                             href={`/components/${component.id}`}
                             className="race-action-secondary px-4 py-2 text-sm"
                           >
-                            Apri componente
+                            <LocalizedText text="Apri componente" />
                           </Link>
                         </div>
                       </div>
@@ -1036,8 +1036,7 @@ export default function CarsPage() {
                                 </Field>
                               ) : (
                                 <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.035] p-4 text-sm text-[var(--text-secondary)]">
-                                  Questo tipo non richiede una scadenza a
-                                  calendario.
+                                  <LocalizedText text="Questo tipo non richiede una scadenza a calendario." />
                                 </div>
                               )}
 
@@ -1102,10 +1101,11 @@ function Field({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="min-w-0">
       <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
       {children}
@@ -1118,11 +1118,12 @@ function FieldHint({ children: _children }: { children: React.ReactNode }) {
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel">
-      <div className="text-sm text-[var(--text-muted)]">{label}</div>
+      <div className="text-sm text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">
-        {value}
+        {t(`ui.${value}`, value)}
       </div>
     </div>
   );

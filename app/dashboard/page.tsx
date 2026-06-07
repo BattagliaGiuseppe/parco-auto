@@ -398,7 +398,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
             href="/settings"
             className="inline-flex rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] shadow-[0_12px_24px_rgba(var(--brand-accent-rgb),0.28)] transition hover:-translate-y-px hover:brightness-95"
           >
-            Configura dashboard
+            <LocalizedText text="Configura dashboard" />
           </Link>
         }
       />
@@ -437,10 +437,11 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 }
 
 function QuickPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="data-row">
-      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--text-muted)]">{icon}{label}</div>
-      <div className="technical-number mt-3 text-3xl font-black leading-none text-[var(--text-primary)]">{value}</div>
+      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--text-muted)]">{icon}{t(`ui.${label}`, label)}</div>
+      <div className="technical-number mt-3 text-3xl font-black leading-none text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }

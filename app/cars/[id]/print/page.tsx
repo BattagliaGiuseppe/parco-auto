@@ -10,6 +10,8 @@ import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import PrintLetterhead from "@/components/PrintLetterhead";
 import PrintDocumentFooter from "@/components/PrintDocumentFooter";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type CarComponent = {
   id: string;
@@ -75,7 +77,7 @@ export default function CarPrintPage() {
   const componentCount = useMemo(() => car?.components?.length || 0, [car]);
 
   if (!car) {
-    return <div className="p-6 text-neutral-500">Caricamento mezzo...</div>;
+    return <div className="p-6 text-neutral-500"><LocalizedText text="Caricamento mezzo..." /></div>;
   }
 
   return (
@@ -142,7 +144,7 @@ export default function CarPrintPage() {
           >
             {componentCount === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] p-5 text-sm text-[var(--text-secondary)]">
-                Nessun componente montato.
+                <LocalizedText text="Nessun componente montato." />
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -173,7 +175,7 @@ export default function CarPrintPage() {
           >
             {documents.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] p-5 text-sm text-[var(--text-secondary)]">
-                Nessun documento collegato.
+                <LocalizedText text="Nessun documento collegato." />
               </div>
             ) : (
               <div className="space-y-2">
@@ -206,6 +208,7 @@ export default function CarPrintPage() {
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
       <div className="text-sm text-[var(--text-secondary)]">{label}</div>

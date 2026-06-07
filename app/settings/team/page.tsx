@@ -71,6 +71,7 @@ function formatDate(value?: string | null) {
 }
 
 function MemberStatusBadge({ active }: { active: boolean }) {
+  const { t } = useLanguage();
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -79,17 +80,19 @@ function MemberStatusBadge({ active }: { active: boolean }) {
           : "border border-white/10 bg-white/[0.08] text-[var(--text-secondary)]"
       }`}
     >
-      {active ? "Attivo" : "Disattivo"}
+      {active ? t("ui.Attivo", "Attivo") : t("ui.Disattivo", "Disattivo")}
     </span>
   );
 }
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
+  const translatedChildren = typeof children === "string" ? t(`ui.${children.trim()}`, children) : children;
   return (
     <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
-        <div>{children}</div>
+        <div>{translatedChildren}</div>
       </div>
     </div>
   );
@@ -427,7 +430,7 @@ export default function TeamAccessPage() {
             className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:border-[var(--brand-accent)]/50 hover:bg-white/[0.1]"
           >
             {reloading ? <Loader2 size={16} className="animate-spin" /> : <CopyPlus size={16} />}
-            Aggiorna dati
+            <LocalizedText text="Aggiorna dati" />
           </button>
         }
       />
@@ -459,7 +462,7 @@ export default function TeamAccessPage() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
             <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Team" /></div>
             <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
-              {settings.team_name || "Team senza nome"}
+              {settings.team_name || tr("Team senza nome")}
             </div>
             <div className="mt-1 text-sm text-[var(--text-secondary)]">
               {settings.team_subtitle || brandConfig.defaultTeamSubtitle}
@@ -469,7 +472,7 @@ export default function TeamAccessPage() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
             <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Tuo ruolo" /></div>
             <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
-              {TEAM_ROLE_LABELS[ctx.role as TeamRole] || ctx.role}
+              {tr(TEAM_ROLE_LABELS[ctx.role as TeamRole] || ctx.role)}
             </div>
             <div className="mt-1 text-sm text-[var(--text-secondary)]"><LocalizedText text="Gestione team corrente" /></div>
           </div>
@@ -477,7 +480,7 @@ export default function TeamAccessPage() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
             <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Nota operativa" /></div>
             <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Questo modulo gestisce membri già collegati al team. Per creare inviti automatici via email servirà un passo successivo dedicato.
+              <LocalizedText text="Questo modulo gestisce membri già collegati al team. Per creare inviti automatici via email servirà un passo successivo dedicato." />
             </div>
           </div>
         </div>
@@ -636,7 +639,7 @@ export default function TeamAccessPage() {
                                     : "border border-white/10 bg-white/[0.08] text-[var(--text-muted)]"
                                 }`}
                               >
-                                {enabled ? "Attivo" : "No"}
+                                {enabled ? tr("Attivo") : tr("No")}
                               </span>
                             </td>
                           );
@@ -697,7 +700,7 @@ export default function TeamAccessPage() {
                     >
                       {OVERRIDE_MODES.map((mode) => (
                         <option key={mode.value} value={mode.value}>
-                          {mode.label}
+                          {tr(mode.label)}
                         </option>
                       ))}
                     </select>
@@ -711,11 +714,11 @@ export default function TeamAccessPage() {
                     className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {savingOverride ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                    Salva override
+                    <LocalizedText text="Salva override" />
                   </button>
 
                   <div className="text-sm text-[var(--text-secondary)]">
-                    Gli override restano associati al membro selezionato anche se il ruolo cambia.
+                    <LocalizedText text="Gli override restano associati al membro selezionato anche se il ruolo cambia." />
                   </div>
                 </div>
 
@@ -754,7 +757,7 @@ export default function TeamAccessPage() {
                                   : "border border-red-400/30 bg-red-500/12 text-red-200"
                               }`}
                             >
-                              {override.is_allowed ? "Consentito" : "Negato"}
+                              {override.is_allowed ? tr("Consentito") : tr("Negato")}
                             </span>
 
                             <button
@@ -763,7 +766,7 @@ export default function TeamAccessPage() {
                               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:border-red-400/40 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                              Rimuovi
+                              <LocalizedText text="Rimuovi" />
                             </button>
                           </div>
                         </div>
@@ -776,13 +779,13 @@ export default function TeamAccessPage() {
               <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
                 <div>
                   <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                    Permessi effettivi membro
+                    <LocalizedText text="Permessi effettivi membro" />
                   </div>
                   <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
-                    {selectedMember?.name || selectedMember?.email || "Seleziona un membro"}
+                    {selectedMember?.name || selectedMember?.email || tr("Seleziona un membro")}
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                    Ruolo base: {selectedMember ? TEAM_ROLE_LABELS[selectedMember.role as TeamRole] || selectedMember.role : "—"}
+                    {tr("Ruolo base")}: {selectedMember ? tr(TEAM_ROLE_LABELS[selectedMember.role as TeamRole] || selectedMember.role) : "—"}
                   </div>
                 </div>
 
@@ -805,7 +808,7 @@ export default function TeamAccessPage() {
                 )}
 
                 <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-4 text-sm leading-6 text-emerald-100">
-                  Permessi, ruoli e override sono gestiti in tempo reale per il team selezionato. Le modifiche hanno effetto sul prossimo caricamento della pagina dell’utente interessato.
+                  <LocalizedText text="Permessi, ruoli e override sono gestiti in tempo reale per il team selezionato. Le modifiche hanno effetto sul prossimo caricamento della pagina dell’utente interessato." />
                 </div>
               </div>
             </div>
@@ -818,7 +821,7 @@ export default function TeamAccessPage() {
             <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner text-sm leading-6 text-[var(--text-secondary)]">
               <UserX className="mt-0.5 shrink-0" size={18} />
               <div>
-                Il modulo attuale copre gestione membri, ruoli e override. Il passo successivo naturale per renderlo ancora più vendibile è aggiungere inviti email e onboarding guidato dei nuovi membri.
+                <LocalizedText text="Il modulo attuale copre gestione membri, ruoli e override. Il passo successivo naturale per renderlo ancora più vendibile è aggiungere inviti email e onboarding guidato dei nuovi membri." />
               </div>
             </div>
           </SectionCard>

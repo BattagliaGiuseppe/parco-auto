@@ -66,12 +66,13 @@ export default function PrintLetterhead({
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-start justify-between gap-3 border-b border-dashed border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </span>
-      <span className="text-right font-semibold text-[var(--text-primary)]">{value}</span>
+      <span className="text-right font-semibold text-[var(--text-primary)]">{t(`ui.${value}`, value)}</span>
     </div>
   );
 }

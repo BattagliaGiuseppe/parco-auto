@@ -257,6 +257,7 @@ function SectionTabs({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { t } = useLanguage();
   const tabs = [
     ["branding", "Branding"],
     ["general", "Generale"],
@@ -280,7 +281,7 @@ function SectionTabs({
               : "border border-white/10 bg-white/[0.06] text-[var(--text-secondary)] hover:border-[var(--brand-accent)]/40 hover:bg-white/[0.1] hover:text-[var(--text-primary)]"
           }`}
         >
-          {label}
+          {t(`ui.${label}`, label)}
         </button>
       ))}
     </div>
@@ -288,9 +289,10 @@ function SectionTabs({
 }
 
 function Label({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   return (
     <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-      {children}
+      {typeof children === "string" ? t(`ui.${children}`, children) : children}
     </label>
   );
 }
@@ -304,19 +306,27 @@ function Field({
   children: React.ReactNode;
   hint?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div>
       <Label>{label}</Label>
       {children}
-      {hint ? <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{hint}</div> : null}
+      {hint ? <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{t(`ui.${hint}`, hint)}</div> : null}
     </div>
   );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const { t } = useLanguage();
+  const translatedProps = {
+    ...props,
+    placeholder: typeof props.placeholder === "string" ? t(`ui.${props.placeholder}`, props.placeholder) : props.placeholder,
+    title: typeof props.title === "string" ? t(`ui.${props.title}`, props.title) : props.title,
+    "aria-label": typeof props["aria-label"] === "string" ? t(`ui.${props["aria-label"]}`, props["aria-label"]) : props["aria-label"],
+  };
   return (
     <input
-      {...props}
+      {...translatedProps}
       className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
       }`.trim()}
@@ -325,9 +335,15 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const { t } = useLanguage();
+  const translatedProps = {
+    ...props,
+    title: typeof props.title === "string" ? t(`ui.${props.title}`, props.title) : props.title,
+    "aria-label": typeof props["aria-label"] === "string" ? t(`ui.${props["aria-label"]}`, props["aria-label"]) : props["aria-label"],
+  };
   return (
     <select
-      {...props}
+      {...translatedProps}
       className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
       }`.trim()}
@@ -336,9 +352,16 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const { t } = useLanguage();
+  const translatedProps = {
+    ...props,
+    placeholder: typeof props.placeholder === "string" ? t(`ui.${props.placeholder}`, props.placeholder) : props.placeholder,
+    title: typeof props.title === "string" ? t(`ui.${props.title}`, props.title) : props.title,
+    "aria-label": typeof props["aria-label"] === "string" ? t(`ui.${props["aria-label"]}`, props["aria-label"]) : props["aria-label"],
+  };
   return (
     <textarea
-      {...props}
+      {...translatedProps}
       className={`w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15 ${
         props.className || ""
       }`.trim()}
@@ -355,9 +378,10 @@ function ToggleBox({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">
-      {label}
+      {t(`ui.${label}`, label)}
       <input
         type="checkbox"
         checked={checked}
@@ -368,11 +392,13 @@ function ToggleBox({
 }
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
+  const translatedChildren = typeof children === "string" ? t(`ui.${children.trim()}`, children) : children;
   return (
     <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
-        <div>{children}</div>
+        <div>{translatedChildren}</div>
       </div>
     </div>
   );
@@ -398,6 +424,7 @@ function StatusPill({
   ok: boolean;
   label: string;
 }) {
+  const { t } = useLanguage();
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] ${
@@ -407,7 +434,7 @@ function StatusPill({
       }`}
     >
       {ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-      {label}
+      {t(`ui.${label}`, label)}
     </span>
   );
 }
@@ -421,13 +448,14 @@ function AuditMetric({
   value: React.ReactNode;
   helper?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
       <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">{value}</div>
-      {helper ? <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{helper}</div> : null}
+      {helper ? <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t(`ui.${helper}`, helper)}</div> : null}
     </div>
   );
 }
@@ -547,6 +575,7 @@ function BrandPreview({
   labels: Record<string, string>;
   config: BrandingConfig;
 }) {
+  const { t } = useLanguage();
   const onAccent = contrastText(accentColor);
   const secondarySoft = hexToRgba(secondaryColor, 0.16);
   const accentSoft = hexToRgba(accentColor, 0.18);
@@ -554,11 +583,10 @@ function BrandPreview({
   return (
     <div className="rounded-[28px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-5 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-        Anteprima realistica branding team
+        {t("ui.Anteprima realistica branding team", "Anteprima realistica branding team")}
       </div>
       <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-        Il brand piattaforma compare solo nella sidebar e nel piè di pagina delle stampe.
-        Nell&apos;header pagina compare solo il branding del team, se attivato.
+        {t("ui.Il brand piattaforma compare solo nella sidebar e nel piè di pagina delle stampe. Nell'header pagina compare solo il branding del team, se attivato.", "Il brand piattaforma compare solo nella sidebar e nel piè di pagina delle stampe. Nell'header pagina compare solo il branding del team, se attivato.")}
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[28px] border border-white/10 shadow-sm">
@@ -575,7 +603,7 @@ function BrandPreview({
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                    piattaforma
+                    {t("ui.Piattaforma", "Piattaforma")}
                   </div>
                   <div className="truncate text-sm font-bold text-white">
                     {brandConfig.appName}
@@ -597,7 +625,7 @@ function BrandPreview({
                 ) : null}
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-                    team
+                    {t("ui.Team", "Team")}
                   </div>
                   <div className="mt-1 truncate text-lg font-bold text-white">
                     {teamName || "Nome team"}
@@ -613,7 +641,7 @@ function BrandPreview({
                 className="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
                 style={{ backgroundColor: secondarySoft, borderColor: secondarySoft, color: "#fff" }}
               >
-                Badge secondario team
+                {t("ui.Badge secondario team", "Badge secondario team")}
               </div>
             </div>
 
@@ -646,7 +674,7 @@ function BrandPreview({
                         </div>
                         <div className="min-w-0">
                           <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                            team
+                            {t("ui.Team", "Team")}
                           </div>
                           <div className="truncate text-sm font-bold text-[var(--text-primary)]">
                             {teamName || "Nome team"}
@@ -656,10 +684,10 @@ function BrandPreview({
                     ) : null}
 
                     <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-[var(--text-primary)]`}>
-                      {labels.event} · Preview
+                      {t(`ui.${labels.event}`, labels.event)} · {t("ui.Preview", "Preview")}
                     </div>
                     <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
-                      Header pagina con solo branding team, senza brand piattaforma.
+                      {t("ui.Header pagina con solo branding team, senza brand piattaforma.", "Header pagina con solo branding team, senza brand piattaforma.")}
                     </div>
                   </div>
 
@@ -667,7 +695,7 @@ function BrandPreview({
                     className="rounded-xl px-4 py-2 text-sm font-bold"
                     style={{ backgroundColor: accentColor, color: onAccent }}
                   >
-                    Azione primaria
+                    {t("ui.Azione primaria", "Azione primaria")}
                   </button>
                 </div>
               </div>
@@ -714,7 +742,7 @@ function BrandPreview({
                     key={`${label}-${index}`}
                     className="rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-4 shadow-sm"
                   >
-                    <div className="text-sm font-semibold text-[var(--text-muted)]">{label}</div>
+                    <div className="text-sm font-semibold text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
                     <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">{index + 2}</div>
                     <div className="mt-1 text-xs text-[var(--text-muted)]"><LocalizedText text="Card KPI" /></div>
                   </div>
@@ -1352,7 +1380,7 @@ async function saveAll() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
-          Caricamento impostazioni...
+          <LocalizedText text="Caricamento impostazioni..." />
         </div>
       </div>
     );
@@ -1382,7 +1410,7 @@ async function saveAll() {
             className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} className="mr-2 inline" />
-            {saving ? "Salvataggio..." : "Salva impostazioni"}
+            {saving ? tr("Salvataggio...") : tr("Salva impostazioni")}
           </button>
         }
       />
@@ -1457,7 +1485,7 @@ async function saveAll() {
               <div>
                 <div className="font-bold"><LocalizedText text="Diagnostica database non disponibile" /></div>
                 <div className="mt-1 text-red-100/80">
-                  {healthError}. Se hai appena caricato questa patch, esegui la query <strong>db/settings_control_center_audit_patch.sql</strong>.
+                  {healthError}. <LocalizedText text="Se hai appena caricato questa patch, esegui la query" /> <strong>db/settings_control_center_audit_patch.sql</strong>.
                 </div>
               </div>
             </div>
@@ -1499,7 +1527,7 @@ async function saveAll() {
       </InfoBlock>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          Brand piattaforma fisso
+          <LocalizedText text="Brand piattaforma fisso" />
         </div>
         <div className="mt-2 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
@@ -1586,10 +1614,10 @@ async function saveAll() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <ImageIcon size={16} />
-              Upload logo sidebar
+              <LocalizedText text="Upload logo sidebar" />
             </div>
             <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-              Carica logo
+              <LocalizedText text="Carica logo" />
               <input
                 type="file"
                 accept="image/*"
@@ -1603,18 +1631,18 @@ async function saveAll() {
             </label>
             <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "sidebar"
-                ? "Caricamento logo sidebar..."
-                : previewBranding.sidebar_logo_url || "Nessun logo sidebar selezionato"}
+                ? tr("Caricamento logo sidebar...")
+                : previewBranding.sidebar_logo_url || tr("Nessun logo sidebar selezionato")}
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <MonitorSmartphone size={16} />
-              Upload logo header
+              <LocalizedText text="Upload logo header" />
             </div>
             <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-              Carica logo
+              <LocalizedText text="Carica logo" />
               <input
                 type="file"
                 accept="image/*"
@@ -1628,18 +1656,18 @@ async function saveAll() {
             </label>
             <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "header"
-                ? "Caricamento logo header..."
-                : previewBranding.header_logo_url || "Nessun logo header selezionato"}
+                ? tr("Caricamento logo header...")
+                : previewBranding.header_logo_url || tr("Nessun logo header selezionato")}
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
               <ImageIcon size={16} />
-              Upload logo stampa
+              <LocalizedText text="Upload logo stampa" />
             </div>
             <label className="inline-flex cursor-pointer items-center rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-              Carica logo
+              <LocalizedText text="Carica logo" />
               <input
                 type="file"
                 accept="image/*"
@@ -1653,8 +1681,8 @@ async function saveAll() {
             </label>
             <div className="mt-3 text-xs text-[var(--text-muted)]">
               {uploadingAsset === "print"
-                ? "Caricamento logo stampa..."
-                : previewBranding.print_logo_url || "Nessun logo stampa selezionato"}
+                ? tr("Caricamento logo stampa...")
+                : previewBranding.print_logo_url || tr("Nessun logo stampa selezionato")}
             </div>
           </div>
         </div>
@@ -1737,7 +1765,7 @@ async function saveAll() {
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
           <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
             <Eye size={16} />
-            Tema effettivo applicato
+            <LocalizedText text="Tema effettivo applicato" />
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
             {[
@@ -1749,18 +1777,18 @@ async function saveAll() {
                 <div className="font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{color.label}</div>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="h-7 w-7 rounded-lg border border-white/10" style={{ backgroundColor: color.requested }} />
-                  <span>richiesto {color.requested}</span>
+                  <span>{t("ui.Richiesto", "Richiesto")} {color.requested}</span>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="h-7 w-7 rounded-lg border border-white/10" style={{ backgroundColor: color.applied }} />
-                  <span>applicato {color.applied}</span>
+                  <span>{t("ui.Applicato", "Applicato")} {color.applied}</span>
                 </div>
               </div>
             ))}
           </div>
           {themeCompatibilityWarnings.length > 0 ? (
             <div className="mt-4 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-sm leading-6 text-[var(--brand-accent)]">
-              Alcuni colori richiesti non sono applicati perché romperebbero il contrasto del tema scuro. La preview locale mostra il valore scelto, mentre il tema reale usa il valore applicato qui sopra.
+              <LocalizedText text="Alcuni colori richiesti non sono applicati perché romperebbero il contrasto del tema scuro. La preview locale mostra il valore scelto, mentre il tema reale usa il valore applicato qui sopra." />
             </div>
           ) : null}
         </div>
@@ -1838,8 +1866,8 @@ async function saveAll() {
                         {getModuleLabel(module.id, settings.labels)}
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">
-                        {module.description}
-                        {dependenciesDisabled.length > 0 ? ` Dipende da: ${dependenciesDisabled.map((dep) => getModuleLabel(dep, settings.labels)).join(", ")}.` : ""}
+                        {t(`ui.${module.description}`, module.description)}
+                        {dependenciesDisabled.length > 0 ? ` ${tr("Dipende da")}: ${dependenciesDisabled.map((dep) => t(`ui.${getModuleLabel(dep, settings.labels)}`, getModuleLabel(dep, settings.labels))).join(", ")}.` : ""}
                       </span>
                     </span>
                     <input
@@ -2210,7 +2238,7 @@ async function saveAll() {
               className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi gruppo
+              <LocalizedText text="Aggiungi gruppo" />
             </button>
           </div>
         </SectionCard>
@@ -2319,7 +2347,7 @@ async function saveAll() {
                       placeholder={"Una opzione per riga\nSlick\nRain\nUsed"}
                     />
                     <div className="mt-2 text-xs text-[var(--text-muted)]">
-                      Le opzioni saranno disponibili nei campi setup di tipo select. Puoi scriverle una per riga oppure separate da virgola.
+                      <LocalizedText text="Le opzioni saranno disponibili nei campi setup di tipo select. Puoi scriverle una per riga oppure separate da virgola." />
                     </div>
                   </div>
                 ) : null}
@@ -2454,7 +2482,7 @@ async function saveAll() {
                     placeholder={tr("Etichetta widget")}
                   />
                   <p className="text-[11px] leading-4 text-[var(--text-muted)]">
-                    Auto segue la terminologia globale. Custom sovrascrive solo questo widget.
+                    {tr("Auto segue la terminologia globale. Custom sovrascrive solo questo widget.")}
                   </p>
                 </div>
                 <Select
@@ -2531,7 +2559,7 @@ async function saveAll() {
               className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi widget
+              <LocalizedText text="Aggiungi widget" />
             </button>
           </div>
         </SectionCard>
@@ -2586,7 +2614,7 @@ async function saveAll() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
                   <Eye size={16} />
-                  Tema richiesto vs tema applicato
+                  <LocalizedText text="Tema richiesto vs tema applicato" />
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {[
@@ -2613,7 +2641,7 @@ async function saveAll() {
                 </div>
                 {themeCompatibilityWarnings.length === 0 ? (
                   <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
-                    I colori richiesti sono compatibili con il tema reale.
+                    <LocalizedText text="I colori richiesti sono compatibili con il tema reale." />
                   </div>
                 ) : null}
               </div>
@@ -2635,14 +2663,14 @@ async function saveAll() {
                 className="race-action-secondary px-4 py-2"
                 onClick={() => setPendingNavigationHref(null)}
               >
-                Resta e salva
+                <LocalizedText text="Resta e salva" />
               </button>
               <button
                 type="button"
                 className="rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-2 font-black text-red-100 transition hover:bg-red-500/25"
                 onClick={discardChangesAndNavigate}
               >
-                Esci senza salvare
+                <LocalizedText text="Esci senza salvare" />
               </button>
             </>
           }

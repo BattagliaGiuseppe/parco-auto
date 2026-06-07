@@ -257,7 +257,7 @@ export default function CarDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="race-card-grid px-6 py-5 text-sm text-[var(--text-secondary)]">
-          Caricamento scheda...
+          <LocalizedText text="Caricamento scheda..." />
         </div>
       </div>
     );
@@ -336,8 +336,7 @@ export default function CarDetailPage() {
         subtitle="Questa pagina riassume lo stato tecnico del mezzo e dei componenti attualmente montati."
       >
         <InfoBlock>
-          Usa la scheda mezzo per avere una vista sintetica delle ore auto, dei componenti installati e delle soglie di attenzione.
-          Quando ti serve intervenire su un singolo componente, apri la relativa scheda tecnica direttamente da qui.
+          <LocalizedText text="Usa la scheda mezzo per avere una vista sintetica delle ore auto, dei componenti installati e delle soglie di attenzione. Quando ti serve intervenire su un singolo componente, apri la relativa scheda tecnica direttamente da qui." />
         </InfoBlock>
       </SectionCard>
 
@@ -475,7 +474,7 @@ export default function CarDetailPage() {
 
                   <div className="mt-4 flex justify-end">
                     <Link href={`/components/${component.id}`} className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm">
-                      Apri componente
+                      <LocalizedText text="Apri componente" />
                     </Link>
                   </div>
                 </div>
@@ -494,6 +493,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function TaskChip({ label, tone }: { label: string; tone: "red" | "yellow" | "blue" | "purple" }) {
+  const { t } = useLanguage();
   const classes = {
     red: "border-red-400/35 bg-red-400/10 text-red-300",
     yellow: "border-amber-400/35 bg-amber-400/10 text-amber-300",
@@ -501,23 +501,25 @@ function TaskChip({ label, tone }: { label: string; tone: "red" | "yellow" | "bl
     purple: "border-purple-400/35 bg-purple-400/10 text-purple-300",
   }[tone];
 
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${classes}`}>{label}</span>;
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${classes}`}>{t(`ui.${label}`, label)}</span>;
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel min-h-[92px] p-4">
-      <div className="racing-kicker text-[var(--text-muted)]">{label}</div>
-      <div className="technical-number mt-3 text-xl font-black text-[var(--text-primary)]">{value}</div>
+      <div className="racing-kicker text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
+      <div className="technical-number mt-3 text-xl font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel p-3">
-      <span className="block text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
-      <span className="technical-number mt-1 block font-black text-[var(--text-primary)]">{value}</span>
+      <span className="block text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{t(`ui.${label}`, label)}</span>
+      <span className="technical-number mt-1 block font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</span>
     </div>
   );
 }

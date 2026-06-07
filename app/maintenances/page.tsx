@@ -726,8 +726,7 @@ export default function MaintenancesPage() {
                 <LocalizedText text="Revisione componente" />
               </div>
               <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                Attiva questa sezione solo quando l’intervento equivale anche a
-                una revisione del componente.
+                <LocalizedText text="Attiva questa sezione solo quando l’intervento equivale anche a una revisione del componente." />
               </div>
 
               <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
@@ -777,7 +776,7 @@ export default function MaintenancesPage() {
                     />
                     <div>
                       <div className="font-semibold text-[var(--text-primary)]">
-                        Azzera ore componente
+                        <LocalizedText text="Azzera ore componente" />
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
                         Attivalo solo se la revisione riporta il componente a
@@ -812,10 +811,11 @@ function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
       {children}
@@ -825,13 +825,14 @@ function Field({
 }
 
 function InfoMini({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel">
       <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
       <div className="mt-1 font-semibold text-[var(--text-primary)]">
-        {value}
+        {t(`ui.${value}`, value)}
       </div>
     </div>
   );

@@ -864,7 +864,7 @@ export default function AttendancePage() {
               <>
                 <Button variant="secondary" onClick={() => { window.location.href = "/attendance/kiosk"; }}>
                   <TabletSmartphone size={16} className="mr-2" />
-                  Kiosk tablet
+                  <LocalizedText text="Kiosk tablet" />
                 </Button>
                 <Button variant="secondary" onClick={openEventQrModal}>
                   <QrCode size={16} className="mr-2" />
@@ -877,7 +877,7 @@ export default function AttendancePage() {
                 <Button variant="secondary" onClick={() => openAdminClockModal(undefined, "in")}><LocalizedText text="Timbratura staff" /></Button>
                 <Button onClick={openStaffModal}>
                   <Plus size={16} className="mr-2" />
-                  Nuovo staff
+                  <LocalizedText text="Nuovo staff" />
                 </Button>
               </>
             ) : null}
@@ -1249,7 +1249,7 @@ export default function AttendancePage() {
                   <StatusBadge label={badgeModalMember.pin_hint ? `PIN · ****${badgeModalMember.pin_hint}` : "PIN non generato"} tone={badgeModalMember.pin_hint ? "blue" : "neutral"} />
                 </div>
                 <div className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-                  Per sicurezza il codice completo viene mostrato una sola volta. Se viene perso, rigenera il badge o il PIN e ristampa la tessera.
+                  <LocalizedText text="Per sicurezza il codice completo viene mostrato una sola volta. Se viene perso, rigenera il badge o il PIN e ristampa la tessera." />
                 </div>
               </div>
 
@@ -1280,11 +1280,11 @@ export default function AttendancePage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button variant="secondary" onClick={() => copyToClipboard(buildKioskUrl({ badge: badgeResult.badge_code || undefined }))}>
                       <Copy size={15} className="mr-2" />
-                      Copia link badge
+                      <LocalizedText text="Copia link badge" />
                     </Button>
                     <Button variant="ghost" onClick={() => { window.open(buildKioskUrl({ badge: badgeResult.badge_code || undefined }), "_blank"); }}>
                       <ExternalLink size={15} className="mr-2" />
-                      Apri kiosk
+                      <LocalizedText text="Apri kiosk" />
                     </Button>
                   </div>
                 </div>
@@ -1321,11 +1321,11 @@ export default function AttendancePage() {
               <Button variant="secondary" onClick={() => setEventQrModalOpen(false)}><LocalizedText text="Chiudi" /></Button>
               <Button onClick={() => copyToClipboard(getEventQrLink())}>
                 <Copy size={15} className="mr-2" />
-                Copia link
+                <LocalizedText text="Copia link" />
               </Button>
               <Button variant="secondary" onClick={() => { window.open(getEventQrLink(), "_blank"); }}>
                 <ExternalLink size={15} className="mr-2" />
-                Apri kiosk evento
+                <LocalizedText text="Apri kiosk evento" />
               </Button>
             </>
           }
@@ -1344,7 +1344,7 @@ export default function AttendancePage() {
                 </select>
               </UiField>
               <div className="race-card-grid p-4 text-sm leading-6 text-[var(--text-secondary)]">
-                Il QR evento non identifica da solo il dipendente: serve comunque badge o PIN. In questo modo il tablet può restare in pista senza scegliere manualmente l'evento a ogni timbratura.
+                <LocalizedText text="Il QR evento non identifica da solo il dipendente: serve comunque badge o PIN. In questo modo il tablet può restare in pista senza scegliere manualmente l'evento a ogni timbratura." />
               </div>
               <CredentialBox label="Link kiosk evento" value={getEventQrLink()} />
             </div>
@@ -1382,7 +1382,7 @@ export default function AttendancePage() {
             <label className="md:col-span-2 flex items-center justify-between gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
               <span className="flex items-center gap-2 font-semibold">
                 <Bell size={16} />
-                Registra richiesta notifica all'utente
+                <LocalizedText text="Registra richiesta notifica all'utente" />
               </span>
               <input type="checkbox" checked={resetForm.notify_user} onChange={(event) => setResetForm((prev) => ({ ...prev, notify_user: event.target.checked }))} />
             </label>
@@ -1399,6 +1399,7 @@ export default function AttendancePage() {
 }
 
 function QuickStat({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: "green" | "yellow" | "red" | "blue" }) {
+  const { t } = useLanguage();
   const toneClass = {
     green: "text-emerald-300",
     yellow: "text-amber-300",
@@ -1410,30 +1411,32 @@ function QuickStat({ icon, label, value, tone }: { icon: ReactNode; label: strin
     <div className="race-mini-panel p-4">
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-[var(--text-muted)]">
         {icon}
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className={`technical-number mt-3 text-3xl font-black leading-none ${toneClass}`}>{value}</div>
+      <div className={`technical-number mt-3 text-3xl font-black leading-none ${toneClass}`}>{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
 
 function MiniInfo({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel p-3">
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {icon}
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="mt-2 text-sm font-bold leading-5 text-[var(--text-primary)]">{value}</div>
+      <div className="mt-2 text-sm font-bold leading-5 text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
 
 function CredentialBox({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-2 break-all font-mono text-sm font-black text-[var(--text-primary)]">{value}</div>
+      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
+      <div className="mt-2 break-all font-mono text-sm font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }
@@ -1497,6 +1500,7 @@ function StaffStatsRow({
 }
 
 function MetricBlock({ label, value, tone }: { label: string; value: string; tone: "green" | "yellow" | "blue" }) {
+  const { t } = useLanguage();
   const toneClass = {
     green: "text-emerald-300",
     yellow: "text-amber-300",
@@ -1504,8 +1508,8 @@ function MetricBlock({ label, value, tone }: { label: string; value: string; ton
   }[tone];
   return (
     <div>
-      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className={`technical-number mt-1 text-xl font-black ${toneClass}`}>{value}</div>
+      <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
+      <div className={`technical-number mt-1 text-xl font-black ${toneClass}`}>{t(`ui.${value}`, value)}</div>
     </div>
   );
 }

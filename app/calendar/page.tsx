@@ -44,11 +44,13 @@ function normalizeCircuit(value: any) {
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
+  const translatedChildren = typeof children === "string" ? t(`ui.${children.trim()}`, children) : children;
   return (
     <div className="race-info-box text-sm leading-6">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
-        <div>{children}</div>
+        <div>{translatedChildren}</div>
       </div>
     </div>
   );
@@ -352,7 +354,7 @@ export default function CalendarPage() {
 
       {!canEditEvents ? (
         <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 

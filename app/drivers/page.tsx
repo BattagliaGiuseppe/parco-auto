@@ -288,11 +288,13 @@ function StatusPill({ tone, children }: { tone: "green" | "yellow" | "red" | "ne
 }
 
 function ExpiryPill({ label, value }: { label: string; value: string | null | undefined }) {
+  const { t } = useLanguage();
+  const translatedLabel = t(`ui.${label}`, label);
   const tone = expiryTone(value);
-  if (tone === "missing") return <StatusPill tone="neutral">{label}: non inserita</StatusPill>;
-  if (tone === "expired") return <StatusPill tone="red">{label}: scaduta</StatusPill>;
-  if (tone === "expiring") return <StatusPill tone="yellow">{label}: in scadenza</StatusPill>;
-  return <StatusPill tone="green">{label}: valida</StatusPill>;
+  if (tone === "missing") return <StatusPill tone="neutral">{translatedLabel}: {t("ui.non inserita", "non inserita")}</StatusPill>;
+  if (tone === "expired") return <StatusPill tone="red">{translatedLabel}: {t("ui.scaduta", "scaduta")}</StatusPill>;
+  if (tone === "expiring") return <StatusPill tone="yellow">{translatedLabel}: {t("ui.in scadenza", "in scadenza")}</StatusPill>;
+  return <StatusPill tone="green">{translatedLabel}: {t("ui.valida", "valida")}</StatusPill>;
 }
 
 export default function DriversPage() {
@@ -879,7 +881,7 @@ export default function DriversPage() {
 
       {!canEditDrivers ? (
         <div className="rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 
@@ -1053,7 +1055,7 @@ export default function DriversPage() {
                             </button>
                             {driver.photo_path ? (
                               <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-400/30 px-3 py-2 text-sm font-bold text-red-200 hover:bg-red-500/10">
-                                Rimuovi foto
+                                <LocalizedText text="Rimuovi foto" />
                               </button>
                             ) : null}
                           </>
@@ -1110,7 +1112,7 @@ export default function DriversPage() {
                             </div>
                           ) : (
                             <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-4 text-sm font-semibold text-[var(--text-muted)]">
-                              Nessun turno/evento ancora collegato a questo pilota.
+                              <LocalizedText text="Nessun turno/evento ancora collegato a questo pilota." />
                             </div>
                           )}
                         </div>
@@ -1323,31 +1325,34 @@ export default function DriversPage() {
 }
 
 function InfoLine({ label, value }: { label: string; value: string | null | undefined }) {
+  const { t } = useLanguage();
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 truncate font-bold text-[var(--text-primary)]">{value || "—"}</p>
+      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t(`ui.${label}`, label)}</p>
+      <p className="mt-1 truncate font-bold text-[var(--text-primary)]">{value ? t(`ui.${value}`, value) : "—"}</p>
     </div>
   );
 }
 
 function PerformanceMini({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
       <span className="text-[var(--text-muted)]">{icon}</span>
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
-        <p className="truncate font-black text-[var(--text-primary)]">{value}</p>
+        <p className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{t(`ui.${label}`, label)}</p>
+        <p className="truncate font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</p>
       </div>
     </div>
   );
 }
 
 function PerformanceBox({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3">
-      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 text-lg font-black text-[var(--text-primary)]">{value}</p>
+      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t(`ui.${label}`, label)}</p>
+      <p className="mt-1 text-lg font-black text-[var(--text-primary)]">{t(`ui.${value}`, value)}</p>
     </div>
   );
 }
