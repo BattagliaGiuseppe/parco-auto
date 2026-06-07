@@ -33,6 +33,8 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { supabase } from "@/lib/supabaseClient";
 import { uploadTeamFile } from "@/lib/storage";
 import { getCurrentTeamContext } from "@/lib/teamContext";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15";
@@ -1117,7 +1119,7 @@ function TrackMapSvg({
   if (allGps.length < 5) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm text-[var(--text-muted)]">
-        <div className="font-semibold text-[var(--text-primary)]">Mappa pista non disponibile</div>
+        <div className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Mappa pista non disponibile" /></div>
         <div className="mt-1 text-xs">
           Il file o il giro selezionato non contiene coordinate GPS valide sufficienti per ricostruire il tracciato.
         </div>
@@ -1172,7 +1174,7 @@ function TrackMapSvg({
     <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Mappa pista GPS</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Mappa pista GPS" /></div>
           <div className="mt-1 text-xs text-[var(--text-muted)]">
             Il tracciato resta sempre completo. Lo zoom restringe solo il grafico; sulla mappa viene evidenziato il tratto analizzato.
           </div>
@@ -1255,10 +1257,10 @@ function TrackMapSvg({
 
       <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-[var(--text-secondary)]">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-neutral-900" /> tracciato completo</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-neutral-900" /> <LocalizedText text="tracciato completo" /></span>
           {isPrimaryZoomed ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> tratto analizzato {primaryLabel}</span> : <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {primaryLabel}</span>}
           {hasComparison ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500" /> {isComparisonZoomed ? `tratto analizzato ${comparisonLabel}` : comparisonLabel}</span> : null}
-          {visibleSpeedLosses.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600" /> perdita velocità</span> : null}
+          {visibleSpeedLosses.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600" /> <LocalizedText text="perdita velocità" /></span> : null}
         </div>
         {activeSample ? (
           <div className="rounded-xl bg-white/[0.045] px-3 py-2">
@@ -1446,28 +1448,28 @@ function SvgTelemetryChart({
         <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--brand-accent)]">Confronto attivo</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--brand-accent)]"><LocalizedText text="Confronto attivo" /></div>
               <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                 <span>{primaryLabel}</span>
-                <span className="mx-2 text-[var(--text-muted)]">vs</span>
+                <span className="mx-2 text-[var(--text-muted)]"><LocalizedText text="vs" /></span>
                 <span>{comparisonLabel}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
               <div className="rounded-xl bg-white/[0.08] px-3 py-2">
-                <div className="text-[var(--text-muted)]">Punti rif.</div>
+                <div className="text-[var(--text-muted)]"><LocalizedText text="Punti rif." /></div>
                 <div className="font-bold text-[var(--text-primary)]">{visiblePrimarySamples.length}</div>
               </div>
               <div className="rounded-xl bg-white/[0.08] px-3 py-2">
-                <div className="text-[var(--text-muted)]">Punti conf.</div>
+                <div className="text-[var(--text-muted)]"><LocalizedText text="Punti conf." /></div>
                 <div className="font-bold text-[var(--text-primary)]">{visibleComparisonSamples.length}</div>
               </div>
               <div className="rounded-xl bg-white/[0.08] px-3 py-2">
-                <div className="text-[var(--text-muted)]">V max rif.</div>
+                <div className="text-[var(--text-muted)]"><LocalizedText text="V max rif." /></div>
                 <div className="font-bold text-[var(--text-primary)]">{formatNumber(channelMax(visiblePrimarySamples, "speed"), 1)} km/h</div>
               </div>
               <div className="rounded-xl bg-white/[0.08] px-3 py-2">
-                <div className="text-[var(--text-muted)]">V max conf.</div>
+                <div className="text-[var(--text-muted)]"><LocalizedText text="V max conf." /></div>
                 <div className="font-bold text-[var(--text-primary)]">{formatNumber(channelMax(visibleComparisonSamples, "speed"), 1)} km/h</div>
               </div>
             </div>
@@ -1516,11 +1518,11 @@ function SvgTelemetryChart({
 
         <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
           <div className="mb-2 flex flex-col gap-1 text-xs text-[var(--text-muted)] md:flex-row md:items-center md:justify-between">
-            <span className="font-semibold text-[var(--text-secondary)]">Finestra di analisi / zoom</span>
+            <span className="font-semibold text-[var(--text-secondary)]"><LocalizedText text="Finestra di analisi / zoom" /></span>
             <span>
               {analysisAxisLabel(axis)}: {formatNumber(minX, 2)} → {formatNumber(maxX, 2)} {analysisAxisUnit(axis)}
-              {hasZoom ? <span className="ml-2 font-semibold text-yellow-200">zoom attivo</span> : null}
-              {invertDirection ? <span className="ml-2 font-semibold text-yellow-200">verso invertito</span> : null}
+              {hasZoom ? <span className="ml-2 font-semibold text-yellow-200"><LocalizedText text="zoom attivo" /></span> : null}
+              {invertDirection ? <span className="ml-2 font-semibold text-yellow-200"><LocalizedText text="verso invertito" /></span> : null}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1562,7 +1564,7 @@ function SvgTelemetryChart({
 
         <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-2 text-xs text-[var(--text-muted)]">
-            <div className="px-2 pb-2 font-semibold text-[var(--text-secondary)]">Grafico canali</div>
+            <div className="px-2 pb-2 font-semibold text-[var(--text-secondary)]"><LocalizedText text="Grafico canali" /></div>
             <div className="overflow-x-auto">
               <svg
             viewBox={`0 0 ${width} ${height}`}
@@ -1631,13 +1633,13 @@ function SvgTelemetryChart({
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_1fr]">
         <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Riferimento cursore</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Riferimento cursore" /></div>
           {activeSample ? (
             <div className="mt-2 space-y-1 text-[var(--text-secondary)]">
-              <div><span className="font-semibold text-[var(--text-primary)]">Campione:</span> {activeSample.sample_index ?? activeIndex}</div>
-              <div><span className="font-semibold text-[var(--text-primary)]">Tempo:</span> {formatNumber(activeSample.time_seconds, 3)} s</div>
-              <div><span className="font-semibold text-[var(--text-primary)]">Distanza:</span> {formatNumber(activeSample.distance_m, 2)} m</div>
-              <div><span className="font-semibold text-[var(--text-primary)]">Giro:</span> {activeSample.lap_number ?? "—"}</div>
+              <div><span className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Campione:" /></span> {activeSample.sample_index ?? activeIndex}</div>
+              <div><span className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Tempo:" /></span> {formatNumber(activeSample.time_seconds, 3)} s</div>
+              <div><span className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Distanza:" /></span> {formatNumber(activeSample.distance_m, 2)} m</div>
+              <div><span className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Giro:" /></span> {activeSample.lap_number ?? "—"}</div>
               {activeComparisonSample ? (
                 <div className="mt-2 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-[var(--brand-accent)]">
                   Confronto: tempo {formatNumber(activeComparisonSample.time_seconds, 3)} s · distanza {formatNumber(activeComparisonSample.distance_m, 2)} m · giro {activeComparisonSample.lap_number ?? "—"}
@@ -1645,27 +1647,27 @@ function SvgTelemetryChart({
               ) : null}
             </div>
           ) : (
-            <div className="mt-2 text-[var(--text-muted)]">Muovi il mouse sul grafico per leggere i valori.</div>
+            <div className="mt-2 text-[var(--text-muted)]"><LocalizedText text="Muovi il mouse sul grafico per leggere i valori." /></div>
           )}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
           <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Dati nel punto selezionato</div>
-              <div className="text-xs text-[var(--text-muted)]">Valori reali del riferimento, del confronto e differenza tra i due.</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Dati nel punto selezionato" /></div>
+              <div className="text-xs text-[var(--text-muted)]"><LocalizedText text="Valori reali del riferimento, del confronto e differenza tra i due." /></div>
             </div>
-            {activeSample && activeComparisonSample ? <div className="text-xs font-semibold text-yellow-200">Delta = riferimento - confronto</div> : null}
+            {activeSample && activeComparisonSample ? <div className="text-xs font-semibold text-yellow-200"><LocalizedText text="Delta = riferimento - confronto" /></div> : null}
           </div>
           {activeSample ? (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                    <th className="py-2 pr-3">Canale</th>
-                    <th className="py-2 pr-3">Riferimento</th>
-                    {activeComparisonSample ? <th className="py-2 pr-3">Confronto</th> : null}
-                    {activeComparisonSample ? <th className="py-2 pr-3">Delta</th> : null}
+                    <th className="py-2 pr-3"><LocalizedText text="Canale" /></th>
+                    <th className="py-2 pr-3"><LocalizedText text="Riferimento" /></th>
+                    {activeComparisonSample ? <th className="py-2 pr-3"><LocalizedText text="Confronto" /></th> : null}
+                    {activeComparisonSample ? <th className="py-2 pr-3"><LocalizedText text="Delta" /></th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -1689,17 +1691,17 @@ function SvgTelemetryChart({
               </table>
             </div>
           ) : (
-            <div className="text-sm text-[var(--text-muted)]">Nessun punto selezionato.</div>
+            <div className="text-sm text-[var(--text-muted)]"><LocalizedText text="Nessun punto selezionato." /></div>
           )}
         </div>
       </div>
 
       {hasComparison ? (
         <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Suggerimenti automatici da verificare</div>
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Suggerimenti automatici da verificare" /></div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="rounded-2xl bg-white/[0.045] p-3 text-sm text-[var(--text-secondary)]">
-              <div className="font-semibold text-[var(--text-primary)]">Sintesi canali selezionati nella finestra</div>
+              <div className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Sintesi canali selezionati nella finestra" /></div>
               <div className="mt-2 space-y-1 text-xs">
                 {series.slice(0, 6).map((item) => (
                   <div key={item.channelKey} className="flex items-center justify-between gap-3">
@@ -1712,7 +1714,7 @@ function SvgTelemetryChart({
               </div>
             </div>
             <div className="rounded-2xl bg-yellow-500/10 p-3 text-sm text-[var(--brand-accent)]">
-              <div className="font-semibold">Possibili punti dove il confronto perde velocità</div>
+              <div className="font-semibold"><LocalizedText text="Possibili punti dove il confronto perde velocità" /></div>
               {speedLosses.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-xs">
                   {speedLosses.map((item) => (
@@ -1722,9 +1724,9 @@ function SvgTelemetryChart({
                   ))}
                 </ul>
               ) : (
-                <div className="mt-2 text-xs">Nella finestra attuale non vedo perdite velocità evidenti oltre 3 km/h. Prova a restringere la zona o selezionare il canale velocità.</div>
+                <div className="mt-2 text-xs"><LocalizedText text="Nella finestra attuale non vedo perdite velocità evidenti oltre 3 km/h. Prova a restringere la zona o selezionare il canale velocità." /></div>
               )}
-              <div className="mt-2 text-[11px] text-[var(--brand-accent)]">Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup.</div>
+              <div className="mt-2 text-[11px] text-[var(--brand-accent)]"><LocalizedText text="Indicazioni da verificare con contesto pista, gomme, traffico, meteo, benzina e setup." /></div>
             </div>
           </div>
         </div>
@@ -1933,6 +1935,8 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
 }
 
 export default function TelemetryPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewTelemetry = access.hasPermission("telemetry.view");
   const canEditTelemetry = access.hasPermission("telemetry.edit", ["owner", "admin"]);
@@ -2561,7 +2565,7 @@ export default function TelemetryPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Telemetria"
+        title={tr("Telemetria")}
         subtitle="Archivio tecnico e dati performance"
         icon={<Activity className="h-6 w-6" />}
         state="loading"
@@ -2572,7 +2576,7 @@ export default function TelemetryPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Telemetria"
+        title={tr("Telemetria")}
         subtitle="Archivio tecnico e dati performance"
         icon={<Activity className="h-6 w-6" />}
         state="error"
@@ -2584,7 +2588,7 @@ export default function TelemetryPage() {
   if (!canViewTelemetry) {
     return (
       <PagePermissionState
-        title="Telemetria"
+        title={tr("Telemetria")}
         subtitle="Archivio tecnico e dati performance"
         icon={<Activity className="h-6 w-6" />}
         state="denied"
@@ -2596,7 +2600,7 @@ export default function TelemetryPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Telemetria"
+        title={tr("Telemetria")}
         subtitle="Collega file, eventi, turni e dati tecnici per costruire la base del futuro ingegnere di pista."
         icon={<Activity className="h-6 w-6" />}
       />
@@ -2617,7 +2621,7 @@ export default function TelemetryPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         {canEditTelemetry ? (
           <SectionCard
-            title="Nuovo file telemetria"
+            title={tr("Nuovo file telemetria")}
             subtitle="Archivia file e collegalo a evento, mezzo, pilota, sessione e turno."
           >
             <div className="space-y-4">
@@ -2626,7 +2630,7 @@ export default function TelemetryPage() {
                   className={inputClassName}
                   value={form.file_name}
                   onChange={(event) => setForm({ ...form, file_name: event.target.value })}
-                  placeholder="AIM Mugello T4 Rossi.csv"
+                  placeholder={tr("AIM Mugello T4 Rossi.csv")}
                 />
               </Field>
 
@@ -2647,7 +2651,7 @@ export default function TelemetryPage() {
                 <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-sm text-sky-200">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <div className="font-bold">Import guidato CSV disponibile</div>
+                      <div className="font-bold"><LocalizedText text="Import guidato CSV disponibile" /></div>
                       <div className="mt-1 text-xs leading-5">
                         Leggo intestazioni e prime righe, propongo la mappatura dei canali e salvo un campionamento per i grafici futuri.
                       </div>
@@ -2670,7 +2674,7 @@ export default function TelemetryPage() {
                     <div className="flex items-start gap-2">
                       <CheckCircle2 size={18} className="mt-0.5" />
                       <div>
-                        <div className="font-bold">Canali pronti per il salvataggio</div>
+                        <div className="font-bold"><LocalizedText text="Canali pronti per il salvataggio" /></div>
                         <div className="mt-1 leading-5">
                           {parsedCsvDraft.summary.channels_count} canali · {parsedCsvDraft.summary.samples_count} campioni letti · {parsedCsvDraft.summary.sampled_points_count} punti salvati per grafici · {parsedCsvDraft.summary.laps_count} giri rilevati.
                         </div>
@@ -2704,13 +2708,13 @@ export default function TelemetryPage() {
                     value={form.file_category}
                     onChange={(event) => setForm({ ...form, file_category: event.target.value })}
                   >
-                    <option value="datalog">Datalog</option>
-                    <option value="video">Video onboard</option>
-                    <option value="pdf_report">Report PDF</option>
-                    <option value="setup_sheet">Setup sheet</option>
-                    <option value="engineer_notes">Note ingegnere</option>
-                    <option value="analysis_export">Export analisi</option>
-                    <option value="other">Altro</option>
+                    <option value="datalog"><LocalizedText text="Datalog" /></option>
+                    <option value="video"><LocalizedText text="Video onboard" /></option>
+                    <option value="pdf_report"><LocalizedText text="Report PDF" /></option>
+                    <option value="setup_sheet"><LocalizedText text="Setup sheet" /></option>
+                    <option value="engineer_notes"><LocalizedText text="Note ingegnere" /></option>
+                    <option value="analysis_export"><LocalizedText text="Export analisi" /></option>
+                    <option value="other"><LocalizedText text="Altro" /></option>
                   </select>
                 </Field>
 
@@ -2720,14 +2724,14 @@ export default function TelemetryPage() {
                     value={form.data_format}
                     onChange={(event) => handleDataFormatChange(event.target.value)}
                   >
-                    <option value="csv">CSV</option>
-                    <option value="xlsx">Excel/XLSX</option>
-                    <option value="aim_export">AIM export</option>
-                    <option value="pdf">PDF</option>
-                    <option value="video">Video</option>
-                    <option value="image">Immagine</option>
-                    <option value="zip">ZIP</option>
-                    <option value="other">Altro</option>
+                    <option value="csv">{tr("CSV")}</option>
+                    <option value="xlsx"><LocalizedText text="Excel/XLSX" /></option>
+                    <option value="aim_export"><LocalizedText text="AIM export" /></option>
+                    <option value="pdf"><LocalizedText text="PDF" /></option>
+                    <option value="video"><LocalizedText text="Video" /></option>
+                    <option value="image"><LocalizedText text="Immagine" /></option>
+                    <option value="zip"><LocalizedText text="ZIP" /></option>
+                    <option value="other"><LocalizedText text="Altro" /></option>
                   </select>
                 </Field>
               </div>
@@ -2738,7 +2742,7 @@ export default function TelemetryPage() {
                     className={inputClassName}
                     value={form.source_software}
                     onChange={(event) => setForm({ ...form, source_software: event.target.value })}
-                    placeholder="AIM Race Studio"
+                    placeholder={tr("AIM Race Studio")}
                   />
                 </Field>
 
@@ -2747,7 +2751,7 @@ export default function TelemetryPage() {
                     className={inputClassName}
                     value={form.logger_model}
                     onChange={(event) => setForm({ ...form, logger_model: event.target.value })}
-                    placeholder="Solo 2 DL, MyChron, ECU..."
+                    placeholder={tr("Solo 2 DL, MyChron, ECU...")}
                   />
                 </Field>
               </div>
@@ -2758,7 +2762,7 @@ export default function TelemetryPage() {
                   value={form.event_car_turn_id}
                   onChange={(event) => handleTurnChange(event.target.value)}
                 >
-                  <option value="">Nessun turno collegato</option>
+                  <option value="">{tr("Nessun turno collegato")}</option>
                   {turns.map((turn) => (
                     <option key={turn.id} value={turn.id}>
                       {turnLabels.get(turn.id) || turn.id}
@@ -2781,7 +2785,7 @@ export default function TelemetryPage() {
                     value={form.car_id}
                     onChange={(event) => setForm({ ...form, car_id: event.target.value })}
                   >
-                    <option value="">Mezzo</option>
+                    <option value="">{tr("Mezzo")}</option>
                     {cars.map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name}
@@ -2796,7 +2800,7 @@ export default function TelemetryPage() {
                     value={form.driver_id}
                     onChange={(event) => setForm({ ...form, driver_id: event.target.value })}
                   >
-                    <option value="">Pilota</option>
+                    <option value="">{tr("Pilota")}</option>
                     {drivers.map((row) => (
                       <option key={row.id} value={row.id}>
                         {driverName(row)}
@@ -2811,7 +2815,7 @@ export default function TelemetryPage() {
                     value={form.event_id}
                     onChange={(event) => setForm({ ...form, event_id: event.target.value })}
                   >
-                    <option value="">Evento</option>
+                    <option value=""><LocalizedText text="Evento" /></option>
                     {events.map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name}
@@ -2826,7 +2830,7 @@ export default function TelemetryPage() {
                     value={form.session_id}
                     onChange={(event) => setForm({ ...form, session_id: event.target.value })}
                   >
-                    <option value="">Sessione</option>
+                    <option value=""><LocalizedText text="Sessione" /></option>
                     {sessions.map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name || "Sessione"}
@@ -2841,7 +2845,7 @@ export default function TelemetryPage() {
                   className={inputClassName}
                   value={form.track_name}
                   onChange={(event) => setForm({ ...form, track_name: event.target.value })}
-                  placeholder="Mugello, Misano, Vallelunga..."
+                  placeholder={tr("Mugello, Misano, Vallelunga...")}
                 />
               </Field>
 
@@ -2850,7 +2854,7 @@ export default function TelemetryPage() {
                   className={inputClassName}
                   value={form.tags}
                   onChange={(event) => setForm({ ...form, tags: event.target.value })}
-                  placeholder="best lap, qualifica, test gomme"
+                  placeholder={tr("best lap, qualifica, test gomme")}
                 />
               </Field>
 
@@ -2859,7 +2863,7 @@ export default function TelemetryPage() {
                   className={`${inputClassName} min-h-28`}
                   value={form.notes}
                   onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                  placeholder="Condizioni pista, gomme, setup, commento pilota..."
+                  placeholder={tr("Condizioni pista, gomme, setup, commento pilota...")}
                 />
               </Field>
 
@@ -2878,14 +2882,14 @@ export default function TelemetryPage() {
         ) : null}
 
         <SectionCard
-          title="Archivio telemetria"
+          title={tr("Archivio telemetria")}
           subtitle="Consulta file e metadati collegati a eventi, turni e performance."
           className={canEditTelemetry ? "" : "xl:col-span-2"}
         >
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <input
               className={`${inputClassName} lg:max-w-xl`}
-              placeholder="Filtro rapido per nome, evento, pilota, mezzo, tag o note"
+              placeholder={tr("Filtro rapido per nome, evento, pilota, mezzo, tag o note")}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             />
@@ -2901,7 +2905,7 @@ export default function TelemetryPage() {
                 }`}
               >
                 <FileArchive size={15} />
-                Dettagliata
+                <LocalizedText text="Dettagliata" />
               </button>
               <button
                 type="button"
@@ -2913,7 +2917,7 @@ export default function TelemetryPage() {
                 }`}
               >
                 <List size={15} />
-                Sintetica
+                <LocalizedText text="Sintetica" />
               </button>
             </div>
           </div>
@@ -2924,7 +2928,7 @@ export default function TelemetryPage() {
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState
-              title="Nessun file registrato"
+              title={tr("Nessun file registrato")}
               description="Carica il primo file telemetria e collegalo a evento, mezzo, pilota e turno."
             />
           ) : (
@@ -2965,9 +2969,9 @@ export default function TelemetryPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)] sm:grid-cols-5 xl:w-[520px]">
-                          <div><span className="font-bold text-[var(--text-primary)]">{row.channels_count || rowChannels.length || 0}</span> canali</div>
-                          <div><span className="font-bold text-[var(--text-primary)]">{row.laps_count || rowLaps.length || 0}</span> giri</div>
-                          <div><span className="font-bold text-[var(--text-primary)]">{row.sampled_points_count || 0}</span> punti</div>
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.channels_count || rowChannels.length || 0}</span> <LocalizedText text="canali" /></div>
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.laps_count || rowLaps.length || 0}</span> <LocalizedText text="giri" /></div>
+                          <div><span className="font-bold text-[var(--text-primary)]">{row.sampled_points_count || 0}</span> <LocalizedText text="punti" /></div>
                           <div>Best {formatDuration(row.best_lap_seconds)}</div>
                           <div>{formatFileSize(row.file_size_bytes)}</div>
                         </div>
@@ -2976,7 +2980,7 @@ export default function TelemetryPage() {
                           {canEditTelemetry ? (
                             <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20">
                               <Database size={14} />
-                              CSV
+                              <LocalizedText text="CSV" />
                               <input
                                 type="file"
                                 accept=".csv,.txt"
@@ -2997,7 +3001,7 @@ export default function TelemetryPage() {
                               className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-[var(--brand-accent)] transition hover:bg-yellow-500/20"
                             >
                               <BarChart3 size={14} />
-                              Analizza
+                              <LocalizedText text="Analizza" />
                             </button>
                           ) : null}
 
@@ -3008,7 +3012,7 @@ export default function TelemetryPage() {
                               rel="noreferrer"
                               className="inline-flex items-center justify-center rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                             >
-                              Apri
+                              <LocalizedText text="Apri" />
                             </a>
                           ) : null}
 
@@ -3073,7 +3077,7 @@ export default function TelemetryPage() {
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-400/35 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-[var(--brand-accent)] transition hover:bg-yellow-500/20"
                           >
                             <BarChart3 size={15} />
-                            Analizza
+                            <LocalizedText text="Analizza" />
                           </button>
                         ) : null}
 
@@ -3084,7 +3088,7 @@ export default function TelemetryPage() {
                             rel="noreferrer"
                             className="inline-flex items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                           >
-                            Apri file
+                            <LocalizedText text="Apri file" />
                           </a>
                         ) : null}
 
@@ -3152,7 +3156,7 @@ export default function TelemetryPage() {
 
                     {rowChannels.length > 0 ? (
                       <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-sm text-[var(--text-secondary)]">
-                        <div className="mb-2 font-bold text-[var(--text-primary)]">Canali importati</div>
+                        <div className="mb-2 font-bold text-[var(--text-primary)]"><LocalizedText text="Canali importati" /></div>
                         <div className="flex flex-wrap gap-2">
                           {rowChannels.slice(0, 12).map((channel) => (
                             <span
@@ -3174,14 +3178,14 @@ export default function TelemetryPage() {
 
                     {row.parse_warnings && row.parse_warnings.length > 0 ? (
                       <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-3 text-xs leading-5 text-orange-800">
-                        <div className="mb-1 font-bold">Avvisi import</div>
+                        <div className="mb-1 font-bold"><LocalizedText text="Avvisi import" /></div>
                         {row.parse_warnings.join(" ")}
                       </div>
                     ) : null}
 
                     {rowInsights.length > 0 ? (
                       <div className="mt-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 p-3 text-sm text-sky-200">
-                        <div className="mb-2 font-bold">Insight tecnici</div>
+                        <div className="mb-2 font-bold"><LocalizedText text="Insight tecnici" /></div>
                         <div className="space-y-2">
                           {rowInsights.slice(0, 3).map((insight) => (
                             <div key={insight.id}>
@@ -3249,11 +3253,11 @@ export default function TelemetryPage() {
                 <>
                   <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Durata</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Durata" /></div>
                       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatDuration(analysisFile.duration_seconds)}</div>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Best lap</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Best lap" /></div>
                       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatDuration(analysisFile.best_lap_seconds)}</div>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
@@ -3261,18 +3265,18 @@ export default function TelemetryPage() {
                       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatNumber(analysisFile.max_speed, 1)} km/h</div>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">RPM max</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="RPM max" /></div>
                       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{formatNumber(analysisFile.max_rpm, 0)}</div>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Giri</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"><LocalizedText text="Giri" /></div>
                       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{analysisFile.laps_count || laps.filter((lap) => lap.telemetry_file_id === analysisFile.id).length}</div>
                     </div>
                   </div>
 
                   <div className={`${analysisFullscreen ? "mb-5 grid grid-cols-1 gap-4 2xl:grid-cols-[320px_1fr]" : "mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]"}`}>
                     <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Controlli analisi</div>
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Controlli analisi" /></div>
 
                       <Field label="Asse orizzontale" hint="come scorre il grafico">
                         <select
@@ -3280,9 +3284,9 @@ export default function TelemetryPage() {
                           value={analysisAxis}
                           onChange={(event) => setAnalysisAxis(event.target.value as AnalysisAxis)}
                         >
-                          <option value="distance">Distanza pista</option>
-                          <option value="time">Tempo sessione</option>
-                          <option value="sample">Numero campione</option>
+                          <option value="distance"><LocalizedText text="Distanza pista" /></option>
+                          <option value="time"><LocalizedText text="Tempo sessione" /></option>
+                          <option value="sample"><LocalizedText text="Numero campione" /></option>
                         </select>
                       </Field>
 
@@ -3299,7 +3303,7 @@ export default function TelemetryPage() {
                               }
                             }}
                           >
-                            <option value="all">Sessione completa</option>
+                            <option value="all"><LocalizedText text="Sessione completa" /></option>
                             {analysisBestLapNumber !== null ? <option value="best">Miglior giro ({analysisBestLapNumber})</option> : null}
                             {analysisLapOptions.map((lap) => (
                               <option key={lap} value={String(lap)}>
@@ -3316,7 +3320,7 @@ export default function TelemetryPage() {
                             disabled={analysisPrimaryLap === "all" || Boolean(analysisCompareFileId)}
                             onChange={(event) => setAnalysisCompareLap(event.target.value)}
                           >
-                            <option value="none">Nessun confronto</option>
+                            <option value="none"><LocalizedText text="Nessun confronto" /></option>
                             {analysisBestLapNumber !== null ? <option value="best">Miglior giro ({analysisBestLapNumber})</option> : null}
                             {analysisLapOptions.map((lap) => (
                               <option key={lap} value={String(lap)}>
@@ -3332,7 +3336,7 @@ export default function TelemetryPage() {
                             value={analysisCompareFileId}
                             onChange={(event) => loadComparisonTelemetryFile(event.target.value)}
                           >
-                            <option value="">Nessun confronto esterno</option>
+                            <option value=""><LocalizedText text="Nessun confronto esterno" /></option>
                             {comparableTelemetryFiles.map((row) => {
                               const event = row.event_id ? events.find((item) => item.id === row.event_id) : null;
                               const driver = row.driver_id ? drivers.find((item) => item.id === row.driver_id) : null;
@@ -3353,7 +3357,7 @@ export default function TelemetryPage() {
                               disabled={analysisCompareFileLoading}
                               onChange={(event) => setAnalysisCompareFileLap(event.target.value)}
                             >
-                              <option value="all">Sessione completa</option>
+                              <option value="all"><LocalizedText text="Sessione completa" /></option>
                               {comparisonFileBestLapNumber !== null ? <option value="best">Miglior giro ({comparisonFileBestLapNumber})</option> : null}
                               {comparisonFileLapOptions.map((lap) => (
                                 <option key={lap} value={String(lap)}>
@@ -3378,7 +3382,7 @@ export default function TelemetryPage() {
                         ) : null}
                       </div>
 
-                      <div className="mt-4 mb-2 text-sm font-bold text-[var(--text-primary)]">Canali da visualizzare</div>
+                      <div className="mt-4 mb-2 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Canali da visualizzare" /></div>
                       <div className={`${analysisFullscreen ? "max-h-[calc(100vh-420px)]" : "max-h-[360px]"} space-y-2 overflow-y-auto pr-1`}>
                         {channels
                           .filter((channel) => channel.telemetry_file_id === analysisFile.id)
@@ -3410,8 +3414,8 @@ export default function TelemetryPage() {
                     <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="text-sm font-bold text-[var(--text-primary)]">Grafico sensori</div>
-                          <div className="text-xs text-[var(--text-muted)]">Muovi il cursore sul grafico per leggere valori reali. Il confronto, stesso file o altro file/turno, appare tratteggiato.</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Grafico sensori" /></div>
+                          <div className="text-xs text-[var(--text-muted)]"><LocalizedText text="Muovi il cursore sul grafico per leggere valori reali. Il confronto, stesso file o altro file/turno, appare tratteggiato." /></div>
                         </div>
                         <div className="text-xs font-semibold text-[var(--text-muted)]">
                           Canali selezionati: {selectedAnalysisChannels.length}
@@ -3432,15 +3436,15 @@ export default function TelemetryPage() {
 
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Statistiche canali</div>
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Statistiche canali" /></div>
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-white/10 text-sm">
                           <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                             <tr>
-                              <th className="px-3 py-2">Canale</th>
-                              <th className="px-3 py-2">Min</th>
-                              <th className="px-3 py-2">Max</th>
-                              <th className="px-3 py-2">Media</th>
+                              <th className="px-3 py-2"><LocalizedText text="Canale" /></th>
+                              <th className="px-3 py-2"><LocalizedText text="Min" /></th>
+                              <th className="px-3 py-2"><LocalizedText text="Max" /></th>
+                              <th className="px-3 py-2"><LocalizedText text="Media" /></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
@@ -3463,15 +3467,15 @@ export default function TelemetryPage() {
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Riepilogo giri</div>
+                      <div className="mb-3 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Riepilogo giri" /></div>
                       <div className="max-h-[330px] overflow-y-auto">
                         <table className="min-w-full divide-y divide-white/10 text-sm">
                           <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                             <tr>
-                              <th className="px-3 py-2">Giro</th>
-                              <th className="px-3 py-2">Tempo</th>
+                              <th className="px-3 py-2"><LocalizedText text="Giro" /></th>
+                              <th className="px-3 py-2"><LocalizedText text="Tempo" /></th>
                               <th className="px-3 py-2">V max</th>
-                              <th className="px-3 py-2">V media</th>
+                              <th className="px-3 py-2"><LocalizedText text="V media" /></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
@@ -3507,7 +3511,7 @@ export default function TelemetryPage() {
           <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl modal-panel shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
               <div>
-                <div className="text-lg font-bold text-[var(--text-primary)]">Import guidato CSV telemetria</div>
+                <div className="text-lg font-bold text-[var(--text-primary)]"><LocalizedText text="Import guidato CSV telemetria" /></div>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
                   {csvWizard.fileName} · separatore {csvWizard.delimiter === "\t" ? "tab" : csvWizard.delimiter} · {csvWizard.rows.length} righe dati
                 </div>
@@ -3528,7 +3532,7 @@ export default function TelemetryPage() {
                 riepilogo canali, giri e un campionamento dei dati per i grafici futuri.
                 {csvWizard.aimMetadata?.isAimCsv ? (
                   <div className="mt-3 rounded-xl bg-white/[0.07] p-3 text-xs leading-5 text-[var(--brand-accent)]">
-                    <strong>AIM CSV riconosciuto:</strong> {csvWizard.aimMetadata.session || "pista non indicata"} ·{" "}
+                    <strong><LocalizedText text="AIM CSV riconosciuto:" /></strong> {csvWizard.aimMetadata.session || "pista non indicata"} ·{" "}
                     {csvWizard.aimMetadata.vehicle || "veicolo non indicato"} ·{" "}
                     {csvWizard.aimMetadata.racer || "pilota non indicato"} ·{" "}
                     {csvWizard.aimMetadata.segmentTimes.length > 0
@@ -3544,7 +3548,7 @@ export default function TelemetryPage() {
 
               {wizardValidation.errors.length > 0 ? (
                 <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
-                  <div className="font-bold">Errori da correggere</div>
+                  <div className="font-bold"><LocalizedText text="Errori da correggere" /></div>
                   {wizardValidation.errors.map((error) => (
                     <div key={error}>• {error}</div>
                   ))}
@@ -3553,7 +3557,7 @@ export default function TelemetryPage() {
 
               {wizardValidation.warnings.length > 0 ? (
                 <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
-                  <div className="font-bold">Avvisi</div>
+                  <div className="font-bold"><LocalizedText text="Avvisi" /></div>
                   {wizardValidation.warnings.map((warning) => (
                     <div key={warning}>• {warning}</div>
                   ))}
@@ -3564,10 +3568,10 @@ export default function TelemetryPage() {
                 <table className="min-w-full divide-y divide-white/10 text-sm">
                   <thead className="bg-white/[0.045] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <tr>
-                      <th className="px-4 py-3">Colonna file</th>
-                      <th className="px-4 py-3">Unità</th>
-                      <th className="px-4 py-3">Esempio</th>
-                      <th className="px-4 py-3">Campo telemetria</th>
+                      <th className="px-4 py-3"><LocalizedText text="Colonna file" /></th>
+                      <th className="px-4 py-3"><LocalizedText text="Unità" /></th>
+                      <th className="px-4 py-3"><LocalizedText text="Esempio" /></th>
+                      <th className="px-4 py-3"><LocalizedText text="Campo telemetria" /></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 bg-[rgba(16,23,31,0.96)]">
@@ -3609,7 +3613,7 @@ export default function TelemetryPage() {
               </div>
 
               <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                <div className="mb-3 text-sm font-bold text-[var(--text-primary)]">Anteprima prime righe</div>
+                <div className="mb-3 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Anteprima prime righe" /></div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-xs text-[var(--text-secondary)]">
                     <thead>
@@ -3650,7 +3654,7 @@ export default function TelemetryPage() {
                   disabled={csvWizard.importing}
                   className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045] disabled:opacity-50"
                 >
-                  Annulla
+                  <LocalizedText text="Annulla" />
                 </button>
                 <button
                   type="button"

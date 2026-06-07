@@ -38,6 +38,8 @@ import { Button } from "@/components/Button";
 import { UiField, uiInputClassName, uiSelectClassName, uiTextareaClassName } from "@/components/UiField";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type LocationLabel = "sede" | "pista" | "altro";
 type AttendanceSource = "self" | "admin" | "kiosk" | "qr_event";
@@ -288,6 +290,8 @@ async function copyToClipboard(value: string) {
 }
 
 export default function AttendancePage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const router = useRouter();
   const access = usePermissionAccess();
   const [viewMode, setViewMode] = usePersistedViewMode("parcoauto.attendance.viewMode", "compact");
@@ -829,17 +833,17 @@ export default function AttendancePage() {
   }, [detailMember?.id, detailMonth, access.ctx?.teamId]);
 
   if (access.loading) {
-    return <PagePermissionState title="Presenze" subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="loading" />;
+    return <PagePermissionState title={tr("Presenze")} subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="loading" />;
   }
 
   if (access.error) {
-    return <PagePermissionState title="Presenze" subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="error" message={access.error} />;
+    return <PagePermissionState title={tr("Presenze")} subtitle="Timbrature e presenza giornaliera del team" icon={<UsersRound size={22} />} state="error" message={access.error} />;
   }
 
   if (!canView) {
     return (
       <PagePermissionState
-        title="Presenze"
+        title={tr("Presenze")}
         subtitle="Timbrature e presenza giornaliera del team"
         icon={<UsersRound size={22} />}
         state="denied"
@@ -851,7 +855,7 @@ export default function AttendancePage() {
   return (
     <div className="page-shell">
       <PageHeader
-        title="Presenze"
+        title={tr("Presenze")}
         subtitle="Controllo presenze del team, timbrature in sede o in pista, riepiloghi per utente e contatori periodo azzerabili."
         icon={<UsersRound size={22} />}
         actions={
@@ -864,13 +868,13 @@ export default function AttendancePage() {
                 </Button>
                 <Button variant="secondary" onClick={openEventQrModal}>
                   <QrCode size={16} className="mr-2" />
-                  QR evento
+                  <LocalizedText text="QR evento" />
                 </Button>
               </>
             ) : null}
             {canManage ? (
               <>
-                <Button variant="secondary" onClick={() => openAdminClockModal(undefined, "in")}>Timbratura staff</Button>
+                <Button variant="secondary" onClick={() => openAdminClockModal(undefined, "in")}><LocalizedText text="Timbratura staff" /></Button>
                 <Button onClick={openStaffModal}>
                   <Plus size={16} className="mr-2" />
                   Nuovo staff
@@ -889,7 +893,7 @@ export default function AttendancePage() {
         <QuickStat icon={<UsersRound size={18} />} label="Staff attivo" value={String(staff.filter((member) => member.is_active).length)} tone="yellow" />
       </div>
 
-      <SectionCard title="Timbratura rapida" subtitle="Usa questa area dal tuo accesso personale. Owner e admin possono usare anche la timbratura staff." actions={<StatusBadge label={currentOpenRecord ? "Presente" : "Non presente"} tone={currentOpenRecord ? "green" : "neutral"} />}>
+      <SectionCard title={tr("Timbratura rapida")} subtitle="Usa questa area dal tuo accesso personale. Owner e admin possono usare anche la timbratura staff." actions={<StatusBadge label={currentOpenRecord ? "Presente" : "Non presente"} tone={currentOpenRecord ? "green" : "neutral"} />}>
         {error ? (
           <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-200">
             {error}
@@ -905,7 +909,7 @@ export default function AttendancePage() {
 
           <UiField label="Evento / pista">
             <select className={uiSelectClassName} value={clockEventId} onChange={(event) => setClockEventId(event.target.value)} disabled={!!currentOpenRecord}>
-              <option value="">Nessun evento</option>
+              <option value="">{tr("Nessun evento")}</option>
               {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
             </select>
           </UiField>
@@ -918,12 +922,12 @@ export default function AttendancePage() {
             {currentOpenRecord ? (
               <Button variant="danger" onClick={clockOut} disabled={clockSaving || !canClockSelf} className="w-full">
                 <LogOut size={16} className="mr-2" />
-                Uscita
+                <LocalizedText text="Uscita" />
               </Button>
             ) : (
               <Button onClick={clockIn} disabled={clockSaving || !canClockSelf} className="w-full">
                 <LogIn size={16} className="mr-2" />
-                Entrata
+                <LocalizedText text="Entrata" />
               </Button>
             )}
           </div>
@@ -936,11 +940,11 @@ export default function AttendancePage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Riepilogo ore per utente" subtitle="Contatore periodo azzerabile senza cancellare lo storico: le ore totali restano sempre tracciate." actions={canExport ? <StatusBadge label="Storico conservato" tone="blue" /> : null}>
+      <SectionCard title={tr("Riepilogo ore per utente")} subtitle="Contatore periodo azzerabile senza cancellare lo storico: le ore totali restano sempre tracciate." actions={canExport ? <StatusBadge label="Storico conservato" tone="blue" /> : null}>
         {loading ? (
-          <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento statistiche...</div>
+          <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]"><LocalizedText text="Caricamento statistiche..." /></div>
         ) : filteredSummaryRows.length === 0 ? (
-          <EmptyState title="Nessun riepilogo disponibile" description="Aggiungi lo staff o modifica i filtri." />
+          <EmptyState title={tr("Nessun riepilogo disponibile")} description="Aggiungi lo staff o modifica i filtri." />
         ) : (
           <div className="space-y-3">
             {filteredSummaryRows.map(({ member, summary }) => {
@@ -967,35 +971,35 @@ export default function AttendancePage() {
       </SectionCard>
 
       <SectionCard
-        title="Console presenze"
+        title={tr("Console presenze")}
         subtitle="Vista sintetica con stato attuale dello staff e vista schede con storico timbrature modificabile dagli admin."
         actions={<ViewModeToggle value={viewMode} onChange={setViewMode} />}
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_0.8fr_0.8fr]">
           <label className="relative block">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input className={`${uiInputClassName} pl-10`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cerca staff, evento, nota..." />
+            <input className={`${uiInputClassName} pl-10`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("Cerca staff, evento, nota...")} />
           </label>
 
           <select className={uiSelectClassName} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">Tutti gli stati</option>
-            <option value="present">Solo presenti</option>
-            <option value="absent">Solo assenti</option>
+            <option value="all">{tr("Tutti gli stati")}</option>
+            <option value="present"><LocalizedText text="Solo presenti" /></option>
+            <option value="absent"><LocalizedText text="Solo assenti" /></option>
           </select>
 
           <select className={uiSelectClassName} value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
-            <option value="all">Tutti i luoghi</option>
+            <option value="all"><LocalizedText text="Tutti i luoghi" /></option>
             {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
 
         <div className="mt-6">
           {loading ? (
-            <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento presenze...</div>
+            <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]"><LocalizedText text="Caricamento presenze..." /></div>
           ) : viewMode === "compact" ? (
             <div className="space-y-3">
               {filteredStaff.length === 0 ? (
-                <EmptyState title="Nessun membro staff trovato" description="Aggiungi lo staff oppure modifica i filtri." />
+                <EmptyState title={tr("Nessun membro staff trovato")} description="Aggiungi lo staff oppure modifica i filtri." />
               ) : (
                 filteredStaff.map((member) => {
                   const activeRecord = activeRecords.find((row) => row.staff_member_id === member.id) || null;
@@ -1017,7 +1021,7 @@ export default function AttendancePage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {filteredRecords.length === 0 ? (
-                <div className="xl:col-span-2"><EmptyState title="Nessuna timbratura trovata" /></div>
+                <div className="xl:col-span-2"><EmptyState title={tr("Nessuna timbratura trovata")} /></div>
               ) : (
                 filteredRecords.map((record) => <AttendanceRecordCard key={record.id} record={record} canManage={canManage} onEdit={() => openEditRecordModal(record)} />)
               )}
@@ -1028,31 +1032,31 @@ export default function AttendancePage() {
 
       {staffModalOpen ? (
         <ModalShell
-          title="Nuovo membro staff"
+          title={tr("Nuovo membro staff")}
           subtitle="Aggiungi dipendenti o collaboratori che devono comparire nel registro presenze. Gli utenti già invitati alla webapp vengono creati automaticamente."
           onClose={() => setStaffModalOpen(false)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setStaffModalOpen(false)} disabled={savingStaff}>Annulla</Button>
+              <Button variant="secondary" onClick={() => setStaffModalOpen(false)} disabled={savingStaff}><LocalizedText text="Annulla" /></Button>
               <Button onClick={saveStaffMember} disabled={savingStaff || !staffForm.full_name.trim()}>{savingStaff ? "Salvataggio..." : "Aggiungi staff"}</Button>
             </>
           }
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UiField label="Nome e cognome">
-              <input className={uiInputClassName} value={staffForm.full_name} onChange={(event) => setStaffForm((prev) => ({ ...prev, full_name: event.target.value }))} placeholder="Es. Mario Rossi" />
+              <input className={uiInputClassName} value={staffForm.full_name} onChange={(event) => setStaffForm((prev) => ({ ...prev, full_name: event.target.value }))} placeholder={tr("Es. Mario Rossi")} />
             </UiField>
             <UiField label="Ruolo / mansione">
-              <input className={uiInputClassName} value={staffForm.role_label} onChange={(event) => setStaffForm((prev) => ({ ...prev, role_label: event.target.value }))} placeholder="Es. Meccanico, tecnico, logistica..." />
+              <input className={uiInputClassName} value={staffForm.role_label} onChange={(event) => setStaffForm((prev) => ({ ...prev, role_label: event.target.value }))} placeholder={tr("Es. Meccanico, tecnico, logistica...")} />
             </UiField>
             <UiField label="Email">
-              <input className={uiInputClassName} type="email" value={staffForm.email} onChange={(event) => setStaffForm((prev) => ({ ...prev, email: event.target.value }))} placeholder="nome@email.it" />
+              <input className={uiInputClassName} type="email" value={staffForm.email} onChange={(event) => setStaffForm((prev) => ({ ...prev, email: event.target.value }))} placeholder={tr("nome@email.it")} />
             </UiField>
             <UiField label="Telefono">
-              <input className={uiInputClassName} value={staffForm.phone} onChange={(event) => setStaffForm((prev) => ({ ...prev, phone: event.target.value }))} placeholder="+39..." />
+              <input className={uiInputClassName} value={staffForm.phone} onChange={(event) => setStaffForm((prev) => ({ ...prev, phone: event.target.value }))} placeholder={tr("+39...")} />
             </UiField>
             <label className="md:col-span-2 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
-              <span className="font-semibold text-[var(--text-primary)]">Staff attivo</span>
+              <span className="font-semibold text-[var(--text-primary)]"><LocalizedText text="Staff attivo" /></span>
               <input type="checkbox" checked={staffForm.is_active} onChange={(event) => setStaffForm((prev) => ({ ...prev, is_active: event.target.checked }))} />
             </label>
           </div>
@@ -1066,7 +1070,7 @@ export default function AttendancePage() {
           onClose={() => setAdminClockModalOpen(false)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setAdminClockModalOpen(false)} disabled={savingAdminClock}>Annulla</Button>
+              <Button variant="secondary" onClick={() => setAdminClockModalOpen(false)} disabled={savingAdminClock}><LocalizedText text="Annulla" /></Button>
               <Button onClick={saveAdminClock} disabled={savingAdminClock || !adminClockForm.staff_member_id}>{savingAdminClock ? "Salvataggio..." : "Registra timbratura"}</Button>
             </>
           }
@@ -1074,13 +1078,13 @@ export default function AttendancePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UiField label="Tipo timbratura">
               <select className={uiSelectClassName} value={adminClockForm.mode} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, mode: event.target.value as AdminClockMode }))}>
-                <option value="in">Entrata</option>
-                <option value="out">Uscita</option>
+                <option value="in">{tr("Entrata")}</option>
+                <option value="out">{tr("Uscita")}</option>
               </select>
             </UiField>
             <UiField label="Membro staff">
               <select className={uiSelectClassName} value={adminClockForm.staff_member_id} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, staff_member_id: event.target.value }))}>
-                <option value="">Seleziona membro</option>
+                <option value=""><LocalizedText text="Seleziona membro" /></option>
                 {staff.map((member) => <option key={member.id} value={member.id}>{getStaffLabel(member)}</option>)}
               </select>
             </UiField>
@@ -1095,14 +1099,14 @@ export default function AttendancePage() {
             {adminClockForm.mode === "in" ? (
               <UiField label="Evento / pista">
                 <select className={uiSelectClassName} value={adminClockForm.event_id} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, event_id: event.target.value }))}>
-                  <option value="">Nessun evento</option>
+                  <option value="">{tr("Nessun evento")}</option>
                   {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
                 </select>
               </UiField>
             ) : null}
             <div className={adminClockForm.mode === "in" ? "" : "md:col-span-2"}>
               <UiField label="Nota">
-                <textarea className={uiTextareaClassName} value={adminClockForm.note} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, note: event.target.value }))} placeholder="Motivo o dettaglio della timbratura manuale..." />
+                <textarea className={uiTextareaClassName} value={adminClockForm.note} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, note: event.target.value }))} placeholder={tr("Motivo o dettaglio della timbratura manuale...")} />
               </UiField>
             </div>
           </div>
@@ -1111,12 +1115,12 @@ export default function AttendancePage() {
 
       {editRecordModalOpen && editRecordForm ? (
         <ModalShell
-          title="Modifica timbratura"
+          title={tr("Modifica timbratura")}
           subtitle="Correzione amministrativa: lo storico resta tracciato con data aggiornamento e utente che effettua la modifica."
           onClose={() => setEditRecordModalOpen(false)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setEditRecordModalOpen(false)} disabled={savingRecordEdit}>Annulla</Button>
+              <Button variant="secondary" onClick={() => setEditRecordModalOpen(false)} disabled={savingRecordEdit}><LocalizedText text="Annulla" /></Button>
               <Button onClick={saveRecordEdit} disabled={savingRecordEdit}>{savingRecordEdit ? "Salvataggio..." : "Salva modifiche"}</Button>
             </>
           }
@@ -1129,7 +1133,7 @@ export default function AttendancePage() {
             </UiField>
             <UiField label="Evento / pista">
               <select className={uiSelectClassName} value={editRecordForm.event_id} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, event_id: event.target.value }) : prev)}>
-                <option value="">Nessun evento</option>
+                <option value="">{tr("Nessun evento")}</option>
                 {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
               </select>
             </UiField>
@@ -1172,10 +1176,10 @@ export default function AttendancePage() {
                   <Button variant="secondary" onClick={() => openAdminClockModal(detailMember, activeStaffIds.has(detailMember.id) ? "out" : "in")}>
                     {activeStaffIds.has(detailMember.id) ? "Registra uscita" : "Registra entrata"}
                   </Button>
-                  <Button variant="ghost" onClick={() => openResetModal(detailMember)}>Azzera contatore</Button>
+                  <Button variant="ghost" onClick={() => openResetModal(detailMember)}><LocalizedText text="Azzera contatore" /></Button>
                 </>
               ) : null}
-              <Button onClick={() => setDetailMember(null)}>Chiudi</Button>
+              <Button onClick={() => setDetailMember(null)}><LocalizedText text="Chiudi" /></Button>
             </>
           }
         >
@@ -1210,9 +1214,9 @@ export default function AttendancePage() {
             ) : null}
 
             {detailLoading ? (
-              <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento dettaglio mensile...</div>
+              <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]"><LocalizedText text="Caricamento dettaglio mensile..." /></div>
             ) : detailRecords.length === 0 ? (
-              <EmptyState title="Nessuna timbratura nel mese" description="Non risultano entrate o uscite per il mese selezionato." />
+              <EmptyState title={tr("Nessuna timbratura nel mese")} description="Non risultano entrate o uscite per il mese selezionato." />
             ) : (
               <MemberMonthRecords records={detailRecords} canManage={canManage} onEdit={openEditRecordModal} />
             )}
@@ -1229,7 +1233,7 @@ export default function AttendancePage() {
           onClose={() => setBadgeModalMember(null)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setBadgeModalMember(null)} disabled={badgeGenerating}>Chiudi</Button>
+              <Button variant="secondary" onClick={() => setBadgeModalMember(null)} disabled={badgeGenerating}><LocalizedText text="Chiudi" /></Button>
               <Button onClick={generateBadgeCredentials} disabled={badgeGenerating}>
                 <RefreshCw size={16} className="mr-2" />
                 {badgeGenerating ? "Generazione..." : "Genera / rigenera"}
@@ -1250,7 +1254,7 @@ export default function AttendancePage() {
               </div>
 
               <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
-                <span className="text-sm font-bold text-[var(--text-primary)]">Genera anche PIN rapido</span>
+                <span className="text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="Genera anche PIN rapido" /></span>
                 <input type="checkbox" checked={badgeGeneratePin} onChange={(event) => setBadgeGeneratePin(event.target.checked)} />
               </label>
 
@@ -1260,7 +1264,7 @@ export default function AttendancePage() {
                     className={uiInputClassName}
                     value={badgeCustomPin}
                     onChange={(event) => setBadgeCustomPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
-                    placeholder="Lascia vuoto per generarlo automaticamente"
+                    placeholder={tr("Lascia vuoto per generarlo automaticamente")}
                     inputMode="numeric"
                   />
                 </UiField>
@@ -1268,7 +1272,7 @@ export default function AttendancePage() {
 
               {badgeResult?.badge_code ? (
                 <div className="race-card-grid p-4">
-                  <div className="racing-kicker text-[var(--brand-accent)]">Codici generati</div>
+                  <div className="racing-kicker text-[var(--brand-accent)]"><LocalizedText text="Codici generati" /></div>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <CredentialBox label="Codice badge" value={badgeResult.badge_code} />
                     <CredentialBox label="PIN rapido" value={badgeResult.pin_code || "Non generato"} />
@@ -1291,14 +1295,14 @@ export default function AttendancePage() {
               {badgeResult?.badge_code ? (
                 <>
                   <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(buildKioskUrl({ badge: badgeResult.badge_code }))} alt="QR badge personale" />
-                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR badge personale</div>
-                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Scansionandolo dal tablet si apre il kiosk con badge già compilato.</div>
+                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="QR badge personale" /></div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]"><LocalizedText text="Scansionandolo dal tablet si apre il kiosk con badge già compilato." /></div>
                 </>
               ) : (
                 <>
                   <QrCode size={56} className="text-[var(--brand-accent)]" />
-                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR pronto dopo la generazione</div>
-                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Genera badge/PIN per stampare o salvare la tessera personale.</div>
+                  <div className="mt-4 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="QR pronto dopo la generazione" /></div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]"><LocalizedText text="Genera badge/PIN per stampare o salvare la tessera personale." /></div>
                 </>
               )}
             </div>
@@ -1308,13 +1312,13 @@ export default function AttendancePage() {
 
       {eventQrModalOpen ? (
         <ModalShell
-          title="QR evento / pista"
+          title={tr("QR evento / pista")}
           subtitle="Apri questa schermata sul tablet o stampa il QR evento. Chi timbra dovrà inserire badge o PIN, con evento e luogo già precompilati."
           maxWidth="max-w-4xl"
           onClose={() => setEventQrModalOpen(false)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setEventQrModalOpen(false)}>Chiudi</Button>
+              <Button variant="secondary" onClick={() => setEventQrModalOpen(false)}><LocalizedText text="Chiudi" /></Button>
               <Button onClick={() => copyToClipboard(getEventQrLink())}>
                 <Copy size={15} className="mr-2" />
                 Copia link
@@ -1330,7 +1334,7 @@ export default function AttendancePage() {
             <div className="space-y-4">
               <UiField label="Evento collegato">
                 <select className={uiSelectClassName} value={eventQrEventId} onChange={(event) => setEventQrEventId(event.target.value)}>
-                  <option value="">Nessun evento</option>
+                  <option value="">{tr("Nessun evento")}</option>
                   {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
                 </select>
               </UiField>
@@ -1346,8 +1350,8 @@ export default function AttendancePage() {
             </div>
             <div className="race-card-grid flex flex-col items-center justify-center p-5 text-center">
               <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(getEventQrLink())} alt="QR evento presenze" />
-              <div className="mt-4 text-sm font-bold text-[var(--text-primary)]">QR evento</div>
-              <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Scansione rapida per aprire il kiosk con evento già selezionato.</div>
+              <div className="mt-4 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="QR evento" /></div>
+              <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]"><LocalizedText text="Scansione rapida per aprire il kiosk con evento già selezionato." /></div>
             </div>
           </div>
         </ModalShell>
@@ -1355,12 +1359,12 @@ export default function AttendancePage() {
 
       {resetModalOpen ? (
         <ModalShell
-          title="Azzera contatore periodo"
+          title={tr("Azzera contatore periodo")}
           subtitle="L'azzeramento non cancella lo storico: crea solo un nuovo punto di partenza per il contatore ore del membro selezionato."
           onClose={() => setResetModalOpen(false)}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setResetModalOpen(false)} disabled={savingReset}>Annulla</Button>
+              <Button variant="secondary" onClick={() => setResetModalOpen(false)} disabled={savingReset}><LocalizedText text="Annulla" /></Button>
               <Button variant="danger" onClick={saveResetCounter} disabled={savingReset || !resetForm.staff_member_id}>{savingReset ? "Salvataggio..." : "Azzera contatore"}</Button>
             </>
           }
@@ -1368,7 +1372,7 @@ export default function AttendancePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UiField label="Membro staff">
               <select className={uiSelectClassName} value={resetForm.staff_member_id} onChange={(event) => setResetForm((prev) => ({ ...prev, staff_member_id: event.target.value }))}>
-                <option value="">Seleziona membro</option>
+                <option value=""><LocalizedText text="Seleziona membro" /></option>
                 {staff.map((member) => <option key={member.id} value={member.id}>{getStaffLabel(member)}</option>)}
               </select>
             </UiField>
@@ -1384,7 +1388,7 @@ export default function AttendancePage() {
             </label>
             <div className="md:col-span-2">
               <UiField label="Nota azzeramento">
-                <textarea className={uiTextareaClassName} value={resetForm.note} onChange={(event) => setResetForm((prev) => ({ ...prev, note: event.target.value }))} placeholder="Es. chiusura periodo, pagamento ore, consuntivo evento..." />
+                <textarea className={uiTextareaClassName} value={resetForm.note} onChange={(event) => setResetForm((prev) => ({ ...prev, note: event.target.value }))} placeholder={tr("Es. chiusura periodo, pagamento ore, consuntivo evento...")} />
               </UiField>
             </div>
           </div>
@@ -1474,16 +1478,16 @@ function StaffStatsRow({
 
       <div className="flex flex-col gap-2 xl:items-end">
         <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-          Ultimo reset: <span className="text-[var(--text-secondary)]">{formatDateTime(summary?.last_reset_at)}</span>
+          <LocalizedText text="Ultimo reset:" /> <span className="text-[var(--text-secondary)]">{formatDateTime(summary?.last_reset_at)}</span>
         </div>
         <div className="flex flex-wrap gap-2 xl:justify-end">
-          <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}>Dettaglio</Button>
+          <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}><LocalizedText text="Dettaglio" /></Button>
           {canManage ? (
             <>
               <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita" : "Entrata"}</Button>
-              <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!latestRecord}>Modifica</Button>
-              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onReset}>Azzera</Button>
-              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onBadge}>Badge/PIN</Button>
+              <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!latestRecord}><LocalizedText text="Modifica" /></Button>
+              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onReset}><LocalizedText text="Azzera" /></Button>
+              <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onBadge}><LocalizedText text="Badge/PIN" /></Button>
             </>
           ) : null}
         </div>
@@ -1524,11 +1528,11 @@ function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord, 
         <MiniInfo icon={<Clock3 size={15} />} label="Durata" value={activeRecord ? formatDuration(minutesBetween(activeRecord.check_in_at)) : "—"} />
       </div>
       <div className="flex flex-wrap gap-2 lg:justify-end">
-        <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}>Dettaglio</Button>
+        <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}><LocalizedText text="Dettaglio" /></Button>
         {canManage ? (
           <>
             <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita admin" : "Entrata admin"}</Button>
-            <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}>Modifica</Button>
+            <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}><LocalizedText text="Modifica" /></Button>
           </>
         ) : null}
       </div>
@@ -1581,21 +1585,21 @@ function MemberMonthRecords({ records, canManage, onEdit }: { records: Attendanc
               return (
                 <div key={record.id} className="grid grid-cols-1 gap-3 px-4 py-4 lg:grid-cols-[0.95fr_0.95fr_0.7fr_1.1fr_auto] lg:items-center">
                   <div>
-                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Entrata</div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Entrata" /></div>
                     <div className="mt-1 flex items-center gap-2 text-sm font-black text-emerald-200"><LogIn size={14} />{formatTime(record.check_in_at)}</div>
                     <div className="mt-1 text-xs text-[var(--text-muted)]">{getLocationLabel(record.check_in_location_label)}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Uscita</div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Uscita" /></div>
                     <div className={`mt-1 flex items-center gap-2 text-sm font-black ${isOpen ? "text-amber-200" : "text-red-200"}`}><LogOut size={14} />{formatTime(record.check_out_at)}</div>
                     <div className="mt-1 text-xs text-[var(--text-muted)]">{record.check_out_at ? getLocationLabel(record.check_out_location_label) : "Timbratura aperta"}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Ore</div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Ore" /></div>
                     <div className="technical-number mt-1 text-base font-black text-blue-300">{formatDuration(minutesBetween(record.check_in_at, record.check_out_at))}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Evento / note</div>
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Evento / note" /></div>
                     <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{record.event?.name || "Nessun evento"}</div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{[record.check_in_note, record.check_out_note].filter(Boolean).join(" · ") || "Nessuna nota"}</div>
                   </div>
@@ -1604,7 +1608,7 @@ function MemberMonthRecords({ records, canManage, onEdit }: { records: Attendanc
                     {canManage ? (
                       <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={() => onEdit(record)}>
                         <Edit3 size={13} className="mr-1.5" />
-                        Modifica
+                        <LocalizedText text="Modifica" />
                       </Button>
                     ) : null}
                   </div>
@@ -1630,7 +1634,7 @@ function AttendanceRecordCard({ record, canManage, onEdit }: { record: Attendanc
         {canManage ? (
           <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEdit}>
             <Edit3 size={13} className="mr-1.5" />
-            Modifica
+            <LocalizedText text="Modifica" />
           </Button>
         ) : null}
       </div>

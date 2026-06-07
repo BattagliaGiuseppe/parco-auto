@@ -27,12 +27,14 @@ import ModalShell from "@/components/ModalShell";
 import { Button } from "@/components/Button";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 import {
   uiInputClassName,
   uiSelectClassName,
   uiTextareaClassName,
 } from "@/components/UiField";
 import { formatComponentHours } from "@/lib/componentStatus";
+import LocalizedText from "@/components/LocalizedText";
 
 type CarOption = { id: string; name: string };
 type ComponentOption = {
@@ -72,6 +74,8 @@ const emptyForm: MaintenanceForm = {
 };
 
 export default function MaintenancesPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewMaintenances = access.hasPermission("maintenances.view");
   const canEditMaintenances = access.hasPermission("maintenances.edit", [
@@ -336,7 +340,7 @@ export default function MaintenancesPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Manutenzioni"
+        title={tr("Manutenzioni")}
         subtitle="Workflow tecnico con priorità, stato e assegnazione"
         icon={<Wrench size={22} />}
         state="loading"
@@ -347,7 +351,7 @@ export default function MaintenancesPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Manutenzioni"
+        title={tr("Manutenzioni")}
         subtitle="Workflow tecnico con priorità, stato e assegnazione"
         icon={<Wrench size={22} />}
         state="error"
@@ -359,7 +363,7 @@ export default function MaintenancesPage() {
   if (!canViewMaintenances) {
     return (
       <PagePermissionState
-        title="Manutenzioni"
+        title={tr("Manutenzioni")}
         subtitle="Workflow tecnico con priorità, stato e assegnazione"
         icon={<Wrench size={22} />}
         state="denied"
@@ -377,7 +381,7 @@ export default function MaintenancesPage() {
       ) : null}
 
       <PageHeader
-        title="Manutenzioni"
+        title={tr("Manutenzioni")}
         subtitle="Workflow tecnico con priorità, stato, assegnazione e collegamento alle revisioni."
         icon={<Wrench size={22} />}
         actions={
@@ -391,7 +395,7 @@ export default function MaintenancesPage() {
               }}
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi manutenzione
+              <LocalizedText text="Aggiungi manutenzione" />
             </Button>
           ) : undefined
         }
@@ -399,7 +403,7 @@ export default function MaintenancesPage() {
 
       {!canEditMaintenances ? (
         <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 
@@ -408,26 +412,19 @@ export default function MaintenancesPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Manutenzione e revisione ora lavorano insieme in modo più chiaro."
       >
         <div className="race-info-box text-sm leading-6">
           <div className="flex items-start gap-3">
             <Info size={18} className="mt-0.5 shrink-0" />
-            <div>
-              Usa la manutenzione per registrare o pianificare un intervento. Se
-              l’intervento corrisponde a una revisione del componente, attiva
-              anche la sezione
-              <strong> “Registra anche revisione”</strong>. Da lì puoi scegliere
-              se
-              <strong> azzerare o no le ore</strong> del componente.
-            </div>
+            <div>{tr("Usa la manutenzione per registrare o pianificare un intervento. Se l’intervento corrisponde a una revisione del componente, attiva anche la sezione “Registra anche revisione”. Da lì puoi scegliere se azzerare o no le ore del componente.")}</div>
           </div>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Filtri e vista manutenzioni"
+        title={tr("Filtri e vista manutenzioni")}
         subtitle="Di default lo storico è sintetico e raggruppato per mezzo; puoi filtrare o passare alle schede dettagliate."
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_220px_auto] lg:items-center">
@@ -435,7 +432,7 @@ export default function MaintenancesPage() {
             <Search size={18} className="text-[var(--text-muted)]" />
             <input
               className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-white/30"
-              placeholder="Cerca intervento, componente o note"
+              placeholder={tr("Cerca intervento, componente o note")}
               value={maintenanceSearch}
               onChange={(e) => setMaintenanceSearch(e.target.value)}
             />
@@ -445,7 +442,7 @@ export default function MaintenancesPage() {
             value={maintenanceCarFilter}
             onChange={(e) => setMaintenanceCarFilter(e.target.value)}
           >
-            <option value="">Tutte le auto</option>
+            <option value="">{tr("Tutte le auto")}</option>
             {cars.map((car) => (
               <option key={car.id} value={car.id}>
                 {car.name}
@@ -461,9 +458,9 @@ export default function MaintenancesPage() {
                 setMaintenanceStatusFilter(e.target.value as typeof maintenanceStatusFilter)
               }
             >
-              <option value="all">Tutti gli stati</option>
-              <option value="open">Aperte</option>
-              <option value="completed">Completate</option>
+              <option value="all">{tr("Tutti gli stati")}</option>
+              <option value="open">{tr("Aperte")}</option>
+              <option value="completed"><LocalizedText text="Completate" /></option>
             </select>
           </div>
           <div className="flex justify-start lg:justify-end">
@@ -472,11 +469,11 @@ export default function MaintenancesPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Storico interventi">
+      <SectionCard title={tr("Storico interventi")}>
         {loading ? (
-          <div className="text-[var(--text-secondary)]">Caricamento...</div>
+          <div className="text-[var(--text-secondary)]"><LocalizedText text="Caricamento..." /></div>
         ) : filteredMaintenances.length === 0 ? (
-          <EmptyState title="Nessuna manutenzione trovata" />
+          <EmptyState title={tr("Nessuna manutenzione trovata")} />
         ) : viewMode === "compact" ? (
           <div className="space-y-5">
             {groupedMaintenances.map((group) => (
@@ -514,7 +511,7 @@ export default function MaintenancesPage() {
                           {canEditMaintenances ? (
                             <button onClick={() => openForEdit(m)} className="race-action-secondary px-3 py-2 text-sm">
                               <Edit size={16} className="mr-2 inline" />
-                              Modifica
+                              <LocalizedText text="Modifica" />
                             </button>
                           ) : null}
                         </div>
@@ -547,7 +544,7 @@ export default function MaintenancesPage() {
                       className="race-action-secondary px-3 py-2 text-sm"
                     >
                       <Edit size={16} className="mr-2 inline" />
-                      Modifica
+                      <LocalizedText text="Modifica" />
                     </button>
                   ) : null}
                 </div>
@@ -591,7 +588,7 @@ export default function MaintenancesPage() {
           footer={
             <>
               <Button variant="secondary" onClick={() => setOpenModal(false)}>
-                Annulla
+                <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={() => void saveMaintenance()} disabled={saving}>
                 {saving ? "Salvataggio..." : "Salva manutenzione"}
@@ -606,7 +603,7 @@ export default function MaintenancesPage() {
                 value={form.carId}
                 onChange={(e) => setForm({ ...form, carId: e.target.value })}
               >
-                <option value="">Seleziona mezzo</option>
+                <option value="">{tr("Seleziona mezzo")}</option>
                 {cars.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -623,7 +620,7 @@ export default function MaintenancesPage() {
                   setForm({ ...form, componentId: e.target.value })
                 }
               >
-                <option value="">Seleziona componente</option>
+                <option value="">{tr("Seleziona componente")}</option>
                 {components.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.type || "Componente"} · {c.identifier}
@@ -646,7 +643,7 @@ export default function MaintenancesPage() {
                 className={uiInputClassName}
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
-                placeholder="Es. revisione, sostituzione, controllo"
+                placeholder={tr("Es. revisione, sostituzione, controllo")}
               />
             </Field>
 
@@ -656,9 +653,9 @@ export default function MaintenancesPage() {
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
               >
-                <option value="open">Aperta</option>
-                <option value="in_progress">In corso</option>
-                <option value="completed">Completata</option>
+                <option value="open">{tr("Aperta")}</option>
+                <option value="in_progress">{tr("In corso")}</option>
+                <option value="completed">{tr("Completata")}</option>
               </select>
             </Field>
 
@@ -668,9 +665,9 @@ export default function MaintenancesPage() {
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
               >
-                <option value="low">Bassa</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
+                <option value="low">{tr("Bassa")}</option>
+                <option value="medium">{tr("Media")}</option>
+                <option value="high">{tr("Alta")}</option>
               </select>
             </Field>
 
@@ -683,7 +680,7 @@ export default function MaintenancesPage() {
                     setForm({ ...form, assignedTo: e.target.value })
                   }
                 >
-                  <option value="">Nessuno</option>
+                  <option value="">{tr("Nessuno")}</option>
                   {teamUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name || user.email || user.role}
@@ -726,7 +723,7 @@ export default function MaintenancesPage() {
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
               <div className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)]">
                 <RotateCcw size={18} />
-                Revisione componente
+                <LocalizedText text="Revisione componente" />
               </div>
               <div className="mt-1 text-sm text-[var(--text-secondary)]">
                 Attiva questa sezione solo quando l’intervento equivale anche a
@@ -744,7 +741,7 @@ export default function MaintenancesPage() {
                 />
                 <div>
                   <div className="font-semibold text-[var(--text-primary)]">
-                    Registra anche revisione
+                    <LocalizedText text="Registra anche revisione" />
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-secondary)]">
                     Crea una riga nello storico revisioni del componente
@@ -765,7 +762,7 @@ export default function MaintenancesPage() {
                           revisionDescription: e.target.value,
                         })
                       }
-                      placeholder="Es. revisione completa, sostituzione paraoli, banco prova"
+                      placeholder={tr("Es. revisione completa, sostituzione paraoli, banco prova")}
                     />
                   </Field>
 

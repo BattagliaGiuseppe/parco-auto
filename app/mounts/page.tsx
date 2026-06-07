@@ -24,11 +24,13 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 import {
   UiField,
   uiInputClassName,
   uiTextareaClassName,
 } from "@/components/UiField";
+import LocalizedText from "@/components/LocalizedText";
 
 type MountRow = {
   id: string;
@@ -112,6 +114,8 @@ function pickOne<T>(value: T | T[] | null | undefined): T | null {
 }
 
 export default function MountsPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewMounts = access.hasPermission("mounts.view");
   const canEditMounts = access.hasPermission("mounts.edit", ["owner", "admin"]);
@@ -379,7 +383,7 @@ export default function MountsPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Montaggi"
+        title={tr("Montaggi")}
         subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
         icon={<Layers3 size={20} />}
         state="loading"
@@ -390,7 +394,7 @@ export default function MountsPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Montaggi"
+        title={tr("Montaggi")}
         subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
         icon={<Layers3 size={20} />}
         state="error"
@@ -402,7 +406,7 @@ export default function MountsPage() {
   if (!canViewMounts) {
     return (
       <PagePermissionState
-        title="Montaggi"
+        title={tr("Montaggi")}
         subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
         icon={<Layers3 size={20} />}
         state="denied"
@@ -414,14 +418,14 @@ export default function MountsPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Montaggi"
+        title={tr("Montaggi")}
         subtitle="Workflow tecnico per montare, smontare e consultare lo storico componenti del mezzo."
         icon={<Layers3 size={22} />}
       />
 
       {!canEditMounts ? (
         <div className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-3 text-sm text-blue-200">
-          Hai accesso in sola lettura a questo modulo.
+          {tr("Hai accesso in sola lettura a questo modulo.")}
         </div>
       ) : null}
 
@@ -434,20 +438,13 @@ export default function MountsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Montaggio e smontaggio lavorano insieme in modo più chiaro."
       >
         <div className="race-info-box text-sm leading-6">
           <div className="flex items-start gap-3">
             <Info size={18} className="mt-0.5 shrink-0" />
-            <div>
-              Usa <strong>Montaggio rapido</strong> per installare un componente
-              libero su un mezzo. Lo storico mostra tutto il ciclo del
-              componente: quando è stato montato, da chi, su quale auto e quando
-              è stato smontato. Il pulsante <strong>Smonta componente</strong>
-              chiude il montaggio attivo senza alterare il resto della
-              configurazione del modulo.
-            </div>
+            <div>{tr("Usa “Montaggio rapido” per installare un componente libero su un mezzo. Lo storico mostra tutto il ciclo del componente: quando è stato montato, da chi, su quale auto e quando è stato smontato. Il pulsante “Smonta componente” chiude il montaggio attivo senza alterare il resto della configurazione del modulo.")}</div>
           </div>
         </div>
       </SectionCard>
@@ -455,7 +452,7 @@ export default function MountsPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         {canEditMounts ? (
           <SectionCard
-            title="Montaggio rapido"
+            title={tr("Montaggio rapido")}
             subtitle="Seleziona mezzo, componente, data e operatore per registrare il montaggio."
           >
             <form className="grid grid-cols-1 gap-5" onSubmit={addMount}>
@@ -470,7 +467,7 @@ export default function MountsPage() {
                     className={uiInputClassName}
                     required
                   >
-                    <option value="">Seleziona auto</option>
+                    <option value="">{tr("Seleziona auto")}</option>
                     {cars.map((car) => (
                       <option key={car.id} value={car.id}>
                         {car.name || "Auto senza nome"}
@@ -489,7 +486,7 @@ export default function MountsPage() {
                     className={uiInputClassName}
                     required
                   >
-                    <option value="">Seleziona componente</option>
+                    <option value="">{tr("Seleziona componente")}</option>
                     {components.map((component) => (
                       <option key={component.id} value={component.id}>
                         {component.type || "Componente"} ·{" "}
@@ -527,7 +524,7 @@ export default function MountsPage() {
                       onChange={(e) => setMountedBy(e.target.value)}
                       className={uiInputClassName}
                     >
-                      <option value="">Operatore</option>
+                      <option value="">{tr("Operatore")}</option>
                       {teamUsers.map((user) => (
                         <option key={user.id} value={user.id}>
                           {formatUserLabel(user)}
@@ -550,7 +547,7 @@ export default function MountsPage() {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className={uiTextareaClassName}
-                  placeholder="Descrivi il motivo tecnico del montaggio..."
+                  placeholder={tr("Descrivi il motivo tecnico del montaggio...")}
                 />
               </UiField>
 
@@ -569,7 +566,7 @@ export default function MountsPage() {
         ) : null}
 
         <SectionCard
-          title="Filtri storico"
+          title={tr("Filtri storico")}
           subtitle="Riduci lo storico per stato, auto o ricerca libera."
           className={canEditMounts ? "" : "xl:col-span-2"}
         >
@@ -581,9 +578,9 @@ export default function MountsPage() {
                 setStatusFilter(e.target.value as "all" | "active" | "history")
               }
             >
-              <option value="all">Tutti</option>
-              <option value="active">Montaggi attivi</option>
-              <option value="history">Storico chiuso</option>
+              <option value="all">{tr("Tutti")}</option>
+              <option value="active">{tr("Montaggi attivi")}</option>
+              <option value="history">{tr("Storico chiuso")}</option>
             </select>
 
             <select
@@ -591,7 +588,7 @@ export default function MountsPage() {
               value={carFilter}
               onChange={(e) => setCarFilter(e.target.value)}
             >
-              <option value="">Tutte le auto</option>
+              <option value="">{tr("Tutte le auto")}</option>
               {cars.map((car) => (
                 <option key={car.id} value={car.id}>
                   {car.name || "Auto senza nome"}
@@ -603,7 +600,7 @@ export default function MountsPage() {
               <Search size={18} className="text-[var(--text-muted)]" />
               <input
                 className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-white/30"
-                placeholder="Cerca per componente o auto"
+                placeholder={tr("Cerca per componente o auto")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -616,14 +613,14 @@ export default function MountsPage() {
       </div>
 
       <SectionCard
-        title="Storico montaggi"
+        title={tr("Storico montaggi")}
         subtitle="Visione unificata di componenti attivi e storico smontaggi."
       >
         {loading ? (
-          <div className="text-[var(--text-secondary)]">Caricamento...</div>
+          <div className="text-[var(--text-secondary)]"><LocalizedText text="Caricamento..." /></div>
         ) : filteredMounts.length === 0 ? (
           <EmptyState
-            title="Nessun montaggio registrato"
+            title={tr("Nessun montaggio registrato")}
             description="Quando monterai un componente, comparirà qui lo storico completo."
           />
         ) : viewMode === "compact" ? (
@@ -708,7 +705,7 @@ export default function MountsPage() {
 
                   <div className="race-mini-panel">
                     <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                      Operatore
+                      <LocalizedText text="Operatore" />
                     </div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                       {mount.mounted_by_team_user_id?.name ||
@@ -741,7 +738,7 @@ export default function MountsPage() {
                       className="race-action-danger px-4 py-2 text-sm"
                     >
                       <Unlink size={16} className="mr-2 inline" />
-                      Smonta componente
+                      <LocalizedText text="Smonta componente" />
                     </button>
                   </div>
                 ) : null}

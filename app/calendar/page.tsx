@@ -30,6 +30,8 @@ import {
   uiTextareaClassName,
 } from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type Feedback = {
   type: "success" | "error" | "info";
@@ -53,6 +55,8 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 }
 
 export default function CalendarPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewEvents = access.hasPermission("events.view");
   const canEditEvents = access.hasPermission("events.edit", ["owner", "admin"]);
@@ -298,7 +302,7 @@ export default function CalendarPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Eventi"
+        title={tr("Eventi")}
         subtitle="Calendario weekend, test e gare"
         icon={<CalendarDays size={22} />}
         state="loading"
@@ -309,7 +313,7 @@ export default function CalendarPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Eventi"
+        title={tr("Eventi")}
         subtitle="Calendario weekend, test e gare"
         icon={<CalendarDays size={22} />}
         state="error"
@@ -321,7 +325,7 @@ export default function CalendarPage() {
   if (!canViewEvents) {
     return (
       <PagePermissionState
-        title="Eventi"
+        title={tr("Eventi")}
         subtitle="Calendario weekend, test e gare"
         icon={<CalendarDays size={22} />}
         state="denied"
@@ -333,7 +337,7 @@ export default function CalendarPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Eventi"
+        title={tr("Eventi")}
         subtitle="Calendario weekend, test e gare con circuiti e mezzi collegati."
         icon={<CalendarDays size={22} />}
         actions={
@@ -361,7 +365,7 @@ export default function CalendarPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Il calendario eventi è il punto di partenza per organizzare mezzi, sessioni e lavoro tecnico del weekend."
       >
         <FieldHint>
@@ -374,7 +378,7 @@ export default function CalendarPage() {
       </SectionCard>
 
       <SectionCard
-        title="Eventi registrati"
+        title={tr("Eventi registrati")}
         subtitle="Apri, modifica o rimuovi i weekend già configurati."
       >
         {loading ? (
@@ -383,7 +387,7 @@ export default function CalendarPage() {
           </div>
         ) : events.length === 0 ? (
           <EmptyState
-            title="Nessun evento registrato"
+            title={tr("Nessun evento registrato")}
             description="Aggiungi il primo weekend per iniziare a collegare mezzi, sessioni e piloti."
           />
         ) : (
@@ -422,7 +426,7 @@ export default function CalendarPage() {
                       className="race-action-secondary px-4 py-2 text-sm"
                     >
                       <Edit size={16} className="mr-2 inline" />
-                      Modifica
+                      <LocalizedText text="Modifica" />
                     </button>
                   ) : null}
 
@@ -431,7 +435,7 @@ export default function CalendarPage() {
                     className="race-action-secondary px-4 py-2 text-sm"
                   >
                     <Wrench size={16} className="mr-2 inline" />
-                    Gestisci
+                    <LocalizedText text="Gestisci" />
                   </Link>
 
                   {canEditEvents ? (
@@ -459,7 +463,7 @@ export default function CalendarPage() {
           footer={
             <>
               <Button variant="secondary" onClick={() => setOpen(false)}>
-                Annulla
+                <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={saveEvent} disabled={saving}>
                 {saving
@@ -486,7 +490,7 @@ export default function CalendarPage() {
                 className={uiInputClassName}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Es. Test Vallelunga"
+                placeholder={tr("Es. Test Vallelunga")}
               />
             </UiField>
 
@@ -499,7 +503,7 @@ export default function CalendarPage() {
                     setForm({ ...form, circuit_id: e.target.value })
                   }
                 >
-                  <option value="">Seleziona autodromo</option>
+                  <option value="">{tr("Seleziona autodromo")}</option>
                   {circuits.map((circuit) => (
                     <option key={circuit.id} value={circuit.id}>
                       {circuit.name}
@@ -511,7 +515,7 @@ export default function CalendarPage() {
                   type="button"
                   onClick={() => setCircuitOpen(true)}
                   className="race-action-secondary h-[46px] px-4"
-                  aria-label="Aggiungi autodromo"
+                  aria-label={tr("Aggiungi autodromo")}
                 >
                   <MapPinned size={18} />
                 </button>
@@ -526,7 +530,7 @@ export default function CalendarPage() {
                 className={uiTextareaClassName}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Es. test gomme, programma weekend, logistica paddock..."
+                placeholder={tr("Es. test gomme, programma weekend, logistica paddock...")}
               />
             </UiField>
           </div>
@@ -535,14 +539,14 @@ export default function CalendarPage() {
 
       {circuitOpen && canEditEvents ? (
         <ModalShell
-          title="Nuovo autodromo"
+          title={tr("Nuovo autodromo")}
           subtitle="Aggiungi un circuito alla configurazione del team."
           onClose={() => setCircuitOpen(false)}
           maxWidth="max-w-lg"
           footer={
             <>
               <Button variant="secondary" onClick={() => setCircuitOpen(false)}>
-                Annulla
+                <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={saveCircuit} disabled={saving}>
                 {saving ? "Salvataggio..." : "Salva autodromo"}
@@ -555,7 +559,7 @@ export default function CalendarPage() {
               className={uiInputClassName}
               value={newCircuitName}
               onChange={(e) => setNewCircuitName(e.target.value)}
-              placeholder="Es. Monza"
+              placeholder={tr("Es. Monza")}
             />
           </UiField>
         </ModalShell>

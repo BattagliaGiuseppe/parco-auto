@@ -26,9 +26,11 @@ import PagePermissionState from "@/components/PagePermissionState";
 import { Button } from "@/components/Button";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
 import { safeLowerLabel } from "@/lib/controlCenter";
+import LocalizedText from "@/components/LocalizedText";
 
 type CarRow = {
   id: string;
@@ -165,6 +167,8 @@ function getDefinitionCategoryCopy(definition: Definition) {
 }
 
 export default function CarsPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const { theme } = useBrandTheme();
   const vehicleLabel = theme.labels.vehicle || "Auto";
@@ -592,10 +596,10 @@ export default function CarsPage() {
       </SectionCard>
 
       {loading ? (
-        <div className="text-[var(--text-secondary)]">Caricamento schede...</div>
+        <div className="text-[var(--text-secondary)]"><LocalizedText text="Caricamento schede..." /></div>
       ) : filteredCars.length === 0 ? (
         <EmptyState
-          title="Nessun elemento registrato"
+          title={tr("Nessun elemento registrato")}
           description="Crea la prima scheda o modifica le definizioni in impostazioni."
         />
       ) : viewMode === "compact" ? (
@@ -632,12 +636,12 @@ export default function CarsPage() {
                     </div>
                     <div className="flex flex-wrap gap-2 xl:justify-end">
                       <Link href={`/cars/${car.id}`} className="race-action-secondary px-3 py-2 text-sm">
-                        Apri
+                        <LocalizedText text="Apri" />
                       </Link>
                       {canEditCars ? (
                         <button onClick={() => openEdit(car)} className="race-action-secondary px-3 py-2 text-sm">
                           <Edit size={15} className="mr-1 inline" />
-                          Modifica
+                          <LocalizedText text="Modifica" />
                         </button>
                       ) : null}
                     </div>
@@ -681,7 +685,7 @@ export default function CarsPage() {
               <div className="mt-4 space-y-3">
                 {car.components.length === 0 ? (
                   <EmptyState
-                    title="Nessun componente associato"
+                    title={tr("Nessun componente associato")}
                     description="Completa la configurazione del mezzo dal form di modifica."
                   />
                 ) : (
@@ -725,28 +729,28 @@ export default function CarsPage() {
                     className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-semibold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Edit size={16} className="mr-2 inline" />
-                    Modifica
+                    <LocalizedText text="Modifica" />
                   </button>
                 ) : null}
                 <Link
                   href={`/cars/${car.id}`}
                   className="race-action-secondary px-4 py-2 text-sm"
                 >
-                  Apri scheda
+                  <LocalizedText text="Apri scheda" />
                 </Link>
                 <Link
                   href={`/cars/${car.id}/documents`}
                   className="race-action-secondary px-4 py-2 text-sm"
                 >
                   <FileText size={16} className="mr-2 inline" />
-                  Documenti
+                  <LocalizedText text="Documenti" />
                 </Link>
                 <Link
                   href={`/cars/${car.id}/print`}
                   className="race-action-secondary px-4 py-2 text-sm"
                 >
                   <Printer size={16} className="mr-2 inline" />
-                  Stampa
+                  <LocalizedText text="Stampa" />
                 </Link>
               </div>
             </SectionCard>
@@ -802,7 +806,7 @@ export default function CarsPage() {
                         onChange={(event) => void handleCarImageUpload(event.target.files?.[0])}
                       />
                       <div className="text-xs leading-5 text-[var(--text-secondary)]">
-                        Puoi sostituire l'immagine mostrata nelle schede. Formati immagine, massimo 3 MB.
+                        {tr("Puoi sostituire l'immagine mostrata nelle schede. Formati immagine, massimo 3 MB.")}
                       </div>
                       {imageUrl ? (
                         <button
@@ -810,7 +814,7 @@ export default function CarsPage() {
                           className="race-action-secondary px-3 py-2 text-xs"
                           onClick={() => setImageUrl("")}
                         >
-                          Rimuovi immagine personalizzata
+                          {tr("Rimuovi immagine personalizzata")}
                         </button>
                       ) : null}
                     </div>
@@ -819,33 +823,19 @@ export default function CarsPage() {
               </SectionCard>
 
               <SectionCard
-                title="Configurazione componenti"
-                subtitle="Le etichette sono state rese più chiare: ogni campo spiega esattamente cosa inserire."
+                title={tr("Configurazione componenti")}
+                subtitle={tr("Le etichette sono state rese più chiare: ogni campo spiega esattamente cosa inserire.")}
               >
                 <div className="race-info-box mb-5 text-sm">
                   <div className="flex items-start gap-3">
                     <Info size={18} className="mt-0.5 shrink-0" />
                     <div className="space-y-2">
-                      <div className="font-bold">Come leggere i campi</div>
+                      <div className="font-bold"><LocalizedText text="Come leggere i campi" /></div>
                       <ul className="list-disc space-y-1 pl-5">
-                        <li>
-                          <strong>Ore da ultima revisione</strong>: ore
-                          accumulate dall’ultima revisione/reset. Per un
-                          componente nuovo puoi lasciare 0.
-                        </li>
-                        <li>
-                          <strong>Ore vita accumulate</strong>: storico totale
-                          del componente, non si azzera con le revisioni.
-                        </li>
-                        <li>
-                          <strong>Soglia attenzione</strong>: ore da cui il
-                          sistema deve segnalare il componente come da
-                          monitorare.
-                        </li>
-                        <li>
-                          <strong>Soglia revisione</strong>: ore massime prima
-                          di revisione o fermo tecnico.
-                        </li>
+                        <li>{tr("Ore da ultima revisione: ore accumulate dall’ultima revisione/reset. Per un componente nuovo puoi lasciare 0.")}</li>
+                        <li>{tr("Ore vita accumulate: storico totale del componente, non si azzera con le revisioni.")}</li>
+                        <li>{tr("Soglia attenzione: ore da cui il sistema deve segnalare il componente come da monitorare.")}</li>
+                        <li>{tr("Soglia revisione: ore massime prima di revisione o fermo tecnico.")}</li>
                       </ul>
                     </div>
                   </div>
@@ -898,10 +888,8 @@ export default function CarsPage() {
                                 }))
                               }
                             >
-                              <option value="existing">
-                                Seleziona componente esistente
-                              </option>
-                              <option value="new">Crea nuovo componente</option>
+                              <option value="existing">{tr("Seleziona componente esistente")}</option>
+                              <option value="new">{tr("Crea nuovo componente")}</option>
                             </select>
                           </Field>
 
@@ -920,9 +908,7 @@ export default function CarsPage() {
                                   }))
                                 }
                               >
-                                <option value="">
-                                  Seleziona componente disponibile
-                                </option>
+                                <option value="">{tr("Seleziona componente disponibile")}</option>
                                 {options.map((component) => (
                                   <option
                                     key={component.id}
@@ -930,8 +916,8 @@ export default function CarsPage() {
                                   >
                                     {component.identifier}
                                     {component.car_id
-                                      ? ` · già su ${normalizeCarName(component.car) || "mezzo"}`
-                                      : " · smontato / disponibile"}
+                                      ? ` · ${tr("già su")} ${normalizeCarName(component.car) || tr("mezzo")}`
+                                      : ` · ${tr("smontato / disponibile")}`}
                                   </option>
                                 ))}
                               </select>
@@ -1086,7 +1072,7 @@ export default function CarsPage() {
                 onClick={() => setOpen(false)}
                 className="race-action-secondary px-4 py-2 text-sm"
               >
-                Annulla
+                <LocalizedText text="Annulla" />
               </button>
               <button
                 onClick={saveCar}

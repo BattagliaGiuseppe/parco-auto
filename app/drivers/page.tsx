@@ -35,6 +35,8 @@ import StatsGrid from "@/components/StatsGrid";
 import { UiField, uiInputClassName } from "@/components/UiField";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 const inputClass = uiInputClassName;
 const selectClass = uiInputClassName;
@@ -294,6 +296,8 @@ function ExpiryPill({ label, value }: { label: string; value: string | null | un
 }
 
 export default function DriversPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewDrivers = access.hasPermission("drivers.view");
   const canEditDrivers = access.hasPermission("drivers.edit", ["owner", "admin"]);
@@ -726,26 +730,26 @@ export default function DriversPage() {
 
   <h2>Anagrafica e contatti</h2>
   <div class="grid">
-    <div class="box"><div class="label">Email</div><div class="value">${escapeHtml(driver.email || "—")}</div></div>
-    <div class="box"><div class="label">Telefono</div><div class="value">${escapeHtml(driver.phone || "—")}</div></div>
-    <div class="box"><div class="label">Nazionalità</div><div class="value">${escapeHtml(driver.nationality || "—")}</div></div>
-    <div class="box"><div class="label">Data nascita</div><div class="value">${escapeHtml(formatDate(driver.date_of_birth))}</div></div>
-    <div class="box"><div class="label">Gruppo sanguigno</div><div class="value">${escapeHtml(driver.blood_type || "—")}</div></div>
-    <div class="box"><div class="label">Stato</div><div class="value">${driver.is_active === false ? "Non attivo" : "Attivo"}</div></div>
-    <div class="box"><div class="label">Emergenza</div><div class="value">${escapeHtml([driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || "—")}</div></div>
-    <div class="box"><div class="label">Taglie</div><div class="value">${escapeHtml([driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || "—")}</div></div>
-    <div class="box"><div class="label">Indirizzo</div><div class="value">${escapeHtml(driver.address || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Email"))}</div><div class="value">${escapeHtml(driver.email || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Telefono"))}</div><div class="value">${escapeHtml(driver.phone || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Nazionalità"))}</div><div class="value">${escapeHtml(driver.nationality || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Data nascita"))}</div><div class="value">${escapeHtml(formatDate(driver.date_of_birth))}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Gruppo sanguigno"))}</div><div class="value">${escapeHtml(driver.blood_type || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Stato"))}</div><div class="value">${driver.is_active === false ? "Non attivo" : "Attivo"}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Emergenza"))}</div><div class="value">${escapeHtml([driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Taglie"))}</div><div class="value">${escapeHtml([driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Indirizzo"))}</div><div class="value">${escapeHtml(driver.address || "—")}</div></div>
   </div>
 
   <h2>Licenze e scadenze</h2>
   <div class="grid">
-    <div class="box"><div class="label">Licenza</div><div class="value">${escapeHtml([driver.license_category, driver.license_number].filter(Boolean).join(" · ") || "—")}</div></div>
-    <div class="box"><div class="label">Scadenza licenza</div><div class="value">${escapeHtml(formatDate(driver.license_expires_at))}</div></div>
-    <div class="box"><div class="label">Idoneità medica</div><div class="value">${escapeHtml(formatDate(driver.medical_expires_at))}</div></div>
-    <div class="box"><div class="label">Assicurazione</div><div class="value">${escapeHtml(formatDate(driver.insurance_expires_at))}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Licenza"))}</div><div class="value">${escapeHtml([driver.license_category, driver.license_number].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Scadenza licenza"))}</div><div class="value">${escapeHtml(formatDate(driver.license_expires_at))}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Idoneità medica"))}</div><div class="value">${escapeHtml(formatDate(driver.medical_expires_at))}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Assicurazione"))}</div><div class="value">${escapeHtml(formatDate(driver.insurance_expires_at))}</div></div>
   </div>
 
-  <h2>Performance eventi</h2>
+  <h2>${escapeHtml(tr("Performance eventi"))}</h2>
   <div class="grid">
     <div class="box"><div class="label">Eventi</div><div class="value">${performance?.events_count ?? 0}</div></div>
     <div class="box"><div class="label">Turni</div><div class="value">${performance?.turns_count ?? 0}</div></div>
@@ -755,21 +759,21 @@ export default function DriversPage() {
     <div class="box"><div class="label">Ultimo evento</div><div class="value">${escapeHtml(performance?.last_event_name || "—")}</div></div>
   </div>
   <table>
-    <thead><tr><th>Data</th><th>Evento</th><th>Auto</th><th>Minuti</th><th>Giri</th><th>Best lap</th><th>Avg lap</th></tr></thead>
+    <thead><tr><th>${escapeHtml(tr("Data"))}</th><th>Evento</th><th>${escapeHtml(tr("Auto"))}</th><th>Minuti</th><th>Giri</th><th>Best lap</th><th>Avg lap</th></tr></thead>
     <tbody>
-      ${recentPerformance.length ? recentPerformance.map((row) => `<tr><td>${escapeHtml(formatDateTime(row.recorded_at))}</td><td>${escapeHtml(row.event_name)}</td><td>${escapeHtml(row.car_name)}</td><td>${row.minutes}</td><td>${row.laps}</td><td>${escapeHtml(formatLapTime(row.best_lap_ms))}</td><td>${escapeHtml(formatLapTime(row.avg_lap_ms))}</td></tr>`).join("") : `<tr><td colspan="7">Nessun turno/evento collegato al pilota.</td></tr>`}
+      ${recentPerformance.length ? recentPerformance.map((row) => `<tr><td>${escapeHtml(formatDateTime(row.recorded_at))}</td><td>${escapeHtml(row.event_name)}</td><td>${escapeHtml(row.car_name)}</td><td>${row.minutes}</td><td>${row.laps}</td><td>${escapeHtml(formatLapTime(row.best_lap_ms))}</td><td>${escapeHtml(formatLapTime(row.avg_lap_ms))}</td></tr>`).join("") : `<tr><td colspan="7"><LocalizedText text="Nessun turno/evento collegato al pilota." /></td></tr>`}
     </tbody>
   </table>
 
-  <h2>Documenti</h2>
+  <h2>${escapeHtml(tr("Documenti"))}</h2>
   <table>
-    <thead><tr><th>Tipo</th><th>Titolo</th><th>Numero</th><th>Emissione</th><th>Scadenza</th></tr></thead>
+    <thead><tr><th>${escapeHtml(tr("Tipo"))}</th><th>${escapeHtml(tr("Titolo"))}</th><th>Numero</th><th>Emissione</th><th>${escapeHtml(tr("Scadenza"))}</th></tr></thead>
     <tbody>
-      ${docs.length ? docs.map((doc) => `<tr><td>${escapeHtml(getDocumentLabel(doc.document_type))}</td><td>${escapeHtml(doc.title || "—")}</td><td>${escapeHtml(doc.document_number || "—")}</td><td>${escapeHtml(formatDate(doc.issued_at))}</td><td>${escapeHtml(formatDate(doc.expires_at))}</td></tr>`).join("") : `<tr><td colspan="5">Nessun documento registrato.</td></tr>`}
+      ${docs.length ? docs.map((doc) => `<tr><td>${escapeHtml(getDocumentLabel(doc.document_type))}</td><td>${escapeHtml(doc.title || "—")}</td><td>${escapeHtml(doc.document_number || "—")}</td><td>${escapeHtml(formatDate(doc.issued_at))}</td><td>${escapeHtml(formatDate(doc.expires_at))}</td></tr>`).join("") : `<tr><td colspan="5"><LocalizedText text="Nessun documento registrato." /></td></tr>`}
     </tbody>
   </table>
 
-  <h2>Note</h2>
+  <h2>${escapeHtml(tr("Note"))}</h2>
   <div class="box notes">${escapeHtml(driver.notes || "—")}</div>
   <div class="footer">Scheda generata da Battaglia Racing Car · WebApp Motorsport</div>
   <script>window.onload = () => { window.print(); };</script>
@@ -826,7 +830,7 @@ export default function DriversPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Piloti"
+        title={tr("Piloti")}
         subtitle="Anagrafica, licenze, documenti e scadenze operative"
         icon={<Users className="h-6 w-6" />}
         state="loading"
@@ -837,7 +841,7 @@ export default function DriversPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Piloti"
+        title={tr("Piloti")}
         subtitle="Anagrafica, licenze, documenti e scadenze operative"
         icon={<Users className="h-6 w-6" />}
         state="error"
@@ -849,7 +853,7 @@ export default function DriversPage() {
   if (!canViewDrivers) {
     return (
       <PagePermissionState
-        title="Piloti"
+        title={tr("Piloti")}
         subtitle="Anagrafica, licenze, documenti e scadenze operative"
         icon={<Users className="h-6 w-6" />}
         state="denied"
@@ -861,13 +865,13 @@ export default function DriversPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Piloti"
+        title={tr("Piloti")}
         subtitle="Anagrafica, contatti, licenze, idoneità medica, documenti e scadenze operative."
         icon={<Users className="h-6 w-6" />}
         actions={
           canEditDrivers ? (
             <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">
-              <PlusCircle className="h-4 w-4" /> Nuovo pilota
+              <PlusCircle className="h-4 w-4" /> <LocalizedText text="Nuovo pilota" />
             </button>
           ) : undefined
         }
@@ -883,7 +887,7 @@ export default function DriversPage() {
 
       <StatsGrid items={stats} />
 
-      <SectionCard title="Archivio piloti">
+      <SectionCard title={tr("Archivio piloti")}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
@@ -891,7 +895,7 @@ export default function DriversPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Cerca per nome, nickname, numero, licenza..."
+                placeholder={tr("Cerca per nome, nickname, numero, licenza...")}
                 className={`${inputClass} pl-10`}
               />
             </div>
@@ -917,22 +921,22 @@ export default function DriversPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-6 text-sm font-semibold text-[var(--text-muted)]">Caricamento piloti...</div>
+            <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-6 text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Caricamento piloti..." /></div>
           ) : filteredDrivers.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-8 text-center">
               <Users className="mx-auto mb-3 h-8 w-8 text-[var(--text-muted)]" />
-              <p className="text-base font-bold text-[var(--text-primary)]">Nessun pilota trovato</p>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">Crea il primo pilota o modifica i filtri di ricerca.</p>
+              <p className="text-base font-bold text-[var(--text-primary)]"><LocalizedText text="Nessun pilota trovato" /></p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]"><LocalizedText text="Crea il primo pilota o modifica i filtri di ricerca." /></p>
             </div>
           ) : viewMode === "compact" ? (
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
               <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_120px] gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)] max-xl:hidden">
-                <span>Pilota</span>
-                <span>Contatti</span>
-                <span>Scadenze</span>
-                <span>Performance</span>
-                <span>Stato</span>
-                <span>Azioni</span>
+                <span><LocalizedText text="Pilota" /></span>
+                <span><LocalizedText text="Contatti" /></span>
+                <span><LocalizedText text="Scadenze" /></span>
+                <span><LocalizedText text="Performance" /></span>
+                <span><LocalizedText text="Stato" /></span>
+                <span><LocalizedText text="Azioni" /></span>
               </div>
               <div className="divide-y divide-white/10">
                 {filteredDrivers.map((driver) => {
@@ -957,12 +961,12 @@ export default function DriversPage() {
                         <ExpiryPill label="Med." value={driver.medical_expires_at} />
                       </div>
                       <div className="text-xs font-semibold text-[var(--text-secondary)]">
-                        <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> turni · <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> h
+                        <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> <LocalizedText text="turni ·" /> <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> <LocalizedText text="h" />
                         <div className="text-[var(--text-muted)]">Best: {formatLapTime(performance?.best_lap_ms)}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {driver.is_active === false ? <StatusPill tone="neutral">Non attivo</StatusPill> : <StatusPill tone="green">Attivo</StatusPill>}
-                        {alerts || docs.some((doc) => ["expired", "expiring"].includes(expiryTone(doc.expires_at))) ? <StatusPill tone="yellow">Da verificare</StatusPill> : null}
+                        {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
+                        {alerts || docs.some((doc) => ["expired", "expiring"].includes(expiryTone(doc.expires_at))) ? <StatusPill tone="yellow"><LocalizedText text="Da verificare" /></StatusPill> : null}
                       </div>
                       <div className="flex flex-wrap gap-2 xl:justify-end">
                         <button onClick={() => setExpandedDriverId(expandedDriverId === driver.id ? null : driver.id)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
@@ -970,7 +974,7 @@ export default function DriversPage() {
                         </button>
                         {canEditDrivers ? (
                           <button onClick={() => openEdit(driver)} className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)] hover:bg-[var(--brand-accent)]/18">
-                            Modifica
+                            <LocalizedText text="Modifica" />
                           </button>
                         ) : null}
                       </div>
@@ -1009,8 +1013,8 @@ export default function DriversPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver)}</h3>
                             {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
-                            {driver.is_active === false ? <StatusPill tone="neutral">Non attivo</StatusPill> : <StatusPill tone="green">Attivo</StatusPill>}
-                            {alerts ? <StatusPill tone="yellow">Scadenze da verificare</StatusPill> : null}
+                            {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
+                            {alerts ? <StatusPill tone="yellow"><LocalizedText text="Scadenze da verificare" /></StatusPill> : null}
                           </div>
                           <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || "Nessun nickname"}</p>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-secondary)]">
@@ -1027,10 +1031,10 @@ export default function DriversPage() {
 
                       <div className="flex flex-wrap gap-2 lg:justify-end">
                         <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-                          Eventi
+                          <LocalizedText text="Eventi" />
                         </Link>
                         <button onClick={() => printDriverCard(driver)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-                          <Printer className="h-4 w-4" /> Stampa
+                          <Printer className="h-4 w-4" /> <LocalizedText text="Stampa" />
                         </button>
                         <button
                           onClick={() => {
@@ -1045,7 +1049,7 @@ export default function DriversPage() {
                         {canEditDrivers ? (
                           <>
                             <button onClick={() => openEdit(driver)} className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800">
-                              <Edit3 className="h-4 w-4" /> Modifica
+                              <Edit3 className="h-4 w-4" /> <LocalizedText text="Modifica" />
                             </button>
                             {driver.photo_path ? (
                               <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-400/30 px-3 py-2 text-sm font-bold text-red-200 hover:bg-red-500/10">
@@ -1076,8 +1080,8 @@ export default function DriversPage() {
                       <div className="border-t border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                         <div className="mb-4 grid gap-4">
                           <div>
-                            <h4 className="font-black text-[var(--text-primary)]">Performance eventi</h4>
-                            <p className="text-sm font-semibold text-[var(--text-muted)]">Dati calcolati dai turni/eventi collegati al pilota.</p>
+                            <h4 className="font-black text-[var(--text-primary)]"><LocalizedText text="Performance eventi" /></h4>
+                            <p className="text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Dati calcolati dai turni/eventi collegati al pilota." /></p>
                           </div>
                           <div className="grid gap-3 md:grid-cols-4">
                             <PerformanceBox label="Eventi disputati" value={performance ? String(performance.events_count) : "0"} />
@@ -1088,10 +1092,10 @@ export default function DriversPage() {
                           {recentPerformance.length > 0 ? (
                             <div className="overflow-hidden rounded-2xl border border-white/10">
                               <div className="grid grid-cols-6 gap-2 bg-white/[0.045] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-[var(--text-muted)]">
-                                <span>Data</span>
-                                <span className="col-span-2">Evento</span>
-                                <span>Auto</span>
-                                <span>Giri</span>
+                                <span><LocalizedText text="Data" /></span>
+                                <span className="col-span-2"><LocalizedText text="Evento" /></span>
+                                <span><LocalizedText text="Auto" /></span>
+                                <span><LocalizedText text="Giri" /></span>
                                 <span>Best</span>
                               </div>
                               {recentPerformance.map((row) => (
@@ -1113,13 +1117,13 @@ export default function DriversPage() {
 
                         <div className="mb-4 flex items-center justify-between gap-3">
                           <div>
-                            <h4 className="font-black text-[var(--text-primary)]">Documenti e scadenze</h4>
-                            <p className="text-sm font-semibold text-[var(--text-muted)]">Licenze, certificati, liberatorie e file collegati al pilota.</p>
+                            <h4 className="font-black text-[var(--text-primary)]"><LocalizedText text="Documenti e scadenze" /></h4>
+                            <p className="text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Licenze, certificati, liberatorie e file collegati al pilota." /></p>
                           </div>
                         </div>
 
                         {docs.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-4 text-sm font-semibold text-[var(--text-muted)]">Nessun documento registrato per questo pilota.</div>
+                          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-4 text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Nessun documento registrato per questo pilota." /></div>
                         ) : (
                           <div className="mb-4 grid gap-2">
                             {docs.map((doc) => {
@@ -1141,12 +1145,12 @@ export default function DriversPage() {
                                   <div className="flex flex-wrap gap-2">
                                     {doc.file_path ? (
                                       <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]">
-                                        <Eye className="h-4 w-4" /> Apri file
+                                        <Eye className="h-4 w-4" /> <LocalizedText text="Apri file" />
                                       </button>
                                     ) : null}
                                     {canEditDrivers ? (
                                       <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
-                                        <Trash2 className="h-4 w-4" /> Elimina
+                                        <Trash2 className="h-4 w-4" /> <LocalizedText text="Elimina" />
                                       </button>
                                     ) : null}
                                   </div>
@@ -1158,7 +1162,7 @@ export default function DriversPage() {
 
                         {canEditDrivers ? (
                           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                            <h5 className="mb-3 font-black text-[var(--text-primary)]">Aggiungi documento</h5>
+                            <h5 className="mb-3 font-black text-[var(--text-primary)]"><LocalizedText text="Aggiungi documento" /></h5>
                             <div className="grid gap-3 md:grid-cols-3">
                               <UiField label="Tipo documento">
                                 <select value={docForm.document_type} onChange={(e) => setDocForm((prev) => ({ ...prev, document_type: e.target.value }))} className={selectClass}>
@@ -1166,10 +1170,10 @@ export default function DriversPage() {
                                 </select>
                               </UiField>
                               <UiField label="Titolo">
-                                <input value={docForm.title} onChange={(e) => setDocForm((prev) => ({ ...prev, title: e.target.value }))} className={inputClass} placeholder="Es. Licenza ACI 2026" />
+                                <input value={docForm.title} onChange={(e) => setDocForm((prev) => ({ ...prev, title: e.target.value }))} className={inputClass} placeholder={tr("Es. Licenza ACI 2026")} />
                               </UiField>
                               <UiField label="Numero documento">
-                                <input value={docForm.document_number} onChange={(e) => setDocForm((prev) => ({ ...prev, document_number: e.target.value }))} className={inputClass} placeholder="Numero / codice" />
+                                <input value={docForm.document_number} onChange={(e) => setDocForm((prev) => ({ ...prev, document_number: e.target.value }))} className={inputClass} placeholder={tr("Numero / codice")} />
                               </UiField>
                               <UiField label="Data emissione">
                                 <input type="date" value={docForm.issued_at} onChange={(e) => setDocForm((prev) => ({ ...prev, issued_at: e.target.value }))} className={inputClass} />
@@ -1181,7 +1185,7 @@ export default function DriversPage() {
                                 <input type="file" accept="application/pdf,image/*" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className={inputClass} />
                               </UiField>
                               <UiField label="Note">
-                                <textarea value={docForm.notes} onChange={(e) => setDocForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} placeholder="Note interne" />
+                                <textarea value={docForm.notes} onChange={(e) => setDocForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} placeholder={tr("Note interne")} />
                               </UiField>
                             </div>
                             <div className="mt-4 flex justify-end">
@@ -1207,7 +1211,7 @@ export default function DriversPage() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-black text-[var(--text-primary)]">{editId ? "Modifica pilota" : "Nuovo pilota"}</h2>
-                <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Compila anagrafica, contatti, taglie e scadenze principali.</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Compila anagrafica, contatti, taglie e scadenze principali." /></p>
               </div>
               <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]"><X className="h-5 w-5" /></button>
             </div>
@@ -1215,34 +1219,34 @@ export default function DriversPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
                 <UiField label="Nome">
-                  <input value={form.first_name} onChange={(e) => setForm((prev) => ({ ...prev, first_name: e.target.value }))} className={inputClass} placeholder="Nome" />
+                  <input value={form.first_name} onChange={(e) => setForm((prev) => ({ ...prev, first_name: e.target.value }))} className={inputClass} placeholder={tr("Nome")} />
                 </UiField>
                 <UiField label="Cognome">
-                  <input value={form.last_name} onChange={(e) => setForm((prev) => ({ ...prev, last_name: e.target.value }))} className={inputClass} placeholder="Cognome" />
+                  <input value={form.last_name} onChange={(e) => setForm((prev) => ({ ...prev, last_name: e.target.value }))} className={inputClass} placeholder={tr("Cognome")} />
                 </UiField>
                 <UiField label="Nickname paddock">
-                  <input value={form.nickname} onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))} className={inputClass} placeholder="Nickname" />
+                  <input value={form.nickname} onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))} className={inputClass} placeholder={tr("Nickname")} />
                 </UiField>
                 <UiField label="Numero gara">
-                  <input value={form.racing_number} onChange={(e) => setForm((prev) => ({ ...prev, racing_number: e.target.value }))} className={inputClass} placeholder="Es. 27" />
+                  <input value={form.racing_number} onChange={(e) => setForm((prev) => ({ ...prev, racing_number: e.target.value }))} className={inputClass} placeholder={tr("Es. 27")} />
                 </UiField>
                 <UiField label="Email">
-                  <input type="email" value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} className={inputClass} placeholder="email@team.com" />
+                  <input type="email" value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} className={inputClass} placeholder={tr("email@team.com")} />
                 </UiField>
                 <UiField label="Telefono">
-                  <input value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} className={inputClass} placeholder="Telefono" />
+                  <input value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} className={inputClass} placeholder={tr("Telefono")} />
                 </UiField>
                 <UiField label="Data nascita">
                   <input type="date" value={form.date_of_birth} onChange={(e) => setForm((prev) => ({ ...prev, date_of_birth: e.target.value }))} className={inputClass} />
                 </UiField>
                 <UiField label="Nazionalità">
-                  <input value={form.nationality} onChange={(e) => setForm((prev) => ({ ...prev, nationality: e.target.value }))} className={inputClass} placeholder="Italia" />
+                  <input value={form.nationality} onChange={(e) => setForm((prev) => ({ ...prev, nationality: e.target.value }))} className={inputClass} placeholder={tr("Italia")} />
                 </UiField>
                 <UiField label="Numero licenza">
-                  <input value={form.license_number} onChange={(e) => setForm((prev) => ({ ...prev, license_number: e.target.value }))} className={inputClass} placeholder="Numero licenza" />
+                  <input value={form.license_number} onChange={(e) => setForm((prev) => ({ ...prev, license_number: e.target.value }))} className={inputClass} placeholder={tr("Numero licenza")} />
                 </UiField>
                 <UiField label="Categoria licenza">
-                  <input value={form.license_category} onChange={(e) => setForm((prev) => ({ ...prev, license_category: e.target.value }))} className={inputClass} placeholder="Categoria" />
+                  <input value={form.license_category} onChange={(e) => setForm((prev) => ({ ...prev, license_category: e.target.value }))} className={inputClass} placeholder={tr("Categoria")} />
                 </UiField>
                 <UiField label="Scadenza licenza">
                   <input type="date" value={form.license_expires_at} onChange={(e) => setForm((prev) => ({ ...prev, license_expires_at: e.target.value }))} className={inputClass} />
@@ -1254,34 +1258,34 @@ export default function DriversPage() {
                   <input type="date" value={form.insurance_expires_at} onChange={(e) => setForm((prev) => ({ ...prev, insurance_expires_at: e.target.value }))} className={inputClass} />
                 </UiField>
                 <UiField label="Gruppo sanguigno">
-                  <input value={form.blood_type} onChange={(e) => setForm((prev) => ({ ...prev, blood_type: e.target.value }))} className={inputClass} placeholder="Es. 0+" />
+                  <input value={form.blood_type} onChange={(e) => setForm((prev) => ({ ...prev, blood_type: e.target.value }))} className={inputClass} placeholder={tr("Es. 0+")} />
                 </UiField>
                 <UiField label="Contatto emergenza">
-                  <input value={form.emergency_contact_name} onChange={(e) => setForm((prev) => ({ ...prev, emergency_contact_name: e.target.value }))} className={inputClass} placeholder="Nome contatto" />
+                  <input value={form.emergency_contact_name} onChange={(e) => setForm((prev) => ({ ...prev, emergency_contact_name: e.target.value }))} className={inputClass} placeholder={tr("Nome contatto")} />
                 </UiField>
                 <UiField label="Telefono emergenza">
-                  <input value={form.emergency_contact_phone} onChange={(e) => setForm((prev) => ({ ...prev, emergency_contact_phone: e.target.value }))} className={inputClass} placeholder="Telefono emergenza" />
+                  <input value={form.emergency_contact_phone} onChange={(e) => setForm((prev) => ({ ...prev, emergency_contact_phone: e.target.value }))} className={inputClass} placeholder={tr("Telefono emergenza")} />
                 </UiField>
                 <UiField label="Taglia tuta">
-                  <input value={form.suit_size} onChange={(e) => setForm((prev) => ({ ...prev, suit_size: e.target.value }))} className={inputClass} placeholder="Es. 52" />
+                  <input value={form.suit_size} onChange={(e) => setForm((prev) => ({ ...prev, suit_size: e.target.value }))} className={inputClass} placeholder={tr("Es. 52")} />
                 </UiField>
                 <UiField label="Taglia casco">
-                  <input value={form.helmet_size} onChange={(e) => setForm((prev) => ({ ...prev, helmet_size: e.target.value }))} className={inputClass} placeholder="Es. M" />
+                  <input value={form.helmet_size} onChange={(e) => setForm((prev) => ({ ...prev, helmet_size: e.target.value }))} className={inputClass} placeholder={tr("Es. M")} />
                 </UiField>
                 <UiField label="Numero scarpe">
-                  <input value={form.shoe_size} onChange={(e) => setForm((prev) => ({ ...prev, shoe_size: e.target.value }))} className={inputClass} placeholder="Es. 42" />
+                  <input value={form.shoe_size} onChange={(e) => setForm((prev) => ({ ...prev, shoe_size: e.target.value }))} className={inputClass} placeholder={tr("Es. 42")} />
                 </UiField>
                 <UiField label="Stato">
                   <select value={form.is_active ? "active" : "inactive"} onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.value === "active" }))} className={selectClass}>
-                    <option value="active">Attivo</option>
-                    <option value="inactive">Non attivo</option>
+                    <option value="active">{tr("Attivo")}</option>
+                    <option value="inactive">{tr("Non attivo")}</option>
                   </select>
                 </UiField>
               </div>
 
               <div className="space-y-4">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                  <p className="mb-3 text-sm font-black text-[var(--text-primary)]">Foto pilota</p>
+                  <p className="mb-3 text-sm font-black text-[var(--text-primary)]"><LocalizedText text="Foto pilota" /></p>
                   <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
                     {photoPreview ? <img src={photoPreview} alt="Anteprima pilota" className="h-full w-full object-cover" /> : <UserRound className="h-12 w-12 text-neutral-300" />}
                   </div>
@@ -1297,16 +1301,16 @@ export default function DriversPage() {
                   />
                 </div>
                 <UiField label="Indirizzo">
-                  <textarea value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} className={textAreaClass} placeholder="Indirizzo / residenza" />
+                  <textarea value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} className={textAreaClass} placeholder={tr("Indirizzo / residenza")} />
                 </UiField>
                 <UiField label="Note sportive/interne">
-                  <textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} placeholder="Note interne" />
+                  <textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} placeholder={tr("Note interne")} />
                 </UiField>
               </div>
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button onClick={resetDriverModal} className="rounded-xl border border-white/10 px-4 py-2 font-bold hover:bg-white/[0.045]">Annulla</button>
+              <button onClick={resetDriverModal} className="rounded-xl border border-white/10 px-4 py-2 font-bold hover:bg-white/[0.045]"><LocalizedText text="Annulla" /></button>
               <button onClick={saveDriver} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-5 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
                 <CheckCircle2 className="h-4 w-4" /> {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Crea pilota"}
               </button>

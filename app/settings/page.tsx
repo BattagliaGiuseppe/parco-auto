@@ -48,6 +48,7 @@ import ModalShell from "@/components/ModalShell";
 import { usePermissionAccess } from "@/lib/permissions";
 import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type BrandingConfig = {
   showLogoInHeader: boolean;
@@ -673,7 +674,7 @@ function BrandPreview({
 
               <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.045] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                  Stampa scheda
+                  <LocalizedText text="Stampa scheda" />
                 </div>
                 <div className="mt-4 rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
                   <div className="flex items-start justify-between gap-4">
@@ -701,7 +702,7 @@ function BrandPreview({
                     <div className="flex items-center gap-2">
                       <img src={brandConfig.logoPath} alt={brandConfig.appName} className="h-4 w-4 object-contain" />
                       <span className="font-semibold">{brandConfig.appName}</span>
-                      <span>· Tutti i diritti riservati.</span>
+                      <span><LocalizedText text="· Tutti i diritti riservati." /></span>
                     </div>
                   </div>
                 </div>
@@ -715,7 +716,7 @@ function BrandPreview({
                   >
                     <div className="text-sm font-semibold text-[var(--text-muted)]">{label}</div>
                     <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">{index + 2}</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">Card KPI</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]"><LocalizedText text="Card KPI" /></div>
                   </div>
                 ))}
               </div>
@@ -730,6 +731,7 @@ function BrandPreview({
 export default function SettingsPage() {
   const access = usePermissionAccess();
   const { setLanguage, t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const [settings, setSettings] = useState<AppSettingsRow | null>(null);
   const [definitions, setDefinitions] = useState<ComponentDefinition[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
@@ -955,7 +957,7 @@ export default function SettingsPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Control Center"
+        title={tr("Control Center")}
         subtitle="Configurazione avanzata del team"
         icon={<Settings size={20} />}
         state="loading"
@@ -966,7 +968,7 @@ export default function SettingsPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Control Center"
+        title={tr("Control Center")}
         subtitle="Configurazione avanzata del team"
         icon={<Settings size={20} />}
         state="error"
@@ -978,7 +980,7 @@ export default function SettingsPage() {
   if (!access.canManageSettings) {
     return (
       <PagePermissionState
-        title="Control Center"
+        title={tr("Control Center")}
         subtitle="Configurazione avanzata del team"
         icon={<Settings size={20} />}
         state="denied"
@@ -1337,7 +1339,7 @@ async function saveAll() {
   if (!loading && loadError) {
     return (
       <PagePermissionState
-        title="Control Center"
+        title={tr("Control Center")}
         subtitle="Configurazione avanzata del team"
         icon={<Settings size={20} />}
         state="error"
@@ -1370,7 +1372,7 @@ async function saveAll() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Control Center"
+        title={tr("Control Center")}
         subtitle="Branding, moduli, template mezzo, checklist, setup e dashboard del team"
         icon={<Settings size={22} />}
         actions={
@@ -1401,7 +1403,7 @@ async function saveAll() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Questa pagina governa il comportamento standard della piattaforma per tutto il team."
       >
         <InfoBlock>
@@ -1412,7 +1414,7 @@ async function saveAll() {
       </SectionCard>
 
       <SectionCard
-        title="Stato Control Center"
+        title={tr("Stato Control Center")}
         subtitle="Controlla se le impostazioni sono caricate, salvabili e realmente allineate al database."
         actions={
           <button
@@ -1421,7 +1423,7 @@ async function saveAll() {
             className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:bg-white/[0.12]"
           >
             <RefreshCw size={14} className="mr-2 inline" />
-            Ricontrolla
+            <LocalizedText text="Ricontrolla" />
           </button>
         }
       >
@@ -1453,7 +1455,7 @@ async function saveAll() {
             <div className="flex items-start gap-3">
               <AlertTriangle size={18} className="mt-0.5 shrink-0" />
               <div>
-                <div className="font-bold">Diagnostica database non disponibile</div>
+                <div className="font-bold"><LocalizedText text="Diagnostica database non disponibile" /></div>
                 <div className="mt-1 text-red-100/80">
                   {healthError}. Se hai appena caricato questa patch, esegui la query <strong>db/settings_control_center_audit_patch.sql</strong>.
                 </div>
@@ -1467,7 +1469,7 @@ async function saveAll() {
             <div className="flex items-start gap-3">
               <Eye size={18} className="mt-0.5 shrink-0" />
               <div>
-                <div className="font-bold">Differenza tra preview locale e tema realmente applicato</div>
+                <div className="font-bold"><LocalizedText text="Differenza tra preview locale e tema realmente applicato" /></div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {themeCompatibilityWarnings.map((warning) => (
                     <li key={warning}>{warning}</li>
@@ -1480,7 +1482,7 @@ async function saveAll() {
       </SectionCard>
 
       <SectionCard
-        title="Aree configurabili"
+        title={tr("Aree configurabili")}
         subtitle="Scegli il gruppo di impostazioni su cui lavorare."
       >
         <SectionTabs value={section} onChange={setSection} />
@@ -1489,7 +1491,7 @@ async function saveAll() {
       {section === "branding" ? (
   <div className="space-y-6">
     <SectionCard
-      title="Branding team"
+      title={tr("Branding team")}
       subtitle="Il brand della piattaforma resta fisso: compare solo nella sidebar e nel piè di pagina delle stampe. Qui il team personalizza solo nome, loghi, colori e terminologia."
     >
       <InfoBlock>
@@ -1513,7 +1515,7 @@ async function saveAll() {
 
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <SectionCard
-        title="Identità team"
+        title={tr("Identità team")}
         subtitle="Nome team, sottotitolo e loghi dedicati per sidebar, header e stampa."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1521,7 +1523,7 @@ async function saveAll() {
             <Input
               value={settings.team_name}
               onChange={(e) => patchSetting("team_name", e.target.value)}
-              placeholder="Es. Battaglia Racing Car"
+              placeholder={tr("Es. Battaglia Racing Car")}
             />
           </Field>
 
@@ -1529,7 +1531,7 @@ async function saveAll() {
             <Input
               value={settings.team_subtitle || ""}
               onChange={(e) => patchSetting("team_subtitle", e.target.value)}
-              placeholder="Es. Racing Team · SuperF1000"
+              placeholder={tr("Es. Racing Team · SuperF1000")}
             />
           </Field>
 
@@ -1559,7 +1561,7 @@ async function saveAll() {
             <Input
               value={previewBranding.sidebar_logo_url}
               onChange={(e) => patchBranding("sidebar_logo_url", e.target.value)}
-              placeholder="/logo-sidebar.png"
+              placeholder={tr("/logo-sidebar.png")}
             />
           </Field>
 
@@ -1567,7 +1569,7 @@ async function saveAll() {
             <Input
               value={previewBranding.header_logo_url}
               onChange={(e) => patchBranding("header_logo_url", e.target.value)}
-              placeholder="/logo-header.png"
+              placeholder={tr("/logo-header.png")}
             />
           </Field>
 
@@ -1575,7 +1577,7 @@ async function saveAll() {
             <Input
               value={previewBranding.print_logo_url}
               onChange={(e) => patchBranding("print_logo_url", e.target.value)}
-              placeholder="/logo-print.png"
+              placeholder={tr("/logo-print.png")}
             />
           </Field>
         </div>
@@ -1693,16 +1695,16 @@ async function saveAll() {
                 patchBrandingConfig("printLetterheadMode", e.target.value)
               }
             >
-              <option value="logo_title_subtitle">Logo + nome team + sottotitolo</option>
-              <option value="logo_title">Logo + nome team</option>
-              <option value="title_only">Solo nome team</option>
+              <option value="logo_title_subtitle"><LocalizedText text="Logo + nome team + sottotitolo" /></option>
+              <option value="logo_title"><LocalizedText text="Logo + nome team" /></option>
+              <option value="title_only"><LocalizedText text="Solo nome team" /></option>
             </Select>
           </Field>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Colori e terminologia"
+        title={tr("Colori e terminologia")}
         subtitle="Primary governa soprattutto la sidebar, accent governa le azioni principali, secondary i dettagli brand secondari."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1799,7 +1801,7 @@ async function saveAll() {
       {section === "general" ? (
   <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
     <SectionCard
-      title="Configurazione operativa"
+      title={tr("Configurazione operativa")}
       subtitle="Impostazioni base del mezzo e del comportamento generale del team."
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1808,18 +1810,18 @@ async function saveAll() {
             value={settings.vehicle_type}
             onChange={(e) => patchSetting("vehicle_type", e.target.value)}
           >
-            <option value="auto">Auto</option>
-            <option value="moto">Moto</option>
-            <option value="kart">Kart</option>
-            <option value="formula">Formula</option>
-            <option value="custom">Custom</option>
+            <option value="auto">{tr("Auto")}</option>
+            <option value="moto"><LocalizedText text="Moto" /></option>
+            <option value="kart"><LocalizedText text="Kart" /></option>
+            <option value="formula"><LocalizedText text="Formula" /></option>
+            <option value="custom">{tr("Custom")}</option>
           </Select>
         </Field>
       </div>
     </SectionCard>
 
     <SectionCard
-            title="Moduli e soglie"
+            title={tr("Moduli e soglie")}
             subtitle="Attiva i moduli e governa alert e soglie di default."
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1893,12 +1895,12 @@ async function saveAll() {
 
       {section === "components" ? (
         <SectionCard
-          title="Componenti standard configurabili"
+          title={tr("Componenti standard configurabili")}
           subtitle="Definiscono il modulo Auto, la scheda mezzo e la struttura base del parco."
         >
           {definitions.length === 0 ? (
             <EmptyState
-              title="Nessuna definizione presente"
+              title={tr("Nessuna definizione presente")}
               description="Aggiungi le voci base del tuo mezzo."
             />
           ) : null}
@@ -1917,7 +1919,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="code"
+                  placeholder={tr("code")}
                 />
                 <Input
                   value={row.label}
@@ -1928,7 +1930,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="Etichetta"
+                  placeholder={tr("Etichetta")}
                 />
                 <Select
                   value={row.category}
@@ -1942,9 +1944,9 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="base">Base</option>
-                  <option value="expiry">Scadenza</option>
-                  <option value="optional">Opzionale</option>
+                  <option value="base"><LocalizedText text="Base" /></option>
+                  <option value="expiry">{tr("Scadenza")}</option>
+                  <option value="optional"><LocalizedText text="Opzionale" /></option>
                 </Select>
                 <ToggleBox
                   label="Ore"
@@ -1980,7 +1982,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="Anni"
+                  placeholder={tr("Anni")}
                 />
                 <button
                   onClick={() =>
@@ -2016,7 +2018,7 @@ async function saveAll() {
               className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi definizione
+              <LocalizedText text="Aggiungi definizione" />
             </button>
           </div>
         </SectionCard>
@@ -2024,10 +2026,10 @@ async function saveAll() {
 
       {section === "checklists" ? (
         <SectionCard
-          title="Check-up configurabile"
+          title={tr("Check-up configurabile")}
           subtitle="Definisci gruppi e voci del controllo tecnico."
         >
-          {checklists.length === 0 ? <EmptyState title="Nessun gruppo di checklist" /> : null}
+          {checklists.length === 0 ? <EmptyState title={tr("Nessun gruppo di checklist")} /> : null}
           <div className="space-y-4">
             {checklists.map((group, groupIndex) => (
               <div
@@ -2042,7 +2044,7 @@ async function saveAll() {
                         prev.map((g, i) => (i === groupIndex ? { ...g, name: e.target.value } : g))
                       )
                     }
-                    placeholder="Nome gruppo"
+                    placeholder={tr("Nome gruppo")}
                   />
                   <button
                     onClick={() =>
@@ -2075,7 +2077,7 @@ async function saveAll() {
                             )
                           )
                         }
-                        placeholder="Voce checklist"
+                        placeholder={tr("Voce checklist")}
                       />
                       <Select
                         value={item.input_type}
@@ -2096,12 +2098,12 @@ async function saveAll() {
                           )
                         }
                       >
-                        <option value="status">Status</option>
-                        <option value="text">Testo</option>
-                        <option value="number">Numero</option>
-                        <option value="select">Select</option>
-                        <option value="checkbox">Checkbox</option>
-                        <option value="date">Data</option>
+                        <option value="status">{tr("Status")}</option>
+                        <option value="text"><LocalizedText text="Testo" /></option>
+                        <option value="number"><LocalizedText text="Numero" /></option>
+                        <option value="select"><LocalizedText text="Select" /></option>
+                        <option value="checkbox"><LocalizedText text="Checkbox" /></option>
+                        <option value="date">{tr("Data")}</option>
                       </Select>
                       <ToggleBox
                         label="Obbl."
@@ -2140,7 +2142,7 @@ async function saveAll() {
                       </button>
                       {item.input_type === "select" ? (
                         <div className="md:col-span-4">
-                          <Label>Opzioni select</Label>
+                          <Label><LocalizedText text="Opzioni select" /></Label>
                           <Textarea
                             rows={3}
                             value={optionsToText(item.options)}
@@ -2191,7 +2193,7 @@ async function saveAll() {
                     }
                     className="rounded-xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-2 font-semibold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                   >
-                    Aggiungi voce
+                    <LocalizedText text="Aggiungi voce" />
                   </button>
                 </div>
               </div>
@@ -2216,11 +2218,11 @@ async function saveAll() {
 
       {section === "setup" ? (
         <SectionCard
-          title="Setup dinamico"
+          title={tr("Setup dinamico")}
           subtitle="Configura campi, gruppi e posizioni della scheda setup."
         >
           {setupFields.length === 0 ? (
-            <EmptyState title="Nessun campo setup configurato" />
+            <EmptyState title={tr("Nessun campo setup configurato")} />
           ) : null}
           <div className="space-y-3">
             {setupFields.map((field, index) => (
@@ -2237,7 +2239,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="chiave"
+                  placeholder={tr("chiave")}
                 />
                 <Input
                   value={field.label}
@@ -2248,7 +2250,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="Etichetta"
+                  placeholder={tr("Etichetta")}
                 />
                 <Input
                   value={field.group_name}
@@ -2259,7 +2261,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="Gruppo"
+                  placeholder={tr("Gruppo")}
                 />
                 <Select
                   value={field.field_type}
@@ -2271,10 +2273,10 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="text">Testo</option>
-                  <option value="number">Numero</option>
-                  <option value="textarea">Textarea</option>
-                  <option value="select">Select</option>
+                  <option value="text"><LocalizedText text="Testo" /></option>
+                  <option value="number"><LocalizedText text="Numero" /></option>
+                  <option value="textarea"><LocalizedText text="Textarea" /></option>
+                  <option value="select"><LocalizedText text="Select" /></option>
                 </Select>
                 <Input
                   value={field.unit || ""}
@@ -2285,7 +2287,7 @@ async function saveAll() {
                       )
                     )
                   }
-                  placeholder="Unità"
+                  placeholder={tr("Unità")}
                 />
                 <Select
                   value={field.position}
@@ -2297,13 +2299,13 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="left">Sinistra</option>
-                  <option value="center">Centro</option>
-                  <option value="right">Destra</option>
+                  <option value="left"><LocalizedText text="Sinistra" /></option>
+                  <option value="center"><LocalizedText text="Centro" /></option>
+                  <option value="right"><LocalizedText text="Destra" /></option>
                 </Select>
                 {field.field_type === "select" ? (
                   <div className="lg:col-span-6">
-                    <Label>Opzioni select</Label>
+                    <Label><LocalizedText text="Opzioni select" /></Label>
                     <Textarea
                       rows={3}
                       value={optionsToText(field.options)}
@@ -2354,7 +2356,7 @@ async function saveAll() {
               className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi campo setup
+              <LocalizedText text="Aggiungi campo setup" />
             </button>
           </div>
         </SectionCard>
@@ -2362,10 +2364,10 @@ async function saveAll() {
 
       {section === "dashboard" ? (
         <SectionCard
-          title="Dashboard configurabile"
+          title={tr("Dashboard configurabile")}
           subtitle="Scegli widget, ordine e visibilità."
         >
-          {widgets.length === 0 ? <EmptyState title="Nessun widget configurato" /> : null}
+          {widgets.length === 0 ? <EmptyState title={tr("Nessun widget configurato")} /> : null}
           <div className="space-y-3">
             {widgets.map((widget, index) => (
               <div
@@ -2382,7 +2384,7 @@ async function saveAll() {
                       onClick={() => setWidgets((prev) => moveArrayItem(prev, index, index - 1))}
                       disabled={index === 0}
                       className="rounded-lg border border-white/10 bg-white/[0.06] p-1.5 text-[var(--text-secondary)] hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
-                      aria-label="Sposta widget su"
+                      aria-label={tr("Sposta widget su")}
                     >
                       <ArrowUp size={14} />
                     </button>
@@ -2391,7 +2393,7 @@ async function saveAll() {
                       onClick={() => setWidgets((prev) => moveArrayItem(prev, index, index + 1))}
                       disabled={index === widgets.length - 1}
                       className="rounded-lg border border-white/10 bg-white/[0.06] p-1.5 text-[var(--text-secondary)] hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
-                      aria-label="Sposta widget giù"
+                      aria-label={tr("Sposta widget giù")}
                     >
                       <ArrowDown size={14} />
                     </button>
@@ -2401,7 +2403,7 @@ async function saveAll() {
                   value={widget.widget_code}
                   onChange={(e) => patchWidgetCode(index, e.target.value)}
                 >
-                  <option value="">Seleziona widget</option>
+                  <option value=""><LocalizedText text="Seleziona widget" /></option>
                   {DASHBOARD_WIDGET_OPTIONS.map((option) => (
                     <option key={option.code} value={option.code}>
                       {option.label}
@@ -2419,7 +2421,7 @@ async function saveAll() {
                           : "border-white/10 bg-white/[0.04] text-[var(--text-muted)] hover:bg-white/[0.08]"
                       }`}
                     >
-                      Auto
+                      <LocalizedText text="Auto" />
                     </button>
                     <button
                       type="button"
@@ -2430,7 +2432,7 @@ async function saveAll() {
                           : "border-white/10 bg-white/[0.04] text-[var(--text-muted)] hover:bg-white/[0.08]"
                       }`}
                     >
-                      Custom
+                      <LocalizedText text="Custom" />
                     </button>
                   </div>
                   <Input
@@ -2449,7 +2451,7 @@ async function saveAll() {
                       )
                     }
                     disabled={getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "auto"}
-                    placeholder="Etichetta widget"
+                    placeholder={tr("Etichetta widget")}
                   />
                   <p className="text-[11px] leading-4 text-[var(--text-muted)]">
                     Auto segue la terminologia globale. Custom sovrascrive solo questo widget.
@@ -2465,12 +2467,12 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="all">Tutti</option>
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                  <option value="engineer">Engineer</option>
-                  <option value="mechanic">Mechanic</option>
-                  <option value="viewer">Viewer</option>
+                  <option value="all">{tr("Tutti")}</option>
+                  <option value="owner"><LocalizedText text="Owner" /></option>
+                  <option value="admin"><LocalizedText text="Admin" /></option>
+                  <option value="engineer"><LocalizedText text="Engineer" /></option>
+                  <option value="mechanic"><LocalizedText text="Mechanic" /></option>
+                  <option value="viewer"><LocalizedText text="Viewer" /></option>
                 </Select>
                 <Select
                   value={widget.size}
@@ -2482,10 +2484,10 @@ async function saveAll() {
                     )
                   }
                 >
-                  <option value="sm">Compatto · su schermi larghi</option>
-                  <option value="md">Standard · mezza riga</option>
-                  <option value="lg">Ampio · riga larga</option>
-                  <option value="xl">Riga intera</option>
+                  <option value="sm"><LocalizedText text="Compatto · su schermi larghi" /></option>
+                  <option value="md"><LocalizedText text="Standard · mezza riga" /></option>
+                  <option value="lg"><LocalizedText text="Ampio · riga larga" /></option>
+                  <option value="xl"><LocalizedText text="Riga intera" /></option>
                 </Select>
                 <ToggleBox
                   label="Attivo"
@@ -2538,7 +2540,7 @@ async function saveAll() {
       {section === "audit" ? (
         <div className="space-y-6">
           <SectionCard
-            title="Diagnostica salvataggio"
+            title={tr("Diagnostica salvataggio")}
             subtitle="Serve a capire se una modifica è solo in preview, salvata sul database o applicata realmente al tema globale."
             actions={
               <button
@@ -2547,7 +2549,7 @@ async function saveAll() {
                 className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:bg-white/[0.12]"
               >
                 <RefreshCw size={14} className="mr-2 inline" />
-                Ricarica tutto
+                <LocalizedText text="Ricarica tutto" />
               </button>
             }
           >
@@ -2563,19 +2565,19 @@ async function saveAll() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
                   <Database size={16} />
-                  Stato database
+                  <LocalizedText text="Stato database" />
                 </div>
                 <div className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.045] px-3 py-2">
-                    <span>RPC transazionale</span>
+                    <span><LocalizedText text="RPC transazionale" /></span>
                     <StatusPill ok={saveRpcReady} label={saveRpcReady ? "Disponibile" : "Mancante"} />
                   </div>
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.045] px-3 py-2">
-                    <span>Scrittura owner/admin</span>
+                    <span><LocalizedText text="Scrittura owner/admin" /></span>
                     <StatusPill ok={managerCanWrite} label={managerCanWrite ? "OK" : "Bloccata"} />
                   </div>
                   <div className="rounded-xl bg-white/[0.045] px-3 py-2">
-                    <div className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Ultimo updated_at</div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]"><LocalizedText text="Ultimo updated_at" /></div>
                     <div className="mt-1 font-semibold text-[var(--text-primary)]">{formatDateTime(health?.settings_updated_at || settings.updated_at)}</div>
                   </div>
                 </div>
@@ -2596,12 +2598,12 @@ async function saveAll() {
                       <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{color.label}</div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
                         <div>
-                          <div className="mb-1">Richiesto</div>
+                          <div className="mb-1"><LocalizedText text="Richiesto" /></div>
                           <div className="h-8 rounded-lg border border-white/10" style={{ backgroundColor: color.requested }} />
                           <div className="mt-1 font-mono">{color.requested}</div>
                         </div>
                         <div>
-                          <div className="mb-1">Applicato</div>
+                          <div className="mb-1"><LocalizedText text="Applicato" /></div>
                           <div className="h-8 rounded-lg border border-white/10" style={{ backgroundColor: color.applied }} />
                           <div className="mt-1 font-mono">{color.applied}</div>
                         </div>
@@ -2622,7 +2624,7 @@ async function saveAll() {
 
       {pendingNavigationHref ? (
         <ModalShell
-          title="Modifiche non salvate"
+          title={tr("Modifiche non salvate")}
           subtitle="Hai modifiche aperte nel Control Center. Se cambi pagina le modifiche non salvate verranno perse."
           maxWidth="max-w-xl"
           onClose={() => setPendingNavigationHref(null)}
@@ -2646,7 +2648,7 @@ async function saveAll() {
           }
         >
           <div className="race-info-box text-sm leading-6">
-            Le modifiche sono ancora solo nella pagina Impostazioni. Premi <strong>Salva Control Center</strong> per renderle definitive, oppure esci senza salvare.
+            <LocalizedText text="Le modifiche sono ancora solo nella pagina Impostazioni. Premi" /> <strong><LocalizedText text="Salva Control Center" /></strong> <LocalizedText text="per renderle definitive, oppure esci senza salvare." />
           </div>
         </ModalShell>
       ) : null}

@@ -31,6 +31,8 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type ComponentRow = {
   id: string;
@@ -144,6 +146,8 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 }
 
 export default function ComponentDetailPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const params = useParams();
   const componentId = params?.id as string;
 
@@ -506,7 +510,7 @@ export default function ComponentDetailPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Scheda componente"
+        title={tr("Scheda componente")}
         subtitle="Stato tecnico, revisioni e montaggio"
         icon={<Boxes size={22} />}
         state="loading"
@@ -517,7 +521,7 @@ export default function ComponentDetailPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Scheda componente"
+        title={tr("Scheda componente")}
         subtitle="Stato tecnico, revisioni e montaggio"
         icon={<Boxes size={22} />}
         state="error"
@@ -529,7 +533,7 @@ export default function ComponentDetailPage() {
   if (!canViewComponents) {
     return (
       <PagePermissionState
-        title="Scheda componente"
+        title={tr("Scheda componente")}
         subtitle="Stato tecnico, revisioni e montaggio"
         icon={<Boxes size={22} />}
         state="denied"
@@ -575,14 +579,14 @@ export default function ComponentDetailPage() {
                   className="rounded-xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.08]"
                 >
                   <Edit size={16} className="mr-2 inline" />
-                  Modifica componente
+                  <LocalizedText text="Modifica componente" />
                 </button>
                 <button
                   onClick={() => setOpenRevision(true)}
                   className="rounded-xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.08]"
                 >
                   <RotateCcw size={16} className="mr-2 inline" />
-                  Revisione / reset ore
+                  <LocalizedText text="Revisione / reset ore" />
                 </button>
                 {mountedCar ? (
                   <button
@@ -609,7 +613,7 @@ export default function ComponentDetailPage() {
               className="rounded-xl border px-4 py-2 font-bold hover:bg-[var(--surface-card)]/[0.035]"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
-              Componenti
+              <LocalizedText text="Componenti" />
             </Link>
           </>
         }
@@ -620,7 +624,7 @@ export default function ComponentDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Questa pagina riunisce stato tecnico, montaggio e storico del componente."
       >
         <InfoBlock>
@@ -633,7 +637,7 @@ export default function ComponentDetailPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
-          title="Stato tecnico"
+          title={tr("Stato tecnico")}
           subtitle="Dati del componente, soglie e indicazioni operative"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -667,7 +671,7 @@ export default function ComponentDetailPage() {
             />
             <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4 md:col-span-2">
               <div className="text-sm text-[var(--text-muted)]">
-                Stato operativo
+                <LocalizedText text="Stato operativo" />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StatusBadge label={status.label} tone={status.tone} />
@@ -691,7 +695,7 @@ export default function ComponentDetailPage() {
         </SectionCard>
 
         <SectionCard
-          title="Posizione attuale"
+          title={tr("Posizione attuale")}
           subtitle="Montaggio rapido e stato del componente sul mezzo"
         >
           {mountedCar ? (
@@ -711,19 +715,19 @@ export default function ComponentDetailPage() {
                   href={`/cars/${mountedCar.id}`}
                   className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                 >
-                  Apri scheda mezzo
+                  <LocalizedText text="Apri scheda mezzo" />
                 </Link>
                 <Link
                   href="/mounts"
                   className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                 >
-                  Storico montaggi
+                  <LocalizedText text="Storico montaggi" />
                 </Link>
               </div>
             </div>
           ) : (
             <EmptyState
-              title="Componente attualmente smontato"
+              title={tr("Componente attualmente smontato")}
               description="Puoi montarlo da qui oppure dal modulo Montaggi."
             />
           )}
@@ -732,11 +736,11 @@ export default function ComponentDetailPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
-          title="Storico manutenzioni"
+          title={tr("Storico manutenzioni")}
           subtitle="Interventi tecnici eseguiti sul componente"
         >
           {maintenances.length === 0 ? (
-            <EmptyState title="Nessuna manutenzione registrata" />
+            <EmptyState title={tr("Nessuna manutenzione registrata")} />
           ) : (
             <div className="space-y-3">
               {maintenances.map((row) => (
@@ -792,7 +796,7 @@ export default function ComponentDetailPage() {
         </SectionCard>
 
         <SectionCard
-          title="Revisioni e documenti"
+          title={tr("Revisioni e documenti")}
           subtitle="Storico revisioni e allegati collegati"
         >
           <div className="space-y-4">
@@ -801,7 +805,7 @@ export default function ComponentDetailPage() {
                 Revisioni
               </div>
               {revisions.length === 0 ? (
-                <EmptyState title="Nessuna revisione registrata" />
+                <EmptyState title={tr("Nessuna revisione registrata")} />
               ) : (
                 <div className="space-y-3">
                   {revisions.map((row) => (
@@ -844,10 +848,10 @@ export default function ComponentDetailPage() {
             <div>
               <div className="mb-2 flex items-center gap-2 font-semibold text-[var(--text-primary)]">
                 <FileText size={16} />
-                Documenti
+                <LocalizedText text="Documenti" />
               </div>
               {documents.length === 0 ? (
-                <EmptyState title="Nessun documento collegato" />
+                <EmptyState title={tr("Nessun documento collegato")} />
               ) : (
                 <div className="space-y-3">
                   {documents.map((row) => (
@@ -868,7 +872,7 @@ export default function ComponentDetailPage() {
                           rel="noreferrer"
                           className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                         >
-                          Apri file
+                          <LocalizedText text="Apri file" />
                         </a>
                       ) : null}
                     </div>
@@ -882,7 +886,7 @@ export default function ComponentDetailPage() {
 
       {openEdit ? (
         <ModalShell
-          title="Modifica componente"
+          title={tr("Modifica componente")}
           subtitle="Aggiorna i dati tecnici direttamente dalla scheda componente."
           onClose={() => setOpenEdit(false)}
         >
@@ -994,7 +998,7 @@ export default function ComponentDetailPage() {
               onClick={() => setOpenEdit(false)}
               className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold"
             >
-              Annulla
+              <LocalizedText text="Annulla" />
             </button>
             <button
               onClick={() => void saveComponentEdits()}
@@ -1010,7 +1014,7 @@ export default function ComponentDetailPage() {
 
       {openRevision ? (
         <ModalShell
-          title="Revisione componente"
+          title={tr("Revisione componente")}
           subtitle="Registra l’intervento e scegli se azzerare o meno le ore del componente."
           onClose={() => setOpenRevision(false)}
         >
@@ -1044,7 +1048,7 @@ export default function ComponentDetailPage() {
                       description: e.target.value,
                     })
                   }
-                  placeholder="Es. revisione banco, controllo completo, cambio paraoli"
+                  placeholder={tr("Es. revisione banco, controllo completo, cambio paraoli")}
                 />
               </Field>
             </div>
@@ -1087,7 +1091,7 @@ export default function ComponentDetailPage() {
               onClick={() => setOpenRevision(false)}
               className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold"
             >
-              Annulla
+              <LocalizedText text="Annulla" />
             </button>
             <button
               onClick={() => void saveRevision()}
@@ -1103,7 +1107,7 @@ export default function ComponentDetailPage() {
 
       {openMount ? (
         <ModalShell
-          title="Monta componente"
+          title={tr("Monta componente")}
           subtitle="Scegli l’auto su cui montare il componente e registra la data di montaggio."
           onClose={() => setOpenMount(false)}
         >
@@ -1114,7 +1118,7 @@ export default function ComponentDetailPage() {
                 value={selectedCarId}
                 onChange={(e) => setSelectedCarId(e.target.value)}
               >
-                <option value="">Seleziona auto</option>
+                <option value="">{tr("Seleziona auto")}</option>
                 {cars.map((car) => (
                   <option key={car.id} value={car.id}>
                     {car.name}{" "}
@@ -1146,7 +1150,7 @@ export default function ComponentDetailPage() {
               onClick={() => setOpenMount(false)}
               className="rounded-xl bg-neutral-100 px-4 py-2 font-semibold"
             >
-              Annulla
+              <LocalizedText text="Annulla" />
             </button>
             <button
               onClick={() => void mountComponent()}
@@ -1191,7 +1195,7 @@ function ModalShell({
           <button
             onClick={onClose}
             className="rounded-xl bg-neutral-100 p-2 text-[var(--text-secondary)] hover:bg-neutral-200"
-            aria-label="Chiudi"
+            aria-label={tr("Chiudi")}
           >
             <X size={18} />
           </button>

@@ -43,6 +43,8 @@ import {
 } from "@/lib/permissions";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type MemberDraft = {
   role: string;
@@ -94,6 +96,8 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 }
 
 export default function TeamAccessPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
@@ -191,7 +195,7 @@ export default function TeamAccessPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Team & Accessi"
+        title={tr("Team & Accessi")}
         subtitle="Modulo di governance team e permessi"
         icon={<ShieldCheck size={20} />}
         state="loading"
@@ -202,7 +206,7 @@ export default function TeamAccessPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Team & Accessi"
+        title={tr("Team & Accessi")}
         subtitle="Modulo di governance team e permessi"
         icon={<ShieldCheck size={20} />}
         state="error"
@@ -263,7 +267,7 @@ export default function TeamAccessPage() {
   if (!access.canManageTeam) {
     return (
       <PagePermissionState
-        title="Team & Accessi"
+        title={tr("Team & Accessi")}
         subtitle="Modulo di governance team e permessi"
         icon={<ShieldCheck size={20} />}
         state="denied"
@@ -390,20 +394,20 @@ export default function TeamAccessPage() {
   }
 
   if (loading) {
-    return <div className="rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-6 py-5 text-sm text-[var(--text-secondary)] shadow-[var(--shadow-card)]">Caricamento Team & Accessi...</div>;
+    return <div className="rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-6 py-5 text-sm text-[var(--text-secondary)] shadow-[var(--shadow-card)]"><LocalizedText text="Caricamento Team & Accessi..." /></div>;
   }
 
   if (!ctx || !settings) {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
-          title="Team & Accessi"
+          title={tr("Team & Accessi")}
           subtitle="Modulo di governance team e permessi"
           icon={<ShieldCheck size={20} />}
         />
         <SectionCard>
           <EmptyState
-            title="Impossibile caricare il modulo"
+            title={tr("Impossibile caricare il modulo")}
             description={errorMessage || "Controlla sessione, policy e configurazione database."}
           />
         </SectionCard>
@@ -414,7 +418,7 @@ export default function TeamAccessPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Team & Accessi"
+        title={tr("Team & Accessi")}
         subtitle="Gestione ruoli, membri attivi e override permessi del team"
         icon={<ShieldCheck size={20} />}
         actions={
@@ -437,7 +441,7 @@ export default function TeamAccessPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Questo modulo governa il team attuale: ruoli, stato membri e override puntuali dei permessi."
       >
         <InfoBlock>
@@ -448,12 +452,12 @@ export default function TeamAccessPage() {
       </SectionCard>
 
       <SectionCard
-        title="Snapshot team"
+        title={tr("Snapshot team")}
         subtitle="Contesto operativo del workspace corrente"
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
-            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Team</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Team" /></div>
             <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
               {settings.team_name || "Team senza nome"}
             </div>
@@ -463,15 +467,15 @@ export default function TeamAccessPage() {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
-            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Tuo ruolo</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Tuo ruolo" /></div>
             <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
               {TEAM_ROLE_LABELS[ctx.role as TeamRole] || ctx.role}
             </div>
-            <div className="mt-1 text-sm text-[var(--text-secondary)]">Gestione team corrente</div>
+            <div className="mt-1 text-sm text-[var(--text-secondary)]"><LocalizedText text="Gestione team corrente" /></div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner">
-            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Nota operativa</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]"><LocalizedText text="Nota operativa" /></div>
             <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
               Questo modulo gestisce membri già collegati al team. Per creare inviti automatici via email servirà un passo successivo dedicato.
             </div>
@@ -482,19 +486,19 @@ export default function TeamAccessPage() {
       {!canManageTeam ? (
         <SectionCard>
           <EmptyState
-            title="Accesso limitato"
+            title={tr("Accesso limitato")}
             description="Solo owner e admin possono modificare ruoli, stato membri e override dei permessi."
           />
         </SectionCard>
       ) : (
         <>
           <SectionCard
-            title="Membri del team"
+            title={tr("Membri del team")}
             subtitle="Aggiorna ruolo operativo e stato attivo dei membri già collegati al workspace"
           >
             {members.length === 0 ? (
               <EmptyState
-                title="Nessun membro trovato"
+                title={tr("Nessun membro trovato")}
                 description="Il team non ha ancora membri associati."
               />
             ) : (
@@ -529,13 +533,13 @@ export default function TeamAccessPage() {
                           <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
                             <span>ID membro: {member.id}</span>
                             <span>Creato: {formatDate(member.created_at)}</span>
-                            {member.id === ctx.teamUserId ? <span>Account corrente</span> : null}
+                            {member.id === ctx.teamUserId ? <span><LocalizedText text="Account corrente" /></span> : null}
                           </div>
                         </div>
 
                         <div className="grid w-full gap-3 md:grid-cols-3 xl:w-auto xl:min-w-[520px]">
                           <label className="text-sm font-semibold text-[var(--text-secondary)]">
-                            <div className="mb-1">Ruolo</div>
+                            <div className="mb-1"><LocalizedText text="Ruolo" /></div>
                             <select
                               value={draft.role}
                               onChange={(event) =>
@@ -552,7 +556,7 @@ export default function TeamAccessPage() {
                           </label>
 
                           <label className="text-sm font-semibold text-[var(--text-secondary)]">
-                            <div className="mb-1">Stato</div>
+                            <div className="mb-1"><LocalizedText text="Stato" /></div>
                             <select
                               value={draft.is_active ? "active" : "inactive"}
                               onChange={(event) =>
@@ -562,8 +566,8 @@ export default function TeamAccessPage() {
                               }
                               className="w-full rounded-xl border border-white/15 bg-[rgba(10,16,22,0.94)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-accent)] focus:ring-4 focus:ring-[var(--brand-accent)]/15"
                             >
-                              <option value="active">Attivo</option>
-                              <option value="inactive">Disattivo</option>
+                              <option value="active">{tr("Attivo")}</option>
+                              <option value="inactive">{tr("Disattivo")}</option>
                             </select>
                           </label>
 
@@ -593,12 +597,12 @@ export default function TeamAccessPage() {
           </SectionCard>
 
           <SectionCard
-            title="Permessi base per ruolo"
+            title={tr("Permessi base per ruolo")}
             subtitle="Matrice standard ricavata da role_permissions"
           >
             {permissionCatalog.length === 0 ? (
               <EmptyState
-                title="Catalogo permessi vuoto"
+                title={tr("Catalogo permessi vuoto")}
                 description="Controlla la tabella app_permissions o applica la patch SQL inclusa nello zip."
               />
             ) : (
@@ -606,7 +610,7 @@ export default function TeamAccessPage() {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10 text-left text-[var(--text-muted)]">
-                      <th className="px-3 py-3 font-semibold">Permesso</th>
+                      <th className="px-3 py-3 font-semibold"><LocalizedText text="Permesso" /></th>
                       {TEAM_ROLES.map((role) => (
                         <th key={role} className="px-3 py-3 font-semibold">
                           {TEAM_ROLE_LABELS[role]}
@@ -646,14 +650,14 @@ export default function TeamAccessPage() {
           </SectionCard>
 
           <SectionCard
-            title="Override per utente"
+            title={tr("Override per utente")}
             subtitle="Permette di concedere o negare eccezioni rispetto al ruolo standard"
           >
             <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <label className="text-sm font-semibold text-[var(--text-secondary)]">
-                    <div className="mb-1">Membro</div>
+                    <div className="mb-1"><LocalizedText text="Membro" /></div>
                     <select
                       value={selectedMemberId}
                       onChange={(event) => setSelectedMemberId(event.target.value)}
@@ -668,7 +672,7 @@ export default function TeamAccessPage() {
                   </label>
 
                   <label className="text-sm font-semibold text-[var(--text-secondary)]">
-                    <div className="mb-1">Permesso</div>
+                    <div className="mb-1"><LocalizedText text="Permesso" /></div>
                     <select
                       value={selectedPermissionCode}
                       onChange={(event) => setSelectedPermissionCode(event.target.value)}
@@ -683,7 +687,7 @@ export default function TeamAccessPage() {
                   </label>
 
                   <label className="text-sm font-semibold text-[var(--text-secondary)]">
-                    <div className="mb-1">Azione</div>
+                    <div className="mb-1"><LocalizedText text="Azione" /></div>
                     <select
                       value={selectedOverrideMode}
                       onChange={(event) =>
@@ -717,7 +721,7 @@ export default function TeamAccessPage() {
 
                 {selectedMemberOverrides.length === 0 ? (
                   <EmptyState
-                    title="Nessun override attivo"
+                    title={tr("Nessun override attivo")}
                     description="Il membro selezionato usa solo i permessi standard del suo ruolo."
                   />
                 ) : (
@@ -784,7 +788,7 @@ export default function TeamAccessPage() {
 
                 {selectedMemberEffectivePermissions.length === 0 ? (
                   <EmptyState
-                    title="Nessun permesso disponibile"
+                    title={tr("Nessun permesso disponibile")}
                     description="Controlla role_permissions oppure gli override di questo membro."
                   />
                 ) : (
@@ -808,7 +812,7 @@ export default function TeamAccessPage() {
           </SectionCard>
 
           <SectionCard
-            title="Nota prodotto"
+            title={tr("Nota prodotto")}
             subtitle="Per il prossimo step commerciale"
           >
             <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner text-sm leading-6 text-[var(--text-secondary)]">

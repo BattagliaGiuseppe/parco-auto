@@ -13,6 +13,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { formatComponentHours, getDashboardComponentSeverity } from "@/lib/componentStatus";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import { dashboardWidgetClassName, getDashboardWidgetDisplayLabel, getDashboardWidgetMeta, isModuleEnabled, isWidgetVisibleForRole, safeLowerLabel } from "@/lib/controlCenter";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type AppSettings = {
   team_name: string;
@@ -61,6 +63,8 @@ function isFutureOrToday(value: string | null | undefined) {
 }
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([]);
@@ -214,7 +218,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "cars_ready":
         return (
           <SectionCard key={code} title={label} subtitle={`Prontezza operativa · ${safeLowerLabel(labels.vehicle)}`}>
-            {cars.length === 0 ? <EmptyState title="Nessun elemento registrato" /> : (
+            {cars.length === 0 ? <EmptyState title={tr("Nessun elemento registrato")} /> : (
               <div className="space-y-3">
                 {cars.map((car) => {
                   const hasProblems = components.some((c) => c.car_id === car.id && componentSeverity(c) >= 2);
@@ -226,7 +230,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
                       </div>
                       <div className="flex items-center gap-3">
                         <StatusBadge label={hasProblems ? "Da verificare" : "Pronto"} tone={hasProblems ? "yellow" : "green"} />
-                        <Link href="/cars" className="race-action-link text-sm">Apri</Link>
+                        <Link href="/cars" className="race-action-link text-sm"><LocalizedText text="Apri" /></Link>
                       </div>
                     </div>
                   );
@@ -238,7 +242,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "components_alerts":
         return (
           <SectionCard key={code} title={label} subtitle="Componenti fuori soglia, in warning o scaduti">
-            {urgentComponents.length + warningComponents.length === 0 ? <EmptyState title="Nessuna criticità componente" /> : (
+            {urgentComponents.length + warningComponents.length === 0 ? <EmptyState title={tr("Nessuna criticità componente")} /> : (
               <div className="space-y-3">
                 {[...urgentComponents, ...warningComponents].slice(0, 8).map((row) => (
                   <div key={row.id} className="data-row">
@@ -258,7 +262,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "upcoming_events":
         return (
           <SectionCard key={code} title={label} subtitle="I prossimi appuntamenti del team">
-            {upcomingEvents.length === 0 ? <EmptyState title="Nessun evento imminente" /> : (
+            {upcomingEvents.length === 0 ? <EmptyState title={tr("Nessun evento imminente")} /> : (
               <div className="space-y-3">
                 {upcomingEvents.map((row) => (
                   <div key={row.id} className="data-row flex items-center justify-between">
@@ -266,7 +270,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
                       <div className="font-extrabold text-[var(--text-primary)]">{row.name}</div>
                       <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{formatDate(row.date)} · {row.circuit_id?.name || "Circuito da definire"}</div>
                     </div>
-                    <Link href={`/calendar/${row.id}`} className="race-action-link text-sm">Apri</Link>
+                    <Link href={`/calendar/${row.id}`} className="race-action-link text-sm"><LocalizedText text="Apri" /></Link>
                   </div>
                 ))}
               </div>
@@ -276,7 +280,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "maintenances_open":
         return (
           <SectionCard key={code} title={label} subtitle="Interventi che richiedono attenzione">
-            {openMaintenances.length === 0 ? <EmptyState title="Nessuna manutenzione aperta" /> : (
+            {openMaintenances.length === 0 ? <EmptyState title={tr("Nessuna manutenzione aperta")} /> : (
               <div className="space-y-3">
                 {openMaintenances.map((row) => (
                   <div key={row.id} className="data-row">
@@ -317,7 +321,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "tasks_open":
         return (
           <SectionCard key={code} title={label} subtitle="Promemoria e attività operative ancora aperte">
-            {openTasks.length === 0 ? <EmptyState title="Nessuna attività aperta" /> : (
+            {openTasks.length === 0 ? <EmptyState title={tr("Nessuna attività aperta")} /> : (
               <div className="space-y-3">
                 {openTasks.slice(0, 8).map((row) => (
                   <div key={row.id} className="data-row flex items-start justify-between gap-3">
@@ -327,7 +331,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
                         {row.car_id?.name || "Senza auto collegata"} · Assegnata a {row.assigned_to_team_user_id?.name || row.assigned_to_team_user_id?.email || "nessuno"} · Scadenza {formatDate(row.due_date)}
                       </div>
                     </div>
-                    <Link href="/tasks" className="race-action-link text-sm">Apri</Link>
+                    <Link href="/tasks" className="race-action-link text-sm"><LocalizedText text="Apri" /></Link>
                   </div>
                 ))}
               </div>
@@ -337,7 +341,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "inventory_low_stock":
         return (
           <SectionCard key={code} title={label} subtitle="Articoli sotto la scorta minima">
-            {lowStock.length === 0 ? <EmptyState title="Nessun articolo sotto soglia" /> : (
+            {lowStock.length === 0 ? <EmptyState title={tr("Nessun articolo sotto soglia")} /> : (
               <div className="space-y-3">
                 {lowStock.map((row) => (
                   <div key={row.id} className="data-row flex items-center justify-between">
@@ -355,13 +359,13 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "attendance_today":
         return (
           <SectionCard key={code} title={label} subtitle="Persone presenti oggi e timbrature aperte">
-            {attendanceRecords.length === 0 ? <EmptyState title="Nessuna timbratura oggi" /> : (
+            {attendanceRecords.length === 0 ? <EmptyState title={tr("Nessuna timbratura oggi")} /> : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <QuickPill icon={<Users size={16} />} label="Presenti ora" value={String(attendanceOpen.length)} />
                   <QuickPill icon={<CalendarDays size={16} />} label="In pista" value={String(attendanceInTrack.length)} />
                 </div>
-                <Link href="/attendance" className="race-action-link text-sm">Apri presenze →</Link>
+                <Link href="/attendance" className="race-action-link text-sm"><LocalizedText text="Apri presenze →" /></Link>
               </div>
             )}
           </SectionCard>
@@ -380,7 +384,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
   ];
 
   if (loading) {
-    return <div className="p-6 text-[var(--text-secondary)]">Caricamento dashboard...</div>;
+    return <div className="p-6 text-[var(--text-secondary)]"><LocalizedText text="Caricamento dashboard..." /></div>;
   }
 
   return (
@@ -401,7 +405,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 
       <StatsGrid items={stats} />
 
-      <SectionCard title="Quadro operativo" subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
+      <SectionCard title={tr("Quadro operativo")} subtitle="Lettura rapida delle aree che richiedono attenzione prima del prossimo turno.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <QuickPill icon={<CarFront size={16} />} label={`Totale · ${labels.vehicle}`} value={String(cars.length)} />
           <QuickPill icon={<Wrench size={16} />} label={`Warning · ${labels.component}`} value={String(warningComponents.length)} />

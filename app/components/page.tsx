@@ -24,6 +24,7 @@ import ModalShell from "@/components/ModalShell";
 import { Button } from "@/components/Button";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 import {
   uiInputClassName,
   uiSelectClassName,
@@ -35,6 +36,7 @@ import {
   getComponentHoursInfo,
   getComponentStatus,
 } from "@/lib/componentStatus";
+import LocalizedText from "@/components/LocalizedText";
 
 type CarOption = { id: string; name: string };
 
@@ -113,6 +115,8 @@ function ProgressBar({ value }: { value: number | null }) {
 }
 
 export default function ComponentsPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewComponents = access.hasPermission("components.view");
   const canEditComponents = access.hasPermission("components.edit", [
@@ -366,7 +370,7 @@ export default function ComponentsPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Componenti"
+        title={tr("Componenti")}
         subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="loading"
@@ -377,7 +381,7 @@ export default function ComponentsPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Componenti"
+        title={tr("Componenti")}
         subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="error"
@@ -389,7 +393,7 @@ export default function ComponentsPage() {
   if (!canViewComponents) {
     return (
       <PagePermissionState
-        title="Componenti"
+        title={tr("Componenti")}
         subtitle="Parco componenti, ore da revisione e soglie operative"
         icon={<Boxes size={22} />}
         state="denied"
@@ -401,7 +405,7 @@ export default function ComponentsPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Componenti"
+        title={tr("Componenti")}
         subtitle="Controlla ore da ultima revisione, ore vita totali e soglie operative."
         icon={<Boxes size={22} />}
         actions={
@@ -430,13 +434,13 @@ export default function ComponentsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura ore componenti"
+        title={tr("Lettura ore componenti")}
         subtitle="Le ore da ultima revisione possono essere azzerate con una revisione; le ore vita totali non vengono mai azzerate."
       >
         <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
           <div className="race-mini-panel">
             <div className="font-extrabold text-[var(--text-primary)]">
-              Ore da revisione
+              <LocalizedText text="Ore da revisione" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
               Sono le ore accumulate dall’ultima revisione/reset e guidano
@@ -445,7 +449,7 @@ export default function ComponentsPage() {
           </div>
           <div className="race-mini-panel">
             <div className="font-extrabold text-[var(--text-primary)]">
-              Ore vita accumulate
+              <LocalizedText text="Ore vita accumulate" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
               Sono lo storico totale del componente: aumentano con i turni e non
@@ -454,7 +458,7 @@ export default function ComponentsPage() {
           </div>
           <div className="race-mini-panel">
             <div className="font-extrabold text-[var(--text-primary)]">
-              Ore residue
+              <LocalizedText text="Ore residue" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
               Indicano quanto manca alla revisione in base alla soglia
@@ -465,7 +469,7 @@ export default function ComponentsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Filtri"
+        title={tr("Filtri")}
         subtitle="Trova rapidamente i componenti montati, in attenzione o da revisionare."
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.75fr_0.75fr_0.75fr_0.75fr_auto] lg:items-center">
@@ -476,7 +480,7 @@ export default function ComponentsPage() {
             />
             <input
               className="form-control-dark py-3 pl-10 pr-3"
-              placeholder="Cerca per codice, tipo o auto"
+              placeholder={tr("Cerca per codice, tipo o auto")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -494,11 +498,11 @@ export default function ComponentsPage() {
                 setStatusFilter(e.target.value as typeof statusFilter)
               }
             >
-              <option value="all">Tutti</option>
-              <option value="mounted">Montati</option>
-              <option value="unmounted">Smontati</option>
-              <option value="attention">In attenzione</option>
-              <option value="revision">Da revisionare</option>
+              <option value="all">{tr("Tutti")}</option>
+              <option value="mounted">{tr("Montati")}</option>
+              <option value="unmounted"><LocalizedText text="Smontati" /></option>
+              <option value="attention"><LocalizedText text="In attenzione" /></option>
+              <option value="revision"><LocalizedText text="Da revisionare" /></option>
             </select>
           </div>
 
@@ -507,7 +511,7 @@ export default function ComponentsPage() {
             value={carFilter}
             onChange={(e) => setCarFilter(e.target.value)}
           >
-            <option value="">Tutte le auto</option>
+            <option value="">{tr("Tutte le auto")}</option>
             {cars.map((car) => (
               <option key={car.id} value={car.id}>
                 {car.name}
@@ -520,7 +524,7 @@ export default function ComponentsPage() {
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
-            <option value="">Tutti i tipi</option>
+            <option value=""><LocalizedText text="Tutti i tipi" /></option>
             {availableTypes.map((definition) => (
               <option key={definition.value} value={definition.value}>
                 {definition.label}
@@ -535,7 +539,7 @@ export default function ComponentsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Elenco componenti"
+        title={tr("Elenco componenti")}
         subtitle="Default raggruppato per auto: più veloce da leggere, con passaggio alla vista a schede quando serve il dettaglio completo."
       >
         {loading ? (
@@ -543,7 +547,7 @@ export default function ComponentsPage() {
             Caricamento componenti...
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState title="Nessun componente trovato" />
+          <EmptyState title={tr("Nessun componente trovato")} />
         ) : viewMode === "compact" ? (
           <div className="space-y-5">
             {groupedByCar.map((group) => (
@@ -578,7 +582,7 @@ export default function ComponentsPage() {
                           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                             <StatusBadge label={status.label} tone={status.tone} />
                             <Link href={`/components/${row.id}`} className="race-action-secondary px-3 py-2 text-sm">
-                              Apri
+                              <LocalizedText text="Apri" />
                             </Link>
                           </div>
                         </div>
@@ -635,7 +639,7 @@ export default function ComponentsPage() {
 
                   <div className="mt-4">
                     <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
-                      <span>Avanzamento verso revisione</span>
+                      <span><LocalizedText text="Avanzamento verso revisione" /></span>
                       <span>
                         {info.progress === null
                           ? "Soglia non impostata"
@@ -675,7 +679,7 @@ export default function ComponentsPage() {
                       className="race-action-secondary px-3 py-2 text-sm"
                     >
                       <Gauge size={16} className="mr-2 inline" />
-                      Apri scheda
+                      <LocalizedText text="Apri scheda" />
                     </Link>
                   </div>
                 </div>
@@ -687,14 +691,14 @@ export default function ComponentsPage() {
 
       {open ? (
         <ModalShell
-          title="Nuovo componente"
+          title={tr("Nuovo componente")}
           subtitle="Configura ore iniziali, soglie di warning e soglia revisione."
           onClose={() => setOpen(false)}
           maxWidth="max-w-3xl"
           footer={
             <>
               <Button variant="secondary" onClick={() => setOpen(false)}>
-                Annulla
+                <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={saveComponent} disabled={saving}>
                 {saving ? "Salvataggio..." : "Salva componente"}
@@ -709,13 +713,13 @@ export default function ComponentsPage() {
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               >
-                <option value="">Seleziona tipo</option>
+                <option value="">{tr("Seleziona tipo")}</option>
                 {availableTypes.map((definition) => (
                   <option key={definition.value} value={definition.value}>
                     {definition.label}
                   </option>
                 ))}
-                <option value="__custom__">Tipo personalizzato</option>
+                <option value="__custom__">{tr("Tipo personalizzato")}</option>
               </select>
             </Field>
 
@@ -727,7 +731,7 @@ export default function ComponentsPage() {
                   onChange={(e) =>
                     setForm({ ...form, customType: e.target.value })
                   }
-                  placeholder="Es. Pompa benzina"
+                  placeholder={tr("Es. Pompa benzina")}
                 />
               </Field>
             ) : null}
@@ -739,7 +743,7 @@ export default function ComponentsPage() {
                 onChange={(e) =>
                   setForm({ ...form, identifier: e.target.value })
                 }
-                placeholder="Es. MOT-01, CAMBIO-A"
+                placeholder={tr("Es. MOT-01, CAMBIO-A")}
               />
             </Field>
 
@@ -749,7 +753,7 @@ export default function ComponentsPage() {
                 value={form.car_id}
                 onChange={(e) => setForm({ ...form, car_id: e.target.value })}
               >
-                <option value="">Nessuno</option>
+                <option value="">{tr("Nessuno")}</option>
                 {cars.map((car) => (
                   <option key={car.id} value={car.id}>
                     {car.name}
@@ -792,7 +796,7 @@ export default function ComponentsPage() {
                 onChange={(e) =>
                   setForm({ ...form, warning_threshold_hours: e.target.value })
                 }
-                placeholder="Es. 8"
+                placeholder={tr("Es. 8")}
               />
             </Field>
 
@@ -806,7 +810,7 @@ export default function ComponentsPage() {
                 onChange={(e) =>
                   setForm({ ...form, revision_threshold_hours: e.target.value })
                 }
-                placeholder="Es. 10"
+                placeholder={tr("Es. 10")}
               />
             </Field>
 
@@ -827,7 +831,7 @@ export default function ComponentsPage() {
                   className={uiTextareaClassName}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Note tecniche, seriale, storico o dettagli utili"
+                  placeholder={tr("Note tecniche, seriale, storico o dettagli utili")}
                 />
               </Field>
             </div>

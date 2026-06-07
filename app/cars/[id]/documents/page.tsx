@@ -13,6 +13,8 @@ import EmptyState from "@/components/EmptyState";
 import StatsGrid from "@/components/StatsGrid";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { uiInputClassName, uiTextareaClassName } from "@/components/UiField";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
@@ -26,6 +28,8 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 }
 
 export default function CarDocumentsPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const params = useParams();
   const carId = params?.id as string;
   const [rows, setRows] = useState<any[]>([]);
@@ -146,13 +150,13 @@ export default function CarDocumentsPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Documenti mezzo"
+        title={tr("Documenti mezzo")}
         subtitle="Archivio allegati, caricamento file locale e link esterni"
         icon={<FileText size={22} />}
         actions={
           <Link href={`/cars/${carId}`} className="race-action-secondary px-4 py-2">
             <ArrowLeft size={16} className="mr-2 inline" />
-            Scheda mezzo
+            <LocalizedText text="Scheda mezzo" />
           </Link>
         }
       />
@@ -164,7 +168,7 @@ export default function CarDocumentsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Questa pagina raccoglie i documenti utili del mezzo in un unico archivio."
       >
         <InfoBlock>
@@ -175,25 +179,25 @@ export default function CarDocumentsPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         <SectionCard
-          title="Nuovo documento"
+          title={tr("Nuovo documento")}
           subtitle="Compila almeno un campo utile o carica un file."
         >
           <div className="grid grid-cols-1 gap-3">
             <input
               className={uiInputClassName}
-              placeholder="Titolo"
+              placeholder={tr("Titolo")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <input
               className={uiInputClassName}
-              placeholder="Tipo documento"
+              placeholder={tr("Tipo documento")}
               value={type}
               onChange={(e) => setType(e.target.value)}
             />
             <input
               className={uiInputClassName}
-              placeholder="URL file esterno (opzionale)"
+              placeholder={tr("URL file esterno (opzionale)")}
               value={fileUrl}
               onChange={(e) => setFileUrl(e.target.value)}
             />
@@ -204,7 +208,7 @@ export default function CarDocumentsPage() {
             />
             <textarea
               className={uiTextareaClassName}
-              placeholder="Note"
+              placeholder={tr("Note")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -221,9 +225,9 @@ export default function CarDocumentsPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Archivio documenti" subtitle="Storico allegati e link del mezzo.">
+        <SectionCard title={tr("Archivio documenti")} subtitle="Storico allegati e link del mezzo.">
           {rows.length === 0 ? (
-            <EmptyState title="Nessun documento caricato" description="Aggiungi il primo documento per costruire lo storico del mezzo." />
+            <EmptyState title={tr("Nessun documento caricato")} description="Aggiungi il primo documento per costruire lo storico del mezzo." />
           ) : (
             <div className="space-y-3">
               {rows.map((row) => (
@@ -244,7 +248,7 @@ export default function CarDocumentsPage() {
                       rel="noreferrer"
                       className="race-action-secondary mt-3 px-4 py-2 text-sm"
                     >
-                      Apri file
+                      <LocalizedText text="Apri file" />
                     </a>
                   ) : null}
                 </div>

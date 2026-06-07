@@ -29,6 +29,8 @@ import { Button } from "@/components/Button";
 import { UiField, uiInputClassName, uiSelectClassName, uiTextareaClassName } from "@/components/UiField";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type TaskStatus = "todo" | "in_progress" | "waiting" | "done" | "cancelled";
 type TaskPriority = "low" | "medium" | "high" | "urgent";
@@ -184,6 +186,8 @@ function isOpenTask(task: TaskRow) {
 
 export default function TasksPage() {
   const access = usePermissionAccess();
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const [viewMode, setViewMode] = usePersistedViewMode("parcoauto.tasks.viewMode", "compact");
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
@@ -499,7 +503,7 @@ export default function TasksPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Attività"
+        title={tr("Attività")}
         subtitle="Task, promemoria e cose da fare collegate al lavoro del team"
         icon={<ClipboardList size={22} />}
         state="loading"
@@ -510,7 +514,7 @@ export default function TasksPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Attività"
+        title={tr("Attività")}
         subtitle="Task, promemoria e cose da fare collegate al lavoro del team"
         icon={<ClipboardList size={22} />}
         state="error"
@@ -522,7 +526,7 @@ export default function TasksPage() {
   if (!canView) {
     return (
       <PagePermissionState
-        title="Attività"
+        title={tr("Attività")}
         subtitle="Task, promemoria e cose da fare collegate al lavoro del team"
         icon={<ClipboardList size={22} />}
         state="denied"
@@ -534,14 +538,14 @@ export default function TasksPage() {
   return (
     <div className="page-shell">
       <PageHeader
-        title="Attività"
+        title={tr("Attività")}
         subtitle="Promemoria operativi collegati ad auto, componenti, eventi, magazzino, piloti e persone del team."
         icon={<ClipboardList size={22} />}
         actions={
           canEdit ? (
             <Button onClick={openCreateModal}>
               <Plus size={16} className="mr-2" />
-              Nuova attività
+              <LocalizedText text="Nuova attività" />
             </Button>
           ) : null
         }
@@ -554,7 +558,7 @@ export default function TasksPage() {
       </div>
 
       <SectionCard
-        title="Console attività"
+        title={tr("Console attività")}
         subtitle="Vista sintetica di default, con filtri per auto, area, assegnatario, priorità e stato."
         actions={<ViewModeToggle value={viewMode} onChange={setViewMode} />}
       >
@@ -571,45 +575,45 @@ export default function TasksPage() {
               className={`${uiInputClassName} pl-10`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cerca attività, auto, componente..."
+              placeholder={tr("Cerca attività, auto, componente...")}
             />
           </label>
 
           <select className={uiSelectClassName} value={carFilter} onChange={(e) => setCarFilter(e.target.value)}>
-            <option value="all">Tutte le auto</option>
+            <option value="all">{tr("Tutte le auto")}</option>
             {cars.map((car) => <option key={car.id} value={car.id}>{car.name}</option>)}
-            <option value="__no_car">Senza auto</option>
+            <option value="__no_car">{tr("Senza auto")}</option>
           </select>
 
           <select className={uiSelectClassName} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="open">Solo aperte</option>
-            <option value="all">Tutti gli stati</option>
-            {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            <option value="open">{tr("Solo aperte")}</option>
+            <option value="all">{tr("Tutti gli stati")}</option>
+            {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
           <select className={uiSelectClassName} value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
-            <option value="all">Tutte le aree</option>
-            {Object.entries(AREA_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            <option value="all">{tr("Tutte le aree")}</option>
+            {Object.entries(AREA_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
           <select className={uiSelectClassName} value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="all">Tutte le priorità</option>
-            {Object.entries(PRIORITY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            <option value="all">{tr("Tutte le priorità")}</option>
+            {Object.entries(PRIORITY_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
           <select className={uiSelectClassName} value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
-            <option value="all">Tutti</option>
-            <option value="unassigned">Non assegnate</option>
+            <option value="all">{tr("Tutti")}</option>
+            <option value="unassigned">{tr("Non assegnate")}</option>
             {members.map((member) => <option key={member.id} value={member.id}>{getMemberLabel(member)}</option>)}
           </select>
         </div>
 
         <div className="mt-6">
           {loading ? (
-            <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">Caricamento attività...</div>
+            <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]">{tr("Caricamento attività...")}</div>
           ) : filteredTasks.length === 0 ? (
             <EmptyState
-              title="Nessuna attività trovata"
+              title={tr("Nessuna attività trovata")}
               description="Crea un promemoria oppure modifica i filtri per visualizzare altre attività."
             />
           ) : viewMode === "compact" ? (
@@ -663,9 +667,9 @@ export default function TasksPage() {
           maxWidth="max-w-5xl"
           footer={
             <>
-              <Button variant="secondary" onClick={closeModal} disabled={saving}>Annulla</Button>
+              <Button variant="secondary" onClick={closeModal} disabled={saving}><LocalizedText text="Annulla" /></Button>
               <Button onClick={saveTask} disabled={saving || !form.title.trim()}>
-                {saving ? "Salvataggio..." : editingTask ? "Salva modifiche" : "Crea attività"}
+                {saving ? tr("Salvataggio...") : editingTask ? tr("Salva modifiche") : tr("Crea attività")}
               </Button>
             </>
           }
@@ -677,14 +681,14 @@ export default function TasksPage() {
                   className={uiInputClassName}
                   value={form.title}
                   onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="Es. Ordinare pastiglie freno, controllare serraggio sospensioni..."
+                  placeholder={tr("Es. Ordinare pastiglie freno, controllare serraggio sospensioni...")}
                 />
               </UiField>
             </div>
 
             <UiField label="Area">
               <select className={uiSelectClassName} value={form.area} onChange={(e) => setForm((prev) => ({ ...prev, area: e.target.value as TaskArea }))}>
-                {Object.entries(AREA_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(AREA_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
 
@@ -695,20 +699,20 @@ export default function TasksPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, assigned_to_team_user_id: e.target.value }))}
                 disabled={!canAssign}
               >
-                <option value="">Non assegnata</option>
+                <option value="">{tr("Non assegnata")}</option>
                 {members.map((member) => <option key={member.id} value={member.id}>{getMemberLabel(member)}</option>)}
               </select>
             </UiField>
 
             <UiField label="Stato">
               <select className={uiSelectClassName} value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as TaskStatus }))}>
-                {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
 
             <UiField label="Priorità">
               <select className={uiSelectClassName} value={form.priority} onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value as TaskPriority }))}>
-                {Object.entries(PRIORITY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(PRIORITY_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
 
@@ -727,17 +731,17 @@ export default function TasksPage() {
                 value={form.car_id}
                 onChange={(e) => setForm((prev) => ({ ...prev, car_id: e.target.value, component_id: "" }))}
               >
-                <option value="">Nessuna auto</option>
+                <option value="">{tr("Nessuna auto")}</option>
                 {cars.map((car) => <option key={car.id} value={car.id}>{car.name}</option>)}
               </select>
             </UiField>
 
             <UiField label="Componente collegato">
               <select className={uiSelectClassName} value={form.component_id} onChange={(e) => setForm((prev) => ({ ...prev, component_id: e.target.value }))}>
-                <option value="">Nessun componente</option>
+                <option value="">{tr("Nessun componente")}</option>
                 {filteredComponents.map((component) => (
                   <option key={component.id} value={component.id}>
-                    {component.type || "Componente"} · {component.identifier || component.id.slice(0, 8)}
+                    {component.type || tr("Componente")} · {component.identifier || component.id.slice(0, 8)}
                   </option>
                 ))}
               </select>
@@ -745,21 +749,21 @@ export default function TasksPage() {
 
             <UiField label="Evento collegato">
               <select className={uiSelectClassName} value={form.event_id} onChange={(e) => setForm((prev) => ({ ...prev, event_id: e.target.value }))}>
-                <option value="">Nessun evento</option>
+                <option value="">{tr("Nessun evento")}</option>
                 {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
               </select>
             </UiField>
 
             <UiField label="Articolo magazzino">
               <select className={uiSelectClassName} value={form.inventory_item_id} onChange={(e) => setForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}>
-                <option value="">Nessun articolo</option>
+                <option value="">{tr("Nessun articolo")}</option>
                 {inventory.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </UiField>
 
             <UiField label="Pilota collegato">
               <select className={uiSelectClassName} value={form.driver_id} onChange={(e) => setForm((prev) => ({ ...prev, driver_id: e.target.value }))}>
-                <option value="">Nessun pilota</option>
+                <option value="">{tr("Nessun pilota")}</option>
                 {drivers.map((driver) => <option key={driver.id} value={driver.id}>{getDriverLabel(driver)}</option>)}
               </select>
             </UiField>
@@ -770,7 +774,7 @@ export default function TasksPage() {
                   className={uiTextareaClassName}
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Dettagli, ricambi da ordinare, controlli da fare, note per il responsabile..."
+                  placeholder={tr("Dettagli, ricambi da ordinare, controlli da fare, note per il responsabile...")}
                 />
               </UiField>
             </div>
@@ -782,6 +786,7 @@ export default function TasksPage() {
 }
 
 function QuickStat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: "green" | "yellow" | "red" | "blue" }) {
+  const { t } = useLanguage();
   const toneClass = {
     green: "text-emerald-300",
     yellow: "text-amber-300",
@@ -793,7 +798,7 @@ function QuickStat({ icon, label, value, tone }: { icon: React.ReactNode; label:
     <div className="race-mini-panel p-4">
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-[var(--text-muted)]">
         {icon}
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
       <div className={`technical-number mt-3 text-3xl font-black leading-none ${toneClass}`}>{value}</div>
     </div>
@@ -815,6 +820,7 @@ function TaskRowCard({
   onComplete: (task: TaskRow) => void;
   onDelete: (task: TaskRow) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="data-row flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0 flex-1">
@@ -826,8 +832,8 @@ function TaskRowCard({
         <div className="mt-3 text-lg font-black text-[var(--text-primary)]">{task.title}</div>
         <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{taskLinkSummary(task)}</div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-[var(--text-muted)]">
-          <span>Assegnata: {getMemberLabel(task.assigned_to)}</span>
-          <span>Scadenza: {formatDate(task.due_date)}</span>
+          <span>{t("ui.Assegnata", "Assegnata")}: {t(`ui.${getMemberLabel(task.assigned_to)}`, getMemberLabel(task.assigned_to))}</span>
+          <span>{t("ui.Scadenza", "Scadenza")}: {formatDate(task.due_date)}</span>
         </div>
       </div>
 
@@ -891,24 +897,25 @@ function TaskActions({
   onComplete: (task: TaskRow) => void;
   onDelete: (task: TaskRow) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
       {canEdit ? (
         <button type="button" className="race-action-secondary px-3 py-2 text-xs" onClick={() => onComplete(task)}>
           <CheckCircle2 size={15} className="mr-1 inline" />
-          {task.status === "done" ? "Riapri" : "Completa"}
+          {task.status === "done" ? t("ui.Riapri", "Riapri") : t("ui.Completa", "Completa")}
         </button>
       ) : null}
       {canEdit ? (
         <button type="button" className="race-action-secondary px-3 py-2 text-xs" onClick={() => onEdit(task)}>
           <Pencil size={15} className="mr-1 inline" />
-          Modifica
+          {t("ui.Modifica", "Modifica")}
         </button>
       ) : null}
       {canDelete ? (
         <button type="button" className="race-action-danger px-3 py-2 text-xs" onClick={() => onDelete(task)}>
           <Trash2 size={15} className="mr-1 inline" />
-          Elimina
+          {t("ui.Elimina", "Elimina")}
         </button>
       ) : null}
     </div>
@@ -916,13 +923,14 @@ function TaskActions({
 }
 
 function MiniInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="race-mini-panel p-3">
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {icon}
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
-      <div className="mt-2 text-sm font-bold leading-5 text-[var(--text-primary)]">{value}</div>
+      <div className="mt-2 text-sm font-bold leading-5 text-[var(--text-primary)]">{t(`ui.${value}`, value)}</div>
     </div>
   );
 }

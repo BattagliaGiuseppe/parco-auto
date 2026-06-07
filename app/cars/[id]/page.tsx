@@ -21,6 +21,8 @@ import EmptyState from "@/components/EmptyState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import { safeLowerLabel } from "@/lib/controlCenter";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type CarComponent = {
   id: string;
@@ -124,6 +126,8 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 }
 
 export default function CarDetailPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const { id } = useParams<{ id: string }>();
   const { theme } = useBrandTheme();
   const vehicleLabel = theme.labels.vehicle || "Auto";
@@ -310,14 +314,14 @@ export default function CarDetailPage() {
               className="race-action-secondary px-4 py-2"
             >
               <FileText size={16} className="mr-2 inline" />
-              Documenti
+              <LocalizedText text="Documenti" />
             </Link>
             <Link
               href={`/cars/${id}/print`}
               className="race-action-secondary px-4 py-2"
             >
               <Printer size={16} className="mr-2 inline" />
-              Stampa
+              <LocalizedText text="Stampa" />
             </Link>
           </div>
         }
@@ -328,7 +332,7 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
+        title={tr("Lettura operativa")}
         subtitle="Questa pagina riassume lo stato tecnico del mezzo e dei componenti attualmente montati."
       >
         <InfoBlock>
@@ -356,13 +360,13 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Attività aperte"
+        title={tr("Attività aperte")}
         subtitle="Promemoria e lavori da fare collegati a questo mezzo."
-        actions={<Link href="/tasks" className="race-action-secondary px-4 py-2 text-sm">Apri attività</Link>}
+        actions={<Link href="/tasks" className="race-action-secondary px-4 py-2 text-sm"><LocalizedText text="Apri attività" /></Link>}
       >
         {tasks.length === 0 ? (
           <EmptyState
-            title="Nessuna attività aperta per questo mezzo"
+            title={tr("Nessuna attività aperta per questo mezzo")}
             description="Quando crei un promemoria collegato a questa scheda lo ritroverai direttamente qui."
           />
         ) : (
@@ -382,7 +386,7 @@ export default function CarDetailPage() {
                 <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
                   <span className="inline-flex items-center gap-2"><CalendarDays size={15} /> {formatDate(task.due_date)}</span>
                   <span>Assegnata: {task.assigned_to_team_user_id?.name || task.assigned_to_team_user_id?.email || "—"}</span>
-                  <Link href="/tasks" className="race-action-link">Gestisci</Link>
+                  <Link href="/tasks" className="race-action-link"><LocalizedText text="Gestisci" /></Link>
                 </div>
               </div>
             ))}
@@ -391,12 +395,12 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Componenti montati"
+        title={tr("Componenti montati")}
         subtitle="Controlla ore, soglie, scadenze e ultima revisione dei componenti attivi sul mezzo."
       >
         {car.components.length === 0 ? (
           <EmptyState
-            title="Nessun componente montato"
+            title={tr("Nessun componente montato")}
             description="Monta un componente sulla vettura per visualizzarlo qui."
           />
         ) : (
@@ -450,20 +454,20 @@ export default function CarDetailPage() {
 
                   {component.expiry_date && (
                     <p className={`mt-4 text-sm ${getExpiryColor(component.expiry_date)}`}>
-                      <span className="font-semibold">Scadenza:</span>{" "}
+                      <span className="font-semibold"><LocalizedText text="Scadenza:" /></span>{" "}
                       {new Date(component.expiry_date).toLocaleDateString("it-IT")}
                     </p>
                   )}
 
                   <div className="mt-2 text-sm text-[var(--text-secondary)]">
-                    <span className="font-semibold">Ultima revisione:</span>{" "}
+                    <span className="font-semibold"><LocalizedText text="Ultima revisione:" /></span>{" "}
                     {latestRevision?.date
                       ? new Date(latestRevision.date).toLocaleDateString("it-IT")
                       : "—"}
                   </div>
 
                   <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                    <span className="font-semibold">Ultima manutenzione:</span>{" "}
+                    <span className="font-semibold"><LocalizedText text="Ultima manutenzione:" /></span>{" "}
                     {component.last_maintenance_date
                       ? new Date(component.last_maintenance_date).toLocaleDateString("it-IT")
                       : "—"}
