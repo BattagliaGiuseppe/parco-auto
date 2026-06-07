@@ -242,7 +242,15 @@ export function translateKey(
     return translateKnownText(key.slice(3), normalizedLanguage);
   }
 
-  return key;
+  return humanizeMissingTranslationKey(key);
+}
+
+function humanizeMissingTranslationKey(key: string) {
+  const lastSegment = String(key || "").split(".").filter(Boolean).pop() || key;
+  return lastSegment
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2")
+    .trim() || key;
 }
 
 type LegacyTextTranslations = Record<LanguageCode, string>;
@@ -1508,6 +1516,17 @@ function escapeRegExp(value: string) {
 
 const FALLBACK_GLOSSARY_SORTED = FALLBACK_GLOSSARY_TEXTS.slice().sort((a, b) => b.it.length - a.it.length);
 
+function findFallbackGlossaryText(value: string): LegacyTextTranslations | null {
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  return (
+    FALLBACK_GLOSSARY_TEXTS.find((entry) =>
+      SUPPORTED_LANGUAGES.some((language) => entry[language.code] === normalized)
+    ) || null
+  );
+}
+
 function translateByGlossary(value: string, targetLanguage: LanguageCode) {
   let result = value;
 
@@ -1678,7 +1697,7 @@ export function translateKnownText(value: string, language: LanguageCode | strin
   const trimmed = value.trim();
   if (!trimmed) return value;
 
-  const exact = findLegacyText(trimmed);
+  const exact = findLegacyText(trimmed) || findFallbackGlossaryText(trimmed);
   if (exact) {
     return preserveOuterWhitespace(value, exact[targetLanguage]);
   }
@@ -1693,75 +1712,32 @@ export function translateKnownText(value: string, language: LanguageCode | strin
       if (trimmed.startsWith(`${sourcePrefix}:`)) {
         return preserveOuterWhitespace(
           value,
-          `${prefix[targetLanguage]}:${trimmed.slice(sourcePrefix.length + 1)}`
+          `${prefix[targetLanguage]}: ${trimmed.slice(sourcePrefix.length + 1).trim()}`
         );
       }
     }
   }
 
-  const composite = translateCompositeText(trimmed, targetLanguage);
-  if (composite !== trimmed) {
-    return preserveOuterWhitespace(value, composite);
-  }
-
+  // Importante: non traduciamo più frasi parziali/parola per parola.
+  // La precedente logica a glossario era troppo aggressiva e poteva generare testi
+  // lunghi o innaturali che rompevano card, badge e intestazioni.
   return value;
 }
 
-export function translateElementAttributes(root: ParentNode, language: LanguageCode) {
-  if (typeof document === "undefined") return;
-
-  const elements = root.querySelectorAll<HTMLElement>("[placeholder], [title], [aria-label]");
-  elements.forEach((element) => {
-    if (element.closest("[data-no-translate='true']")) return;
-
-    for (const attribute of ["placeholder", "title", "aria-label"] as const) {
-      const value = element.getAttribute(attribute);
-      if (!value) continue;
-      const translated = translateKnownText(value, language);
-      if (translated !== value) {
-        element.setAttribute(attribute, translated);
-      }
-    }
-  });
+export function translateElementAttributes(_root: ParentNode, _language: LanguageCode) {
+  // Safe mode: no DOM-wide translation.
+  // Translating arbitrary DOM attributes after render is expensive on large pages
+  // (inventory tables, telemetry lists, virtualized content) and can also touch
+  // user/database data. Static UI text must be translated at render time with t().
+  return;
 }
 
 export function translateDocumentText(language: LanguageCode | string | null | undefined) {
-  if (typeof document === "undefined" || !document.body) return;
+  // Safe mode: keep only the document language metadata.
+  // Do not walk document.body and do not mutate text nodes/attributes after render.
+  if (typeof document === "undefined") return;
 
   const targetLanguage = normalizeLanguage(language);
   document.documentElement.lang = targetLanguage;
   document.documentElement.dataset.language = targetLanguage;
-
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode(node) {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-        if (parent.closest("[data-no-translate='true'], script, style, textarea")) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        if (!node.nodeValue?.trim()) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      },
-    }
-  );
-
-  const nodes: Text[] = [];
-  let current = walker.nextNode();
-  while (current) {
-    nodes.push(current as Text);
-    current = walker.nextNode();
-  }
-
-  nodes.forEach((node) => {
-    const currentValue = node.nodeValue || "";
-    const translated = translateKnownText(currentValue, targetLanguage);
-    if (translated !== currentValue) {
-      node.nodeValue = translated;
-    }
-  });
-
-  translateElementAttributes(document.body, targetLanguage);
 }

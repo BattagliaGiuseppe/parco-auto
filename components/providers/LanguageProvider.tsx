@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,7 +13,6 @@ import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import {
   LANGUAGE_STORAGE_KEY,
   normalizeLanguage,
-  translateDocumentText,
   translateKey,
   type LanguageCode,
 } from "@/lib/i18n";
@@ -48,71 +46,24 @@ export function useLanguage() {
 export default function LanguageProvider({ children }: { children: ReactNode }) {
   const { theme } = useBrandTheme();
   const [language, setLanguageState] = useState<LanguageCode>(() => normalizeLanguage("it"));
-  const initializedRef = useRef(false);
 
   useEffect(() => {
     const storedLanguage = readStoredLanguage();
     const nextLanguage = normalizeLanguage(storedLanguage || theme.language || "it");
     setLanguageState(nextLanguage);
-    initializedRef.current = true;
-  }, []);
+  }, [theme.language]);
 
   useEffect(() => {
-    if (!initializedRef.current) return;
-
-    const storedLanguage = readStoredLanguage();
-    if (storedLanguage) return;
-
-    const themeLanguage = normalizeLanguage(theme.language || "it");
-    setLanguageState(themeLanguage);
-  }, [theme.language]);
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = language;
+    document.documentElement.dataset.language = language;
+  }, [language]);
 
   const setLanguage = useCallback((nextLanguage: string) => {
     const normalized = normalizeLanguage(nextLanguage);
     writeStoredLanguage(normalized);
     setLanguageState(normalized);
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("language:change", { detail: { language: normalized } })
-      );
-    }
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
-
-    let timer: number | null = null;
-
-    const runTranslation = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        translateDocumentText(language);
-      }, 20);
-    };
-
-    translateDocumentText(language);
-
-    const observer = new MutationObserver(() => {
-      runTranslation();
-    });
-
-    observer.observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["placeholder", "title", "aria-label"],
-    });
-
-    window.addEventListener("language:refresh", runTranslation);
-
-    return () => {
-      if (timer) window.clearTimeout(timer);
-      observer.disconnect();
-      window.removeEventListener("language:refresh", runTranslation);
-    };
-  }, [language]);
 
   const value = useMemo<LanguageContextValue>(
     () => ({
