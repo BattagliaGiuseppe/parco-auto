@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 import {
   AlertTriangle,
@@ -33,6 +33,7 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type InventoryItem = {
   id: string;
@@ -463,21 +464,27 @@ function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
+  const tr = useCallback((value: string) => t(`ui.${value}`, value), [t]);
+
   return (
     <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">{label}</label>
-      {hint ? <div className="mb-2 text-xs text-[var(--text-muted)]">{hint}</div> : null}
+      <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">{tr(label)}</label>
+      {hint ? <div className="mb-2 text-xs text-[var(--text-muted)]">{tr(hint)}</div> : null}
       {children}
     </div>
   );
 }
 
 function InfoBlock({ children }: { children: ReactNode }) {
+  const { t } = useLanguage();
+  const tr = useCallback((value: string) => t(`ui.${value}`, value), [t]);
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm leading-6 text-[var(--text-secondary)]">
       <div className="mb-2 flex items-center gap-2 font-bold text-[var(--text-primary)]">
         <Info size={16} />
-        Nota import/export
+        {tr("Nota import/export")}
       </div>
       {children}
     </div>
@@ -931,6 +938,44 @@ function formatSupabaseImportError(error: unknown) {
 }
 
 export default function InventoryPage() {
+  const { t } = useLanguage();
+  const tr = useCallback((value: string) => t(`ui.${value}`, value), [t]);
+  const movementTypeLabel = useCallback(
+    (type: InventoryMovementType) => {
+      const labels: Record<InventoryMovementType, string> = {
+        in: "Carico",
+        out: "Scarico",
+        adjustment: "Rettifica",
+        reserve: "Impegno",
+        release_reserve: "Rilascio impegno",
+        consume: "Utilizzo",
+        return: "Reso",
+        import: "Import",
+        correction: "Correzione",
+      };
+
+      return tr(labels[type] ?? type);
+    },
+    [tr]
+  );
+  const movementDefaultReason = useCallback(
+    (type: InventoryMovementType) => {
+      const labels: Record<InventoryMovementType, string> = {
+        in: "Carico manuale",
+        out: "Scarico manuale",
+        adjustment: "Rettifica inventario",
+        reserve: "Materiale impegnato",
+        release_reserve: "Rilascio materiale impegnato",
+        consume: "Utilizzo materiale",
+        return: "Reso a magazzino",
+        import: "Import",
+        correction: "Correzione",
+      };
+
+      return tr(labels[type] ?? type);
+    },
+    [tr]
+  );
   const access = usePermissionAccess();
   const canViewInventory = access.hasPermission("inventory.view");
   const canEditInventory = access.hasPermission("inventory.edit", ["owner", "admin"]);
@@ -977,8 +1022,8 @@ export default function InventoryPage() {
       if (error) {
         setFeedback({
           type: "error",
-          message: `Impossibile caricare il magazzino: ${error.message}`,
-        });
+          message: `${tr("Impossibile caricare il magazzino")}: ${error.message}`,
+         });
         setRows([]);
         return;
       }
@@ -990,7 +1035,7 @@ export default function InventoryPage() {
         message:
           error instanceof Error
             ? error.message
-            : "Errore imprevisto durante il caricamento del magazzino.",
+            : tr("Errore imprevisto durante il caricamento del magazzino."),
       });
       setRows([]);
     } finally {
@@ -1051,31 +1096,31 @@ export default function InventoryPage() {
 
     return [
       {
-        label: "Articoli",
+        label: tr("Articoli"),
         value: String(rows.length),
         icon: <Package size={18} />,
-        helper: "Totale articoli registrati",
+        helper: tr("Totale articoli registrati"),
       },
       {
-        label: "Sotto minima",
+        label: tr("Sotto minima"),
         value: String(underMinimum),
         icon: <Info size={18} />,
-        helper: "Disponibilità netta sotto soglia",
+        helper: tr("Disponibilità netta sotto soglia"),
       },
       {
-        label: "Impegnati",
+        label: tr("Impegnati"),
         value: String(rows.filter((row) => Number(row.reserved_quantity ?? 0) > 0).length),
         icon: <Package size={18} />,
-        helper: "Materiale già riservato",
+        helper: tr("Materiale già riservato"),
       },
       {
-        label: "Categorie",
+        label: tr("Categorie"),
         value: String(new Set(rows.map((row) => row.category).filter(Boolean)).size),
         icon: <Package size={18} />,
-        helper: "Categorie merceologiche presenti",
+        helper: tr("Categorie merceologiche presenti"),
       },
     ];
-  }, [rows]);
+  }, [rows, tr]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -1146,7 +1191,10 @@ export default function InventoryPage() {
   }
 
   function openMovementForm(row: InventoryItem, movementType: InventoryMovementType) {
-    setMovementForm(buildDefaultMovementForm(row, movementType));
+    setMovementForm({
+      ...buildDefaultMovementForm(row, movementType),
+      reason: movementDefaultReason(movementType),
+    });
   }
 
   function closeMovementForm() {
@@ -1175,8 +1223,8 @@ export default function InventoryPage() {
         type: "error",
         message:
           error instanceof Error
-            ? `Errore caricamento storico movimenti: ${error.message}`
-            : "Errore caricamento storico movimenti.",
+            ? `${tr("Errore caricamento storico movimenti")}: ${error.message}`
+            : tr("Errore caricamento storico movimenti."),
       });
     } finally {
       setMovementHistoryLoading(false);
@@ -1261,14 +1309,14 @@ export default function InventoryPage() {
       });
 
       await load({ keepFeedback: true });
-      setFeedback({ type: "success", message: `Foto aggiornata per ${row.name}.` });
+      setFeedback({ type: "success", message: `${tr("Foto aggiornata per")} ${row.name}.` });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof Error
-            ? `Errore caricamento foto: ${error.message}`
-            : "Errore caricamento foto.",
+            ? `${tr("Errore caricamento foto")}: ${error.message}`
+            : tr("Errore caricamento foto."),
       });
     } finally {
       setImageUploadingId(null);
@@ -1299,12 +1347,12 @@ export default function InventoryPage() {
       }
 
       await load({ keepFeedback: true });
-      setFeedback({ type: "success", message: `Foto rimossa da ${row.name}.` });
+      setFeedback({ type: "success", message: `${tr("Foto rimossa da")} ${row.name}.` });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
-          error instanceof Error ? `Errore rimozione foto: ${error.message}` : "Errore rimozione foto.",
+          error instanceof Error ? `${tr("Errore rimozione foto")}: ${error.message}` : tr("Errore rimozione foto."),
       });
     } finally {
       setImageUploadingId(null);
@@ -1346,7 +1394,7 @@ export default function InventoryPage() {
     setFeedback(null);
 
     if (!form.name.trim()) {
-      setFeedback({ type: "error", message: "Inserisci almeno il nome dell'articolo." });
+      setFeedback({ type: "error", message: tr("Inserisci almeno il nome dell\'articolo.") });
       return;
     }
 
@@ -1366,7 +1414,7 @@ export default function InventoryPage() {
       if (error) throw error;
 
       const itemId = (data as { id: string } | null)?.id;
-      if (!itemId) throw new Error("Articolo creato ma ID non restituito.");
+      if (!itemId) throw new Error(tr("Articolo creato ma ID non restituito."));
 
       if (formImageFile) {
         await uploadInventoryImage({
@@ -1381,7 +1429,7 @@ export default function InventoryPage() {
           itemId,
           quantityDelta: initialQuantity,
           movementType: "in",
-          reason: "Carico iniziale da inserimento manuale",
+          reason: tr("Carico iniziale da inserimento manuale"),
           unitCost: payload.unit_cost,
           currency: payload.currency,
           notes: payload.notes,
@@ -1392,14 +1440,14 @@ export default function InventoryPage() {
       setFormImageFile(null);
       setFormOpen(false);
       await load({ keepFeedback: true });
-      setFeedback({ type: "success", message: "Articolo aggiunto correttamente." });
+      setFeedback({ type: "success", message: tr("Articolo aggiunto correttamente.") });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof Error
-            ? `Errore inserimento articolo: ${error.message}`
-            : "Errore inserimento articolo.",
+            ? `${tr("Errore inserimento articolo")}: ${error.message}`
+            : tr("Errore inserimento articolo."),
       });
     } finally {
       setSaving(false);
@@ -1412,7 +1460,7 @@ export default function InventoryPage() {
     setFeedback(null);
 
     if (!form.name.trim()) {
-      setFeedback({ type: "error", message: "Inserisci almeno il nome dell'articolo." });
+      setFeedback({ type: "error", message: tr("Inserisci almeno il nome dell\'articolo.") });
       return;
     }
 
@@ -1442,14 +1490,14 @@ export default function InventoryPage() {
 
       closeItemForm();
       await load({ keepFeedback: true });
-      setFeedback({ type: "success", message: "Articolo aggiornato correttamente." });
+      setFeedback({ type: "success", message: tr("Articolo aggiornato correttamente.") });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof Error
-            ? `Errore aggiornamento articolo: ${error.message}`
-            : "Errore aggiornamento articolo.",
+            ? `${tr("Errore aggiornamento articolo")}: ${error.message}`
+            : tr("Errore aggiornamento articolo."),
       });
     } finally {
       setSaving(false);
@@ -1471,13 +1519,13 @@ export default function InventoryPage() {
 
     const item = rows.find((row) => row.id === movementForm.itemId);
     if (!item) {
-      setFeedback({ type: "error", message: "Articolo non trovato." });
+      setFeedback({ type: "error", message: tr("Articolo non trovato.") });
       return;
     }
 
     const parsedQuantity = parseNumber(movementForm.quantity, Number.NaN);
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
-      setFeedback({ type: "error", message: "Inserisci una quantità valida maggiore di zero." });
+      setFeedback({ type: "error", message: tr("Inserisci una quantità valida maggiore di zero.") });
       return;
     }
 
@@ -1485,7 +1533,7 @@ export default function InventoryPage() {
     if (movementForm.movementType === "adjustment") {
       quantityDelta = parsedQuantity - Number(item.quantity ?? 0);
       if (quantityDelta === 0) {
-        setFeedback({ type: "info", message: "La quantità finale è uguale alla giacenza attuale: nessuna rettifica necessaria." });
+        setFeedback({ type: "info", message: tr("La quantità finale è uguale alla giacenza attuale: nessuna rettifica necessaria.") });
         return;
       }
     }
@@ -1497,7 +1545,7 @@ export default function InventoryPage() {
         itemId: movementForm.itemId,
         quantityDelta,
         movementType: movementForm.movementType,
-        reason: movementForm.reason.trim() || getMovementTypeLabel(movementForm.movementType),
+        reason: movementForm.reason.trim() || movementTypeLabel(movementForm.movementType),
         unitCost: item.unit_cost,
         currency: item.currency,
         notes: movementForm.notes.trim() || null,
@@ -1507,15 +1555,15 @@ export default function InventoryPage() {
       await load({ keepFeedback: true });
       setFeedback({
         type: "success",
-        message: `${getMovementTypeLabel(movementForm.movementType)} registrato correttamente per ${item.name}.`,
+        message: `${movementTypeLabel(movementForm.movementType)} ${tr("registrato correttamente per")} ${item.name}.`,
       });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof Error
-            ? `Errore movimento magazzino: ${error.message}`
-            : "Errore movimento magazzino.",
+            ? `${tr("Errore movimento magazzino")}: ${error.message}`
+            : tr("Errore movimento magazzino."),
       });
     } finally {
       setMovementSaving(false);
@@ -1612,7 +1660,7 @@ export default function InventoryPage() {
       updated: 0,
       skipped: 0,
       movements: 0,
-      current: "Preparazione import...",
+      current: tr("Preparazione import..."),
     });
 
     const summary: ImportSummary = {
@@ -1625,7 +1673,7 @@ export default function InventoryPage() {
 
     try {
       if (!records.length) {
-        setFeedback({ type: "error", message: "Il file non contiene righe importabili." });
+        setFeedback({ type: "error", message: tr("Il file non contiene righe importabili.") });
         return;
       }
 
@@ -1642,12 +1690,12 @@ export default function InventoryPage() {
           updated: summary.updated,
           skipped: summary.skipped,
           movements: summary.movements,
-          current: `Importazione riga ${rowNumber} di ${records.length + 1}...`,
+          current: `${tr("Importazione riga")} ${rowNumber} ${tr("di")} ${records.length + 1}...`,
         });
 
         if (!name) {
           summary.skipped += 1;
-          summary.errors.push(`Riga ${rowNumber}: manca il nome articolo.`);
+          summary.errors.push(`${tr("Riga")} ${rowNumber}: ${tr("manca il nome articolo")}.`);
           setImportProgress({
             total: records.length,
             done: index + 1,
@@ -1655,7 +1703,7 @@ export default function InventoryPage() {
             updated: summary.updated,
             skipped: summary.skipped,
             movements: summary.movements,
-            current: `Riga ${rowNumber} saltata: manca il nome articolo.`,
+            current: `${tr("Riga")} ${rowNumber} ${tr("saltata")}: ${tr("manca il nome articolo")}.`,
           });
           continue;
         }
@@ -1701,7 +1749,7 @@ export default function InventoryPage() {
                 itemId: existing.id,
                 quantityDelta,
                 movementType: "correction",
-                reason: "Rettifica quantità da import guidato",
+                reason: tr("Rettifica quantità da import guidato"),
                 unitCost: payload.unit_cost,
                 currency: payload.currency,
                 notes: `Import file ${sourceFileName}`,
@@ -1720,14 +1768,14 @@ export default function InventoryPage() {
             if (error) throw error;
 
             const itemId = (data as { id: string } | null)?.id;
-            if (!itemId) throw new Error("ID articolo non restituito.");
+            if (!itemId) throw new Error(tr("ID articolo non restituito."));
 
             if (importedQuantity > 0) {
               await createMovement({
                 itemId,
                 quantityDelta: importedQuantity,
                 movementType: "import",
-                reason: "Carico iniziale da import guidato",
+                reason: tr("Carico iniziale da import guidato"),
                 unitCost: payload.unit_cost,
                 currency: payload.currency,
                 notes: `Import file ${sourceFileName}`,
@@ -1739,7 +1787,7 @@ export default function InventoryPage() {
           }
         } catch (error) {
           summary.skipped += 1;
-          summary.errors.push(`Riga ${rowNumber}: ${formatSupabaseImportError(error)}`);
+          summary.errors.push(`${tr("Riga")} ${rowNumber}: ${formatSupabaseImportError(error)}`);
         }
 
         setImportProgress({
@@ -1749,13 +1797,13 @@ export default function InventoryPage() {
           updated: summary.updated,
           skipped: summary.skipped,
           movements: summary.movements,
-          current: `Processate ${index + 1} righe su ${records.length}.`,
+          current: `${tr("Processate")} ${index + 1} ${tr("righe su")} ${records.length}.`,
         });
       }
 
       const loadedCount = summary.inserted + summary.updated;
       const errorsCopy = summary.errors.length
-        ? ` Dettagli: ${summary.errors.slice(0, 10).join(" | ")}${
+        ? ` ${tr("Dettagli")}: ${summary.errors.slice(0, 10).join(" | ")}${
             summary.errors.length > 10 ? " ..." : ""
           }`
         : "";
@@ -1763,7 +1811,7 @@ export default function InventoryPage() {
       if (loadedCount === 0) {
         setFeedback({
           type: "error",
-          message: `Import non completato: nessun articolo caricato. Saltati: ${summary.skipped}.${errorsCopy}`,
+          message: `${tr("Import non completato: nessun articolo caricato. Saltati")}: ${summary.skipped}.${errorsCopy}`,
         });
         return;
       }
@@ -1772,15 +1820,15 @@ export default function InventoryPage() {
       setImportWizard(null);
       setFeedback({
         type: summary.errors.length ? "info" : "success",
-        message: `Import completato. Creati: ${summary.inserted}. Aggiornati: ${summary.updated}. Saltati: ${summary.skipped}. Movimenti: ${summary.movements}.${errorsCopy}`,
+        message: `${tr("Import completato")}. ${tr("Creati")}: ${summary.inserted}. ${tr("Aggiornati")}: ${summary.updated}. ${tr("Saltati")}: ${summary.skipped}. ${tr("Movimenti")}: ${summary.movements}.${errorsCopy}`,
       });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof Error
-            ? `Import interrotto: ${error.message}`
-            : "Import interrotto per un errore imprevisto.",
+            ? `${tr("Import interrotto")}: ${error.message}`
+            : tr("Import interrotto per un errore imprevisto."),
       });
     } finally {
       setImporting(false);
@@ -1797,7 +1845,7 @@ export default function InventoryPage() {
       const parsed = parseCsvForWizard(text);
 
       if (!parsed || !parsed.headers.length || !parsed.rows.length) {
-        setFeedback({ type: "error", message: "Il file CSV è vuoto o non valido." });
+        setFeedback({ type: "error", message: tr("Il file CSV è vuoto o non valido.") });
         return;
       }
 
@@ -1813,8 +1861,8 @@ export default function InventoryPage() {
         type: "error",
         message:
           error instanceof Error
-            ? `Errore lettura file: ${error.message}`
-            : "Errore lettura file CSV.",
+            ? `${tr("Errore lettura file")}: ${error.message}`
+            : tr("Errore lettura file CSV."),
       });
     }
   }
@@ -1848,14 +1896,14 @@ export default function InventoryPage() {
     if (!importWizard || !importValidation) return;
 
     if (!mappedFields.includes("name")) {
-      setFeedback({ type: "error", message: "Associa almeno una colonna al campo Nome articolo." });
+      setFeedback({ type: "error", message: tr("Associa almeno una colonna al campo Nome articolo.") });
       return;
     }
 
     if (importValidation.errors.length > 0) {
       setFeedback({
         type: "error",
-        message: "Correggi gli errori di validazione prima di confermare l'import.",
+        message: tr("Correggi gli errori di validazione prima di confermare l\'import."),
       });
       return;
     }
@@ -1898,7 +1946,7 @@ export default function InventoryPage() {
           <div className="w-28">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
               {imageUrl ? (
-                <img src={imageUrl} alt={`Foto ${row.name}`} className="h-full w-full object-cover" />
+                <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} className="h-full w-full object-cover" />
               ) : (
                 <ImageIcon size={22} className="text-[var(--text-muted)]" />
               )}
@@ -1906,7 +1954,7 @@ export default function InventoryPage() {
             {canEditInventory ? (
               <div className="mt-2 flex flex-col gap-1">
                 <label className="cursor-pointer rounded-lg bg-white/[0.075] px-2 py-1 text-center text-[11px] font-semibold text-[var(--text-secondary)] hover:bg-neutral-200">
-                  {uploadingThisImage ? "Carico..." : imageUrl ? "Sostituisci" : "Carica"}
+                  {uploadingThisImage ? tr("Carico...") : imageUrl ? tr("Sostituisci") : tr("Carica")}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
@@ -1927,7 +1975,7 @@ export default function InventoryPage() {
                     className="rounded-lg bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Trash2 size={11} className="mr-1 inline" />
-                    Rimuovi
+                    {tr("Rimuovi")}
                   </button>
                 ) : null}
               </div>
@@ -1951,7 +1999,7 @@ export default function InventoryPage() {
         return (
           <div className="text-xs leading-5 text-[var(--text-secondary)]">
             <div>SKU: {row.sku || "—"}</div>
-            <div>Forn.: {row.supplier_code || "—"}</div>
+            <div>{tr("Forn.")}: {row.supplier_code || "—"}</div>
             <div>OEM: {row.manufacturer_code || "—"}</div>
             <div>EAN: {row.barcode || "—"}</div>
           </div>
@@ -1965,7 +2013,7 @@ export default function InventoryPage() {
               {formatNumber(available)}
             </span>
             {available !== quantity ? (
-              <div className="mt-1 text-xs text-[var(--text-muted)]">Giacenza: {formatNumber(quantity)}</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">{tr("Giacenza")}: {formatNumber(quantity)}</div>
             ) : null}
           </div>
         );
@@ -1994,7 +2042,7 @@ export default function InventoryPage() {
               className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <Pencil size={12} className="mr-1 inline" />
-              Modifica
+              {tr("Modifica")}
             </button>
             <button
               type="button"
@@ -2002,7 +2050,7 @@ export default function InventoryPage() {
               className="rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
             >
               <Plus size={12} className="mr-1 inline" />
-              Carico
+              {tr("Carico")}
             </button>
             <button
               type="button"
@@ -2010,7 +2058,7 @@ export default function InventoryPage() {
               className="rounded-lg bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20"
             >
               <Minus size={12} className="mr-1 inline" />
-              Scarico
+              {tr("Scarico")}
             </button>
             <button
               type="button"
@@ -2018,14 +2066,14 @@ export default function InventoryPage() {
               className="rounded-lg bg-sky-500/10 px-2 py-1 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
             >
               <RefreshCw size={12} className="mr-1 inline" />
-              Rettifica
+              {tr("Rettifica")}
             </button>
             <button
               type="button"
               onClick={() => openMovementForm(row, "reserve")}
               className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
             >
-              Impegna
+              {tr("Impegna")}
             </button>
             {Number(row.reserved_quantity ?? 0) > 0 ? (
               <button
@@ -2033,7 +2081,7 @@ export default function InventoryPage() {
                 onClick={() => openMovementForm(row, "release_reserve")}
                 className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Rilascia
+                {tr("Rilascia")}
               </button>
             ) : null}
             <button
@@ -2042,7 +2090,7 @@ export default function InventoryPage() {
               className="rounded-lg bg-neutral-900 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-800"
             >
               <History size={12} className="mr-1 inline" />
-              Storico
+              {tr("Storico")}
             </button>
           </div>
         ) : (
@@ -2051,7 +2099,7 @@ export default function InventoryPage() {
             onClick={() => void openMovementHistory(row)}
             className="rounded-lg bg-white/[0.075] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
           >
-            Storico
+            {tr("Storico")}
           </button>
         );
       default:
@@ -2062,8 +2110,8 @@ export default function InventoryPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Magazzino"
-        subtitle="Articoli, scorte e import/export"
+        title={tr("Magazzino")}
+        subtitle={tr("Articoli, scorte e import/export")}
         icon={<Package size={22} />}
         state="loading"
       />
@@ -2073,8 +2121,8 @@ export default function InventoryPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Magazzino"
-        subtitle="Articoli, scorte e import/export"
+        title={tr("Magazzino")}
+        subtitle={tr("Articoli, scorte e import/export")}
         icon={<Package size={22} />}
         state="error"
         message={access.error}
@@ -2085,11 +2133,11 @@ export default function InventoryPage() {
   if (!canViewInventory) {
     return (
       <PagePermissionState
-        title="Magazzino"
-        subtitle="Articoli, scorte e import/export"
+        title={tr("Magazzino")}
+        subtitle={tr("Articoli, scorte e import/export")}
         icon={<Package size={22} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo magazzino."
+        message={tr("Il tuo ruolo non ha accesso al modulo magazzino.")}
       />
     );
   }
@@ -2097,8 +2145,8 @@ export default function InventoryPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title="Magazzino"
-        subtitle="Anagrafica articoli, scorte, foto, movimenti e import/export guidato."
+        title={tr("Magazzino")}
+        subtitle={tr("Anagrafica articoli, scorte, foto, movimenti e import/export guidato.")}
         icon={<Package size={22} />}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -2109,7 +2157,7 @@ export default function InventoryPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
-                Nuovo articolo
+                {tr("Nuovo articolo")}
               </button>
             ) : null}
             <button
@@ -2118,7 +2166,7 @@ export default function InventoryPage() {
               className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <FileSpreadsheet size={16} className="mr-2 inline" />
-              Template CSV
+              {tr("Template CSV")}
             </button>
             {canEditInventory ? (
               <>
@@ -2129,7 +2177,7 @@ export default function InventoryPage() {
                   className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} className="mr-2 inline" />
-                  {importing ? "Import..." : "Importa CSV"}
+                  {importing ? tr("Import...") : tr("Importa CSV")}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -2146,7 +2194,7 @@ export default function InventoryPage() {
               className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
             >
               <Settings2 size={16} className="mr-2 inline" />
-              Colonne
+              {tr("Colonne")}
             </button>
             <button
               type="button"
@@ -2154,7 +2202,7 @@ export default function InventoryPage() {
               className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800"
             >
               <Download size={16} className="mr-2 inline" />
-              Esporta CSV
+              {tr("Esporta CSV")}
             </button>
           </div>
         }
@@ -2163,7 +2211,7 @@ export default function InventoryPage() {
       {feedback ? <FormStatusBanner type={feedback.type} message={feedback.message} /> : null}
 
       {!canEditInventory ? (
-        <FormStatusBanner type="info" message="Hai accesso in sola lettura a questo modulo." />
+        <FormStatusBanner type="info" message={tr("Hai accesso in sola lettura a questo modulo.")} />
       ) : null}
 
       <SectionCard>
@@ -2171,26 +2219,23 @@ export default function InventoryPage() {
       </SectionCard>
 
       <SectionCard
-        title="Import/export e tracciabilità"
-        subtitle="Caricamento guidato, movimenti di magazzino e storico quantità."
+        title={tr("Import/export e tracciabilità")}
+        subtitle={tr("Caricamento guidato, movimenti di magazzino e storico quantità.")}
       >
         <InfoBlock>
-        Il magazzino è pronto per un caricamento iniziale pulito: puoi usare il template CSV oppure
-        importare file con intestazioni comuni italiane/inglesi. Dopo l’import puoi modificare
-        l’anagrafica articolo, registrare carichi/scarichi, rettificare la giacenza e consultare
-        lo storico movimenti.
+        {tr("Il magazzino è pronto per un caricamento iniziale pulito: puoi usare il template CSV oppure importare file con intestazioni comuni italiane/inglesi. Dopo l’import puoi modificare l’anagrafica articolo, registrare carichi/scarichi, rettificare la giacenza e consultare lo storico movimenti.")}
         </InfoBlock>
       </SectionCard>
 
       <SectionCard
-        title="Articoli a magazzino"
-        subtitle="Consulta disponibilità, soglie minime, codici e materiali impegnati."
+        title={tr("Articoli a magazzino")}
+        subtitle={tr("Consulta disponibilità, soglie minime, codici e materiali impegnati.")}
       >
         <div className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px_auto] xl:items-center">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cerca per nome, SKU, marca, fornitore, posizione..."
+            placeholder={tr("Cerca per nome, SKU, marca, fornitore, posizione...")}
             className={inputClassName}
           />
           <select
@@ -2198,22 +2243,22 @@ export default function InventoryPage() {
             onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)}
             className={inputClassName}
           >
-            <option value="all">Tutti gli articoli</option>
-            <option value="low">Sotto scorta minima</option>
-            <option value="reserved">Con quantità impegnata</option>
-            <option value="withPhoto">Con foto</option>
-            <option value="withoutPhoto">Senza foto</option>
+            <option value="all">{tr("Tutti gli articoli")}</option>
+            <option value="low">{tr("Sotto scorta minima")}</option>
+            <option value="reserved">{tr("Con quantità impegnata")}</option>
+            <option value="withPhoto">{tr("Con foto")}</option>
+            <option value="withoutPhoto">{tr("Senza foto")}</option>
           </select>
           <div className="xl:justify-self-end">
             <ViewModeToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
         {loading ? (
-          <div className="text-[var(--text-muted)]">Caricamento magazzino...</div>
+          <div className="text-[var(--text-muted)]">{tr("Caricamento magazzino...")}</div>
         ) : rows.length === 0 ? (
           <EmptyState
-            title="Nessun articolo registrato"
-            description="Aggiungi il primo articolo oppure scarica il template e importa un CSV iniziale."
+            title={tr("Nessun articolo registrato")}
+            description={tr("Aggiungi il primo articolo oppure scarica il template e importa un CSV iniziale.")}
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 {canEditInventory ? (
@@ -2222,7 +2267,7 @@ export default function InventoryPage() {
                     onClick={openNewItemForm}
                     className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
-                    Aggiungi articolo
+                    {tr("Aggiungi articolo")}
                   </button>
                 ) : null}
                 <button
@@ -2230,15 +2275,15 @@ export default function InventoryPage() {
                   onClick={downloadTemplate}
                   className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
                 >
-                  Scarica template CSV
+                  {tr("Scarica template CSV")}
                 </button>
               </div>
             }
           />
         ) : filteredRows.length === 0 ? (
           <EmptyState
-            title="Nessun articolo trovato"
-            description="Modifica ricerca o filtro per visualizzare altri articoli."
+            title={tr("Nessun articolo trovato")}
+            description={tr("Modifica ricerca o filtro per visualizzare altri articoli.")}
           />
         ) : viewMode === "cards" ? (
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -2253,30 +2298,30 @@ export default function InventoryPage() {
                 <div key={row.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-sm">
                   <div className="flex gap-3">
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
-                      {imageUrl ? <img src={imageUrl} alt={`Foto ${row.name}`} className="h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[var(--text-muted)]" />}
+                      {imageUrl ? <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} className="h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[var(--text-muted)]" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-black text-[var(--text-primary)]">{row.name}</div>
-                      <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{[row.sku, row.brand, row.category].filter(Boolean).join(" · ") || "Anagrafica articolo"}</div>
+                      <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{[row.sku, row.brand, row.category].filter(Boolean).join(" · ") || tr("Anagrafica articolo")}</div>
                     </div>
                     <span className={`h-fit rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${lowStock ? "border-red-400/40 bg-red-500/15 text-red-200" : "border-emerald-400/35 bg-emerald-500/15 text-emerald-200"}`}>
-                      {lowStock ? "Sotto soglia" : "Disponibile"}
+                      {lowStock ? tr("Sotto soglia") : tr("Disponibile")}
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Disponibile</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(available)}</div></div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Minima</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(minimum)}</div></div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">Riservata</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(reserved)}</div></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">{tr("Disponibile")}</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(available)}</div></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">{tr("Minima")}</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(minimum)}</div></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-[var(--text-muted)]">{tr("Riservata")}</div><div className="mt-1 font-black text-[var(--text-primary)]">{formatNumber(reserved)}</div></div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {canEditInventory ? (
                       <>
-                        <button type="button" onClick={() => openEditItemForm(row)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">Modifica</button>
-                        <button type="button" onClick={() => openMovementForm(row, "in")} className="rounded-xl border border-emerald-400/30 bg-emerald-500/12 px-3 py-2 text-xs font-bold text-emerald-200">Carico</button>
-                        <button type="button" onClick={() => openMovementForm(row, "out")} className="rounded-xl border border-red-400/30 bg-red-500/12 px-3 py-2 text-xs font-bold text-red-200">Scarico</button>
+                        <button type="button" onClick={() => openEditItemForm(row)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">{tr("Modifica")}</button>
+                        <button type="button" onClick={() => openMovementForm(row, "in")} className="rounded-xl border border-emerald-400/30 bg-emerald-500/12 px-3 py-2 text-xs font-bold text-emerald-200">{tr("Carico")}</button>
+                        <button type="button" onClick={() => openMovementForm(row, "out")} className="rounded-xl border border-red-400/30 bg-red-500/12 px-3 py-2 text-xs font-bold text-red-200">{tr("Scarico")}</button>
                       </>
                     ) : null}
-                    <button type="button" onClick={() => void openMovementHistory(row)} className="rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)]">Storico</button>
+                    <button type="button" onClick={() => void openMovementHistory(row)} className="rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)]">{tr("Storico")}</button>
                   </div>
                 </div>
               );
@@ -2289,7 +2334,7 @@ export default function InventoryPage() {
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                   {columnOrder.map((column) => (
                     <th key={column} className="px-4 py-3">
-                      {tableColumnLabels[column]}
+                      {tr(tableColumnLabels[column])}
                     </th>
                   ))}
                 </tr>
@@ -2315,9 +2360,9 @@ export default function InventoryPage() {
           <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">{editId ? "Modifica articolo" : "Nuovo articolo"}</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">{editId ? tr("Modifica articolo") : tr("Nuovo articolo")}</h3>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
-                  {editId ? "Aggiorna anagrafica, codici, soglie e posizione. Le quantità si modificano dai movimenti." : "Inserisci anagrafica, codici standard e quantità iniziale."}
+                  {editId ? tr("Aggiorna anagrafica, codici, soglie e posizione. Le quantità si modificano dai movimenti.") : tr("Inserisci anagrafica, codici standard e quantità iniziale.")}
                 </div>
               </div>
               <button
@@ -2325,7 +2370,7 @@ export default function InventoryPage() {
                 onClick={closeItemForm}
                 className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Chiudi
+                {tr("Chiudi")}
               </button>
             </div>
 
@@ -2335,22 +2380,22 @@ export default function InventoryPage() {
                   <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4 sm:flex-row sm:items-center">
                     <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
                       {formImagePreview ? (
-                        <img src={formImagePreview} alt="Anteprima foto articolo" className="h-full w-full object-cover" />
+                        <img src={formImagePreview} alt={tr("Anteprima foto articolo")} className="h-full w-full object-cover" />
                       ) : (
                         <ImageIcon size={28} className="text-[var(--text-muted)]" />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {formImageFile ? formImageFile.name : "Nessuna foto selezionata"}
+                        {formImageFile ? formImageFile.name : tr("Nessuna foto selezionata")}
                       </div>
                       <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                        Formati supportati: JPG, PNG, WEBP, GIF. Dimensione massima: 5 MB.
+                        {tr("Formati supportati: JPG, PNG, WEBP, GIF. Dimensione massima: 5 MB.")}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <label className="cursor-pointer rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800">
                           <ImageIcon size={16} className="mr-2 inline" />
-                          Seleziona foto
+                          {tr("Seleziona foto")}
                           <input
                             type="file"
                             accept="image/jpeg,image/png,image/webp,image/gif"
@@ -2364,7 +2409,7 @@ export default function InventoryPage() {
                             onClick={clearFormImage}
                             className="rounded-xl bg-white/[0.075] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
                           >
-                            Rimuovi selezione
+                            {tr("Rimuovi selezione")}
                           </button>
                         ) : null}
                       </div>
@@ -2377,7 +2422,7 @@ export default function InventoryPage() {
                 <input
                   value={form.sku}
                   onChange={(event) => setForm({ ...form, sku: event.target.value })}
-                  placeholder="Es. BRK-PAD-FR-001"
+                  placeholder={tr("Es. BRK-PAD-FR-001")}
                   className={inputClassName}
                 />
               </Field>
@@ -2386,7 +2431,7 @@ export default function InventoryPage() {
                 <input
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder="Es. Pastiglie freno anteriori"
+                  placeholder={tr("Es. Pastiglie freno anteriori")}
                   className={inputClassName}
                 />
               </Field>
@@ -2395,7 +2440,7 @@ export default function InventoryPage() {
                 <input
                   value={form.category}
                   onChange={(event) => setForm({ ...form, category: event.target.value })}
-                  placeholder="Es. Freni"
+                  placeholder={tr("Es. Freni")}
                   className={inputClassName}
                 />
               </Field>
@@ -2404,7 +2449,7 @@ export default function InventoryPage() {
                 <input
                   value={form.brand}
                   onChange={(event) => setForm({ ...form, brand: event.target.value })}
-                  placeholder="Es. Brembo"
+                  placeholder={tr("Es. Brembo")}
                   className={inputClassName}
                 />
               </Field>
@@ -2413,7 +2458,7 @@ export default function InventoryPage() {
                 <input
                   value={form.supplier_name}
                   onChange={(event) => setForm({ ...form, supplier_name: event.target.value })}
-                  placeholder="Es. Fornitore Spa"
+                  placeholder={tr("Es. Fornitore Spa")}
                   className={inputClassName}
                 />
               </Field>
@@ -2422,7 +2467,7 @@ export default function InventoryPage() {
                 <input
                   value={form.supplier_code}
                   onChange={(event) => setForm({ ...form, supplier_code: event.target.value })}
-                  placeholder="Es. FORN-123"
+                  placeholder={tr("Es. FORN-123")}
                   className={inputClassName}
                 />
               </Field>
@@ -2431,7 +2476,7 @@ export default function InventoryPage() {
                 <input
                   value={form.manufacturer_code}
                   onChange={(event) => setForm({ ...form, manufacturer_code: event.target.value })}
-                  placeholder="Es. OEM-456"
+                  placeholder={tr("Es. OEM-456")}
                   className={inputClassName}
                 />
               </Field>
@@ -2440,14 +2485,14 @@ export default function InventoryPage() {
                 <input
                   value={form.barcode}
                   onChange={(event) => setForm({ ...form, barcode: event.target.value })}
-                  placeholder="Es. 8050000000000"
+                  placeholder={tr("Es. 8050000000000")}
                   className={inputClassName}
                 />
               </Field>
 
               <Field
-                label={editId ? "Giacenza attuale" : "Quantità iniziale"}
-                hint={editId ? "Per modificare la giacenza usa Carico, Scarico o Rettifica dalla tabella." : undefined}
+                label={editId ? tr("Giacenza attuale") : tr("Quantità iniziale")}
+                hint={editId ? tr("Per modificare la giacenza usa Carico, Scarico o Rettifica dalla tabella.") : undefined}
               >
                 <input
                   type="number"
@@ -2473,7 +2518,7 @@ export default function InventoryPage() {
 
               <Field
                 label="Impegnata / riservata"
-                hint={editId ? "Per impegnare o rilasciare quantità usa i movimenti dalla tabella." : undefined}
+                hint={editId ? tr("Per impegnare o rilasciare quantità usa i movimenti dalla tabella.") : undefined}
               >
                 <input
                   type="number"
@@ -2501,7 +2546,7 @@ export default function InventoryPage() {
                 <input
                   value={form.unit}
                   onChange={(event) => setForm({ ...form, unit: event.target.value })}
-                  placeholder="pz"
+                  placeholder={tr("pz")}
                   className={inputClassName}
                 />
               </Field>
@@ -2510,7 +2555,7 @@ export default function InventoryPage() {
                 <input
                   value={form.location}
                   onChange={(event) => setForm({ ...form, location: event.target.value })}
-                  placeholder="Es. Scaffale A3"
+                  placeholder={tr("Es. Scaffale A3")}
                   className={inputClassName}
                 />
               </Field>
@@ -2519,7 +2564,7 @@ export default function InventoryPage() {
                 <input
                   value={form.unit_cost}
                   onChange={(event) => setForm({ ...form, unit_cost: event.target.value })}
-                  placeholder="Es. 85,00"
+                  placeholder={tr("Es. 85,00")}
                   className={inputClassName}
                 />
               </Field>
@@ -2528,7 +2573,7 @@ export default function InventoryPage() {
                 <input
                   value={form.currency}
                   onChange={(event) => setForm({ ...form, currency: event.target.value })}
-                  placeholder="EUR"
+                  placeholder={tr("EUR")}
                   className={inputClassName}
                 />
               </Field>
@@ -2538,7 +2583,7 @@ export default function InventoryPage() {
                   <textarea
                     value={form.notes}
                     onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                    placeholder="Annotazioni utili, lotto, compatibilità, note fornitore..."
+                    placeholder={tr("Annotazioni utili, lotto, compatibilità, note fornitore...")}
                     className={textareaClassName}
                   />
                 </Field>
@@ -2551,7 +2596,7 @@ export default function InventoryPage() {
                 onClick={closeItemForm}
                 className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Annulla
+                {tr("Annulla")}
               </button>
               <button
                 type="button"
@@ -2560,7 +2605,7 @@ export default function InventoryPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle size={16} className="mr-2 inline" />
-                {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Aggiungi articolo"}
+                {saving ? tr("Salvataggio...") : editId ? tr("Salva modifiche") : tr("Aggiungi articolo")}
               </button>
             </div>
           </div>
@@ -2574,10 +2619,10 @@ export default function InventoryPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold text-[var(--text-primary)]">
-                  {getMovementTypeLabel(movementForm.movementType)} magazzino
+                  {movementTypeLabel(movementForm.movementType)} {tr("magazzino")}
                 </h3>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
-                  Articolo: <span className="font-semibold text-[var(--text-secondary)]">{movementForm.itemName}</span>
+                  {tr("Articolo")}: <span className="font-semibold text-[var(--text-secondary)]">{movementForm.itemName}</span>
                 </div>
               </div>
               <button
@@ -2586,20 +2631,20 @@ export default function InventoryPage() {
                 disabled={movementSaving}
                 className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Chiudi
+                {tr("Chiudi")}
               </button>
             </div>
 
             <div className="mt-6 space-y-4">
               <Field
-                label={movementForm.movementType === "adjustment" ? "Quantità finale corretta" : "Quantità"}
+                label={movementForm.movementType === "adjustment" ? tr("Quantità finale corretta") : tr("Quantità")}
                 hint={
                   movementForm.movementType === "adjustment"
-                    ? "Inserisci la giacenza finale reale dopo controllo inventario. Il sistema calcolerà la differenza."
+                    ? tr("Inserisci la giacenza finale reale dopo controllo inventario. Il sistema calcolerà la differenza.")
                     : movementForm.movementType === "reserve"
-                      ? "La quantità verrà impegnata ma resterà fisicamente in magazzino."
+                      ? tr("La quantità verrà impegnata ma resterà fisicamente in magazzino.")
                       : movementForm.movementType === "release_reserve"
-                        ? "La quantità verrà rimossa dagli impegni e tornerà disponibile."
+                        ? tr("La quantità verrà rimossa dagli impegni e tornerà disponibile.")
                         : undefined
                 }
               >
@@ -2622,7 +2667,7 @@ export default function InventoryPage() {
                   onChange={(event) =>
                     setMovementForm({ ...movementForm, reason: event.target.value })
                   }
-                  placeholder="Es. Acquisto, utilizzo evento, rettifica inventario..."
+                  placeholder={tr("Es. Acquisto, utilizzo evento, rettifica inventario...")}
                   className={inputClassName}
                 />
               </Field>
@@ -2633,7 +2678,7 @@ export default function InventoryPage() {
                   onChange={(event) =>
                     setMovementForm({ ...movementForm, notes: event.target.value })
                   }
-                  placeholder="Eventuali dettagli aggiuntivi, documento, riferimento ordine, auto/evento collegato..."
+                  placeholder={tr("Eventuali dettagli aggiuntivi, documento, riferimento ordine, auto/evento collegato...")}
                   className={textareaClassName}
                 />
               </Field>
@@ -2646,7 +2691,7 @@ export default function InventoryPage() {
                 disabled={movementSaving}
                 className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Annulla
+                {tr("Annulla")}
               </button>
               <button
                 type="button"
@@ -2659,7 +2704,7 @@ export default function InventoryPage() {
                 ) : (
                   <CheckCircle2 size={16} className="mr-2 inline" />
                 )}
-                {movementSaving ? "Registrazione..." : "Registra movimento"}
+                {movementSaving ? tr("Registrazione...") : tr("Registra movimento")}
               </button>
             </div>
           </div>
@@ -2671,9 +2716,9 @@ export default function InventoryPage() {
           <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">Storico movimenti</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">{tr("Storico movimenti")}</h3>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
-                  Articolo: <span className="font-semibold text-[var(--text-secondary)]">{movementHistoryItem.name}</span>
+                  {tr("Articolo")}: <span className="font-semibold text-[var(--text-secondary)]">{movementHistoryItem.name}</span>
                 </div>
               </div>
               <button
@@ -2681,26 +2726,26 @@ export default function InventoryPage() {
                 onClick={() => setMovementHistoryItem(null)}
                 className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Chiudi
+                {tr("Chiudi")}
               </button>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
               {movementHistoryLoading ? (
-                <div className="p-6 text-sm text-[var(--text-muted)]">Caricamento movimenti...</div>
+                <div className="p-6 text-sm text-[var(--text-muted)]">{tr("Caricamento movimenti...")}</div>
               ) : movementHistory.length === 0 ? (
-                <div className="p-6 text-sm text-[var(--text-muted)]">Nessun movimento registrato per questo articolo.</div>
+                <div className="p-6 text-sm text-[var(--text-muted)]">{tr("Nessun movimento registrato per questo articolo.")}</div>
               ) : (
                 <table className="min-w-full divide-y divide-white/10 text-sm">
                   <thead className="bg-white/[0.045]">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                      <th className="px-4 py-3">Data</th>
-                      <th className="px-4 py-3">Tipo</th>
-                      <th className="px-4 py-3">Delta</th>
-                      <th className="px-4 py-3">Prima</th>
-                      <th className="px-4 py-3">Dopo</th>
-                      <th className="px-4 py-3">Motivo</th>
-                      <th className="px-4 py-3">Note</th>
+                      <th className="px-4 py-3">{tr("Data")}</th>
+                      <th className="px-4 py-3">{tr("Tipo")}</th>
+                      <th className="px-4 py-3">{tr("Delta")}</th>
+                      <th className="px-4 py-3">{tr("Prima")}</th>
+                      <th className="px-4 py-3">{tr("Dopo")}</th>
+                      <th className="px-4 py-3">{tr("Motivo")}</th>
+                      <th className="px-4 py-3">{tr("Note")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
@@ -2708,7 +2753,7 @@ export default function InventoryPage() {
                       <tr key={movement.id} className="align-top">
                         <td className="px-4 py-3 text-[var(--text-secondary)]">{formatDateTime(movement.created_at)}</td>
                         <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
-                          {getMovementTypeLabel(movement.movement_type)}
+                          {movementTypeLabel(movement.movement_type)}
                         </td>
                         <td className={Number(movement.quantity_delta ?? 0) < 0 ? "px-4 py-3 font-semibold text-red-300" : "px-4 py-3 font-semibold text-emerald-200"}>
                           {Number(movement.quantity_delta ?? 0) > 0 ? "+" : ""}{formatNumber(movement.quantity_delta)}
@@ -2732,9 +2777,9 @@ export default function InventoryPage() {
           <div className="w-full max-w-2xl rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">Ordine colonne magazzino</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">{tr("Ordine colonne magazzino")}</h3>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
-                  Sposta le colonne nella posizione che preferisci. L’ordine viene salvato sul browser.
+                  {tr("Sposta le colonne nella posizione che preferisci. L’ordine viene salvato sul browser.")}
                 </div>
               </div>
               <button
@@ -2742,7 +2787,7 @@ export default function InventoryPage() {
                 onClick={() => setColumnSettingsOpen(false)}
                 className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Chiudi
+                {tr("Chiudi")}
               </button>
             </div>
 
@@ -2753,8 +2798,8 @@ export default function InventoryPage() {
                   className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3"
                 >
                   <div>
-                    <div className="font-semibold text-[var(--text-primary)]">{tableColumnLabels[column]}</div>
-                    <div className="text-xs text-[var(--text-muted)]">Posizione {index + 1}</div>
+                    <div className="font-semibold text-[var(--text-primary)]">{tr(tableColumnLabels[column])}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{tr("Posizione")} {index + 1}</div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -2763,7 +2808,7 @@ export default function InventoryPage() {
                       disabled={index === 0}
                       className="rounded-xl bg-[rgba(16,23,31,0.96)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] ring-1 ring-white/15 hover:bg-white/[0.075] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Su
+                      {tr("Su")}
                     </button>
                     <button
                       type="button"
@@ -2771,7 +2816,7 @@ export default function InventoryPage() {
                       disabled={index === columnOrder.length - 1}
                       className="rounded-xl bg-[rgba(16,23,31,0.96)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] ring-1 ring-white/15 hover:bg-white/[0.075] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Giù
+                      {tr("Giù")}
                     </button>
                   </div>
                 </div>
@@ -2784,14 +2829,14 @@ export default function InventoryPage() {
                 onClick={resetColumnOrder}
                 className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200"
               >
-                Ripristina ordine standard
+                {tr("Ripristina ordine standard")}
               </button>
               <button
                 type="button"
                 onClick={() => setColumnSettingsOpen(false)}
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
-                Salva ordine
+                {tr("Salva ordine")}
               </button>
             </div>
           </div>
@@ -2805,9 +2850,9 @@ export default function InventoryPage() {
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl modal-panel/85 p-6 backdrop-blur-sm">
                 <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-6 text-center shadow-xl">
                   <Loader2 size={34} className="mx-auto animate-spin text-yellow-500" />
-                  <div className="mt-4 text-lg font-black text-[var(--text-primary)]">Importazione in corso</div>
+                  <div className="mt-4 text-lg font-black text-[var(--text-primary)]">{tr("Importazione in corso")}</div>
                   <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                    Non chiudere la finestra e non ricaricare la pagina. Attendi il messaggio finale.
+                    {tr("Non chiudere la finestra e non ricaricare la pagina. Attendi il messaggio finale.")}
                   </div>
                   <div className="mt-4 rounded-full bg-white/[0.075] p-1">
                     <div
@@ -2818,27 +2863,27 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
-                    {importProgress?.done ?? 0} / {importProgress?.total ?? 0} righe processate
+                    {importProgress?.done ?? 0} / {importProgress?.total ?? 0} {tr("righe processate")}
                   </div>
                   <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    {importProgress?.current || "Preparazione..."}
+                    {importProgress?.current || tr("Preparazione...")}
                   </div>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
                     <div className="rounded-xl bg-white/[0.045] p-2">
                       <div className="font-bold text-[var(--text-primary)]">{importProgress?.inserted ?? 0}</div>
-                      <div className="text-[var(--text-muted)]">Creati</div>
+                      <div className="text-[var(--text-muted)]">{tr("Creati")}</div>
                     </div>
                     <div className="rounded-xl bg-white/[0.045] p-2">
                       <div className="font-bold text-[var(--text-primary)]">{importProgress?.updated ?? 0}</div>
-                      <div className="text-[var(--text-muted)]">Agg.</div>
+                      <div className="text-[var(--text-muted)]">{tr("Agg.")}</div>
                     </div>
                     <div className="rounded-xl bg-white/[0.045] p-2">
                       <div className="font-bold text-[var(--text-primary)]">{importProgress?.skipped ?? 0}</div>
-                      <div className="text-[var(--text-muted)]">Saltati</div>
+                      <div className="text-[var(--text-muted)]">{tr("Saltati")}</div>
                     </div>
                     <div className="rounded-xl bg-white/[0.045] p-2">
                       <div className="font-bold text-[var(--text-primary)]">{importProgress?.movements ?? 0}</div>
-                      <div className="text-[var(--text-muted)]">Mov.</div>
+                      <div className="text-[var(--text-muted)]">{tr("Mov.")}</div>
                     </div>
                   </div>
                 </div>
@@ -2846,10 +2891,10 @@ export default function InventoryPage() {
             ) : null}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">Import guidato magazzino</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">{tr("Import guidato magazzino")}</h3>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
-                  File: <span className="font-semibold text-[var(--text-secondary)]">{importWizard.fileName}</span> ·
-                  Righe lette: {importWizard.rows.length} · Separatore rilevato: {importWizard.delimiter === "\t" ? "TAB" : importWizard.delimiter}
+                  {tr("File")}: <span className="font-semibold text-[var(--text-secondary)]">{importWizard.fileName}</span> ·
+                  {tr("Righe lette")}: {importWizard.rows.length} · {tr("Separatore rilevato")}: {importWizard.delimiter === "\t" ? "TAB" : importWizard.delimiter}
                 </div>
               </div>
               <button
@@ -2858,7 +2903,7 @@ export default function InventoryPage() {
                 disabled={importing}
                 className="rounded-xl bg-white/[0.075] px-3 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Chiudi
+                {tr("Chiudi")}
               </button>
             </div>
 
@@ -2872,7 +2917,7 @@ export default function InventoryPage() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <CheckCircle2 size={16} />
-                  Righe valide
+                  {tr("Righe valide")}
                 </div>
                 <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.validRows ?? 0}
@@ -2881,7 +2926,7 @@ export default function InventoryPage() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <AlertTriangle size={16} />
-                  Avvisi
+                  {tr("Avvisi")}
                 </div>
                 <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.warnings.length ?? 0}
@@ -2890,7 +2935,7 @@ export default function InventoryPage() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                   <XCircle size={16} />
-                  Errori
+                  {tr("Errori")}
                 </div>
                 <div className="mt-2 text-2xl font-black text-[var(--text-primary)]">
                   {importValidation?.errors.length ?? 0}
@@ -2900,21 +2945,21 @@ export default function InventoryPage() {
 
             {!mappedFields.includes("name") ? (
               <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
-                Per importare devi associare almeno una colonna al campo “Nome articolo”.
+                {tr("Per importare devi associare almeno una colonna al campo “Nome articolo”.")}
               </div>
             ) : null}
 
             <div className="mt-6">
               <h4 className="text-sm font-bold uppercase tracking-wide text-[var(--text-muted)]">
-                Associazione colonne
+                {tr("Associazione colonne")}
               </h4>
               <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
                 <table className="min-w-full divide-y divide-white/10 bg-[rgba(16,23,31,0.96)] text-sm">
                   <thead className="bg-white/[0.045]">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                      <th className="px-4 py-3">Colonna file</th>
-                      <th className="px-4 py-3">Esempio dati</th>
-                      <th className="px-4 py-3">Campo da importare</th>
+                      <th className="px-4 py-3">{tr("Colonna file")}</th>
+                      <th className="px-4 py-3">{tr("Esempio dati")}</th>
+                      <th className="px-4 py-3">{tr("Campo da importare")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
@@ -2927,9 +2972,9 @@ export default function InventoryPage() {
                       return (
                         <tr key={`${header}-${index}`} className="align-top">
                           <td className="px-4 py-3">
-                            <div className="font-semibold text-[var(--text-primary)]">{header || `Colonna ${index + 1}`}</div>
+                            <div className="font-semibold text-[var(--text-primary)]">{header || `${tr("Colonna")} ${index + 1}`}</div>
                             <div className="mt-1 text-xs text-[var(--text-muted)]">
-                              Proposta: {getImportFieldLabel(importWizard.mapping[index] ?? "ignore")}
+                              {tr("Proposta")}: {tr(getImportFieldLabel(importWizard.mapping[index] ?? "ignore"))}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs leading-5 text-[var(--text-secondary)]">
@@ -2945,7 +2990,7 @@ export default function InventoryPage() {
                             >
                               {importFieldOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
-                                  {option.label}
+                                  {tr(option.label)}
                                   {option.required ? " *" : ""}
                                 </option>
                               ))}
@@ -2961,7 +3006,7 @@ export default function InventoryPage() {
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-                <h4 className="font-bold text-[var(--text-primary)]">Anteprima prime righe</h4>
+                <h4 className="font-bold text-[var(--text-primary)]">{tr("Anteprima prime righe")}</h4>
                 <div className="mt-3 max-h-72 overflow-auto rounded-xl border border-white/10">
                   <table className="min-w-full divide-y divide-white/10 text-xs">
                     <thead className="bg-white/[0.045]">
@@ -2971,7 +3016,7 @@ export default function InventoryPage() {
                           .slice(0, 8)
                           .map((field) => (
                             <th key={field} className="px-3 py-2 text-left font-semibold text-[var(--text-muted)]">
-                              {getImportFieldLabel(field)}
+                              {tr(getImportFieldLabel(field))}
                             </th>
                           ))}
                       </tr>
@@ -2995,36 +3040,36 @@ export default function InventoryPage() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] p-4">
-                <h4 className="font-bold text-[var(--text-primary)]">Validazione</h4>
+                <h4 className="font-bold text-[var(--text-primary)]">{tr("Validazione")}</h4>
                 <div className="mt-3 space-y-3 text-sm">
                   {importValidation?.errors.length ? (
                     <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-red-200">
-                      <div className="font-bold">Errori da correggere</div>
+                      <div className="font-bold">{tr("Errori da correggere")}</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
                         {importValidation.errors.slice(0, 6).map((error) => (
                           <li key={error}>{error}</li>
                         ))}
                       </ul>
                       {importValidation.errors.length > 6 ? (
-                        <div className="mt-2 text-xs">Altri errori non mostrati: {importValidation.errors.length - 6}</div>
+                        <div className="mt-2 text-xs">{tr("Altri errori non mostrati")}: {importValidation.errors.length - 6}</div>
                       ) : null}
                     </div>
                   ) : (
                     <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-emerald-200">
-                      Nessun errore bloccante rilevato.
+                      {tr("Nessun errore bloccante rilevato.")}
                     </div>
                   )}
 
                   {importValidation?.warnings.length ? (
                     <div className="rounded-xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-[var(--brand-accent)]">
-                      <div className="font-bold">Avvisi</div>
+                      <div className="font-bold">{tr("Avvisi")}</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
                         {importValidation.warnings.slice(0, 5).map((warning) => (
                           <li key={warning}>{warning}</li>
                         ))}
                       </ul>
                       {importValidation.warnings.length > 5 ? (
-                        <div className="mt-2 text-xs">Altri avvisi non mostrati: {importValidation.warnings.length - 5}</div>
+                        <div className="mt-2 text-xs">{tr("Altri avvisi non mostrati")}: {importValidation.warnings.length - 5}</div>
                       ) : null}
                     </div>
                   ) : null}
@@ -3039,7 +3084,7 @@ export default function InventoryPage() {
                 disabled={importing}
                 className="rounded-xl bg-white/[0.075] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Annulla
+                {tr("Annulla")}
               </button>
               <button
                 type="button"
@@ -3053,7 +3098,7 @@ export default function InventoryPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Upload size={16} className="mr-2 inline" />
-                {importing ? "Importazione..." : "Conferma e importa"}
+                {importing ? tr("Importazione...") : tr("Conferma e importa")}
               </button>
             </div>
           </div>
