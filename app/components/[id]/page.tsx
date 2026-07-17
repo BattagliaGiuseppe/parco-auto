@@ -567,7 +567,7 @@ export default function ComponentDetailPage() {
       ) : null}
 
       <PageHeader
-        title={`${component.type} · ${component.identifier}`}
+        title={`${tr(component.type)} · ${component.identifier}`}
         subtitle="Scheda tecnica completa del componente"
         icon={<Boxes size={22} />}
         actions={
@@ -603,7 +603,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Link2 size={16} className="mr-2 inline" />
-                    Monta su auto
+                    {tr("Monta su auto")}
                   </button>
                 )}
               </>
@@ -641,7 +641,7 @@ export default function ComponentDetailPage() {
           subtitle="Dati del componente, soglie e indicazioni operative"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <InfoCard label="Tipo" value={component.type} />
+            <InfoCard label="Tipo" value={tr(component.type)} />
             <InfoCard label="Identificativo" value={component.identifier} />
             <InfoCard
               label="Ultima manutenzione"
@@ -751,7 +751,7 @@ export default function ComponentDetailPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-bold text-[var(--text-primary)]">
-                        {row.type || "Manutenzione"}
+                        {tr(row.type || "Manutenzione")}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {formatDate(row.date)}
@@ -860,7 +860,7 @@ export default function ComponentDetailPage() {
                       className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4"
                     >
                       <div className="font-bold text-[var(--text-primary)]">
-                        {row.title || row.type || "Documento"}
+                        {row.title || tr(row.type || "Documento")}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {row.file_name || formatDate(row.uploaded_at)}

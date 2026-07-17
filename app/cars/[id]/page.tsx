@@ -130,7 +130,7 @@ export default function CarDetailPage() {
   const tr = (value: string) => t(`ui.${value}`, value);
   const { id } = useParams<{ id: string }>();
   const { theme } = useBrandTheme();
-  const vehicleLabel = theme.labels.vehicle || "Auto";
+  const vehicleLabel = tr(theme.labels.vehicle || "Auto");
   const vehicleLabelLower = safeLowerLabel(vehicleLabel);
 
   const [car, setCar] = useState<CarData | null>(null);
@@ -416,7 +416,7 @@ export default function CarDetailPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-bold capitalize text-[var(--text-primary)]">
-                        {component.type}
+                        {tr(component.type)}
                       </h3>
                       <p className="text-sm text-[var(--text-secondary)]">{component.identifier}</p>
                     </div>

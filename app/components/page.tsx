@@ -187,7 +187,7 @@ export default function ComponentsPage() {
   const availableTypes = useMemo(() => {
     const fromDefinitions = definitions.map((definition) => ({
       value: definition.code,
-      label: definition.label,
+      label: tr(definition.label),
     }));
     const fromRows = [...new Set(rows.map((row) => row.type))]
       .filter(
@@ -196,7 +196,7 @@ export default function ComponentsPage() {
       )
       .map((value) => ({ value, label: value }));
     return [...fromDefinitions, ...fromRows];
-  }, [definitions, rows]);
+  }, [definitions, rows, t]);
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
@@ -568,7 +568,7 @@ export default function ComponentsPage() {
                         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.9fr_0.75fr_0.75fr_auto] xl:items-center">
                           <div>
                             <div className="font-extrabold text-[var(--text-primary)]">
-                              {row.type} · {row.identifier}
+                              {tr(row.type)} · {row.identifier}
                             </div>
                             <div className="mt-1 text-sm text-[var(--text-secondary)]">
                               {carName || "Non montato"}
@@ -603,7 +603,7 @@ export default function ComponentsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-extrabold text-[var(--text-primary)]">
-                        {row.type} · {row.identifier}
+                        {tr(row.type)} · {row.identifier}
                       </div>
                       <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
                         {carName || "Non montato"}

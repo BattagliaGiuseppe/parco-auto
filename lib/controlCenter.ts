@@ -1,3 +1,10 @@
+import {
+  normalizeLanguage,
+  translateKnownText,
+  SUPPORTED_LANGUAGES,
+  type LanguageCode,
+} from "@/lib/i18n";
+
 export type ControlCenterLabelKey =
   | "vehicle"
   | "driver"
@@ -70,7 +77,8 @@ export const MODULE_REGISTRY: ModuleRegistryItem[] = [
     permission: "cars.view",
     defaultEnabled: true,
     visibleInControlCenter: true,
-    description: "Anagrafica mezzi, ore, componenti montati e schede operative.",
+    description:
+      "Anagrafica mezzi, ore, componenti montati e schede operative.",
   },
   {
     id: "components",
@@ -220,14 +228,63 @@ export type DashboardWidgetMeta = {
 };
 
 export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetMeta[] = [
-  { code: "cars_ready", label: "Mezzi pronti", description: "Prontezza dei mezzi rispetto ai warning componente.", defaultSize: "md", requiredModule: "cars" },
-  { code: "components_alerts", label: "Componenti critici", description: "Componenti in warning, urgenti o fuori soglia.", defaultSize: "md", requiredModule: "components" },
-  { code: "upcoming_events", label: "Prossimi eventi", description: "Calendario dei prossimi appuntamenti del team.", defaultSize: "md", requiredModule: "events" },
-  { code: "maintenances_open", label: "Manutenzioni aperte", description: "Interventi non completati o da pianificare.", defaultSize: "md", requiredModule: "maintenances" },
-  { code: "drivers_documents", label: "Documenti piloti", description: "Documenti in scadenza o da verificare.", defaultSize: "md", requiredModule: "drivers" },
-  { code: "tasks_open", label: "Attività aperte", description: "Promemoria operativi e attività non chiuse.", defaultSize: "md", requiredModule: "tasks" },
-  { code: "inventory_low_stock", label: "Magazzino sotto soglia", description: "Articoli con quantità uguale o inferiore alla scorta minima.", defaultSize: "md", requiredModule: "inventory" },
-  { code: "attendance_today", label: "Presenze oggi", description: "Persone presenti, in pista e ore registrate oggi.", defaultSize: "sm", requiredModule: "attendance", recommendedRoles: ["owner", "admin"] },
+  {
+    code: "cars_ready",
+    label: "Mezzi pronti",
+    description: "Prontezza dei mezzi rispetto ai warning componente.",
+    defaultSize: "md",
+    requiredModule: "cars",
+  },
+  {
+    code: "components_alerts",
+    label: "Componenti critici",
+    description: "Componenti in warning, urgenti o fuori soglia.",
+    defaultSize: "md",
+    requiredModule: "components",
+  },
+  {
+    code: "upcoming_events",
+    label: "Prossimi eventi",
+    description: "Calendario dei prossimi appuntamenti del team.",
+    defaultSize: "md",
+    requiredModule: "events",
+  },
+  {
+    code: "maintenances_open",
+    label: "Manutenzioni aperte",
+    description: "Interventi non completati o da pianificare.",
+    defaultSize: "md",
+    requiredModule: "maintenances",
+  },
+  {
+    code: "drivers_documents",
+    label: "Documenti piloti",
+    description: "Documenti in scadenza o da verificare.",
+    defaultSize: "md",
+    requiredModule: "drivers",
+  },
+  {
+    code: "tasks_open",
+    label: "Attività aperte",
+    description: "Promemoria operativi e attività non chiuse.",
+    defaultSize: "md",
+    requiredModule: "tasks",
+  },
+  {
+    code: "inventory_low_stock",
+    label: "Magazzino sotto soglia",
+    description: "Articoli con quantità uguale o inferiore alla scorta minima.",
+    defaultSize: "md",
+    requiredModule: "inventory",
+  },
+  {
+    code: "attendance_today",
+    label: "Presenze oggi",
+    description: "Persone presenti, in pista e ore registrate oggi.",
+    defaultSize: "sm",
+    requiredModule: "attendance",
+    recommendedRoles: ["owner", "admin"],
+  },
 ];
 
 export type RawControlCenterSettings = {
@@ -237,22 +294,29 @@ export type RawControlCenterSettings = {
   enable_maintenances?: boolean | null;
 };
 
-export function normalizeControlCenterLabels(labels?: RawControlCenterSettings["labels"]): ControlCenterLabels {
+export function normalizeControlCenterLabels(
+  labels?: RawControlCenterSettings["labels"],
+): ControlCenterLabels {
   return {
     ...DEFAULT_CONTROL_CENTER_LABELS,
     ...(labels || {}),
   };
 }
 
-export function getControlCenterLabel(labels: Partial<Record<ControlCenterLabelKey, string>> | null | undefined, key: ControlCenterLabelKey) {
+export function getControlCenterLabel(
+  labels: Partial<Record<ControlCenterLabelKey, string>> | null | undefined,
+  key: ControlCenterLabelKey,
+) {
   const normalized = normalizeControlCenterLabels(labels);
   return normalized[key] || DEFAULT_CONTROL_CENTER_LABELS[key];
 }
 
-export function normalizeControlCenterModules(settings?: RawControlCenterSettings | null) {
+export function normalizeControlCenterModules(
+  settings?: RawControlCenterSettings | null,
+) {
   const raw = settings?.modules || {};
   const normalized = Object.fromEntries(
-    MODULE_REGISTRY.map((module) => [module.id, module.defaultEnabled])
+    MODULE_REGISTRY.map((module) => [module.id, module.defaultEnabled]),
   ) as Record<ModuleId, boolean>;
 
   for (const module of MODULE_REGISTRY) {
@@ -260,11 +324,17 @@ export function normalizeControlCenterModules(settings?: RawControlCenterSetting
       normalized[module.id] = raw[module.id];
       continue;
     }
-    if (module.legacyFlag === "enable_events" && typeof settings?.enable_events === "boolean") {
+    if (
+      module.legacyFlag === "enable_events" &&
+      typeof settings?.enable_events === "boolean"
+    ) {
       normalized[module.id] = settings.enable_events;
       continue;
     }
-    if (module.legacyFlag === "enable_maintenances" && typeof settings?.enable_maintenances === "boolean") {
+    if (
+      module.legacyFlag === "enable_maintenances" &&
+      typeof settings?.enable_maintenances === "boolean"
+    ) {
       normalized[module.id] = settings.enable_maintenances;
     }
   }
@@ -279,28 +349,60 @@ export function normalizeControlCenterModules(settings?: RawControlCenterSetting
   return normalized;
 }
 
-export function isModuleEnabled(settings: RawControlCenterSettings | null | undefined, moduleId: ModuleId) {
+export function isModuleEnabled(
+  settings: RawControlCenterSettings | null | undefined,
+  moduleId: ModuleId,
+) {
   return normalizeControlCenterModules(settings)[moduleId] !== false;
 }
 
 export function getModuleLabel(
   moduleId: ModuleId,
-  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null,
+  language?: LanguageCode | string | null,
 ) {
   const module = MODULE_REGISTRY.find((item) => item.id === moduleId);
   if (!module) return moduleId;
-  if (module.labelKey === "dashboard") return module.fallbackLabel;
-  return getControlCenterLabel(labels, module.labelKey) || module.fallbackLabel;
+  const rawLabel =
+    module.labelKey === "dashboard"
+      ? module.fallbackLabel
+      : getControlCenterLabel(labels, module.labelKey) || module.fallbackLabel;
+  return language ? translateKnownText(rawLabel, language) : rawLabel;
+}
+
+export function getModuleDescription(
+  moduleId: ModuleId,
+  language?: LanguageCode | string | null,
+) {
+  const module = MODULE_REGISTRY.find((item) => item.id === moduleId);
+  const description = module?.description || "";
+  return language ? translateKnownText(description, language) : description;
+}
+
+export function getLocalizedControlCenterLabels(
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null,
+  language?: LanguageCode | string | null,
+): ControlCenterLabels {
+  const normalizedLabels = normalizeControlCenterLabels(labels);
+  return Object.fromEntries(
+    (Object.keys(normalizedLabels) as ControlCenterLabelKey[]).map((key) => [
+      key,
+      translateKnownText(normalizedLabels[key], language || "it"),
+    ]),
+  ) as ControlCenterLabels;
 }
 
 export function getDashboardWidgetMeta(code: string) {
   return DASHBOARD_WIDGET_REGISTRY.find((item) => item.code === code) || null;
 }
 
-export function getDashboardWidgetLabel(code: string) {
-  return getDashboardWidgetMeta(code)?.label || "Widget dashboard";
+export function getDashboardWidgetLabel(
+  code: string,
+  language?: LanguageCode | string | null,
+) {
+  const label = getDashboardWidgetMeta(code)?.label || "Widget dashboard";
+  return language ? translateKnownText(label, language) : label;
 }
-
 
 export type DashboardWidgetLabelMode = "auto" | "custom";
 
@@ -311,44 +413,101 @@ export type DashboardWidgetLabelLike = {
 };
 
 export function safeLowerLabel(value: string | null | undefined) {
-  return String(value || "").trim().toLocaleLowerCase("it-IT");
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("it-IT");
+}
+
+function localizedTerm(
+  value: string | null | undefined,
+  language: LanguageCode | string | null | undefined,
+) {
+  return translateKnownText(String(value || "").trim(), language || "it");
 }
 
 export function getDashboardWidgetAutoLabel(
   code: string,
-  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null,
+  language?: LanguageCode | string | null,
 ) {
+  const targetLanguage = normalizeLanguage(language || "it");
   const normalized = normalizeControlCenterLabels(labels);
-  // Le label automatiche evitano aggettivi maschile/femminile/plurale.
-  // In questo modo la terminologia globale può essere "Auto", "Mezzi",
-  // "Vetture", "Ricambi", ecc. senza creare frasi grammaticalmente errate.
-  switch (code) {
-    case "cars_ready":
-      return `Prontezza · ${normalized.vehicle}`;
-    case "components_alerts":
-      return `Criticità · ${normalized.component}`;
-    case "upcoming_events":
-      return `Calendario · ${normalized.event}`;
-    case "maintenances_open":
-      return `Da completare · ${normalized.maintenance}`;
-    case "drivers_documents":
-      return `Documenti · ${normalized.driver}`;
-    case "tasks_open":
-      return `Aperte · ${normalized.tasks}`;
-    case "inventory_low_stock":
-      return `Sotto soglia · ${normalized.inventory}`;
-    case "attendance_today":
-      return `Oggi · ${normalized.attendance}`;
-    default:
-      return getDashboardWidgetLabel(code);
-  }
+  const vehicle = localizedTerm(normalized.vehicle, targetLanguage);
+  const component = localizedTerm(normalized.component, targetLanguage);
+  const event = localizedTerm(normalized.event, targetLanguage);
+  const maintenance = localizedTerm(normalized.maintenance, targetLanguage);
+  const driver = localizedTerm(normalized.driver, targetLanguage);
+  const tasks = localizedTerm(normalized.tasks, targetLanguage);
+  const inventory = localizedTerm(normalized.inventory, targetLanguage);
+  const attendance = localizedTerm(normalized.attendance, targetLanguage);
+
+  const templates: Record<LanguageCode, Record<string, string>> = {
+    it: {
+      cars_ready: `Prontezza · ${vehicle}`,
+      components_alerts: `Criticità · ${component}`,
+      upcoming_events: `Calendario · ${event}`,
+      maintenances_open: `Da completare · ${maintenance}`,
+      drivers_documents: `Documenti · ${driver}`,
+      tasks_open: `Aperte · ${tasks}`,
+      inventory_low_stock: `Sotto soglia · ${inventory}`,
+      attendance_today: `Oggi · ${attendance}`,
+    },
+    en: {
+      cars_ready: `Readiness · ${vehicle}`,
+      components_alerts: `Critical issues · ${component}`,
+      upcoming_events: `Calendar · ${event}`,
+      maintenances_open: `To complete · ${maintenance}`,
+      drivers_documents: `Documents · ${driver}`,
+      tasks_open: `Open · ${tasks}`,
+      inventory_low_stock: `Below threshold · ${inventory}`,
+      attendance_today: `Today · ${attendance}`,
+    },
+    fr: {
+      cars_ready: `Préparation · ${vehicle}`,
+      components_alerts: `Criticités · ${component}`,
+      upcoming_events: `Calendrier · ${event}`,
+      maintenances_open: `À compléter · ${maintenance}`,
+      drivers_documents: `Documents · ${driver}`,
+      tasks_open: `Ouvertes · ${tasks}`,
+      inventory_low_stock: `Sous le seuil · ${inventory}`,
+      attendance_today: `Aujourd’hui · ${attendance}`,
+    },
+    es: {
+      cars_ready: `Preparación · ${vehicle}`,
+      components_alerts: `Críticas · ${component}`,
+      upcoming_events: `Calendario · ${event}`,
+      maintenances_open: `Por completar · ${maintenance}`,
+      drivers_documents: `Documentos · ${driver}`,
+      tasks_open: `Abiertas · ${tasks}`,
+      inventory_low_stock: `Bajo umbral · ${inventory}`,
+      attendance_today: `Hoy · ${attendance}`,
+    },
+    de: {
+      cars_ready: `Bereitschaft · ${vehicle}`,
+      components_alerts: `Kritische Punkte · ${component}`,
+      upcoming_events: `Kalender · ${event}`,
+      maintenances_open: `Zu erledigen · ${maintenance}`,
+      drivers_documents: `Dokumente · ${driver}`,
+      tasks_open: `Offen · ${tasks}`,
+      inventory_low_stock: `Unter Grenzwert · ${inventory}`,
+      attendance_today: `Heute · ${attendance}`,
+    },
+  };
+
+  return (
+    templates[targetLanguage][code] ||
+    getDashboardWidgetLabel(code, targetLanguage)
+  );
 }
 
 export function getDashboardWidgetLabelMode(
   widget: DashboardWidgetLabelLike,
-  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null,
 ): DashboardWidgetLabelMode {
-  const configuredMode = typeof widget.config?.label_mode === "string" ? widget.config.label_mode : null;
+  const configuredMode =
+    typeof widget.config?.label_mode === "string"
+      ? widget.config.label_mode
+      : null;
   if (configuredMode === "custom") return "custom";
   if (configuredMode === "auto") return "auto";
 
@@ -356,26 +515,49 @@ export function getDashboardWidgetLabelMode(
   if (!currentLabel) return "auto";
 
   const defaultLabels = DEFAULT_CONTROL_CENTER_LABELS;
-  const knownAutomaticLabels = new Set([
-    getDashboardWidgetLabel(widget.widget_code),
-    getDashboardWidgetAutoLabel(widget.widget_code, defaultLabels),
-    getDashboardWidgetAutoLabel(widget.widget_code, labels),
-    widget.widget_code,
-  ].map((value) => String(value || "").trim()).filter(Boolean));
+  const knownAutomaticLabels = new Set(
+    [
+      getDashboardWidgetLabel(widget.widget_code),
+      getDashboardWidgetAutoLabel(widget.widget_code, defaultLabels),
+      getDashboardWidgetAutoLabel(widget.widget_code, labels),
+      ...SUPPORTED_LANGUAGES.map((language) =>
+        getDashboardWidgetLabel(widget.widget_code, language.code),
+      ),
+      ...SUPPORTED_LANGUAGES.map((language) =>
+        getDashboardWidgetAutoLabel(
+          widget.widget_code,
+          defaultLabels,
+          language.code,
+        ),
+      ),
+      ...SUPPORTED_LANGUAGES.map((language) =>
+        getDashboardWidgetAutoLabel(widget.widget_code, labels, language.code),
+      ),
+      widget.widget_code,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
 
   return knownAutomaticLabels.has(currentLabel) ? "auto" : "custom";
 }
 
 export function getDashboardWidgetDisplayLabel(
   widget: DashboardWidgetLabelLike,
-  labels?: Partial<Record<ControlCenterLabelKey, string>> | null
+  labels?: Partial<Record<ControlCenterLabelKey, string>> | null,
+  language?: LanguageCode | string | null,
 ) {
   return getDashboardWidgetLabelMode(widget, labels) === "custom"
-    ? (widget.label || "Widget").trim() || "Widget"
-    : getDashboardWidgetAutoLabel(widget.widget_code, labels);
+    ? localizedTerm(
+        (widget.label || "Widget").trim() || "Widget",
+        language || "it",
+      )
+    : getDashboardWidgetAutoLabel(widget.widget_code, labels, language || "it");
 }
 
-export function normalizeWidgetSize(value?: string | null): "sm" | "md" | "lg" | "xl" {
+export function normalizeWidgetSize(
+  value?: string | null,
+): "sm" | "md" | "lg" | "xl" {
   return value === "sm" || value === "lg" || value === "xl" ? value : "md";
 }
 
@@ -394,15 +576,27 @@ export function dashboardWidgetClassName(size?: string | null) {
   }
 }
 
-export function isWidgetVisibleForRole(widgetRoleScope: string | null | undefined, role: string | null | undefined) {
+export function isWidgetVisibleForRole(
+  widgetRoleScope: string | null | undefined,
+  role: string | null | undefined,
+) {
   const scope = (widgetRoleScope || "all").trim().toLowerCase();
   if (!scope || scope === "all" || scope === "tutti") return true;
   if (!role) return false;
-  return scope.split(/[;,\s]+/).map((item) => item.trim()).filter(Boolean).includes(role.toLowerCase());
+  return scope
+    .split(/[;,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .includes(role.toLowerCase());
 }
 
 export function normalizeOptions(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  if (typeof value === "string") return value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value === "string")
+    return value
+      .split(/[\n,;]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   return [];
 }

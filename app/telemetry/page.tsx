@@ -3602,8 +3602,8 @@ export default function TelemetryPage() {
                           >
                             {CHANNEL_DEFINITIONS.map((definition) => (
                               <option key={definition.key} value={definition.key}>
-                                {definition.label}
-                                {definition.unit ? ` (${definition.unit})` : ""}
+                                {tr(definition.label)}
+                                {definition.unit ? ` (${tr(definition.unit)})` : ""}
                               </option>
                             ))}
                           </select>

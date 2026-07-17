@@ -171,7 +171,7 @@ export default function CarsPage() {
   const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const { theme } = useBrandTheme();
-  const vehicleLabel = theme.labels.vehicle || "Auto";
+  const vehicleLabel = tr(theme.labels.vehicle || "Auto");
   const vehicleLabelLower = safeLowerLabel(vehicleLabel);
   const canViewCars = access.hasPermission("cars.view");
   const canEditCars = access.hasPermission("cars.edit", ["owner", "admin"]);
@@ -696,7 +696,7 @@ export default function CarsPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="font-extrabold text-[var(--text-primary)]">
-                              {component.type} · {component.identifier}
+                              {tr(component.type)} · {component.identifier}
                             </div>
                             <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
                               Ore rev. {formatComponentHours(component.hours)} /
@@ -854,10 +854,10 @@ export default function CarsPage() {
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <div className="font-extrabold text-[var(--text-primary)]">
-                              {def.label}
+                              {tr(def.label)}
                             </div>
                             <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                              {categoryCopy.description}
+                              {tr(categoryCopy.description)}
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">

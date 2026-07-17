@@ -146,6 +146,8 @@ function ActionTile({
 }
 
 export default function EventCarPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const { eventId, eventCarId } = useParams() as {
     eventId: string;
     eventCarId: string;
@@ -703,15 +705,15 @@ export default function EventCarPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
-          title="Setup dinamico"
-          subtitle="Campi configurabili dal Control Center, compilabili qui senza uscire dalla console mezzo."
+          title={tr("Setup dinamico")}
+          subtitle={tr("Campi configurabili dal Control Center, compilabili qui senza uscire dalla console mezzo.")}
           className="scroll-mt-24"
         >
           <div id="setup-section" className="space-y-0" />
           {setupFields.length === 0 ? (
             <EmptyState
-              title="Nessun campo setup configurato"
-              description="Configura i campi setup dal Control Center per vederli qui."
+              title={tr("Nessun campo setup configurato")}
+              description={tr("Configura i campi setup dal Control Center per vederli qui.")}
             />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -721,7 +723,7 @@ export default function EventCarPage() {
                 const options = normalizeOptions(field.options);
 
                 return (
-                  <UiField key={field.id} label={`${field.label}${field.unit ? ` (${field.unit})` : ""}`}>
+                  <UiField key={field.id} label={`${tr(field.label)}${field.unit ? ` (${tr(field.unit)})` : ""}`}>
                     {fieldType === "textarea" ? (
                       <textarea
                         disabled={!canEditEvents}
@@ -740,14 +742,14 @@ export default function EventCarPage() {
                           setSetupData({ ...setupData, [field.field_key]: e.target.value })
                         }
                       >
-                        <option value="">Seleziona...</option>
+                        <option value="">{tr("Seleziona...")}</option>
                         {options.map((option) => (
-                          <option key={option} value={option}>{option}</option>
+                          <option key={option} value={option}>{tr(option)}</option>
                         ))}
                       </select>
                     ) : fieldType === "checkbox" ? (
                       <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">
-                        <span>{field.label}</span>
+                        <span>{tr(field.label)}</span>
                         <input
                           type="checkbox"
                           disabled={!canEditEvents}
@@ -780,27 +782,27 @@ export default function EventCarPage() {
                 style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
               >
                 <Settings2 size={16} className="mr-2 inline" />
-                Salva setup
+                {tr("Salva setup")}
               </button>
             </div>
           ) : null}
         </SectionCard>
 
         <SectionCard
-          title="Check-up tecnico"
-          subtitle="Checklist tecnica del mezzo: esiti, note e anomalie restano leggibili anche nella vista console."
+          title={tr("Check-up tecnico")}
+          subtitle={tr("Checklist tecnica del mezzo: esiti, note e anomalie restano leggibili anche nella vista console.")}
           className="scroll-mt-24"
         >
           <div id="checkup-section" className="mb-4 flex flex-wrap gap-2">
             <StatusChip label={`${checklistSummary.ok} OK`} tone="success" />
-            <StatusChip label={`${checklistSummary.checks} da controllare`} tone="warning" />
-            <StatusChip label={`${checklistSummary.problems} problemi`} tone={checklistSummary.problems > 0 ? "danger" : "neutral"} />
+            <StatusChip label={`${checklistSummary.checks} ${tr("da controllare")}`} tone="warning" />
+            <StatusChip label={`${checklistSummary.problems} ${tr("problemi")}`} tone={checklistSummary.problems > 0 ? "danger" : "neutral"} />
           </div>
 
           {checklists.length === 0 ? (
             <EmptyState
-              title="Nessuna checklist configurata"
-              description="Configura i gruppi di check-up dal Control Center."
+              title={tr("Nessuna checklist configurata")}
+              description={tr("Configura i gruppi di check-up dal Control Center.")}
             />
           ) : (
             <div className="space-y-4">
@@ -809,7 +811,7 @@ export default function EventCarPage() {
                   key={group.id}
                   className="data-row p-4"
                 >
-                  <div className="font-bold text-[var(--text-primary)]">{group.name}</div>
+                  <div className="font-bold text-[var(--text-primary)]">{tr(group.name)}</div>
                   <div className="mt-3 space-y-3">
                     {group.items.map((item: any) => {
                       const inputType = item.input_type || "status";
@@ -823,12 +825,12 @@ export default function EventCarPage() {
                         >
                           <div>
                             <div className="text-sm font-semibold text-[var(--text-primary)]">
-                              {item.label}{item.is_required ? " *" : ""}
+                              {tr(item.label)}{item.is_required ? " *" : ""}
                             </div>
                             <textarea
                               disabled={!canEditEvents}
                               className={`${uiTextareaClassName} mt-2 ${!canEditEvents ? "opacity-70" : ""}`}
-                              placeholder="Nota tecnica"
+                              placeholder={tr("Nota tecnica")}
                               value={itemData.note || ""}
                               onChange={(e) =>
                                 setCheckData({
@@ -844,7 +846,7 @@ export default function EventCarPage() {
                           </div>
 
                           {inputType === "status" ? (
-                            <UiField label="Esito">
+                            <UiField label={tr("Esito")}>
                               <select
                                 disabled={!canEditEvents}
                                 className={`${uiSelectClassName} ${!canEditEvents ? "opacity-70" : ""}`}
@@ -861,14 +863,14 @@ export default function EventCarPage() {
                                 }
                               >
                                 <option value="ok">OK</option>
-                                <option value="check">Da controllare</option>
-                                <option value="problem">Problema</option>
+                                <option value="check">{tr("Da controllare")}</option>
+                                <option value="problem">{tr("Problema")}</option>
                               </select>
                             </UiField>
                           ) : inputType === "checkbox" ? (
-                            <UiField label="Conferma">
+                            <UiField label={tr("Conferma")}>
                               <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">
-                                <span>Completato</span>
+                                <span>{tr("Completato")}</span>
                                 <input
                                   type="checkbox"
                                   disabled={!canEditEvents}
@@ -878,19 +880,19 @@ export default function EventCarPage() {
                               </label>
                             </UiField>
                           ) : inputType === "select" ? (
-                            <UiField label="Valore">
+                            <UiField label={tr("Valore")}>
                               <select
                                 disabled={!canEditEvents}
                                 className={`${uiSelectClassName} ${!canEditEvents ? "opacity-70" : ""}`}
                                 value={itemData.value || ""}
                                 onChange={(e) => setCheckData({ ...checkData, [item.id]: { ...itemData, value: e.target.value } })}
                               >
-                                <option value="">Seleziona...</option>
-                                {options.map((option) => <option key={option} value={option}>{option}</option>)}
+                                <option value="">{tr("Seleziona...")}</option>
+                                {options.map((option) => <option key={option} value={option}>{tr(option)}</option>)}
                               </select>
                             </UiField>
                           ) : (
-                            <UiField label="Valore">
+                            <UiField label={tr("Valore")}>
                               <input
                                 disabled={!canEditEvents}
                                 type={inputType === "number" ? "number" : inputType === "date" ? "date" : "text"}
@@ -917,7 +919,7 @@ export default function EventCarPage() {
                 style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
               >
                 <ClipboardCheck size={16} className="mr-2 inline" />
-                Salva check-up
+                {tr("Salva check-up")}
               </button>
             </div>
           ) : null}

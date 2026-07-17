@@ -33,6 +33,8 @@ import {
   getDashboardWidgetDisplayLabel,
   getDashboardWidgetLabel,
   getDashboardWidgetLabelMode,
+  getLocalizedControlCenterLabels,
+  getModuleDescription,
   getModuleLabel,
   normalizeControlCenterModules,
   normalizeControlCenterLabels,
@@ -46,7 +48,7 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import ModalShell from "@/components/ModalShell";
 import { usePermissionAccess } from "@/lib/permissions";
-import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGES, translateKnownText } from "@/lib/i18n";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
 
@@ -245,6 +247,7 @@ function withWidgetLabelMode(
   return {
     ...widget,
     config: nextConfig,
+    // Valore canonico salvato: la visualizzazione viene localizzata a render.
     label: mode === "auto" ? getDashboardWidgetAutoLabel(widget.widget_code, labels as any) : widget.label,
   };
 }
@@ -575,7 +578,8 @@ function BrandPreview({
   labels: Record<string, string>;
   config: BrandingConfig;
 }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const localizedLabels = getLocalizedControlCenterLabels(labels as any, language);
   const onAccent = contrastText(accentColor);
   const secondarySoft = hexToRgba(secondaryColor, 0.16);
   const accentSoft = hexToRgba(accentColor, 0.18);
@@ -646,7 +650,7 @@ function BrandPreview({
             </div>
 
             <div className="mt-5 space-y-2">
-              {[labels.vehicle, labels.driver, labels.event, labels.component].map((label) => (
+              {[localizedLabels.vehicle, localizedLabels.driver, localizedLabels.event, localizedLabels.component].map((label) => (
                 <div
                   key={label}
                   className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/90"
@@ -684,7 +688,7 @@ function BrandPreview({
                     ) : null}
 
                     <div className={`${config.compactHeader ? "text-2xl" : "text-3xl"} font-black tracking-tight text-[var(--text-primary)]`}>
-                      {t(`ui.${labels.event}`, labels.event)} · {t("ui.Preview", "Preview")}
+                      {localizedLabels.event} · {t("ui.Preview", "Preview")}
                     </div>
                     <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
                       {t("ui.Header pagina con solo branding team, senza brand piattaforma.", "Header pagina con solo branding team, senza brand piattaforma.")}
@@ -737,7 +741,7 @@ function BrandPreview({
               </div>
 
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                {[labels.vehicle, labels.component, labels.maintenance].map((label, index) => (
+                {[localizedLabels.vehicle, localizedLabels.component, localizedLabels.maintenance].map((label, index) => (
                   <div
                     key={`${label}-${index}`}
                     className="rounded-[24px] border border-white/10 bg-[rgba(16,23,31,0.96)] p-4 shadow-sm"
@@ -758,8 +762,9 @@ function BrandPreview({
 
 export default function SettingsPage() {
   const access = usePermissionAccess();
-  const { setLanguage, t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
+  const trValue = (value: string | null | undefined) => translateKnownText(String(value || ""), language);
   const [settings, setSettings] = useState<AppSettingsRow | null>(null);
   const [definitions, setDefinitions] = useState<ComponentDefinition[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
@@ -1795,9 +1800,9 @@ async function saveAll() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           {Object.entries(settings.labels || DEFAULT_LABELS).map(([key, value]) => (
-            <Field key={key} label={`Etichetta ${key}`}>
+            <Field key={key} label={`${tr("Etichetta")} ${trValue(value) || key}`}>
               <Input
-                value={value}
+                value={trValue(value)}
                 onChange={(e) =>
                   patchSetting("labels", {
                     ...(settings.labels || DEFAULT_LABELS),
@@ -1863,11 +1868,11 @@ async function saveAll() {
                   >
                     <span>
                       <span className="block font-semibold text-[var(--text-primary)]">
-                        {getModuleLabel(module.id, settings.labels)}
+                        {getModuleLabel(module.id, settings.labels, language)}
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">
-                        {t(`ui.${module.description}`, module.description)}
-                        {dependenciesDisabled.length > 0 ? ` ${tr("Dipende da")}: ${dependenciesDisabled.map((dep) => t(`ui.${getModuleLabel(dep, settings.labels)}`, getModuleLabel(dep, settings.labels))).join(", ")}.` : ""}
+                        {getModuleDescription(module.id, language)}
+                        {dependenciesDisabled.length > 0 ? ` ${tr("Dipende da")}: ${dependenciesDisabled.map((dep) => getModuleLabel(dep, settings.labels, language)).join(", ")}.` : ""}
                       </span>
                     </span>
                     <input
@@ -1950,7 +1955,7 @@ async function saveAll() {
                   placeholder={tr("code")}
                 />
                 <Input
-                  value={row.label}
+                  value={trValue(row.label)}
                   onChange={(e) =>
                     setDefinitions((prev) =>
                       prev.map((item, itemIndex) =>
@@ -2066,7 +2071,7 @@ async function saveAll() {
               >
                 <div className="mb-3 flex items-center gap-3">
                   <Input
-                    value={group.name}
+                    value={trValue(group.name)}
                     onChange={(e) =>
                       setChecklists((prev) =>
                         prev.map((g, i) => (i === groupIndex ? { ...g, name: e.target.value } : g))
@@ -2090,7 +2095,7 @@ async function saveAll() {
                       className="grid grid-cols-1 gap-3 md:grid-cols-[1.5fr_170px_110px_40px]"
                     >
                       <Input
-                        value={item.label}
+                        value={trValue(item.label)}
                         onChange={(e) =>
                           setChecklists((prev) =>
                             prev.map((g, i) =>
@@ -2270,7 +2275,7 @@ async function saveAll() {
                   placeholder={tr("chiave")}
                 />
                 <Input
-                  value={field.label}
+                  value={trValue(field.label)}
                   onChange={(e) =>
                     setSetupFields((prev) =>
                       prev.map((item, i) =>
@@ -2281,7 +2286,7 @@ async function saveAll() {
                   placeholder={tr("Etichetta")}
                 />
                 <Input
-                  value={field.group_name}
+                  value={trValue(field.group_name)}
                   onChange={(e) =>
                     setSetupFields((prev) =>
                       prev.map((item, i) =>
@@ -2434,7 +2439,7 @@ async function saveAll() {
                   <option value=""><LocalizedText text="Seleziona widget" /></option>
                   {DASHBOARD_WIDGET_OPTIONS.map((option) => (
                     <option key={option.code} value={option.code}>
-                      {option.label}
+                      {getDashboardWidgetLabel(option.code, language)}
                     </option>
                   ))}
                 </Select>
@@ -2466,8 +2471,8 @@ async function saveAll() {
                   <Input
                     value={
                       getDashboardWidgetLabelMode(widget, settings?.labels || DEFAULT_LABELS) === "auto"
-                        ? getDashboardWidgetDisplayLabel(widget, settings?.labels || DEFAULT_LABELS)
-                        : widget.label
+                        ? getDashboardWidgetDisplayLabel(widget, settings?.labels || DEFAULT_LABELS, language)
+                        : trValue(widget.label)
                     }
                     onChange={(e) =>
                       setWidgets((prev) =>

@@ -53,7 +53,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useBrandTheme();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
 
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<SettingsShape | null>(null);
@@ -137,7 +137,7 @@ export default function Sidebar() {
       .filter((module) => module.visibleInControlCenter && module.route !== "/cars")
       .map((module) => ({
         href: module.route,
-        label: getModuleLabel(module.id, theme.labels),
+        label: getModuleLabel(module.id, theme.labels, language),
         icon: moduleIcons[module.id] || <LayoutDashboard size={18} />,
         enabled:
           isModuleEnabled(settings, module.id) &&
@@ -148,15 +148,15 @@ export default function Sidebar() {
       { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
       {
         href: "/cars",
-        label: getModuleLabel("cars", theme.labels),
+        label: getModuleLabel("cars", theme.labels, language),
         icon: <CarFront size={18} />,
         enabled: isModuleEnabled(settings, "cars") && has("cars.view"),
       },
       ...moduleLinks,
-      { href: "/settings", label: getModuleLabel("settings", theme.labels), icon: <Settings size={18} />, enabled: canManageSettings },
-      { href: "/settings/team", label: getModuleLabel("team_access", theme.labels), icon: <ShieldCheck size={18} />, enabled: canManageTeam },
+      { href: "/settings", label: getModuleLabel("settings", theme.labels, language), icon: <Settings size={18} />, enabled: canManageSettings },
+      { href: "/settings/team", label: getModuleLabel("team_access", theme.labels, language), icon: <ShieldCheck size={18} />, enabled: canManageTeam },
     ];
-  }, [canManageSettings, canManageTeam, permissionCodes, settings, teamRole, theme.labels]);
+  }, [canManageSettings, canManageTeam, language, permissionCodes, settings, teamRole, theme.labels]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -301,7 +301,7 @@ export default function Sidebar() {
                       onClick={() => setOpen(false)}
                     >
                       {link.icon}
-                      <span>{t(`ui.${link.label}`, link.label)}</span>
+                      <span>{link.label}</span>
                     </Link>
                   );
                 })}
