@@ -88,6 +88,8 @@ function StatusChip({
   label: string;
   tone?: "neutral" | "warning" | "danger" | "success";
 }) {
+  const { t } = useLanguage();
+  const translatedLabel = t(`ui.${label}`, label);
   const className =
     tone === "danger"
       ? "border-red-400/35 bg-red-400/10 text-red-200"
@@ -97,7 +99,7 @@ function StatusChip({
       ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-100"
       : "border-white/20 bg-white/[0.08] text-[var(--text-secondary)]";
 
-  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.06em] ${className}`}>{label}</span>;
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.06em] ${className}`}>{translatedLabel}</span>;
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
@@ -125,6 +127,9 @@ function ActionTile({
   icon: React.ReactNode;
   badge?: string;
 }) {
+  const { t } = useLanguage();
+  const translatedTitle = t(`ui.${title}`, title);
+  const translatedDescription = t(`ui.${description}`, description);
   return (
     <Link
       href={href}
@@ -139,8 +144,8 @@ function ActionTile({
         </div>
         {badge ? <StatusChip label={badge} /> : null}
       </div>
-      <div className="mt-4 text-lg font-black text-[var(--text-primary)]">{title}</div>
-      <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{description}</div>
+      <div className="mt-4 text-lg font-black text-[var(--text-primary)]">{translatedTitle}</div>
+      <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{translatedDescription}</div>
     </Link>
   );
 }
@@ -384,7 +389,7 @@ export default function EventCarPage() {
     },
     {
       label: "Fuel evento",
-      value: fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/giro` : "—",
+      value: fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/${tr("giro")}` : "—",
       icon: <Fuel size={18} />,
       helper: `${fuelSummary.totalUsed.toFixed(1)} L consumati`,
     },
@@ -426,7 +431,7 @@ export default function EventCarPage() {
       .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data: setupData }]);
 
     if (error) setFeedback({ type: "error", message: error.message });
-    else setFeedback({ type: "success", message: "Setup salvato correttamente." });
+    else setFeedback({ type: "success", message: tr("Setup salvato correttamente.") });
   }
 
   async function saveCheckup() {
@@ -438,14 +443,14 @@ export default function EventCarPage() {
       .insert([{ team_id: ctx.teamId, event_car_id: eventCarId, section: "checkup", data: checkData }]);
 
     if (error) setFeedback({ type: "error", message: error.message });
-    else setFeedback({ type: "success", message: "Check-up tecnico salvato." });
+    else setFeedback({ type: "success", message: tr("Check-up tecnico salvato.") });
   }
 
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Console mezzo"
-        subtitle="Dashboard operativa mezzo in evento"
+        title={tr("Console mezzo")}
+        subtitle={tr("Dashboard operativa mezzo in evento")}
         icon={<CalendarDays size={22} />}
         state="loading"
       />
@@ -454,8 +459,8 @@ export default function EventCarPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Console mezzo"
-        subtitle="Dashboard operativa mezzo in evento"
+        title={tr("Console mezzo")}
+        subtitle={tr("Dashboard operativa mezzo in evento")}
         icon={<CalendarDays size={22} />}
         state="error"
         message={access.error}
@@ -465,11 +470,11 @@ export default function EventCarPage() {
   if (!canViewEvents) {
     return (
       <PagePermissionState
-        title="Console mezzo"
-        subtitle="Dashboard operativa mezzo in evento"
+        title={tr("Console mezzo")}
+        subtitle={tr("Dashboard operativa mezzo in evento")}
         icon={<CalendarDays size={22} />}
         state="denied"
-        message="Il tuo ruolo non può aprire la console mezzo dell'evento."
+        message={tr("Il tuo ruolo non può aprire la console mezzo dell'evento.")}
       />
     );
   }
@@ -477,7 +482,7 @@ export default function EventCarPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] px-6 py-5 text-sm text-[var(--text-secondary)] shadow-sm">
-          Caricamento console mezzo...
+          {tr("Caricamento console mezzo...")}
         </div>
       </div>
     );
@@ -486,8 +491,8 @@ export default function EventCarPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title={`${eventCar.car_id?.name || "Mezzo"} · ${eventCar.event_id?.name || "Evento"}`}
-        subtitle="Dashboard operativa del mezzo: riepilogo rapido, hub tecnico, piloti, setup e check-up. I turni dettagliati vivono nella console specializzata."
+        title={`${eventCar.car_id?.name || tr("Mezzo")} · ${eventCar.event_id?.name || tr("Evento")}`}
+        subtitle={tr("Dashboard operativa del mezzo: riepilogo rapido, hub tecnico, piloti, setup e check-up. I turni dettagliati vivono nella console specializzata.")}
         icon={<CalendarDays size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -496,14 +501,14 @@ export default function EventCarPage() {
               className="rounded-xl px-4 py-2 font-bold"
               style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
             >
-              Console turni tecnici
+              {tr("Console turni tecnici")}
             </Link>
             <Link
               href={`/calendar/${eventId}`}
               className="race-action-secondary px-4 py-2"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
-              Evento
+              {tr("Evento")}
             </Link>
           </div>
         }
@@ -511,7 +516,7 @@ export default function EventCarPage() {
 
       {!canEditEvents ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Hai accesso in sola lettura a questa console mezzo.
+          {tr("Hai accesso in sola lettura a questa console mezzo.")}
         </div>
       ) : null}
 
@@ -522,19 +527,17 @@ export default function EventCarPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
-        subtitle="Questa pagina non deve più essere un muro di dati: qui trovi regia, riepilogo e accessi rapidi."
+        title={tr("Lettura operativa")}
+        subtitle={tr("Questa pagina non deve più essere un muro di dati: qui trovi regia, riepilogo e accessi rapidi.")}
       >
         <InfoBlock>
-          La console mezzo ora è la pagina regia del weekend: qui controlli rapidamente lo stato del mezzo,
-          i piloti, il setup e il check-up. Per la raccolta dati completa di turni, fuel e rilevazioni tecniche
-          usa la <strong>Console turni tecnici</strong>, così la lettura resta ordinata e immediata.
+          {tr("La console mezzo ora è la pagina regia del weekend: qui controlli rapidamente lo stato del mezzo, i piloti, il setup e il check-up. Per la raccolta dati completa di turni, fuel e rilevazioni tecniche usa la Console turni tecnici, così la lettura resta ordinata e immediata.")}
         </InfoBlock>
       </SectionCard>
 
       <SectionCard
-        title="Hub operativo"
-        subtitle="Accedi subito alle aree davvero importanti del mezzo senza appesantire la console principale."
+        title={tr("Hub operativo")}
+        subtitle={tr("Accedi subito alle aree davvero importanti del mezzo senza appesantire la console principale.")}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <ActionTile
@@ -542,46 +545,46 @@ export default function EventCarPage() {
             title="Turni tecnici"
             description="Timeline completa, fuel, pressioni, temperature gomme, target e note tecniche."
             icon={<Gauge size={20} />}
-            badge={`${turnsWithMetrics.length} turni`}
+            badge={`${turnsWithMetrics.length} ${tr("turni")}`}
           />
           <ActionTile
             href="#setup-section"
             title="Setup"
             description="Controlla e aggiorna i campi setup configurati dal Control Center del team."
             icon={<Settings2 size={20} />}
-            badge={`${setupFilled} campi`}
+            badge={`${setupFilled} ${tr("campi")}`}
           />
           <ActionTile
             href="#checkup-section"
             title="Check-up tecnico"
             description="Verifica esiti, note e anomalie della checklist tecnica del mezzo in evento."
             icon={<ClipboardCheck size={20} />}
-            badge={checklistSummary.problems > 0 ? `${checklistSummary.problems} problemi` : `${checklistSummary.checks} da controllare`}
+            badge={checklistSummary.problems > 0 ? `${checklistSummary.problems} ${tr("problemi")}` : `${checklistSummary.checks} ${tr("da controllare")}`}
           />
           <ActionTile
             href={`/calendar/${eventId}/car/${eventCarId}/turns`}
             title="Fuel & performance"
             description="Consulta rapidamente consumo medio, best lap e temperature massime giornata."
             icon={<Fuel size={20} />}
-            badge={fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/giro` : "—"}
+            badge={fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/${tr("giro")}` : "—"}
           />
         </div>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
-          title="Piloti associati"
-          subtitle="Associa qui un pilota già registrato nell'anagrafica Piloti e rendilo disponibile per il mezzo in evento."
+          title={tr("Piloti associati")}
+          subtitle={tr("Associa qui un pilota già registrato nell'anagrafica Piloti e rendilo disponibile per il mezzo in evento.")}
         >
           {canEditEvents ? (
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_220px]">
-              <UiField label="Pilota registrato">
+              <UiField label={tr("Pilota registrato")}>
                 <select
                   className={uiInputClassName}
                   value={selectedDriver}
                   onChange={(e) => setSelectedDriver(e.target.value)}
                 >
-                  <option value="">Seleziona pilota già registrato</option>
+                  <option value="">{tr("Seleziona pilota già registrato")}</option>
                   {drivers.map((driver) => (
                     <option key={driver.id} value={driver.id}>
                       {driver.first_name} {driver.last_name}
@@ -601,7 +604,7 @@ export default function EventCarPage() {
                   }`}
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
-                  Associa pilota
+                  {tr("Associa pilota")}
                 </button>
               </div>
             </div>
@@ -610,8 +613,8 @@ export default function EventCarPage() {
           <div className="mt-5 space-y-3">
             {assignedDrivers.length === 0 ? (
               <EmptyState
-                title="Nessun pilota associato"
-                description="Associa almeno un pilota per poterlo usare nelle sessioni del mezzo."
+                title={tr("Nessun pilota associato")}
+                description={tr("Associa almeno un pilota per poterlo usare nelle sessioni del mezzo.")}
               />
             ) : (
               assignedDrivers.map((row: any) => (
@@ -622,7 +625,7 @@ export default function EventCarPage() {
                   <div className="font-bold text-[var(--text-primary)]">
                     {row.driver_id?.first_name} {row.driver_id?.last_name}
                   </div>
-                  <div className="mt-1 text-sm text-[var(--text-secondary)]">Ruolo {row.role}</div>
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">{tr("Ruolo")} {row.role}</div>
                 </div>
               ))
             )}
@@ -630,21 +633,21 @@ export default function EventCarPage() {
         </SectionCard>
 
         <SectionCard
-          title="Ultimi turni tecnici"
-          subtitle="Vista rapida della giornata: pochi dati ma leggibili, con accesso diretto alla console specializzata."
+          title={tr("Ultimi turni tecnici")}
+          subtitle={tr("Vista rapida della giornata: pochi dati ma leggibili, con accesso diretto alla console specializzata.")}
           actions={
             <Link
               href={`/calendar/${eventId}/car/${eventCarId}/turns`}
               className="race-action-secondary px-4 py-2"
             >
-              Apri dettaglio completo
+              {tr("Apri dettaglio completo")}
             </Link>
           }
         >
           {recentTurns.length === 0 ? (
             <EmptyState
-              title="Nessun turno registrato"
-              description="Apri la Console turni tecnici per inserire il primo turno del mezzo."
+              title={tr("Nessun turno registrato")}
+              description={tr("Apri la Console turni tecnici per inserire il primo turno del mezzo.")}
             />
           ) : (
             <div className="space-y-3">
@@ -671,21 +674,21 @@ export default function EventCarPage() {
                       <div className="text-sm font-bold text-[var(--text-primary)]">
                         {assigned?.driver_id
                           ? `${assigned.driver_id.first_name} ${assigned.driver_id.last_name}`
-                          : "Pilota non assegnato"}
+                          : tr("Pilota non assegnato")}
                       </div>
                       {session ? <StatusChip label={session.name} /> : null}
                       <StatusChip label={trackConditionLabel(metrics?.track_condition)} />
                     </div>
 
                     <div className="mt-2 text-sm text-[var(--text-secondary)]">
-                      {turn.recorded_at ? new Date(turn.recorded_at).toLocaleString("it-IT") : "Data non disponibile"}
+                      {turn.recorded_at ? new Date(turn.recorded_at).toLocaleString("it-IT") : tr("Data non disponibile")}
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                       <SummaryBox label="Best lap" value={formatLapTime(metrics?.best_lap_ms)} />
-                      <SummaryBox label="Fuel usato" value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
-                      <SummaryBox label="Acqua max" value={displayNumber(metrics?.max_water_temp_c, "°C")} />
-                      <SummaryBox label="Olio max" value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
+                      <SummaryBox label={tr("Fuel usato")} value={fuelUsed != null ? `${fuelUsed} L` : "—"} />
+                      <SummaryBox label={tr("Acqua max")} value={displayNumber(metrics?.max_water_temp_c, "°C")} />
+                      <SummaryBox label={tr("Olio max")} value={displayNumber(metrics?.max_oil_temp_c, "°C")} />
                     </div>
 
                     {warnings.length > 0 ? (

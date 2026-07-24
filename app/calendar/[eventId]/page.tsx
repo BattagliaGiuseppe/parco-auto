@@ -31,6 +31,8 @@ import InlineConfirmButton from "@/components/InlineConfirmButton";
 import StatsGrid, { type StatItem } from "@/components/StatsGrid";
 import { UiField, uiInputClassName } from "@/components/UiField";
 import { usePermissionAccess } from "@/lib/permissions";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+import LocalizedText from "@/components/LocalizedText";
 
 type Feedback = { type: "success" | "error" | "info"; message: string };
 
@@ -234,6 +236,8 @@ function Badge({
 }
 
 export default function EventDetailPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const access = usePermissionAccess();
   const canViewEvents = access.hasPermission("events.view");
   const canEditEvents = access.hasPermission("events.edit", ["owner", "admin"]);
@@ -467,7 +471,7 @@ export default function EventDetailPage() {
         setFeedback({
           type: "error",
           message:
-            "Questa sessione è già collegata a uno o più turni tecnici. Rimuovi o riassegna prima i turni collegati.",
+            tr("Questa sessione è già collegata a uno o più turni tecnici. Rimuovi o riassegna prima i turni collegati."),
         });
         return;
       }
@@ -621,19 +625,19 @@ export default function EventDetailPage() {
         label: "Mezzi collegati",
         value: String(eventCars.length),
         icon: <CarFront className="h-5 w-5" />,
-        helper: `${readyCars} in stato ready`,
+        helper: `${readyCars} ${tr("in stato ready")}`,
       },
       {
         label: "Sessioni",
         value: String(sessions.length),
         icon: <TimerReset className="h-5 w-5" />,
-        helper: `${report.sessionsWithoutTurns} senza turni`,
+        helper: `${report.sessionsWithoutTurns} ${tr("senza turni")}`,
       },
       {
         label: "Turni registrati",
         value: String(report.totalTurns),
         icon: <Flag className="h-5 w-5" />,
-        helper: `${formatHours(report.totalMinutes)} • ${report.totalLaps} giri`,
+        helper: `${formatHours(report.totalMinutes)} • ${report.totalLaps} ${tr("giri")}`,
       },
       {
         label: "Best lap evento",
@@ -641,11 +645,11 @@ export default function EventDetailPage() {
         icon: <Clock3 className="h-5 w-5" />,
         helper:
           report.totalFuel > 0
-            ? `${formatNumber(report.totalFuel, " L")} fuel consumato`
-            : "Fuel non rilevato",
+            ? `${formatNumber(report.totalFuel, " L")} ${tr("fuel consumato")}`
+            : tr("Fuel non rilevato"),
       },
     ];
-  }, [eventCars, report, sessions.length]);
+  }, [eventCars, report, sessions.length, t]);
 
   const reportChecks = useMemo(() => {
     return [
@@ -910,8 +914,8 @@ export default function EventDetailPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Eventi"
-        subtitle="Calendario, mezzi collegati, sessioni e report operativo"
+        title={tr("Eventi")}
+        subtitle={tr("Calendario, mezzi collegati, sessioni e report operativo")}
         icon={<CalendarDays className="h-6 w-6" />}
         state="loading"
       />
@@ -921,8 +925,8 @@ export default function EventDetailPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Eventi"
-        subtitle="Calendario, mezzi collegati, sessioni e report operativo"
+        title={tr("Eventi")}
+        subtitle={tr("Calendario, mezzi collegati, sessioni e report operativo")}
         icon={<CalendarDays className="h-6 w-6" />}
         state="error"
         message={access.error}
@@ -933,11 +937,11 @@ export default function EventDetailPage() {
   if (!canViewEvents) {
     return (
       <PagePermissionState
-        title="Eventi"
-        subtitle="Calendario, mezzi collegati, sessioni e report operativo"
+        title={tr("Eventi")}
+        subtitle={tr("Calendario, mezzi collegati, sessioni e report operativo")}
         icon={<CalendarDays className="h-6 w-6" />}
         state="denied"
-        message="Il tuo ruolo non può aprire il dettaglio evento."
+        message={tr("Il tuo ruolo non può aprire il dettaglio evento.")}
       />
     );
   }
@@ -946,13 +950,13 @@ export default function EventDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
-          title="Dettaglio evento"
-          subtitle="Caricamento dati evento in corso"
+          title={tr("Dettaglio evento")}
+          subtitle={tr("Caricamento dati evento in corso")}
           icon={<CalendarDays className="h-6 w-6" />}
         />
         <SectionCard>
           <p className="text-sm text-[var(--text-secondary)]">
-            Caricamento evento...
+            {tr("Caricamento evento...")}
           </p>
         </SectionCard>
       </div>
@@ -963,8 +967,8 @@ export default function EventDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <PageHeader
-          title="Evento non trovato"
-          subtitle="Controlla che l'evento appartenga al team corrente"
+          title={tr("Evento non trovato")}
+          subtitle={tr("Controlla che l'evento appartenga al team corrente")}
           icon={<CalendarDays className="h-6 w-6" />}
           actions={
             <Link
@@ -972,7 +976,7 @@ export default function EventDetailPage() {
               className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
             >
               <ArrowLeft className="h-4 w-4" />
-              Eventi
+              <LocalizedText text="Eventi" />
             </Link>
           }
         />
@@ -983,8 +987,8 @@ export default function EventDetailPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title={event.name || "Dettaglio evento"}
-        subtitle={`${event.circuit_id?.name || "Autodromo non definito"} • ${formatDate(event.date)}`}
+        title={event.name || tr("Dettaglio evento")}
+        subtitle={`${event.circuit_id?.name || tr("Autodromo non definito")} • ${event.date ? new Date(event.date).toLocaleDateString("it-IT") : tr("Data non impostata")}`}
         icon={<CalendarDays className="h-6 w-6" />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -994,7 +998,7 @@ export default function EventDetailPage() {
               className="race-action-secondary inline-flex items-center gap-2 px-4 py-3 text-sm"
             >
               <Download className="h-4 w-4" />
-              Esporta CSV
+              <LocalizedText text="Esporta CSV" />
             </button>
             <button
               type="button"
@@ -1002,14 +1006,14 @@ export default function EventDetailPage() {
               className="race-action-secondary inline-flex items-center gap-2 px-4 py-3 text-sm"
             >
               <Printer className="h-4 w-4" />
-              Stampa report
+              <LocalizedText text="Stampa report" />
             </button>
             <Link
               href="/calendar"
               className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
             >
               <ArrowLeft className="h-4 w-4" />
-              Eventi
+              <LocalizedText text="Eventi" />
             </Link>
           </div>
         }
@@ -1022,15 +1026,12 @@ export default function EventDetailPage() {
       <StatsGrid items={stats} />
 
       <InfoBlock>
-        Da qui assegni i mezzi all'evento e definisci le sessioni principali del
-        weekend. La nuova sezione report legge i turni già registrati e mostra
-        un riepilogo operativo senza modificare console mezzo, salvataggio turni
-        o trigger ore.
+        {tr("Da qui assegni i mezzi all'evento e definisci le sessioni principali del weekend. La nuova sezione report legge i turni già registrati e mostra un riepilogo operativo senza modificare console mezzo, salvataggio turni o trigger ore.")}
       </InfoBlock>
 
       <SectionCard
-        title="Report evento"
-        subtitle="Riepilogo in sola lettura dei dati già registrati nei turni tecnici."
+        title={tr("Report evento")}
+        subtitle={tr("Riepilogo in sola lettura dei dati già registrati nei turni tecnici.")}
       >
         <div className="grid gap-4 md:grid-cols-5">
           {reportChecks.map((check) => (
@@ -1039,14 +1040,14 @@ export default function EventDetailPage() {
               className="race-mini-panel"
             >
               <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                {check.label}
+                {tr(check.label)}
               </p>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <p className="text-2xl font-bold text-[var(--text-primary)]">
                   {check.value}
                 </p>
                 <Badge tone={check.tone}>
-                  {check.value === 0 ? "OK" : "Verifica"}
+                  {check.value === 0 ? "OK" : tr("Verifica")}
                 </Badge>
               </div>
             </div>
@@ -1057,13 +1058,13 @@ export default function EventDetailPage() {
           <table className="min-w-full divide-y divide-white/10 text-sm">
             <thead className="text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
               <tr>
-                <th className="px-4 py-3">Mezzo</th>
-                <th className="px-4 py-3">Piloti</th>
-                <th className="px-4 py-3">Turni</th>
-                <th className="px-4 py-3">Minuti</th>
-                <th className="px-4 py-3">Giri</th>
-                <th className="px-4 py-3">Fuel</th>
-                <th className="px-4 py-3">Best lap</th>
+                <th className="px-4 py-3">{tr("Mezzo")}</th>
+                <th className="px-4 py-3">{tr("Piloti")}</th>
+                <th className="px-4 py-3">{tr("Turni")}</th>
+                <th className="px-4 py-3">{tr("Minuti")}</th>
+                <th className="px-4 py-3">{tr("Giri")}</th>
+                <th className="px-4 py-3">{tr("Fuel")}</th>
+                <th className="px-4 py-3">{tr("Best lap")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
@@ -1073,14 +1074,14 @@ export default function EventDetailPage() {
                     colSpan={7}
                     className="px-4 py-6 text-center text-sm text-[var(--text-secondary)]"
                   >
-                    Nessun mezzo collegato all'evento.
+                    {tr("Nessun mezzo collegato all'evento.")}
                   </td>
                 </tr>
               ) : (
                 carReportRows.map((row) => (
                   <tr key={row.eventCar.id}>
                     <td className="px-4 py-3 font-bold text-[var(--text-primary)]">
-                      {row.eventCar.car_id?.name || "Mezzo"}
+                      {row.eventCar.car_id?.name || tr("Mezzo")}
                     </td>
                     <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {row.assignedDrivers.length > 0
@@ -1109,8 +1110,8 @@ export default function EventDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Mezzi evento"
-        subtitle="Associa i mezzi al weekend e apri la console operativa dedicata."
+        title={tr("Mezzi evento")}
+        subtitle={tr("Associa i mezzi al weekend e apri la console operativa dedicata.")}
       >
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <UiField label="Mezzo">
@@ -1119,7 +1120,7 @@ export default function EventDetailPage() {
               onChange={(event) => setSelectedCar(event.target.value)}
               className={uiInputClassName}
             >
-              <option value="">Seleziona mezzo</option>
+              <option value="">{tr("Seleziona mezzo")}</option>
               {cars.map((car) => (
                 <option key={car.id} value={car.id}>
                   {car.name}
@@ -1135,7 +1136,7 @@ export default function EventDetailPage() {
               className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-[var(--brand-accent)] px-5 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlusCircle className="h-4 w-4" />
-              Aggiungi mezzo
+              <LocalizedText text="Aggiungi mezzo" />
             </button>
           ) : null}
         </div>
@@ -1143,8 +1144,8 @@ export default function EventDetailPage() {
         <div className="mt-5 grid gap-3">
           {eventCars.length === 0 ? (
             <EmptyState
-              title="Nessun mezzo collegato"
-              description="Aggiungi almeno un mezzo per aprire la console evento e registrare turni tecnici."
+              title={tr("Nessun mezzo collegato")}
+              description={tr("Aggiungi almeno un mezzo per aprire la console evento e registrare turni tecnici.")}
             />
           ) : (
             eventCars.map((row) => {
@@ -1160,7 +1161,7 @@ export default function EventDetailPage() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base font-bold text-[var(--text-primary)]">
-                          {row.car_id?.name || "Mezzo"}
+                          {row.car_id?.name || tr("Mezzo")}
                         </h3>
                         <Badge
                           tone={
@@ -1169,13 +1170,13 @@ export default function EventDetailPage() {
                               : "neutral"
                           }
                         >
-                          Stato: {row.status || "—"}
+                          {tr("Stato")}: {row.status || "—"}
                         </Badge>
                       </div>
                       <p className="mt-2 text-xs text-[var(--text-secondary)]">
                         {reportRow
-                          ? `${reportRow.turnsCount} turni • ${reportRow.minutes} min • ${reportRow.laps} giri`
-                          : "Nessun dato tecnico registrato"}
+                          ? `${reportRow.turnsCount} ${tr("turni")} • ${reportRow.minutes} min • ${reportRow.laps} ${tr("giri")}`
+                          : tr("Nessun dato tecnico registrato")}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -1183,12 +1184,12 @@ export default function EventDetailPage() {
                         href={`/calendar/${eventId}/car/${row.id}`}
                         className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95"
                       >
-                        Apri console mezzo
+                        <LocalizedText text="Apri console mezzo" />
                       </Link>
                       {canEditEvents ? (
                         <InlineConfirmButton
-                          label="Rimuovi"
-                          message="Rimuovere questo mezzo dall'evento?"
+                          label={tr("Rimuovi")}
+                          message={tr("Rimuovere questo mezzo dall'evento?")}
                           onConfirm={() => removeEventCar(row.id)}
                           className="race-action-danger px-4 py-2 text-sm"
                           icon={<Trash2 className="h-4 w-4" />}
@@ -1204,8 +1205,8 @@ export default function EventDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Sessioni evento"
-        subtitle="Definisci le fasi principali: test, practice, qualifica o gara."
+        title={tr("Sessioni evento")}
+        subtitle={tr("Definisci le fasi principali: test, practice, qualifica o gara.")}
       >
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <UiField label="Nome sessione">
@@ -1215,7 +1216,7 @@ export default function EventDetailPage() {
                 setSessionForm({ ...sessionForm, name: event.target.value })
               }
               className={uiInputClassName}
-              placeholder="Es. Libere 1"
+              placeholder={tr("Es. Libere 1")}
             />
           </UiField>
           <UiField label="Tipo">
@@ -1231,8 +1232,8 @@ export default function EventDetailPage() {
             >
               <option value="test">Test</option>
               <option value="practice">Practice</option>
-              <option value="qualifying">Qualifica</option>
-              <option value="race">Gara</option>
+              <option value="qualifying">{tr("Qualifica")}</option>
+              <option value="race">{tr("Gara")}</option>
             </select>
           </UiField>
           {canEditEvents ? (
@@ -1243,7 +1244,7 @@ export default function EventDetailPage() {
               className="inline-flex items-center justify-center gap-2 self-end rounded-2xl bg-[var(--brand-accent)] px-5 py-3 text-sm font-black text-[var(--brand-on-accent)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlusCircle className="h-4 w-4" />
-              Aggiungi sessione
+              <LocalizedText text="Aggiungi sessione" />
             </button>
           ) : null}
         </div>
@@ -1251,8 +1252,8 @@ export default function EventDetailPage() {
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {sessions.length === 0 ? (
             <EmptyState
-              title="Nessuna sessione"
-              description="Crea le sessioni evento per classificare correttamente i turni tecnici."
+              title={tr("Nessuna sessione")}
+              description={tr("Crea le sessioni evento per classificare correttamente i turni tecnici.")}
             />
           ) : (
             sessions.map((row) => {
@@ -1270,14 +1271,14 @@ export default function EventDetailPage() {
                         {row.name}
                       </h3>
                       <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                        {sessionTypeLabel(row.session_type)} • {turnsCount}{" "}
-                        turni collegati
+                        {tr(sessionTypeLabel(row.session_type))} • {turnsCount}{" "}
+                        {tr("turni collegati")}
                       </p>
                     </div>
                     {canEditEvents ? (
                       <InlineConfirmButton
-                        label="Elimina"
-                        message="Eliminare questa sessione?"
+                        label={tr("Elimina")}
+                        message={tr("Eliminare questa sessione?")}
                         onConfirm={() => removeSession(row.id)}
                         className="race-action-danger px-4 py-2 text-sm"
                         icon={<Trash2 className="h-4 w-4" />}
@@ -1292,26 +1293,26 @@ export default function EventDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Ultimi turni registrati"
-        subtitle="Vista rapida in sola lettura, senza modificare la console turni."
+        title={tr("Ultimi turni registrati")}
+        subtitle={tr("Vista rapida in sola lettura, senza modificare la console turni.")}
       >
         {turns.length === 0 ? (
           <EmptyState
-            title="Nessun turno tecnico"
-            description="I turni verranno mostrati qui dopo la registrazione dalle console mezzo."
+            title={tr("Nessun turno tecnico")}
+            description={tr("I turni verranno mostrati qui dopo la registrazione dalle console mezzo.")}
           />
         ) : (
           <div className="race-table overflow-x-auto">
             <table className="min-w-full divide-y divide-white/10 text-sm">
               <thead className="text-left text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                 <tr>
-                  <th className="px-4 py-3">Data</th>
-                  <th className="px-4 py-3">Mezzo</th>
-                  <th className="px-4 py-3">Sessione</th>
-                  <th className="px-4 py-3">Pilota</th>
-                  <th className="px-4 py-3">Minuti</th>
-                  <th className="px-4 py-3">Giri</th>
-                  <th className="px-4 py-3">Best lap</th>
+                  <th className="px-4 py-3">{tr("Data")}</th>
+                  <th className="px-4 py-3">{tr("Mezzo")}</th>
+                  <th className="px-4 py-3">{tr("Sessione")}</th>
+                  <th className="px-4 py-3">{tr("Pilota")}</th>
+                  <th className="px-4 py-3">{tr("Minuti")}</th>
+                  <th className="px-4 py-3">{tr("Giri")}</th>
+                  <th className="px-4 py-3">{tr("Best lap")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -1355,7 +1356,7 @@ export default function EventDetailPage() {
       </SectionCard>
 
       {event.notes ? (
-        <SectionCard title="Note evento">
+        <SectionCard title={tr("Note evento")}>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
             {event.notes}
           </p>

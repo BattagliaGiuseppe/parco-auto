@@ -1192,7 +1192,7 @@ export default function DriversPage() {
                             </div>
                             <div className="mt-4 flex justify-end">
                               <button onClick={() => saveDocument(driver)} disabled={docSaving} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
-                                <Upload className="h-4 w-4" /> {docSaving ? "Salvataggio..." : "Salva documento"}
+                                <Upload className="h-4 w-4" /> {docSaving ? tr("Salvataggio...") : tr("Salva documento")}
                               </button>
                             </div>
                           </div>
@@ -1212,10 +1212,10 @@ export default function DriversPage() {
           <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl modal-panel p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-black text-[var(--text-primary)]">{editId ? "Modifica pilota" : "Nuovo pilota"}</h2>
+                <h2 className="text-xl font-black text-[var(--text-primary)]">{editId ? tr("Modifica pilota") : tr("Nuovo pilota")}</h2>
                 <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Compila anagrafica, contatti, taglie e scadenze principali." /></p>
               </div>
-              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]"><X className="h-5 w-5" /></button>
+              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]" aria-label={tr("Chiudi")}><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -1289,18 +1289,30 @@ export default function DriversPage() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                   <p className="mb-3 text-sm font-black text-[var(--text-primary)]"><LocalizedText text="Foto pilota" /></p>
                   <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)]">
-                    {photoPreview ? <img src={photoPreview} alt="Anteprima pilota" className="h-full w-full object-cover" /> : <UserRound className="h-12 w-12 text-neutral-300" />}
+                    {photoPreview ? <img src={photoPreview} alt={tr("Anteprima pilota")} className="h-full w-full object-cover" /> : <UserRound className="h-12 w-12 text-neutral-300" />}
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] || null;
-                      setPhotoFile(file);
-                      setPhotoPreview(file ? URL.createObjectURL(file) : null);
-                    }}
-                    className={inputClass}
-                  />
+                  <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                    <label
+                      htmlFor="driver-photo-input"
+                      className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95"
+                    >
+                      <LocalizedText text="Scegli file" />
+                    </label>
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">
+                      {photoFile?.name || tr("Nessun file selezionato")}
+                    </span>
+                    <input
+                      id="driver-photo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        setPhotoFile(file);
+                        setPhotoPreview(file ? URL.createObjectURL(file) : null);
+                      }}
+                      className="sr-only"
+                    />
+                  </div>
                 </div>
                 <UiField label="Indirizzo">
                   <textarea value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} className={textAreaClass} placeholder={tr("Indirizzo / residenza")} />
@@ -1314,7 +1326,7 @@ export default function DriversPage() {
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button onClick={resetDriverModal} className="rounded-xl border border-white/10 px-4 py-2 font-bold hover:bg-white/[0.045]"><LocalizedText text="Annulla" /></button>
               <button onClick={saveDriver} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-5 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
-                <CheckCircle2 className="h-4 w-4" /> {saving ? "Salvataggio..." : editId ? "Salva modifiche" : "Crea pilota"}
+                <CheckCircle2 className="h-4 w-4" /> {saving ? tr("Salvataggio...") : editId ? tr("Salva modifiche") : tr("Crea pilota")}
               </button>
             </div>
           </div>

@@ -305,7 +305,7 @@ export default function CalendarPage() {
     return (
       <PagePermissionState
         title={tr("Eventi")}
-        subtitle="Calendario weekend, test e gare"
+        subtitle={tr("Calendario weekend, test e gare")}
         icon={<CalendarDays size={22} />}
         state="loading"
       />
@@ -316,7 +316,7 @@ export default function CalendarPage() {
     return (
       <PagePermissionState
         title={tr("Eventi")}
-        subtitle="Calendario weekend, test e gare"
+        subtitle={tr("Calendario weekend, test e gare")}
         icon={<CalendarDays size={22} />}
         state="error"
         message={access.error}
@@ -328,10 +328,10 @@ export default function CalendarPage() {
     return (
       <PagePermissionState
         title={tr("Eventi")}
-        subtitle="Calendario weekend, test e gare"
+        subtitle={tr("Calendario weekend, test e gare")}
         icon={<CalendarDays size={22} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo eventi."
+        message={tr("Il tuo ruolo non ha accesso al modulo eventi.")}
       />
     );
   }
@@ -340,13 +340,13 @@ export default function CalendarPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={tr("Eventi")}
-        subtitle="Calendario weekend, test e gare con circuiti e mezzi collegati."
+        subtitle={tr("Calendario weekend, test e gare con circuiti e mezzi collegati.")}
         icon={<CalendarDays size={22} />}
         actions={
           canEditEvents ? (
             <Button onClick={() => openCreate()}>
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi evento
+              {tr("Aggiungi evento")}
             </Button>
           ) : undefined
         }
@@ -368,29 +368,25 @@ export default function CalendarPage() {
 
       <SectionCard
         title={tr("Lettura operativa")}
-        subtitle="Il calendario eventi è il punto di partenza per organizzare mezzi, sessioni e lavoro tecnico del weekend."
+        subtitle={tr("Il calendario eventi è il punto di partenza per organizzare mezzi, sessioni e lavoro tecnico del weekend.")}
       >
         <FieldHint>
-          Crea l&apos;evento, collega l&apos;autodromo e poi apri la scheda
-          dedicata per assegnare i mezzi e configurare le sessioni.
-          L&apos;obiettivo di questa pagina è darti una vista chiara del
-          calendario già registrato, senza entrare subito nel dettaglio
-          operativo del singolo mezzo.
+          {tr("Crea l'evento, collega l'autodromo e poi apri la scheda dedicata per assegnare i mezzi e configurare le sessioni. L'obiettivo di questa pagina è darti una vista chiara del calendario già registrato, senza entrare subito nel dettaglio operativo del singolo mezzo.")}
         </FieldHint>
       </SectionCard>
 
       <SectionCard
         title={tr("Eventi registrati")}
-        subtitle="Apri, modifica o rimuovi i weekend già configurati."
+        subtitle={tr("Apri, modifica o rimuovi i weekend già configurati.")}
       >
         {loading ? (
           <div className="race-mini-panel text-sm text-[var(--text-secondary)]">
-            Caricamento eventi...
+            {tr("Caricamento eventi...")}
           </div>
         ) : events.length === 0 ? (
           <EmptyState
             title={tr("Nessun evento registrato")}
-            description="Aggiungi il primo weekend per iniziare a collegare mezzi, sessioni e piloti."
+            description={tr("Aggiungi il primo weekend per iniziare a collegare mezzi, sessioni e piloti.")}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -404,13 +400,13 @@ export default function CalendarPage() {
                     <div className="mt-1 text-sm text-[var(--text-secondary)]">
                       {event.date
                         ? new Date(event.date).toLocaleDateString("it-IT")
-                        : "Data non impostata"}{" "}
-                      · {event.circuit_id?.name || "Autodromo non impostato"}
+                        : tr("Data non impostata")}{" "}
+                      · {event.circuit_id?.name || tr("Autodromo non impostato")}
                     </div>
                   </div>
 
                   <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
-                    {event.event_cars?.length || 0} mezzi
+                    {event.event_cars?.length || 0} {tr("mezzi")}
                   </div>
                 </div>
 
@@ -443,7 +439,7 @@ export default function CalendarPage() {
                   {canEditEvents ? (
                     <InlineConfirmButton
                       label="Elimina"
-                      message="Eliminare questo evento?"
+                      message={tr("Eliminare questo evento?")}
                       onConfirm={() => deleteEvent(event.id)}
                       className="race-action-danger px-4 py-2 text-sm"
                       icon={<Trash2 size={16} className="mr-2 inline" />}
@@ -458,8 +454,8 @@ export default function CalendarPage() {
 
       {open && canEditEvents ? (
         <ModalShell
-          title={editing ? "Modifica evento" : "Nuovo evento"}
-          subtitle="Configura weekend, autodromo e note operative."
+          title={editing ? tr("Modifica evento") : tr("Nuovo evento")}
+          subtitle={tr("Configura weekend, autodromo e note operative.")}
           onClose={() => setOpen(false)}
           maxWidth="max-w-3xl"
           footer={
@@ -469,10 +465,10 @@ export default function CalendarPage() {
               </Button>
               <Button onClick={saveEvent} disabled={saving}>
                 {saving
-                  ? "Salvataggio..."
+                  ? tr("Salvataggio...")
                   : editing
-                    ? "Aggiorna evento"
-                    : "Salva evento"}
+                    ? tr("Aggiorna evento")
+                    : tr("Salva evento")}
               </Button>
             </>
           }
@@ -526,7 +522,7 @@ export default function CalendarPage() {
 
             <UiField
               label="Note"
-              hint="Indicazioni logistiche o tecniche utili sul weekend."
+              hint={tr("Indicazioni logistiche o tecniche utili sul weekend.")}
             >
               <textarea
                 className={uiTextareaClassName}
@@ -542,7 +538,7 @@ export default function CalendarPage() {
       {circuitOpen && canEditEvents ? (
         <ModalShell
           title={tr("Nuovo autodromo")}
-          subtitle="Aggiungi un circuito alla configurazione del team."
+          subtitle={tr("Aggiungi un circuito alla configurazione del team.")}
           onClose={() => setCircuitOpen(false)}
           maxWidth="max-w-lg"
           footer={
@@ -551,7 +547,7 @@ export default function CalendarPage() {
                 <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={saveCircuit} disabled={saving}>
-                {saving ? "Salvataggio..." : "Salva autodromo"}
+                {saving ? tr("Salvataggio...") : tr("Salva autodromo")}
               </Button>
             </>
           }

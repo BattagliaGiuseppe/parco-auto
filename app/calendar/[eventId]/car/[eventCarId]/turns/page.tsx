@@ -421,12 +421,13 @@ function FormSection({
   subtitle?: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
       <div className="mb-4">
-        <div className="text-base font-bold text-[var(--text-primary)]">{title}</div>
+        <div className="text-base font-bold text-[var(--text-primary)]">{t(`ui.${title}`, title)}</div>
         {subtitle ? (
-          <div className="mt-1 text-sm text-[var(--text-secondary)]">{subtitle}</div>
+          <div className="mt-1 text-sm text-[var(--text-secondary)]">{t(`ui.${subtitle}`, subtitle)}</div>
         ) : null}
       </div>
       {children}
@@ -447,10 +448,11 @@ function WheelGrid({
   onChange: (key: "fl" | "fr" | "rl" | "rr", value: string) => void;
   placeholders?: { fl?: string; fr?: string; rl?: string; rr?: string };
 }) {
+  const { t } = useLanguage();
   return (
     <div>
-      <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">{title}</div>
-      {hint ? <div className="mb-3 text-xs text-[var(--text-secondary)]">{hint}</div> : null}
+      <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">{t(`ui.${title}`, title)}</div>
+      {hint ? <div className="mb-3 text-xs text-[var(--text-secondary)]">{t(`ui.${hint}`, hint)}</div> : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(["fl","fr","rl","rr"] as const).map((key) => (
           <UiField key={key} label={key.toUpperCase()}>
@@ -485,7 +487,8 @@ function StatusChip({
       ? "bg-emerald-100 text-emerald-700"
       : "bg-neutral-100 text-neutral-700";
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{label}</span>;
+  const { t } = useLanguage();
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{t(`ui.${label}`, label)}</span>;
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
@@ -540,9 +543,10 @@ function CompareRow({
   right: string;
   delta?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3 text-sm">
-      <div className="font-semibold text-[var(--text-primary)]">{label}</div>
+      <div className="font-semibold text-[var(--text-primary)]">{t(`ui.${label}`, label)}</div>
       <div className="text-[var(--text-secondary)]">{left}</div>
       <div className="text-[var(--text-secondary)]">{right}</div>
       <div className="text-right font-semibold text-[var(--text-primary)]">{delta || "—"}</div>
@@ -561,16 +565,18 @@ function TurnComparePanel({
   leftLabel: string;
   rightLabel: string;
 }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const leftMetrics = leftTurn.metrics;
   const rightMetrics = rightTurn.metrics;
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-        <div>Voce</div>
+        <div>{tr("Voce")}</div>
         <div>{leftLabel}</div>
         <div>{rightLabel}</div>
-        <div className="text-right">Delta</div>
+        <div className="text-right">{tr("Delta")}</div>
       </div>
 
       <CompareSection title="Base e performance">
@@ -681,6 +687,8 @@ function trackConditionLabel(value: string | null | undefined) {
 }
 
 export default function EventCarTurnsPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const { eventId, eventCarId } = useParams() as {
     eventId: string;
     eventCarId: string;
@@ -1195,8 +1203,8 @@ export default function EventCarTurnsPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Turni tecnici"
-        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        title={tr("Turni tecnici")}
+        subtitle={tr("Sessioni, fuel e rilevazioni tecniche del mezzo")}
         icon={<Gauge size={20} />}
         state="loading"
       />
@@ -1206,8 +1214,8 @@ export default function EventCarTurnsPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Turni tecnici"
-        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        title={tr("Turni tecnici")}
+        subtitle={tr("Sessioni, fuel e rilevazioni tecniche del mezzo")}
         icon={<Gauge size={20} />}
         state="error"
         message={access.error}
@@ -1218,11 +1226,11 @@ export default function EventCarTurnsPage() {
   if (!canViewEvents) {
     return (
       <PagePermissionState
-        title="Turni tecnici"
-        subtitle="Sessioni, fuel e rilevazioni tecniche del mezzo"
+        title={tr("Turni tecnici")}
+        subtitle={tr("Sessioni, fuel e rilevazioni tecniche del mezzo")}
         icon={<Gauge size={20} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo eventi / turni."
+        message={tr("Il tuo ruolo non ha accesso al modulo eventi / turni.")}
       />
     );
   }
@@ -1231,7 +1239,7 @@ export default function EventCarTurnsPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)] shadow-sm">
-          Caricamento console turni in corso...
+          {tr("Caricamento console turni in corso...")}
         </div>
       </div>
     );
@@ -1242,7 +1250,7 @@ export default function EventCarTurnsPage() {
       <div className={`flex flex-col gap-6 p-6`}>
         <FormStatusBanner
           type="error"
-          message="Impossibile trovare i dati dell'evento o del mezzo selezionato."
+          message={tr("Impossibile trovare i dati dell'evento o del mezzo selezionato.")}
         />
       </div>
     );
@@ -1251,8 +1259,8 @@ export default function EventCarTurnsPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title={`Console turni • ${carInfo.name ?? "Mezzo"}`}
-        subtitle={`Evento: ${eventInfo.name ?? "Evento"}${eventInfo.date ? ` • ${new Date(eventInfo.date).toLocaleDateString("it-IT")}` : ""}`}
+        title={`Console turni • ${carInfo.name ?? tr("Mezzo")}`}
+        subtitle={`Evento: ${eventInfo.name ?? tr("Evento")}${eventInfo.date ? ` • ${new Date(eventInfo.date).toLocaleDateString("it-IT")}` : ""}`}
         icon={<Gauge size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -1264,7 +1272,7 @@ export default function EventCarTurnsPage() {
               style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Nuovo turno
+              {tr("Nuovo turno")}
             </button>
 
             <button
@@ -1273,7 +1281,7 @@ export default function EventCarTurnsPage() {
               className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
             >
               <Printer size={16} className="mr-2 inline" />
-              Stampa scheda
+              {tr("Stampa scheda")}
             </button>
 
             <Link
@@ -1281,7 +1289,7 @@ export default function EventCarTurnsPage() {
               className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
-              Console mezzo
+              {tr("Console mezzo")}
             </Link>
           </div>
         }
@@ -1294,8 +1302,8 @@ export default function EventCarTurnsPage() {
       </SectionCard>
 
       <SectionCard
-        title="KPI evoluti giornata"
-        subtitle="Indicatori automatici derivati dai turni già registrati, utili per leggere efficienza e comportamento del mezzo."
+        title={tr("KPI evoluti giornata")}
+        subtitle={tr("Indicatori automatici derivati dai turni già registrati, utili per leggere efficienza e comportamento del mezzo.")}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SummaryBox
@@ -1327,8 +1335,8 @@ export default function EventCarTurnsPage() {
 
 
       <SectionCard
-        title="Turn intelligence"
-        subtitle="Insight automatici e stima fuel rapida basati sullo storico tecnico già registrato."
+        title={tr("Turn intelligence")}
+        subtitle={tr("Insight automatici e stima fuel rapida basati sullo storico tecnico già registrato.")}
       >
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-4">
@@ -1360,31 +1368,31 @@ export default function EventCarTurnsPage() {
             </div>
 
             <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-              <div className="text-sm font-bold text-[var(--text-primary)]">Lettura rapida storico</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">{tr("Lettura rapida storico")}</div>
               <div className="mt-3 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
                 <div>
                   {bestLapTurn
-                    ? `Il miglior riferimento prestazionale della giornata è ${formatLapTime(bestLapTurn.bestLap)} con ${driverMap.get(bestLapTurn.turn.driver_id || "") || "pilota non assegnato"}.`
-                    : "Non ci sono ancora best lap sufficienti per costruire un riferimento prestazionale."}
+                    ? `${tr("Il miglior riferimento prestazionale della giornata è")} ${formatLapTime(bestLapTurn.bestLap)} ${tr("con")} ${driverMap.get(bestLapTurn.turn.driver_id || "") || tr("pilota non assegnato")}.`
+                    : tr("Non ci sono ancora best lap sufficienti per costruire un riferimento prestazionale.")}
                 </div>
                 <div>
                   {closestToTargetTurn
-                    ? `Il turno più vicino ai target attuali è quello di ${driverMap.get(closestToTargetTurn.turn.driver_id || "") || "pilota non assegnato"}: utile come base per setup e fuel planning.`
-                    : "Non ci sono ancora abbastanza target compilati per individuare un turno di riferimento."}
+                    ? `${tr("Il turno più vicino ai target attuali è quello di")} ${driverMap.get(closestToTargetTurn.turn.driver_id || "") || tr("pilota non assegnato")}: ${tr("utile come base per setup e fuel planning")}.`
+                    : tr("Non ci sono ancora abbastanza target compilati per individuare un turno di riferimento.")}
                 </div>
                 <div>
                   {mostEfficientTurn
-                    ? `Il miglior riferimento consumo/giro è ${mostEfficientTurn.fuelPerLap} L/giro.`
-                    : "Compila fuel pre e post su più turni per ottenere un riferimento consumo attendibile."}
+                    ? `${tr("Il miglior riferimento consumo/giro è")} ${mostEfficientTurn.fuelPerLap} L/giro.`
+                    : tr("Compila fuel pre e post su più turni per ottenere un riferimento consumo attendibile.")}
                 </div>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
-            <div className="text-base font-bold text-[var(--text-primary)]">Fuel prediction rapido</div>
+            <div className="text-base font-bold text-[var(--text-primary)]">{tr("Fuel prediction rapido")}</div>
             <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Inserisci giri o minuti previsti e il sistema calcola un suggerimento rapido usando la media storica del mezzo, con margine di sicurezza.
+              {tr("Inserisci giri o minuti previsti e il sistema calcola un suggerimento rapido usando la media storica del mezzo, con margine di sicurezza.")}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1396,7 +1404,7 @@ export default function EventCarTurnsPage() {
                   value={predictorLaps}
                   onChange={(e) => setPredictorLaps(e.target.value)}
                   className={uiInputClassName}
-                  placeholder="Es. 12"
+                  placeholder={tr("Es. 12")}
                 />
               </UiField>
               <UiField label="Minuti previsti">
@@ -1407,7 +1415,7 @@ export default function EventCarTurnsPage() {
                   value={predictorMinutes}
                   onChange={(e) => setPredictorMinutes(e.target.value)}
                   className={uiInputClassName}
-                  placeholder="Es. 20"
+                  placeholder={tr("Es. 20")}
                 />
               </UiField>
               <UiField label="Margine sicurezza (%)">
@@ -1418,7 +1426,7 @@ export default function EventCarTurnsPage() {
                   value={predictorReservePct}
                   onChange={(e) => setPredictorReservePct(e.target.value)}
                   className={uiInputClassName}
-                  placeholder="Es. 10"
+                  placeholder={tr("Es. 10")}
                 />
               </UiField>
             </div>
@@ -1437,15 +1445,15 @@ export default function EventCarTurnsPage() {
             <div className="mt-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
               {averageFuelPerLap != null || averageFuelPerMinute != null ? (
                 <>
-                  <div>Media storica fuel/giro: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerLap, " L")}</span></div>
-                  <div>Media storica fuel/min: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerMinute, " L")}</span></div>
+                  <div>{tr("Media storica fuel/giro")}: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerLap, " L")}</span></div>
+                  <div>{tr("Media storica fuel/min")}: <span className="font-bold text-[var(--text-primary)]">{displayNumber(averageFuelPerMinute, " L")}</span></div>
                   <div className="mt-2">
-                    Usa il valore più prudente tra giri e minuti quando le sessioni hanno molto traffico o tempi non costanti.
+                    {tr("Usa il valore più prudente tra giri e minuti quando le sessioni hanno molto traffico o tempi non costanti.")}
                   </div>
                 </>
               ) : (
                 <div>
-                  Non ci sono ancora abbastanza dati fuel completi per generare una previsione attendibile. Compila fuel pre e post su almeno un turno completo.
+                  {tr("Non ci sono ancora abbastanza dati fuel completi per generare una previsione attendibile. Compila fuel pre e post su almeno un turno completo.")}
                 </div>
               )}
             </div>
@@ -1454,23 +1462,22 @@ export default function EventCarTurnsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
-        subtitle="La console è organizzata per consultazione rapida, dettaglio tecnico e inserimento turno separato."
+        title={tr("Lettura operativa")}
+        subtitle={tr("La console è organizzata per consultazione rapida, dettaglio tecnico e inserimento turno separato.")}
       >
         <InfoBlock>
-          Usa la vista sintetica per avere una timeline leggibile della giornata.
-          I minuti salvati nei turni alimentano automaticamente i contatori ore dell’auto e dei componenti montati in quel momento. Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno.
+          {tr("Usa la vista sintetica per avere una timeline leggibile della giornata. I minuti salvati nei turni alimentano automaticamente i contatori ore dell'auto e dei componenti montati in quel momento. Passa alla vista dettagliata quando vuoi controllare pressioni, delta pre/post, consumi fuel, temperature e target di ogni turno.")}
         </InfoBlock>
       </SectionCard>
 
 
       {compareTurns.length > 0 ? (
         <SectionCard
-          title="Confronto turni"
+          title={tr("Confronto turni")}
           subtitle={
             compareTurns.length === 2
-              ? "Lettura affiancata di due turni selezionati."
-              : "Seleziona un secondo turno dalla timeline per attivare il confronto completo."
+              ? tr("Lettura affiancata di due turni selezionati.")
+              : tr("Seleziona un secondo turno dalla timeline per attivare il confronto completo.")
           }
           actions={
             <button
@@ -1478,7 +1485,7 @@ export default function EventCarTurnsPage() {
               onClick={() => setCompareTurnIds([])}
               className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
             >
-              Pulisci confronto
+              {tr("Pulisci confronto")}
             </button>
           }
         >
@@ -1491,15 +1498,15 @@ export default function EventCarTurnsPage() {
             />
           ) : (
             <InfoBlock>
-              Hai selezionato un turno per il confronto. Selezionane un secondo dalla timeline per confrontare tempi, fuel, pressioni e temperature.
+              {tr("Hai selezionato un turno per il confronto. Selezionane un secondo dalla timeline per confrontare tempi, fuel, pressioni e temperature.")}
             </InfoBlock>
           )}
         </SectionCard>
       ) : null}
 
       <SectionCard
-        title="Timeline turni"
-        subtitle="Consulta lo storico in modalità sintetica o dettagliata senza appesantire la console."
+        title={tr("Timeline turni")}
+        subtitle={tr("Consulta lo storico in modalità sintetica o dettagliata senza appesantire la console.")}
         actions={
           <div className="inline-flex rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-1">
             <button
@@ -1514,7 +1521,7 @@ export default function EventCarTurnsPage() {
                   : undefined
               }
             >
-              Vista sintetica
+              {tr("Vista sintetica")}
             </button>
             <button
               type="button"
@@ -1528,15 +1535,15 @@ export default function EventCarTurnsPage() {
                   : undefined
               }
             >
-              Vista dettagliata
+              {tr("Vista dettagliata")}
             </button>
           </div>
         }
       >
         {turns.length === 0 ? (
           <EmptyState
-            title="Nessun turno registrato"
-            description="Apri il drawer Nuovo turno e salva la prima sessione tecnica del mezzo."
+            title={tr("Nessun turno registrato")}
+            description={tr("Apri il drawer Nuovo turno e salva la prima sessione tecnica del mezzo.")}
           />
         ) : (
           <div className="space-y-4">
@@ -1571,19 +1578,19 @@ export default function EventCarTurnsPage() {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-base font-bold text-[var(--text-primary)]">
-                          {driverName || "Pilota non assegnato"}
+                          {driverName || tr("Pilota non assegnato")}
                         </div>
                         {sessionName ? <StatusChip label={sessionName} /> : null}
                         {metrics?.track_condition ? (
                           <StatusChip label={trackConditionLabel(metrics.track_condition)} />
                         ) : null}
                         {compareTurnIds.includes(turn.id) ? (
-                          <StatusChip label="Nel confronto" tone="success" />
+                          <StatusChip label={tr("Nel confronto")} tone="success" />
                         ) : null}
                       </div>
 
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, " giri")}
+                        {formatDateTime(turn.recorded_at)} · {displayNumber(turn.minutes, " min")} · {displayNumber(turn.laps, ` ${tr("giri")}`)}
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-8">
@@ -1607,13 +1614,13 @@ export default function EventCarTurnsPage() {
 
                       <div className="mt-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
                         {viewMode === "synthetic"
-                          ? metrics?.technical_notes || turn.notes || "Nessuna nota registrata."
-                          : metrics?.technical_notes || turn.notes || "Nessuna nota registrata."}
+                          ? metrics?.technical_notes || turn.notes || tr("Nessuna nota registrata.")
+                          : metrics?.technical_notes || turn.notes || tr("Nessuna nota registrata.")}
                       </div>
 
                       {isExpanded ? (
                         <div className="mt-4 space-y-4">
-                          <DetailGrid title="Pre-turno">
+                          <DetailGrid title={tr("Pre-turno")}>
                             <SmallMetric label="Aria pre" value={displayNumber(metrics?.pre_air_temp_c, "°C")} />
                             <SmallMetric label="Asfalto pre" value={displayNumber(metrics?.pre_track_temp_c, "°C")} />
                             <SmallMetric label="Fuel pre" value={displayNumber(turn.fuel_start_liters, " L")} />
@@ -1669,7 +1676,7 @@ export default function EventCarTurnsPage() {
                           className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
                         >
                           <ListFilter size={16} className="mr-2 inline" />
-                          {expandedTurnId === turn.id ? "Chiudi dettagli" : "Apri dettagli"}
+                          {expandedTurnId === turn.id ? tr("Chiudi dettagli") : tr("Apri dettagli")}
                         </button>
                       ) : null}
 
@@ -1680,7 +1687,7 @@ export default function EventCarTurnsPage() {
                         style={compareTurnIds.includes(turn.id) ? { backgroundColor: "var(--brand-accent-soft)", color: "var(--brand-accent)" } : undefined}
                       >
                         <ListFilter size={16} className="mr-2 inline" />
-                        {compareTurnIds.includes(turn.id) ? "Rimuovi confronto" : compareTurnIds.length === 0 ? "Confronta" : "Seleziona confronto"}
+                        {compareTurnIds.includes(turn.id) ? tr("Rimuovi confronto") : compareTurnIds.length === 0 ? tr("Confronta") : tr("Seleziona confronto")}
                       </button>
 
                       <button
@@ -1690,12 +1697,12 @@ export default function EventCarTurnsPage() {
                         className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Edit2 size={16} className="mr-2 inline" />
-                        Modifica
+                        {tr("Modifica")}
                       </button>
 
                       <InlineConfirmButton
-                        label="Elimina"
-                        message="Eliminare questo turno tecnico?"
+                        label={tr("Elimina")}
+                        message={tr("Eliminare questo turno tecnico?")}
                         onConfirm={() => deleteTurn(turn.id)}
                         className="rounded-xl bg-red-50 px-4 py-2 font-bold text-red-700 hover:bg-red-100"
                         icon={<Trash2 size={16} className="mr-2 inline" />}
@@ -1717,10 +1724,10 @@ export default function EventCarTurnsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-2xl font-black text-[var(--text-primary)]">
-                      {editingTurnId ? "Modifica turno tecnico" : "Nuovo turno tecnico"}
+                      {editingTurnId ? tr("Modifica turno tecnico") : tr("Nuovo turno tecnico")}
                     </div>
                     <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                      Compila il turno senza perdere il contesto della console. Il salvataggio è atomico: turno, metriche, ore auto e ore componenti vengono aggiornati insieme.
+                      {tr("Compila il turno senza perdere il contesto della console. Il salvataggio è atomico: turno, metriche, ore auto e ore componenti vengono aggiornati insieme.")}
                     </div>
                   </div>
                   <button
@@ -1739,8 +1746,8 @@ export default function EventCarTurnsPage() {
 
               <div className="space-y-6">
                 <FormSection
-                  title="Dati base turno"
-                  subtitle="Sessione, pilota, durata, giri e dati carburante della sessione."
+                  title={tr("Dati base turno")}
+                  subtitle={tr("Sessione, pilota, durata, giri e dati carburante della sessione.")}
                 >
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <UiField label="Data e ora turno">
@@ -1758,7 +1765,7 @@ export default function EventCarTurnsPage() {
                         onChange={(e) => patchForm("event_session_id", e.target.value)}
                         className={uiInputClassName}
                       >
-                        <option value="">Nessuna sessione collegata</option>
+                        <option value="">{tr("Nessuna sessione collegata")}</option>
                         {sessions.map((session) => (
                           <option key={session.id} value={session.id}>
                             {session.name}
@@ -1776,7 +1783,7 @@ export default function EventCarTurnsPage() {
                         onChange={(e) => patchForm("driver_id", e.target.value)}
                         className={uiInputClassName}
                       >
-                        <option value="">Seleziona pilota</option>
+                        <option value="">{tr("Seleziona pilota")}</option>
                         {availableDrivers.map((driver) => (
                           <option key={driver.id} value={driver.id}>
                             {driver.first_name} {driver.last_name}
@@ -1791,10 +1798,10 @@ export default function EventCarTurnsPage() {
                         onChange={(e) => patchForm("track_condition", e.target.value)}
                         className={uiInputClassName}
                       >
-                        <option value="dry">Asciutta</option>
-                        <option value="damp">Umida</option>
-                        <option value="wet">Bagnata</option>
-                        <option value="mixed">Mista</option>
+                        <option value="dry">{tr("Asciutta")}</option>
+                        <option value="damp">{tr("Umida")}</option>
+                        <option value="wet">{tr("Bagnata")}</option>
+                        <option value="mixed">{tr("Mista")}</option>
                       </select>
                     </UiField>
 
@@ -1805,7 +1812,7 @@ export default function EventCarTurnsPage() {
                         step="1"
                         value={form.minutes}
                         onChange={(e) => patchForm("minutes", e.target.value)}
-                        placeholder="Es. 20"
+                        placeholder={tr("Es. 20")}
                         className={uiInputClassName}
                       />
                     </UiField>
@@ -1817,25 +1824,25 @@ export default function EventCarTurnsPage() {
                         step="1"
                         value={form.laps}
                         onChange={(e) => patchForm("laps", e.target.value)}
-                        placeholder="Es. 12"
+                        placeholder={tr("Es. 12")}
                         className={uiInputClassName}
                       />
                     </UiField>
 
-                    <UiField label="Miglior giro" hint="Formato consigliato 1:42.350">
+                    <UiField label="Miglior giro" hint={tr("Formato consigliato 1:42.350")}>
                       <input
                         value={form.best_lap}
                         onChange={(e) => patchForm("best_lap", e.target.value)}
-                        placeholder="Es. 1:42.350"
+                        placeholder={tr("Es. 1:42.350")}
                         className={uiInputClassName}
                       />
                     </UiField>
 
-                    <UiField label="Giro medio" hint="Formato consigliato 1:43.120">
+                    <UiField label="Giro medio" hint={tr("Formato consigliato 1:43.120")}>
                       <input
                         value={form.avg_lap}
                         onChange={(e) => patchForm("avg_lap", e.target.value)}
-                        placeholder="Es. 1:43.120"
+                        placeholder={tr("Es. 1:43.120")}
                         className={uiInputClassName}
                       />
                     </UiField>
@@ -1846,7 +1853,7 @@ export default function EventCarTurnsPage() {
                         step="0.1"
                         value={form.fuel_start_liters}
                         onChange={(e) => patchForm("fuel_start_liters", e.target.value)}
-                        placeholder="Es. 18.5"
+                        placeholder={tr("Es. 18.5")}
                         className={uiInputClassName}
                       />
                     </UiField>
@@ -1857,7 +1864,7 @@ export default function EventCarTurnsPage() {
                         step="0.1"
                         value={form.fuel_end_liters}
                         onChange={(e) => patchForm("fuel_end_liters", e.target.value)}
-                        placeholder="Es. 10.8"
+                        placeholder={tr("Es. 10.8")}
                         className={uiInputClassName}
                       />
                     </UiField>
@@ -1868,7 +1875,7 @@ export default function EventCarTurnsPage() {
                       <textarea
                         value={form.notes}
                         onChange={(e) => patchForm("notes", e.target.value)}
-                        placeholder="Es. Traffico nella seconda parte, pista più gommata, pilota soddisfatto del bilanciamento..."
+                        placeholder={tr("Es. Traffico nella seconda parte, pista più gommata, pilota soddisfatto del bilanciamento...")}
                         className={uiTextareaClassName}
                       />
                     </UiField>
@@ -1876,28 +1883,28 @@ export default function EventCarTurnsPage() {
                 </FormSection>
 
                 <FormSection
-                  title="Pre-turno"
-                  subtitle="Condizioni e configurazione di partenza prima di entrare in pista."
+                  title={tr("Pre-turno")}
+                  subtitle={tr("Condizioni e configurazione di partenza prima di entrare in pista.")}
                 >
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <UiField label="Temperatura aria pre (°C)">
-                      <input type="number" step="0.1" value={form.pre_air_temp_c} onChange={(e) => patchForm("pre_air_temp_c", e.target.value)} placeholder="Es. 24.5" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.pre_air_temp_c} onChange={(e) => patchForm("pre_air_temp_c", e.target.value)} placeholder={tr("Es. 24.5")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Temperatura asfalto pre (°C)">
-                      <input type="number" step="0.1" value={form.pre_track_temp_c} onChange={(e) => patchForm("pre_track_temp_c", e.target.value)} placeholder="Es. 33.0" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.pre_track_temp_c} onChange={(e) => patchForm("pre_track_temp_c", e.target.value)} placeholder={tr("Es. 33.0")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Apertura aria (cm)">
-                      <input type="number" step="0.1" value={form.air_opening_cm} onChange={(e) => patchForm("air_opening_cm", e.target.value)} placeholder="Es. 2.5" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.air_opening_cm} onChange={(e) => patchForm("air_opening_cm", e.target.value)} placeholder={tr("Es. 2.5")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Apertura olio (cm)">
-                      <input type="number" step="0.1" value={form.oil_opening_cm} onChange={(e) => patchForm("oil_opening_cm", e.target.value)} placeholder="Es. 1.8" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.oil_opening_cm} onChange={(e) => patchForm("oil_opening_cm", e.target.value)} placeholder={tr("Es. 1.8")} className={uiInputClassName} />
                     </UiField>
                   </div>
 
                   <div className="mt-4">
                     <WheelGrid
-                      title="Pressioni a freddo"
-                      hint="Inserisci le pressioni pre-turno per singola ruota."
+                      title={tr("Pressioni a freddo")}
+                      hint={tr("Inserisci le pressioni pre-turno per singola ruota.")}
                       values={{ fl: form.pre_pressure_fl, fr: form.pre_pressure_fr, rl: form.pre_pressure_rl, rr: form.pre_pressure_rr }}
                       onChange={(key, value) =>
                         patchForm(({ fl: "pre_pressure_fl", fr: "pre_pressure_fr", rl: "pre_pressure_rl", rr: "pre_pressure_rr" } as const)[key], value)
@@ -1907,28 +1914,28 @@ export default function EventCarTurnsPage() {
                 </FormSection>
 
                 <FormSection
-                  title="Post-turno"
-                  subtitle="Rilevazioni a caldo, temperature gomme e temperature massime registrate."
+                  title={tr("Post-turno")}
+                  subtitle={tr("Rilevazioni a caldo, temperature gomme e temperature massime registrate.")}
                 >
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <UiField label="Temperatura aria post (°C)">
-                      <input type="number" step="0.1" value={form.post_air_temp_c} onChange={(e) => patchForm("post_air_temp_c", e.target.value)} placeholder="Es. 26.0" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.post_air_temp_c} onChange={(e) => patchForm("post_air_temp_c", e.target.value)} placeholder={tr("Es. 26.0")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Temperatura asfalto post (°C)">
-                      <input type="number" step="0.1" value={form.post_track_temp_c} onChange={(e) => patchForm("post_track_temp_c", e.target.value)} placeholder="Es. 35.2" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.post_track_temp_c} onChange={(e) => patchForm("post_track_temp_c", e.target.value)} placeholder={tr("Es. 35.2")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Temperatura max acqua (°C)">
-                      <input type="number" step="0.1" value={form.max_water_temp_c} onChange={(e) => patchForm("max_water_temp_c", e.target.value)} placeholder="Es. 92.0" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.max_water_temp_c} onChange={(e) => patchForm("max_water_temp_c", e.target.value)} placeholder={tr("Es. 92.0")} className={uiInputClassName} />
                     </UiField>
                     <UiField label="Temperatura max olio (°C)">
-                      <input type="number" step="0.1" value={form.max_oil_temp_c} onChange={(e) => patchForm("max_oil_temp_c", e.target.value)} placeholder="Es. 108.0" className={uiInputClassName} />
+                      <input type="number" step="0.1" value={form.max_oil_temp_c} onChange={(e) => patchForm("max_oil_temp_c", e.target.value)} placeholder={tr("Es. 108.0")} className={uiInputClassName} />
                     </UiField>
                   </div>
 
                   <div className="mt-4 space-y-4">
                     <WheelGrid
-                      title="Pressioni a caldo"
-                      hint="Rilevazioni post-turno per singola ruota."
+                      title={tr("Pressioni a caldo")}
+                      hint={tr("Rilevazioni post-turno per singola ruota.")}
                       values={{ fl: form.post_pressure_fl, fr: form.post_pressure_fr, rl: form.post_pressure_rl, rr: form.post_pressure_rr }}
                       onChange={(key, value) =>
                         patchForm(({ fl: "post_pressure_fl", fr: "post_pressure_fr", rl: "post_pressure_rl", rr: "post_pressure_rr" } as const)[key], value)
@@ -1936,8 +1943,8 @@ export default function EventCarTurnsPage() {
                     />
 
                     <WheelGrid
-                      title="Temperature gomme post-turno (°C)"
-                      hint="Versione base: una temperatura per ruota."
+                      title={tr("Temperature gomme post-turno (°C)")}
+                      hint={tr("Versione base: una temperatura per ruota.")}
                       values={{ fl: form.post_tyre_temp_fl, fr: form.post_tyre_temp_fr, rl: form.post_tyre_temp_rl, rr: form.post_tyre_temp_rr }}
                       onChange={(key, value) =>
                         patchForm(({ fl: "post_tyre_temp_fl", fr: "post_tyre_temp_fr", rl: "post_tyre_temp_rl", rr: "post_tyre_temp_rr" } as const)[key], value)
@@ -1951,7 +1958,7 @@ export default function EventCarTurnsPage() {
                       <textarea
                         value={form.technical_notes}
                         onChange={(e) => patchForm("technical_notes", e.target.value)}
-                        placeholder="Es. Pressione anteriore destra leggermente alta, vettura migliorata in inserimento, posteriore più stabile..."
+                        placeholder={tr("Es. Pressione anteriore destra leggermente alta, vettura migliorata in inserimento, posteriore più stabile...")}
                         className={uiTextareaClassName}
                       />
                     </UiField>
@@ -1959,12 +1966,12 @@ export default function EventCarTurnsPage() {
                 </FormSection>
 
                 <FormSection
-                  title="Target tecnici"
-                  subtitle="Obiettivi post-turno per confrontare immediatamente le rilevazioni reali."
+                  title={tr("Target tecnici")}
+                  subtitle={tr("Obiettivi post-turno per confrontare immediatamente le rilevazioni reali.")}
                 >
                   <div className="space-y-4">
                     <WheelGrid
-                      title="Target pressioni post-turno"
+                      title={tr("Target pressioni post-turno")}
                       values={{ fl: form.target_post_pressure_fl, fr: form.target_post_pressure_fr, rl: form.target_post_pressure_rl, rr: form.target_post_pressure_rr }}
                       onChange={(key, value) =>
                         patchForm(({ fl: "target_post_pressure_fl", fr: "target_post_pressure_fr", rl: "target_post_pressure_rl", rr: "target_post_pressure_rr" } as const)[key], value)
@@ -1973,10 +1980,10 @@ export default function EventCarTurnsPage() {
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <UiField label="Target acqua (°C)">
-                        <input type="number" step="0.1" value={form.target_water_temp_c} onChange={(e) => patchForm("target_water_temp_c", e.target.value)} placeholder="Es. 90" className={uiInputClassName} />
+                        <input type="number" step="0.1" value={form.target_water_temp_c} onChange={(e) => patchForm("target_water_temp_c", e.target.value)} placeholder={tr("Es. 90")} className={uiInputClassName} />
                       </UiField>
                       <UiField label="Target olio (°C)">
-                        <input type="number" step="0.1" value={form.target_oil_temp_c} onChange={(e) => patchForm("target_oil_temp_c", e.target.value)} placeholder="Es. 105" className={uiInputClassName} />
+                        <input type="number" step="0.1" value={form.target_oil_temp_c} onChange={(e) => patchForm("target_oil_temp_c", e.target.value)} placeholder={tr("Es. 105")} className={uiInputClassName} />
                       </UiField>
                     </div>
                   </div>
@@ -1990,7 +1997,7 @@ export default function EventCarTurnsPage() {
                     onClick={closeDrawer}
                     className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-bold hover:bg-[var(--surface-muted)]"
                   >
-                    Annulla
+                    {tr("Annulla")}
                   </button>
                   <button
                     type="button"
@@ -2000,7 +2007,7 @@ export default function EventCarTurnsPage() {
                     style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
                   >
                     <Save size={16} className="mr-2 inline" />
-                    {saving ? "Salvataggio..." : editingTurnId ? "Aggiorna turno" : "Salva turno"}
+                    {saving ? tr("Salvataggio...") : editingTurnId ? tr("Aggiorna turno") : tr("Salva turno")}
                   </button>
                 </div>
               </div>

@@ -249,18 +249,18 @@ export default function MountsPage() {
   const groupedMounts = useMemo(() => {
     const groups = new Map<string, { key: string; label: string; rows: MountRow[] }>();
     for (const mount of filteredMounts) {
-      const label = mount.cars?.name || "Auto non definita";
+      const label = mount.cars?.name || tr("Auto non definita");
       const key = mount.cars?.id || "__no_car";
       const group = groups.get(key) || { key, label, rows: [] as MountRow[] };
       group.rows.push(mount);
       groups.set(key, group);
     }
     return Array.from(groups.values()).sort((a, b) => {
-      if (a.label === "Auto non definita") return 1;
-      if (b.label === "Auto non definita") return -1;
+      if (a.key === "__no_car") return 1;
+      if (b.key === "__no_car") return -1;
       return a.label.localeCompare(b.label, "it");
     });
-  }, [filteredMounts]);
+  }, [filteredMounts, t]);
 
   const canChooseActor =
     canEditMounts && (teamRole === "owner" || teamRole === "admin");
@@ -384,7 +384,7 @@ export default function MountsPage() {
     return (
       <PagePermissionState
         title={tr("Montaggi")}
-        subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
+        subtitle={tr("Configurazione tecnica del mezzo con storico montaggi e smontaggi")}
         icon={<Layers3 size={20} />}
         state="loading"
       />
@@ -395,7 +395,7 @@ export default function MountsPage() {
     return (
       <PagePermissionState
         title={tr("Montaggi")}
-        subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
+        subtitle={tr("Configurazione tecnica del mezzo con storico montaggi e smontaggi")}
         icon={<Layers3 size={20} />}
         state="error"
         message={access.error}
@@ -407,10 +407,10 @@ export default function MountsPage() {
     return (
       <PagePermissionState
         title={tr("Montaggi")}
-        subtitle="Configurazione tecnica del mezzo con storico montaggi e smontaggi"
+        subtitle={tr("Configurazione tecnica del mezzo con storico montaggi e smontaggi")}
         icon={<Layers3 size={20} />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo montaggi."
+        message={tr("Il tuo ruolo non ha accesso al modulo montaggi.")}
       />
     );
   }
@@ -419,7 +419,7 @@ export default function MountsPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={tr("Montaggi")}
-        subtitle="Workflow tecnico per montare, smontare e consultare lo storico componenti del mezzo."
+        subtitle={tr("Workflow tecnico per montare, smontare e consultare lo storico componenti del mezzo.")}
         icon={<Layers3 size={22} />}
       />
 
@@ -439,7 +439,7 @@ export default function MountsPage() {
 
       <SectionCard
         title={tr("Lettura operativa")}
-        subtitle="Montaggio e smontaggio lavorano insieme in modo più chiaro."
+        subtitle={tr("Montaggio e smontaggio lavorano insieme in modo più chiaro.")}
       >
         <div className="race-info-box text-sm leading-6">
           <div className="flex items-start gap-3">
@@ -453,7 +453,7 @@ export default function MountsPage() {
         {canEditMounts ? (
           <SectionCard
             title={tr("Montaggio rapido")}
-            subtitle="Seleziona mezzo, componente, data e operatore per registrare il montaggio."
+            subtitle={tr("Seleziona mezzo, componente, data e operatore per registrare il montaggio.")}
           >
             <form className="grid grid-cols-1 gap-5" onSubmit={addMount}>
               <div className="grid grid-cols-1 gap-4">
@@ -489,8 +489,8 @@ export default function MountsPage() {
                     <option value="">{tr("Seleziona componente")}</option>
                     {components.map((component) => (
                       <option key={component.id} value={component.id}>
-                        {component.type || "Componente"} ·{" "}
-                        {component.identifier || "senza codice"}
+                        {component.type || tr("Componente")} ·{" "}
+                        {component.identifier || tr("senza codice")}
                       </option>
                     ))}
                   </select>
@@ -558,7 +558,7 @@ export default function MountsPage() {
                   className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Wrench size={16} className="mr-2 inline" />
-                  {saving ? "Montaggio..." : "Monta componente"}
+                  {saving ? tr("Montaggio...") : tr("Monta componente")}
                 </button>
               </div>
             </form>
@@ -567,7 +567,7 @@ export default function MountsPage() {
 
         <SectionCard
           title={tr("Filtri storico")}
-          subtitle="Riduci lo storico per stato, auto o ricerca libera."
+          subtitle={tr("Riduci lo storico per stato, auto o ricerca libera.")}
           className={canEditMounts ? "" : "xl:col-span-2"}
         >
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[170px_240px_1fr_auto] xl:items-center">
@@ -614,14 +614,14 @@ export default function MountsPage() {
 
       <SectionCard
         title={tr("Storico montaggi")}
-        subtitle="Visione unificata di componenti attivi e storico smontaggi."
+        subtitle={tr("Visione unificata di componenti attivi e storico smontaggi.")}
       >
         {loading ? (
           <div className="text-[var(--text-secondary)]"><LocalizedText text="Caricamento..." /></div>
         ) : filteredMounts.length === 0 ? (
           <EmptyState
             title={tr("Nessun montaggio registrato")}
-            description="Quando monterai un componente, comparirà qui lo storico completo."
+            description={tr("Quando monterai un componente, comparirà qui lo storico completo.")}
           />
         ) : viewMode === "compact" ? (
           <div className="space-y-5">
@@ -632,7 +632,7 @@ export default function MountsPage() {
                     {group.label}
                   </div>
                   <div className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">
-                    {group.rows.length} movimenti
+                    {group.rows.length} {tr("movimenti")}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -641,10 +641,10 @@ export default function MountsPage() {
                       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.2fr_0.55fr_0.65fr_0.65fr_auto] xl:items-center">
                         <div>
                           <div className="font-bold uppercase text-[var(--text-primary)]">
-                            {(mount.components?.type || "Componente").replace(/_/g, " ")} · {mount.components?.identifier || "senza codice"}
+                            {(mount.components?.type || tr("Componente")).replace(/_/g, " ")} · {mount.components?.identifier || tr("senza codice")}
                           </div>
                           <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                            {mount.reason || "Nessuna nota tecnica"}
+                            {mount.reason || tr("Nessuna nota tecnica")}
                           </div>
                         </div>
                         <InfoMini label="Montato" value={formatDate(mount.mounted_at)} />
@@ -676,14 +676,14 @@ export default function MountsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="font-bold uppercase text-[var(--text-primary)]">
-                      {(mount.components?.type || "Componente").replace(
+                      {(mount.components?.type || tr("Componente")).replace(
                         /_/g,
                         " ",
                       )}{" "}
-                      · {mount.components?.identifier || "senza codice"}
+                      · {mount.components?.identifier || tr("senza codice")}
                     </div>
                     <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                      {mount.cars?.name || "Auto non definita"}
+                      {mount.cars?.name || tr("Auto non definita")}
                     </div>
                   </div>
 
