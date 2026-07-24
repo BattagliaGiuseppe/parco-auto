@@ -11,8 +11,11 @@ import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import PrintLetterhead from "@/components/PrintLetterhead";
 import PrintDocumentFooter from "@/components/PrintDocumentFooter";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function DriverPrintPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const { id } = useParams<{ id: string }>();
   const [driver, setDriver] = useState<any>(null);
   const [licenses, setLicenses] = useState<any[]>([]);
@@ -61,7 +64,7 @@ export default function DriverPrintPage() {
   );
 
   if (!driver) {
-    return <div className="p-6 text-neutral-500">Caricamento scheda pilota...</div>;
+    return <div className="p-6 text-neutral-500">{tr("Caricamento scheda pilota...")}</div>;
   }
 
   return (
@@ -69,8 +72,8 @@ export default function DriverPrintPage() {
       <div className="mx-auto max-w-5xl space-y-6 print:max-w-none print:space-y-4">
         <div className="print:hidden">
           <PageHeader
-            title={`Stampa scheda · ${driverName || "Pilota"}`}
-            subtitle="Versione stampabile del pilota con layout coerente al nuovo standard."
+            title={`${tr("Stampa scheda")} · ${driverName || tr("Pilota")}`}
+            subtitle={tr("Versione stampabile del pilota con layout coerente al nuovo standard.")}
             icon={<UserRound size={22} />}
             actions={
               <>
@@ -80,14 +83,14 @@ export default function DriverPrintPage() {
                   style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
                 >
                   <Printer size={16} className="mr-2 inline" />
-                  Stampa
+                  {tr("Stampa")}
                 </button>
                 <Link
                   href={`/drivers/${id}`}
                   className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-semibold text-[var(--text-primary)]"
                 >
                   <ArrowLeft size={16} className="mr-2 inline" />
-                  Scheda pilota
+                  {tr("Scheda pilota")}
                 </Link>
               </>
             }
@@ -96,17 +99,17 @@ export default function DriverPrintPage() {
 
         <div className="mx-auto flex max-w-5xl flex-col gap-6 print:min-h-[257mm] print:gap-4">
           <PrintLetterhead
-            title="Scheda pilota"
-            subtitle={driverName || "Anagrafica pilota"}
+            title={tr("Scheda pilota")}
+            subtitle={driverName || tr("Anagrafica pilota")}
             rightMeta={[
-              { label: "Pilota", value: driverName || "—" },
-              { label: "Email", value: driver.email || "—" },
+              { label: tr("Pilota"), value: driverName || "—" },
+              { label: tr("Email"), value: driver.email || "—" },
             ]}
           />
 
           <SectionCard
-            title="Dati anagrafici"
-            subtitle="Informazioni principali del pilota."
+            title={tr("Dati anagrafici")}
+            subtitle={tr("Informazioni principali del pilota.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
@@ -114,7 +117,7 @@ export default function DriverPrintPage() {
                 {driver.photo_url ? (
                   <img
                     src={driver.photo_url}
-                    alt={driverName || "Profilo pilota"}
+                    alt={driverName || tr("Profilo pilota")}
                     className="h-52 w-full rounded-2xl object-cover"
                   />
                 ) : (
@@ -142,28 +145,28 @@ export default function DriverPrintPage() {
                   label="Contatto emergenza"
                   value={driver.emergency_contact || "—"}
                 />
-                <Meta label="Stato" value={driver.is_active ? "Attivo" : "Non attivo"} />
+                <Meta label="Stato" value={driver.is_active ? tr("Attivo") : tr("Non attivo")} />
               </div>
             </div>
           </SectionCard>
 
           <SectionCard
-            title="Checklist sicurezza"
-            subtitle="Dotazioni e stato documentale di sicurezza."
+            title={tr("Checklist sicurezza")}
+            subtitle={tr("Dotazioni e stato documentale di sicurezza.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             {safetyItems.length === 0 ? (
               <div className="text-sm text-[var(--text-secondary)]">
-                Nessun elemento sicurezza registrato.
+                {tr("Nessun elemento sicurezza registrato.")}
               </div>
             ) : (
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-default)]">
-                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">Elemento</th>
-                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">Omologazione</th>
-                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">Scadenza</th>
-                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">Nota</th>
+                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">{tr("Elemento")}</th>
+                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">{tr("Omologazione")}</th>
+                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">{tr("Scadenza")}</th>
+                    <th className="py-2 text-left font-semibold text-[var(--text-primary)]">{tr("Nota")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -186,22 +189,22 @@ export default function DriverPrintPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SectionCard
-              title="Licenze"
-              subtitle="Storico licenze registrate."
+              title={tr("Licenze")}
+              subtitle={tr("Storico licenze registrate.")}
               className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
             >
               {licenses.length === 0 ? (
-                <div className="text-sm text-[var(--text-secondary)]">Nessuna licenza registrata.</div>
+                <div className="text-sm text-[var(--text-secondary)]">{tr("Nessuna licenza registrata.")}</div>
               ) : (
                 <div className="space-y-3">
                   {licenses.map((row) => (
                     <div key={row.id} className="rounded-xl border border-[var(--border-default)] p-3">
                       <div className="font-semibold text-[var(--text-primary)]">{row.license_type}</div>
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {row.license_number || "Numero non inserito"}
+                        {row.license_number || tr("Numero non inserito")}
                         {row.issued_by ? ` · ${row.issued_by}` : ""}
                         {row.expiry_date
-                          ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
+                          ? ` · ${tr("scade il")} ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
                           : ""}
                       </div>
                     </div>
@@ -211,23 +214,23 @@ export default function DriverPrintPage() {
             </SectionCard>
 
             <SectionCard
-              title="Documenti"
-              subtitle="Documenti collegati al pilota."
+              title={tr("Documenti")}
+              subtitle={tr("Documenti collegati al pilota.")}
               className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
             >
               {documents.length === 0 ? (
-                <div className="text-sm text-[var(--text-secondary)]">Nessun documento registrato.</div>
+                <div className="text-sm text-[var(--text-secondary)]">{tr("Nessun documento registrato.")}</div>
               ) : (
                 <div className="space-y-3">
                   {documents.map((row) => (
                     <div key={row.id} className="rounded-xl border border-[var(--border-default)] p-3">
                       <div className="font-semibold text-[var(--text-primary)]">
-                        {row.title || row.document_type || "Documento pilota"}
+                        {row.title || row.document_type || tr("Documento pilota")}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
                         {row.expires_at
-                          ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
-                          : "Nessuna scadenza"}
+                          ? `${tr("Scadenza")} ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
+                          : tr("Nessuna scadenza")}
                       </div>
                     </div>
                   ))}
@@ -237,12 +240,12 @@ export default function DriverPrintPage() {
           </div>
 
           <SectionCard
-            title="Note"
-            subtitle="Annotazioni operative del pilota."
+            title={tr("Note")}
+            subtitle={tr("Annotazioni operative del pilota.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             <div className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
-              {driver.notes || "Nessuna nota pilota"}
+              {driver.notes || tr("Nessuna nota pilota")}
             </div>
           </SectionCard>
 
@@ -256,10 +259,11 @@ export default function DriverPrintPage() {
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-        {label}
+        {t(`ui.${label}`, label)}
       </div>
       <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">{value}</div>
     </div>

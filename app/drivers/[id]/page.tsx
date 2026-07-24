@@ -27,6 +27,7 @@ import StatsGrid from "@/components/StatsGrid";
 import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type SafetyItem = {
   id?: string;
@@ -47,15 +48,17 @@ const DEFAULT_SAFETY_ITEMS: SafetyItem[] = [
 ];
 
 function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   return (
     <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-5 text-sm text-neutral-600">
-      Nessuna checklist sicurezza registrata.
+      {tr("Nessuna checklist sicurezza registrata.")}
       {onPrefill ? (
         <button
           onClick={onPrefill}
           className="ml-3 inline-flex rounded-xl bg-[var(--brand-accent)] px-3 py-2 font-semibold text-[var(--brand-on-accent)] hover:brightness-95"
         >
-          Carica checklist base
+          {tr("Carica checklist base")}
         </button>
       ) : null}
     </div>
@@ -74,6 +77,8 @@ function InfoBlock({ children }: { children: React.ReactNode }) {
 }
 
 export default function DriverDetailPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const params = useParams();
   const driverId = params?.id as string;
 
@@ -476,8 +481,8 @@ export default function DriverDetailPage() {
   if (access.loading) {
     return (
       <PagePermissionState
-        title="Scheda pilota"
-        subtitle="Dati anagrafici, sicurezza, documenti e stampa"
+        title={tr("Scheda pilota")}
+        subtitle={tr("Dati anagrafici, sicurezza, documenti e stampa")}
         icon={<UserRound size={22} />}
         state="loading"
       />
@@ -487,8 +492,8 @@ export default function DriverDetailPage() {
   if (access.error) {
     return (
       <PagePermissionState
-        title="Scheda pilota"
-        subtitle="Dati anagrafici, sicurezza, documenti e stampa"
+        title={tr("Scheda pilota")}
+        subtitle={tr("Dati anagrafici, sicurezza, documenti e stampa")}
         icon={<UserRound size={22} />}
         state="error"
         message={access.error}
@@ -499,11 +504,11 @@ export default function DriverDetailPage() {
   if (!canViewDrivers) {
     return (
       <PagePermissionState
-        title="Scheda pilota"
-        subtitle="Dati anagrafici, sicurezza, documenti e stampa"
+        title={tr("Scheda pilota")}
+        subtitle={tr("Dati anagrafici, sicurezza, documenti e stampa")}
         icon={<UserRound size={22} />}
         state="denied"
-        message="Il tuo ruolo non può aprire la scheda pilota."
+        message={tr("Il tuo ruolo non può aprire la scheda pilota.")}
       />
     );
   }
@@ -512,7 +517,7 @@ export default function DriverDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
-          Caricamento pilota...
+          {tr("Caricamento pilota...")}
         </div>
       </div>
     );
@@ -523,8 +528,8 @@ export default function DriverDetailPage() {
   return (
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
-        title={driverFullName || "Scheda pilota"}
-        subtitle="Anagrafica completa, sicurezza, documenti e strumenti di stampa."
+        title={driverFullName || tr("Scheda pilota")}
+        subtitle={tr("Anagrafica completa, sicurezza, documenti e strumenti di stampa.")}
         icon={<UserRound size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -532,21 +537,21 @@ export default function DriverDetailPage() {
               href={`/drivers/${driver.id}/performance`}
               className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
-              Performance
+              {tr("Performance")}
             </Link>
             <Link
               href={`/drivers/${driver.id}/print`}
               className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
             >
               <Printer size={16} className="mr-2 inline" />
-              Stampa scheda
+              {tr("Stampa scheda")}
             </Link>
             <Link
               href="/drivers"
               className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
-              Indietro
+              {tr("Indietro")}
             </Link>
           </div>
         }
@@ -554,7 +559,7 @@ export default function DriverDetailPage() {
 
       {!canEditDrivers ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Hai accesso in sola lettura alla scheda pilota.
+          {tr("Hai accesso in sola lettura alla scheda pilota.")}
         </div>
       ) : null}
 
@@ -579,26 +584,24 @@ export default function DriverDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title="Lettura operativa"
-        subtitle="Questa è la console pilota: anagrafica, sicurezza, documenti e strumenti di stampa."
+        title={tr("Lettura operativa")}
+        subtitle={tr("Questa è la console pilota: anagrafica, sicurezza, documenti e strumenti di stampa.")}
       >
         <InfoBlock>
-          Usa questa pagina per mantenere aggiornata la scheda del pilota nel tempo. Qui convivono dati anagrafici,
-          licenze, documenti, checklist sicurezza e foto profilo. L&apos;obiettivo è avere una sola scheda completa
-          e affidabile da usare poi negli eventi e nella stampa operativa.
+          {tr("Usa questa pagina per mantenere aggiornata la scheda del pilota nel tempo. Qui convivono dati anagrafici, licenze, documenti, checklist sicurezza e foto profilo. L’obiettivo è avere una sola scheda completa e affidabile da usare poi negli eventi e nella stampa operativa.")}
         </InfoBlock>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
         <SectionCard
-          title="Profilo pilota"
-          subtitle="Dati anagrafici principali, note e foto profilo."
+          title={tr("Profilo pilota")}
+          subtitle={tr("Dati anagrafici principali, note e foto profilo.")}
         >
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
             {driverForm.photo_url ? (
               <img
                 src={driverForm.photo_url}
-                alt={driverFullName || "Profilo pilota"}
+                alt={driverFullName || tr("Profilo pilota")}
                 className="h-36 w-36 rounded-full object-cover ring-4 ring-white shadow-sm"
               />
             ) : (
@@ -609,7 +612,7 @@ export default function DriverDetailPage() {
             {canEditDrivers ? (
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
                 <Camera size={16} />
-                {uploadingPhoto ? "Caricamento foto..." : "Seleziona foto profilo"}
+                {uploadingPhoto ? tr("Caricamento foto...") : tr("Seleziona foto profilo")}
                 <input
                   type="file"
                   accept="image/*"
@@ -687,7 +690,7 @@ export default function DriverDetailPage() {
               }`}
               value={driverForm.notes || ""}
               onChange={(e) => setDriverForm({ ...driverForm, notes: e.target.value })}
-              placeholder="Note tecniche, preferenze, taglia sedile, contatti paddock..."
+              placeholder={tr("Note tecniche, preferenze, taglia sedile, contatti paddock...")}
             />
           </div>
 
@@ -699,15 +702,15 @@ export default function DriverDetailPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
               >
                 <Save size={16} className="mr-2 inline" />
-                {savingProfile ? "Salvataggio..." : "Salva scheda pilota"}
+                {savingProfile ? tr("Salvataggio...") : tr("Salva scheda pilota")}
               </button>
             </div>
           ) : null}
         </SectionCard>
 
         <SectionCard
-          title="Checklist sicurezza pilota"
-          subtitle="Indumenti e dispositivi con omologazione, scadenza e note."
+          title={tr("Checklist sicurezza pilota")}
+          subtitle={tr("Indumenti e dispositivi con omologazione, scadenza e note.")}
         >
           {safetyItems.length === 0 ? (
             <EmptySafetyState onPrefill={canEditDrivers ? seedDefaultSafetyItems : undefined} />
@@ -747,7 +750,7 @@ export default function DriverDetailPage() {
                         }`}
                         value={item.note}
                         onChange={(e) => updateSafetyItem(index, { note: e.target.value })}
-                        placeholder="Taglia, stato, rilievo tecnico..."
+                        placeholder={tr("Taglia, stato, rilievo tecnico...")}
                       />
                     </div>
                     <div className="flex flex-col justify-between gap-2">
@@ -766,7 +769,7 @@ export default function DriverDetailPage() {
                         <button
                           onClick={() => removeSafetyItemRow(index)}
                           className="inline-flex items-center justify-center rounded-xl bg-red-50 px-3 py-3 text-red-600 hover:bg-red-100"
-                          title="Rimuovi riga"
+                          title={tr("Rimuovi riga")}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -786,13 +789,13 @@ export default function DriverDetailPage() {
                   className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
-                  Aggiungi elemento
+                  {tr("Aggiungi elemento")}
                 </button>
                 <button
                   onClick={seedDefaultSafetyItems}
                   className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
                 >
-                  Carica checklist base
+                  {tr("Carica checklist base")}
                 </button>
               </div>
               <button
@@ -801,7 +804,7 @@ export default function DriverDetailPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
               >
                 <Save size={16} className="mr-2 inline" />
-                {savingSafety ? "Salvataggio..." : "Salva checklist sicurezza"}
+                {savingSafety ? tr("Salvataggio...") : tr("Salva checklist sicurezza")}
               </button>
             </div>
           ) : null}
@@ -809,7 +812,7 @@ export default function DriverDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Licenze" subtitle="Storico, scadenze e modifica rapida della licenza.">
+        <SectionCard title={tr("Licenze")} subtitle={tr("Storico, scadenze e modifica rapida della licenza.")}>
           {canEditDrivers ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -847,7 +850,7 @@ export default function DriverDetailPage() {
                   className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
-                  Aggiungi licenza
+                  {tr("Aggiungi licenza")}
                 </button>
               </div>
             </>
@@ -855,7 +858,7 @@ export default function DriverDetailPage() {
 
           <div className="mt-4 space-y-3">
             {licenses.length === 0 ? (
-              <EmptyState title="Nessuna licenza registrata" description="Aggiungi le licenze del pilota per mantenerne scadenze e riferimenti." />
+              <EmptyState title={tr("Nessuna licenza registrata")} description={tr("Aggiungi le licenze del pilota per mantenerne scadenze e riferimenti.")} />
             ) : (
               licenses.map((row) => {
                 const isEditing = editingLicenseId === row.id;
@@ -903,14 +906,14 @@ export default function DriverDetailPage() {
                             className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                           >
                             <X size={15} className="mr-2 inline" />
-                            Annulla
+                            {tr("Annulla")}
                           </button>
                           <button
                             onClick={saveEditedLicense}
                             className="inline-flex rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                           >
                             <Save size={15} className="mr-2 inline" />
-                            Salva licenza
+                            {tr("Salva licenza")}
                           </button>
                         </div>
                       </>
@@ -919,10 +922,10 @@ export default function DriverDetailPage() {
                         <div>
                           <div className="font-bold text-neutral-900">{row.license_type}</div>
                           <div className="mt-1 text-sm text-neutral-500">
-                            {row.license_number || "Numero non inserito"}
+                            {row.license_number || tr("Numero non inserito")}
                             {row.issued_by ? ` · ${row.issued_by}` : ""}
                             {row.expiry_date
-                              ? ` · scade il ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
+                              ? ` · ${tr("scade il")} ${new Date(row.expiry_date).toLocaleDateString("it-IT")}`
                               : ""}
                           </div>
                         </div>
@@ -933,14 +936,14 @@ export default function DriverDetailPage() {
                               className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                             >
                               <Pencil size={15} className="mr-2 inline" />
-                              Modifica
+                              {tr("Modifica")}
                             </button>
                             <button
                               onClick={() => deleteLicense(row.id)}
                               className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
                             >
                               <Trash2 size={15} className="mr-2 inline" />
-                              Elimina
+                              {tr("Elimina")}
                             </button>
                           </div>
                         ) : null}
@@ -953,7 +956,7 @@ export default function DriverDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Documenti" subtitle="File pilota, certificati e allegati operativi.">
+        <SectionCard title={tr("Documenti")} subtitle={tr("File pilota, certificati e allegati operativi.")}>
           {canEditDrivers ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -978,7 +981,7 @@ export default function DriverDetailPage() {
                   }
                 />
                 <div className="md:col-span-3">
-                  <Label>File</Label>
+                  <Label>{tr("File")}</Label>
                   <input
                     className="w-full rounded-xl border px-4 py-3"
                     type="file"
@@ -992,7 +995,7 @@ export default function DriverDetailPage() {
                   className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
-                  Aggiungi documento
+                  {tr("Aggiungi documento")}
                 </button>
               </div>
             </>
@@ -1000,7 +1003,7 @@ export default function DriverDetailPage() {
 
           <div className="mt-4 space-y-3">
             {documents.length === 0 ? (
-              <EmptyState title="Nessun documento registrato" description="Carica allegati, certificati o file utili per la gestione del pilota." />
+              <EmptyState title={tr("Nessun documento registrato")} description={tr("Carica allegati, certificati o file utili per la gestione del pilota.")} />
             ) : (
               documents.map((row) => (
                 <div
@@ -1010,12 +1013,12 @@ export default function DriverDetailPage() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <div className="font-bold text-neutral-900">
-                        {row.title || row.document_type || "Documento pilota"}
+                        {row.title || row.document_type || tr("Documento pilota")}
                       </div>
                       <div className="mt-1 text-sm text-neutral-500">
                         {row.expires_at
-                          ? `Scadenza ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
-                          : "Nessuna scadenza"}
+                          ? `${tr("Scadenza")} ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
+                          : tr("Nessuna scadenza")}
                         {row.file_name ? ` · ${row.file_name}` : ""}
                       </div>
                     </div>
@@ -1027,7 +1030,7 @@ export default function DriverDetailPage() {
                           rel="noreferrer"
                           className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                         >
-                          Apri file
+                          {tr("Apri file")}
                         </a>
                       ) : null}
                       {canEditDrivers ? (
@@ -1036,7 +1039,7 @@ export default function DriverDetailPage() {
                           className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
                         >
                           <Trash2 size={15} className="mr-2 inline" />
-                          Elimina
+                          {tr("Elimina")}
                         </button>
                       ) : null}
                     </div>
@@ -1052,9 +1055,11 @@ export default function DriverDetailPage() {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
+  const rendered = typeof children === "string" ? t(`ui.${children}`, children) : children;
   return (
     <label className="mb-1 block text-sm font-semibold text-neutral-700">
-      {children}
+      {rendered}
     </label>
   );
 }

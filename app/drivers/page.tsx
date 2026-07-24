@@ -253,8 +253,8 @@ function expiryTone(value: string | null | undefined) {
   return "ok";
 }
 
-function getDriverName(driver: Driver) {
-  return `${driver.first_name || ""} ${driver.last_name || ""}`.trim() || "Pilota senza nome";
+function getDriverName(driver: Driver, fallback = "Pilota senza nome") {
+  return `${driver.first_name || ""} ${driver.last_name || ""}`.trim() || fallback;
 }
 
 function getDocumentLabel(type: string | null | undefined) {
@@ -374,8 +374,8 @@ export default function DriversPage() {
           const bestLap = metrics?.best_lap_ms != null ? Number(metrics.best_lap_ms) : null;
           const avgLap = metrics?.avg_lap_ms != null ? Number(metrics.avg_lap_ms) : null;
           const recordedAt = turn.recorded_at || turn.created_at || null;
-          const eventName = eventInfo?.name || "Evento senza nome";
-          const carName = carInfo?.name || "Auto non indicata";
+          const eventName = eventInfo?.name || tr("Evento senza nome");
+          const carName = carInfo?.name || tr("Auto non indicata");
 
           if (!summaries[driverId]) {
             summaries[driverId] = {
@@ -586,7 +586,7 @@ export default function DriversPage() {
 
   async function removePhoto(driver: Driver) {
     if (!canEditDrivers || !driver.photo_path) return;
-    if (!confirm("Rimuovere la foto del pilota?")) return;
+    if (!confirm(tr("Rimuovere la foto del pilota?"))) return;
     try {
       const ctx = await getCurrentTeamContext();
       await supabase.storage.from("driver-photos").remove([driver.photo_path]);
@@ -674,7 +674,7 @@ export default function DriversPage() {
 
   async function deleteDocument(doc: DriverDocument) {
     if (!canEditDrivers) return;
-    if (!confirm("Eliminare questo documento pilota?")) return;
+    if (!confirm(tr("Eliminare questo documento pilota?"))) return;
     try {
       const ctx = await getCurrentTeamContext();
       if (doc.file_path) {
@@ -699,7 +699,7 @@ export default function DriversPage() {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Scheda pilota - ${escapeHtml(getDriverName(driver))}</title>
+  <title>Scheda pilota - ${escapeHtml(getDriverName(driver, tr("Pilota senza nome")))}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; margin: 0; padding: 28px; color: #111827; }
@@ -723,27 +723,27 @@ export default function DriversPage() {
 <body>
   <div class="header">
     <div>
-      <h1 class="title">${escapeHtml(getDriverName(driver))}</h1>
-      <p class="subtitle">Scheda pilota generata il ${escapeHtml(new Date().toLocaleDateString("it-IT"))}</p>
-      <p class="subtitle">${escapeHtml(driver.nickname || "Nessun nickname")} ${driver.racing_number ? ` · #${escapeHtml(driver.racing_number)}` : ""}</p>
+      <h1 class="title">${escapeHtml(getDriverName(driver, tr("Pilota senza nome")))}</h1>
+      <p class="subtitle">${escapeHtml(tr("Scheda pilota generata il"))} ${escapeHtml(new Date().toLocaleDateString("it-IT"))}</p>
+      <p class="subtitle">${escapeHtml(driver.nickname || tr("Nessun nickname"))} ${driver.racing_number ? ` · #${escapeHtml(driver.racing_number)}` : ""}</p>
     </div>
     ${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}" />` : `<div class="photo"></div>`}
   </div>
 
-  <h2>Anagrafica e contatti</h2>
+  <h2>${escapeHtml(tr("Anagrafica e contatti"))}</h2>
   <div class="grid">
     <div class="box"><div class="label">${escapeHtml(tr("Email"))}</div><div class="value">${escapeHtml(driver.email || "—")}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Telefono"))}</div><div class="value">${escapeHtml(driver.phone || "—")}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Nazionalità"))}</div><div class="value">${escapeHtml(driver.nationality || "—")}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Data nascita"))}</div><div class="value">${escapeHtml(formatDate(driver.date_of_birth))}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Gruppo sanguigno"))}</div><div class="value">${escapeHtml(driver.blood_type || "—")}</div></div>
-    <div class="box"><div class="label">${escapeHtml(tr("Stato"))}</div><div class="value">${driver.is_active === false ? "Non attivo" : "Attivo"}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Stato"))}</div><div class="value">${escapeHtml(driver.is_active === false ? tr("Non attivo") : tr("Attivo"))}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Emergenza"))}</div><div class="value">${escapeHtml([driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || "—")}</div></div>
-    <div class="box"><div class="label">${escapeHtml(tr("Taglie"))}</div><div class="value">${escapeHtml([driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Taglie"))}</div><div class="value">${escapeHtml([driver.suit_size && `${tr("Tuta")} ${driver.suit_size}`, driver.helmet_size && `${tr("Casco")} ${driver.helmet_size}`, driver.shoe_size && `${tr("Scarpe")} ${driver.shoe_size}`].filter(Boolean).join(" · ") || "—")}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Indirizzo"))}</div><div class="value">${escapeHtml(driver.address || "—")}</div></div>
   </div>
 
-  <h2>Licenze e scadenze</h2>
+  <h2>${escapeHtml(tr("Licenze e scadenze"))}</h2>
   <div class="grid">
     <div class="box"><div class="label">${escapeHtml(tr("Licenza"))}</div><div class="value">${escapeHtml([driver.license_category, driver.license_number].filter(Boolean).join(" · ") || "—")}</div></div>
     <div class="box"><div class="label">${escapeHtml(tr("Scadenza licenza"))}</div><div class="value">${escapeHtml(formatDate(driver.license_expires_at))}</div></div>
@@ -753,31 +753,31 @@ export default function DriversPage() {
 
   <h2>${escapeHtml(tr("Performance eventi"))}</h2>
   <div class="grid">
-    <div class="box"><div class="label">Eventi</div><div class="value">${performance?.events_count ?? 0}</div></div>
-    <div class="box"><div class="label">Turni</div><div class="value">${performance?.turns_count ?? 0}</div></div>
-    <div class="box"><div class="label">Ore guida</div><div class="value">${performance ? escapeHtml(`${performance.total_hours} h`) : "0 h"}</div></div>
-    <div class="box"><div class="label">Giri</div><div class="value">${performance?.total_laps ?? 0}</div></div>
-    <div class="box"><div class="label">Best lap</div><div class="value">${escapeHtml(formatLapTime(performance?.best_lap_ms))}</div></div>
-    <div class="box"><div class="label">Ultimo evento</div><div class="value">${escapeHtml(performance?.last_event_name || "—")}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Eventi"))}</div><div class="value">${performance?.events_count ?? 0}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Turni"))}</div><div class="value">${performance?.turns_count ?? 0}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Ore guida"))}</div><div class="value">${performance ? escapeHtml(`${performance.total_hours} h`) : "0 h"}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Giri"))}</div><div class="value">${performance?.total_laps ?? 0}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Best lap"))}</div><div class="value">${escapeHtml(formatLapTime(performance?.best_lap_ms))}</div></div>
+    <div class="box"><div class="label">${escapeHtml(tr("Ultimo evento"))}</div><div class="value">${escapeHtml(performance?.last_event_name || "—")}</div></div>
   </div>
   <table>
-    <thead><tr><th>${escapeHtml(tr("Data"))}</th><th>Evento</th><th>${escapeHtml(tr("Auto"))}</th><th>Minuti</th><th>Giri</th><th>Best lap</th><th>Avg lap</th></tr></thead>
+    <thead><tr><th>${escapeHtml(tr("Data"))}</th><th>${escapeHtml(tr("Evento"))}</th><th>${escapeHtml(tr("Auto"))}</th><th>${escapeHtml(tr("Minuti"))}</th><th>${escapeHtml(tr("Giri"))}</th><th>${escapeHtml(tr("Best lap"))}</th><th>${escapeHtml(tr("Avg lap"))}</th></tr></thead>
     <tbody>
-      ${recentPerformance.length ? recentPerformance.map((row) => `<tr><td>${escapeHtml(formatDateTime(row.recorded_at))}</td><td>${escapeHtml(row.event_name)}</td><td>${escapeHtml(row.car_name)}</td><td>${row.minutes}</td><td>${row.laps}</td><td>${escapeHtml(formatLapTime(row.best_lap_ms))}</td><td>${escapeHtml(formatLapTime(row.avg_lap_ms))}</td></tr>`).join("") : `<tr><td colspan="7"><LocalizedText text="Nessun turno/evento collegato al pilota." /></td></tr>`}
+      ${recentPerformance.length ? recentPerformance.map((row) => `<tr><td>${escapeHtml(formatDateTime(row.recorded_at))}</td><td>${escapeHtml(row.event_name)}</td><td>${escapeHtml(row.car_name)}</td><td>${row.minutes}</td><td>${row.laps}</td><td>${escapeHtml(formatLapTime(row.best_lap_ms))}</td><td>${escapeHtml(formatLapTime(row.avg_lap_ms))}</td></tr>`).join("") : `<tr><td colspan="7">${escapeHtml(tr("Nessun turno/evento collegato al pilota."))}</td></tr>`}
     </tbody>
   </table>
 
   <h2>${escapeHtml(tr("Documenti"))}</h2>
   <table>
-    <thead><tr><th>${escapeHtml(tr("Tipo"))}</th><th>${escapeHtml(tr("Titolo"))}</th><th>Numero</th><th>Emissione</th><th>${escapeHtml(tr("Scadenza"))}</th></tr></thead>
+    <thead><tr><th>${escapeHtml(tr("Tipo"))}</th><th>${escapeHtml(tr("Titolo"))}</th><th>${escapeHtml(tr("Numero"))}</th><th>${escapeHtml(tr("Emissione"))}</th><th>${escapeHtml(tr("Scadenza"))}</th></tr></thead>
     <tbody>
-      ${docs.length ? docs.map((doc) => `<tr><td>${escapeHtml(getDocumentLabel(doc.document_type))}</td><td>${escapeHtml(doc.title || "—")}</td><td>${escapeHtml(doc.document_number || "—")}</td><td>${escapeHtml(formatDate(doc.issued_at))}</td><td>${escapeHtml(formatDate(doc.expires_at))}</td></tr>`).join("") : `<tr><td colspan="5"><LocalizedText text="Nessun documento registrato." /></td></tr>`}
+      ${docs.length ? docs.map((doc) => `<tr><td>${escapeHtml(tr(getDocumentLabel(doc.document_type)))}</td><td>${escapeHtml(doc.title || "—")}</td><td>${escapeHtml(doc.document_number || "—")}</td><td>${escapeHtml(formatDate(doc.issued_at))}</td><td>${escapeHtml(formatDate(doc.expires_at))}</td></tr>`).join("") : `<tr><td colspan="5">${escapeHtml(tr("Nessun documento registrato."))}</td></tr>`}
     </tbody>
   </table>
 
   <h2>${escapeHtml(tr("Note"))}</h2>
   <div class="box notes">${escapeHtml(driver.notes || "—")}</div>
-  <div class="footer">Scheda generata da Battaglia Racing Car · WebApp Motorsport</div>
+  <div class="footer">${escapeHtml(tr("Scheda generata da"))} Battaglia Racing Car · WebApp Motorsport</div>
   <script>window.onload = () => { window.print(); };</script>
 </body>
 </html>`;
@@ -833,7 +833,7 @@ export default function DriversPage() {
     return (
       <PagePermissionState
         title={tr("Piloti")}
-        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        subtitle={tr("Anagrafica, licenze, documenti e scadenze operative")}
         icon={<Users className="h-6 w-6" />}
         state="loading"
       />
@@ -844,7 +844,7 @@ export default function DriversPage() {
     return (
       <PagePermissionState
         title={tr("Piloti")}
-        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        subtitle={tr("Anagrafica, licenze, documenti e scadenze operative")}
         icon={<Users className="h-6 w-6" />}
         state="error"
         message={access.error}
@@ -856,10 +856,10 @@ export default function DriversPage() {
     return (
       <PagePermissionState
         title={tr("Piloti")}
-        subtitle="Anagrafica, licenze, documenti e scadenze operative"
+        subtitle={tr("Anagrafica, licenze, documenti e scadenze operative")}
         icon={<Users className="h-6 w-6" />}
         state="denied"
-        message="Il tuo ruolo non ha accesso al modulo piloti. Chiedi a un owner o admin di abilitare il permesso drivers.view."
+        message={tr("Il tuo ruolo non ha accesso al modulo piloti. Chiedi a un owner o admin di abilitare il permesso drivers.view.")}
       />
     );
   }
@@ -868,7 +868,7 @@ export default function DriversPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={tr("Piloti")}
-        subtitle="Anagrafica, contatti, licenze, idoneità medica, documenti e scadenze operative."
+        subtitle={tr("Anagrafica, contatti, licenze, idoneità medica, documenti e scadenze operative.")}
         icon={<Users className="h-6 w-6" />}
         actions={
           canEditDrivers ? (
@@ -916,7 +916,7 @@ export default function DriversPage() {
                     filter === value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]" : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  {label}
+                  {tr(label)}
                 </button>
               ))}
             </div>
@@ -949,14 +949,14 @@ export default function DriversPage() {
                     <div key={driver.id} className="grid gap-3 px-4 py-3 text-sm xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_120px] xl:items-center">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate font-black text-[var(--text-primary)]">{getDriverName(driver)}</span>
+                          <span className="truncate font-black text-[var(--text-primary)]">{getDriverName(driver, tr("Pilota senza nome"))}</span>
                           {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
                         </div>
-                        <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{driver.nickname || driver.nationality || "Profilo pilota"}</div>
+                        <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{driver.nickname || driver.nationality || tr("Profilo pilota")}</div>
                       </div>
                       <div className="text-xs font-semibold text-[var(--text-secondary)]">
-                        <div className="truncate">{driver.email || "Email non inserita"}</div>
-                        <div className="truncate text-[var(--text-muted)]">{driver.phone || "Telefono non inserito"}</div>
+                        <div className="truncate">{driver.email || tr("Email non inserita")}</div>
+                        <div className="truncate text-[var(--text-muted)]">{driver.phone || tr("Telefono non inserito")}</div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <ExpiryPill label="Lic." value={driver.license_expires_at} />
@@ -964,7 +964,7 @@ export default function DriversPage() {
                       </div>
                       <div className="text-xs font-semibold text-[var(--text-secondary)]">
                         <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> <LocalizedText text="turni ·" /> <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> <LocalizedText text="h" />
-                        <div className="text-[var(--text-muted)]">Best: {formatLapTime(performance?.best_lap_ms)}</div>
+                        <div className="text-[var(--text-muted)]">{tr("Best")}: {formatLapTime(performance?.best_lap_ms)}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
@@ -972,7 +972,7 @@ export default function DriversPage() {
                       </div>
                       <div className="flex flex-wrap gap-2 xl:justify-end">
                         <button onClick={() => setExpandedDriverId(expandedDriverId === driver.id ? null : driver.id)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
-                          {expandedDriverId === driver.id ? "Chiudi" : "Apri"}
+                          {expandedDriverId === driver.id ? tr("Chiudi") : tr("Apri")}
                         </button>
                         {canEditDrivers ? (
                           <button onClick={() => openEdit(driver)} className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)] hover:bg-[var(--brand-accent)]/18">
@@ -1009,19 +1009,19 @@ export default function DriversPage() {
                     <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex min-w-0 gap-4">
                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.075]">
-                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver)} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-[var(--text-muted)]" />}
+                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver, tr("Pilota senza nome"))} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-[var(--text-muted)]" />}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver)}</h3>
+                            <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver, tr("Pilota senza nome"))}</h3>
                             {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
                             {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
                             {alerts ? <StatusPill tone="yellow"><LocalizedText text="Scadenze da verificare" /></StatusPill> : null}
                           </div>
-                          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || "Nessun nickname"}</p>
+                          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || tr("Nessun nickname")}</p>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-secondary)]">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || "Email non inserita"}</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || "Telefono non inserito"}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || tr("Email non inserita")}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || tr("Telefono non inserito")}</span>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <ExpiryPill label="Licenza" value={driver.license_expires_at} />
@@ -1046,7 +1046,7 @@ export default function DriversPage() {
                           }}
                           className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                         >
-                          Dettaglio ({docs.length} doc)
+                          {tr("Dettaglio")} ({docs.length} {tr("doc")})
                         </button>
                         {canEditDrivers ? (
                           <>
@@ -1067,7 +1067,7 @@ export default function DriversPage() {
                       <InfoLine label="Nazionalità" value={driver.nationality} />
                       <InfoLine label="Licenza" value={[driver.license_category, driver.license_number].filter(Boolean).join(" · ") || null} />
                       <InfoLine label="Emergenza" value={[driver.emergency_contact_name, driver.emergency_contact_phone].filter(Boolean).join(" · ") || null} />
-                      <InfoLine label="Taglie" value={[driver.suit_size && `Tuta ${driver.suit_size}`, driver.helmet_size && `Casco ${driver.helmet_size}`, driver.shoe_size && `Scarpe ${driver.shoe_size}`].filter(Boolean).join(" · ") || null} />
+                      <InfoLine label="Taglie" value={[driver.suit_size && `${tr("Tuta")} ${driver.suit_size}`, driver.helmet_size && `${tr("Casco")} ${driver.helmet_size}`, driver.shoe_size && `${tr("Scarpe")} ${driver.shoe_size}`].filter(Boolean).join(" · ") || null} />
                     </div>
 
                     <div className="grid gap-3 border-t border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] md:grid-cols-5">
@@ -1098,7 +1098,7 @@ export default function DriversPage() {
                                 <span className="col-span-2"><LocalizedText text="Evento" /></span>
                                 <span><LocalizedText text="Auto" /></span>
                                 <span><LocalizedText text="Giri" /></span>
-                                <span>Best</span>
+                                <span>{tr("Best")}</span>
                               </div>
                               {recentPerformance.map((row) => (
                                 <div key={row.id} className="grid grid-cols-6 gap-2 border-t border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
@@ -1137,11 +1137,11 @@ export default function DriversPage() {
                                       <FileText className="h-4 w-4 text-[var(--text-muted)]" />
                                       <span className="font-black text-[var(--text-primary)]">{doc.title || getDocumentLabel(doc.document_type)}</span>
                                       <StatusPill tone={tone === "expired" ? "red" : tone === "expiring" ? "yellow" : tone === "ok" ? "green" : "neutral"}>
-                                        {doc.expires_at ? `Scade ${formatDate(doc.expires_at)}` : "Senza scadenza"}
+                                        {doc.expires_at ? `${tr("Scade")} ${formatDate(doc.expires_at)}` : tr("Senza scadenza")}
                                       </StatusPill>
                                     </div>
                                     <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
-                                      {getDocumentLabel(doc.document_type)} · {doc.document_number || "Numero non inserito"} · Emesso {formatDate(doc.issued_at)}
+                                      {tr(getDocumentLabel(doc.document_type))} · {doc.document_number || tr("Numero non inserito")} · {tr("Emesso")} {formatDate(doc.issued_at)}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
@@ -1168,7 +1168,7 @@ export default function DriversPage() {
                             <div className="grid gap-3 md:grid-cols-3">
                               <UiField label="Tipo documento">
                                 <select value={docForm.document_type} onChange={(e) => setDocForm((prev) => ({ ...prev, document_type: e.target.value }))} className={selectClass}>
-                                  {DOCUMENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                                  {DOCUMENT_TYPES.map((type) => <option key={type.value} value={type.value}>{tr(type.label)}</option>)}
                                 </select>
                               </UiField>
                               <UiField label="Titolo">
@@ -1184,7 +1184,13 @@ export default function DriversPage() {
                                 <input type="date" value={docForm.expires_at} onChange={(e) => setDocForm((prev) => ({ ...prev, expires_at: e.target.value }))} className={inputClass} />
                               </UiField>
                               <UiField label="File PDF/immagine">
-                                <input type="file" accept="application/pdf,image/*" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className={inputClass} />
+                                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                                  <label htmlFor={`driver-doc-file-${driver.id}`} className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95">
+                                    {tr("Scegli file")}
+                                  </label>
+                                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">{docFile?.name || tr("Nessun file selezionato")}</span>
+                                  <input id={`driver-doc-file-${driver.id}`} type="file" accept="application/pdf,image/*" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="sr-only" />
+                                </div>
                               </UiField>
                               <UiField label="Note">
                                 <textarea value={docForm.notes} onChange={(e) => setDocForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} placeholder={tr("Note interne")} />
