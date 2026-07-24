@@ -287,14 +287,14 @@ function StatusPill({ tone, children }: { tone: "green" | "yellow" | "red" | "ne
   return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${classes}`}>{children}</span>;
 }
 
-function ExpiryPill({ label, value }: { label: string; value: string | null | undefined }) {
+function ExpiryPill({ label, labelKey, value }: { label: string; labelKey?: string; value: string | null | undefined }) {
   const { t } = useLanguage();
-  const translatedLabel = t(`ui.${label}`, label);
+  const translatedLabel = labelKey ? t(labelKey, label) : t(`ui.${label}`, label);
   const tone = expiryTone(value);
-  if (tone === "missing") return <StatusPill tone="neutral">{translatedLabel}: {t("ui.non inserita", "non inserita")}</StatusPill>;
-  if (tone === "expired") return <StatusPill tone="red">{translatedLabel}: {t("ui.scaduta", "scaduta")}</StatusPill>;
-  if (tone === "expiring") return <StatusPill tone="yellow">{translatedLabel}: {t("ui.in scadenza", "in scadenza")}</StatusPill>;
-  return <StatusPill tone="green">{translatedLabel}: {t("ui.valida", "valida")}</StatusPill>;
+  if (tone === "missing") return <StatusPill tone="neutral">{translatedLabel}: {t("drivers.expiry.notEntered", "non inserita")}</StatusPill>;
+  if (tone === "expired") return <StatusPill tone="red">{translatedLabel}: {t("drivers.expiry.expired", "scaduta")}</StatusPill>;
+  if (tone === "expiring") return <StatusPill tone="yellow">{translatedLabel}: {t("drivers.expiry.expiring", "in scadenza")}</StatusPill>;
+  return <StatusPill tone="green">{translatedLabel}: {t("drivers.expiry.valid", "valida")}</StatusPill>;
 }
 
 export default function DriversPage() {
@@ -699,7 +699,7 @@ export default function DriversPage() {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Scheda pilota - ${escapeHtml(getDriverName(driver, tr("Pilota senza nome")))}</title>
+  <title>Scheda pilota - ${escapeHtml(getDriverName(driver, t("drivers.unnamed", "Pilota senza nome")))}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; margin: 0; padding: 28px; color: #111827; }
@@ -723,9 +723,9 @@ export default function DriversPage() {
 <body>
   <div class="header">
     <div>
-      <h1 class="title">${escapeHtml(getDriverName(driver, tr("Pilota senza nome")))}</h1>
+      <h1 class="title">${escapeHtml(getDriverName(driver, t("drivers.unnamed", "Pilota senza nome")))}</h1>
       <p class="subtitle">${escapeHtml(tr("Scheda pilota generata il"))} ${escapeHtml(new Date().toLocaleDateString("it-IT"))}</p>
-      <p class="subtitle">${escapeHtml(driver.nickname || tr("Nessun nickname"))} ${driver.racing_number ? ` · #${escapeHtml(driver.racing_number)}` : ""}</p>
+      <p class="subtitle">${escapeHtml(driver.nickname || t("drivers.noNickname", "Nessun nickname"))} ${driver.racing_number ? ` · #${escapeHtml(driver.racing_number)}` : ""}</p>
     </div>
     ${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}" />` : `<div class="photo"></div>`}
   </div>
@@ -904,11 +904,11 @@ export default function DriversPage() {
             <div className="flex flex-wrap items-center gap-2">
               <ViewModeToggle value={viewMode} onChange={setViewMode} />
               {[
-                ["all", "Tutti"],
-                ["active", "Attivi"],
-                ["inactive", "Non attivi"],
-                ["alerts", "Con scadenze"],
-              ].map(([value, label]) => (
+                { value: "all", label: t("drivers.archive.filter.all", "Tutti") },
+                { value: "active", label: t("drivers.archive.filter.active", "Attivi") },
+                { value: "inactive", label: t("drivers.archive.filter.inactive", "Non attivi") },
+                { value: "alerts", label: t("drivers.archive.filter.withExpiries", "Con scadenze") },
+              ].map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => setFilter(value as typeof filter)}
@@ -916,7 +916,7 @@ export default function DriversPage() {
                     filter === value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]" : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  {tr(label)}
+                  {label}
                 </button>
               ))}
             </div>
@@ -949,34 +949,34 @@ export default function DriversPage() {
                     <div key={driver.id} className="grid gap-3 px-4 py-3 text-sm xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_120px] xl:items-center">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate font-black text-[var(--text-primary)]">{getDriverName(driver, tr("Pilota senza nome"))}</span>
+                          <span className="truncate font-black text-[var(--text-primary)]">{getDriverName(driver, t("drivers.unnamed", "Pilota senza nome"))}</span>
                           {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
                         </div>
-                        <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{driver.nickname || driver.nationality || tr("Profilo pilota")}</div>
+                        <div className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{driver.nickname || driver.nationality || t("drivers.profileFallback", "Profilo pilota")}</div>
                       </div>
                       <div className="text-xs font-semibold text-[var(--text-secondary)]">
-                        <div className="truncate">{driver.email || tr("Email non inserita")}</div>
-                        <div className="truncate text-[var(--text-muted)]">{driver.phone || tr("Telefono non inserito")}</div>
+                        <div className="truncate">{driver.email || t("drivers.emailNotEntered", "Email non inserita")}</div>
+                        <div className="truncate text-[var(--text-muted)]">{driver.phone || t("drivers.phoneNotEntered", "Telefono non inserito")}</div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        <ExpiryPill label="Lic." value={driver.license_expires_at} />
-                        <ExpiryPill label="Med." value={driver.medical_expires_at} />
+                        <ExpiryPill label="Licenza" labelKey="drivers.licenseLabel" value={driver.license_expires_at} />
+                        <ExpiryPill label="Medica" labelKey="drivers.medicalLabel" value={driver.medical_expires_at} />
                       </div>
                       <div className="text-xs font-semibold text-[var(--text-secondary)]">
-                        <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> <LocalizedText text="turni ·" /> <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> <LocalizedText text="h" />
-                        <div className="text-[var(--text-muted)]">{tr("Best")}: {formatLapTime(performance?.best_lap_ms)}</div>
+                        <span className="font-black text-[var(--text-primary)]">{performance ? performance.turns_count : 0}</span> {t("drivers.sessionsUnit", "turni")} · <span className="font-black text-[var(--text-primary)]">{performance ? performance.total_hours : 0}</span> <LocalizedText text="h" />
+                        <div className="text-[var(--text-muted)]">{t("drivers.bestLabel", "Best")}: {formatLapTime(performance?.best_lap_ms)}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
-                        {alerts || docs.some((doc) => ["expired", "expiring"].includes(expiryTone(doc.expires_at))) ? <StatusPill tone="yellow"><LocalizedText text="Da verificare" /></StatusPill> : null}
+                        {driver.is_active === false ? <StatusPill tone="neutral">{t("drivers.status.inactive", "Non attivo")}</StatusPill> : <StatusPill tone="green">{t("drivers.status.active", "Attivo")}</StatusPill>}
+                        {alerts || docs.some((doc) => ["expired", "expiring"].includes(expiryTone(doc.expires_at))) ? <StatusPill tone="yellow">{t("drivers.status.toVerify", "Da verificare")}</StatusPill> : null}
                       </div>
                       <div className="flex flex-wrap gap-2 xl:justify-end">
                         <button onClick={() => setExpandedDriverId(expandedDriverId === driver.id ? null : driver.id)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
-                          {expandedDriverId === driver.id ? tr("Chiudi") : tr("Apri")}
+                          {expandedDriverId === driver.id ? t("common.close", "Chiudi") : t("common.open", "Apri")}
                         </button>
                         {canEditDrivers ? (
                           <button onClick={() => openEdit(driver)} className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)] hover:bg-[var(--brand-accent)]/18">
-                            <LocalizedText text="Modifica" />
+                            {t("common.edit", "Modifica")}
                           </button>
                         ) : null}
                       </div>
@@ -1009,23 +1009,23 @@ export default function DriversPage() {
                     <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex min-w-0 gap-4">
                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.075]">
-                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver, tr("Pilota senza nome"))} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-[var(--text-muted)]" />}
+                          {photoUrl ? <img src={photoUrl} alt={getDriverName(driver, t("drivers.unnamed", "Pilota senza nome"))} className="h-full w-full object-cover" /> : <UserRound className="h-8 w-8 text-[var(--text-muted)]" />}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver, tr("Pilota senza nome"))}</h3>
+                            <h3 className="truncate text-lg font-black text-[var(--text-primary)]">{getDriverName(driver, t("drivers.unnamed", "Pilota senza nome"))}</h3>
                             {driver.racing_number ? <StatusPill tone="blue">#{driver.racing_number}</StatusPill> : null}
-                            {driver.is_active === false ? <StatusPill tone="neutral"><LocalizedText text="Non attivo" /></StatusPill> : <StatusPill tone="green"><LocalizedText text="Attivo" /></StatusPill>}
-                            {alerts ? <StatusPill tone="yellow"><LocalizedText text="Scadenze da verificare" /></StatusPill> : null}
+                            {driver.is_active === false ? <StatusPill tone="neutral">{t("drivers.status.inactive", "Non attivo")}</StatusPill> : <StatusPill tone="green">{t("drivers.status.active", "Attivo")}</StatusPill>}
+                            {alerts ? <StatusPill tone="yellow">{t("drivers.status.expiriesToVerify", "Scadenze da verificare")}</StatusPill> : null}
                           </div>
-                          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || tr("Nessun nickname")}</p>
+                          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{driver.nickname || t("drivers.noNickname", "Nessun nickname")}</p>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-secondary)]">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || tr("Email non inserita")}</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || tr("Telefono non inserito")}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Mail className="h-3 w-3" /> {driver.email || t("drivers.emailNotEntered", "Email non inserita")}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.075] px-2.5 py-1"><Phone className="h-3 w-3" /> {driver.phone || t("drivers.phoneNotEntered", "Telefono non inserito")}</span>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <ExpiryPill label="Licenza" value={driver.license_expires_at} />
-                            <ExpiryPill label="Medica" value={driver.medical_expires_at} />
+                            <ExpiryPill label="Licenza" labelKey="drivers.licenseLabel" value={driver.license_expires_at} />
+                            <ExpiryPill label="Medica" labelKey="drivers.medicalLabel" value={driver.medical_expires_at} />
                             <ExpiryPill label="Assicurazione" value={driver.insurance_expires_at} />
                           </div>
                         </div>
@@ -1033,10 +1033,10 @@ export default function DriversPage() {
 
                       <div className="flex flex-wrap gap-2 lg:justify-end">
                         <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-                          <LocalizedText text="Eventi" />
+                          {t("module.events", "Eventi")}
                         </Link>
                         <button onClick={() => printDriverCard(driver)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
-                          <Printer className="h-4 w-4" /> <LocalizedText text="Stampa" />
+                          <Printer className="h-4 w-4" /> {t("ui.Stampa", "Stampa")}
                         </button>
                         <button
                           onClick={() => {
@@ -1046,12 +1046,12 @@ export default function DriversPage() {
                           }}
                           className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                         >
-                          {tr("Dettaglio")} ({docs.length} {tr("doc")})
+                          {t("ui.Dettaglio", "Dettaglio")} ({docs.length} {t("ui.doc", "doc")})
                         </button>
                         {canEditDrivers ? (
                           <>
                             <button onClick={() => openEdit(driver)} className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800">
-                              <Edit3 className="h-4 w-4" /> <LocalizedText text="Modifica" />
+                              <Edit3 className="h-4 w-4" /> {t("common.edit", "Modifica")}
                             </button>
                             {driver.photo_path ? (
                               <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-400/30 px-3 py-2 text-sm font-bold text-red-200 hover:bg-red-500/10">
@@ -1098,7 +1098,7 @@ export default function DriversPage() {
                                 <span className="col-span-2"><LocalizedText text="Evento" /></span>
                                 <span><LocalizedText text="Auto" /></span>
                                 <span><LocalizedText text="Giri" /></span>
-                                <span>{tr("Best")}</span>
+                                <span>{t("drivers.bestLabel", "Best")}</span>
                               </div>
                               {recentPerformance.map((row) => (
                                 <div key={row.id} className="grid grid-cols-6 gap-2 border-t border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
@@ -1221,7 +1221,7 @@ export default function DriversPage() {
                 <h2 className="text-xl font-black text-[var(--text-primary)]">{editId ? tr("Modifica pilota") : tr("Nuovo pilota")}</h2>
                 <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]"><LocalizedText text="Compila anagrafica, contatti, taglie e scadenze principali." /></p>
               </div>
-              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]" aria-label={tr("Chiudi")}><X className="h-5 w-5" /></button>
+              <button onClick={resetDriverModal} className="rounded-full p-2 hover:bg-white/[0.075]" aria-label={t("common.close", "Chiudi")}><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
