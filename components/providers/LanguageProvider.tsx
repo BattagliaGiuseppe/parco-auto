@@ -49,7 +49,12 @@ export default function LanguageProvider({ children }: { children: ReactNode }) 
 
   useEffect(() => {
     const storedLanguage = readStoredLanguage();
-    const nextLanguage = normalizeLanguage(storedLanguage || theme.language || "it");
+
+    // The team/control-center language is the canonical app language once it is available.
+    // localStorage is only used as a fallback for first paint/offline cases and is then
+    // realigned, so the sidebar selector and the Control Center selector cannot drift apart.
+    const nextLanguage = normalizeLanguage(theme.language || storedLanguage || "it");
+    writeStoredLanguage(nextLanguage);
     setLanguageState(nextLanguage);
   }, [theme.language]);
 

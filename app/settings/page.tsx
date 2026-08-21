@@ -48,7 +48,7 @@ import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import ModalShell from "@/components/ModalShell";
 import { usePermissionAccess } from "@/lib/permissions";
-import { SUPPORTED_LANGUAGES, translateKnownText } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGES, normalizeLanguage, translateKnownText } from "@/lib/i18n";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
 
@@ -1192,7 +1192,7 @@ async function saveAll() {
           sidebar_logo_url: settings.branding?.sidebar_logo_url || "",
           header_logo_url: settings.branding?.header_logo_url || "",
           print_logo_url: settings.branding?.print_logo_url || "",
-          language: settings.branding?.language || "it",
+          language: normalizeLanguage(language),
           branding_config: {
             ...DEFAULT_BRANDING_CONFIG,
             ...(settings.branding?.branding_config || {}),
@@ -1573,10 +1573,11 @@ async function saveAll() {
             hint={t("language.helper")}
           >
             <Select
-              value={previewBranding.language}
+              value={language}
               onChange={(e) => {
-                patchBranding("language", e.target.value);
-                setLanguage(e.target.value);
+                const nextLanguage = normalizeLanguage(e.target.value);
+                patchBranding("language", nextLanguage);
+                setLanguage(nextLanguage);
               }}
               data-no-translate="true"
             >
