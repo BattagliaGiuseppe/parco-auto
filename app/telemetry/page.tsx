@@ -316,13 +316,13 @@ function statusLabel(status?: string | null) {
 function statusClassName(status?: string | null) {
   switch (status) {
     case "analysis_ready":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "border-emerald-400/30 bg-emerald-500/10 text-emerald-200";
     case "parsed":
       return "border-sky-400/30 bg-sky-500/10 text-sky-200";
     case "pending_parse":
       return "border-yellow-400/25 bg-yellow-500/10 text-[var(--brand-accent)]";
     case "needs_review":
-      return "border-orange-200 bg-orange-50 text-orange-700";
+      return "border-orange-400/30 bg-orange-500/10 text-orange-200";
     case "error":
       return "border-red-400/30 bg-red-500/10 text-red-200";
     default:
@@ -1940,6 +1940,13 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
 export default function TelemetryPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
+  const translateTelemetryWarning = (warning: string) => {
+    const storedRows = warning.match(/^Il file ha (\d+) righe: salverò un campionamento di massimo (\d+) punti per i grafici\.$/);
+    if (storedRows) {
+      return `${tr("Il file ha")} ${storedRows[1]} ${tr("righe: salverò un campionamento di massimo")} ${storedRows[2]} ${tr("punti per i grafici")}.`;
+    }
+    return tr(warning);
+  };
   const access = usePermissionAccess();
   const canViewTelemetry = access.hasPermission("telemetry.view");
   const canEditTelemetry = access.hasPermission("telemetry.edit", ["owner", "admin"]);
@@ -2397,7 +2404,7 @@ export default function TelemetryPage() {
     if (!canEditTelemetry) return;
 
     const confirmed = window.confirm(
-      `Eliminare definitivamente il file telemetria "${row.file_name || "File telemetria"}"?\n\nVerranno eliminati anche canali, giri, campioni grafici e insight collegati.`
+      `Eliminare definitivamente il file telemetria "${row.file_name || tr("File telemetria")}"?\n\nVerranno eliminati anche canali, giri, campioni grafici e insight collegati.`
     );
 
     if (!confirmed) return;
@@ -2698,7 +2705,7 @@ export default function TelemetryPage() {
                         </div>
                         {parsedCsvDraft.summary.warnings.length > 0 ? (
                           <div className="mt-2 text-xs text-emerald-800">
-                            <LocalizedText text="Avvisi" />: {parsedCsvDraft.summary.warnings.join(" ")}
+                            <LocalizedText text="Avvisi" />: {parsedCsvDraft.summary.warnings.map(translateTelemetryWarning).join(" ")}
                           </div>
                         ) : null}
                       </div>
@@ -2963,14 +2970,14 @@ export default function TelemetryPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="truncate text-sm font-bold text-[var(--text-primary)]">
-                              {row.file_name || "File telemetria"}
+                              {row.file_name || tr("File telemetria")}
                             </div>
                             <span
                               className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusClassName(
                                 row.import_status
                               )}`}
                             >
-                              {statusLabel(row.import_status)}
+                              {tr(statusLabel(row.import_status))}
                             </span>
                           </div>
                           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
@@ -3053,14 +3060,14 @@ export default function TelemetryPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="text-base font-bold text-[var(--text-primary)]">
-                            {row.file_name || "File telemetria"}
+                            {row.file_name || tr("File telemetria")}
                           </div>
                           <span
                             className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClassName(
                               row.import_status
                             )}`}
                           >
-                            {statusLabel(row.import_status)}
+                            {tr(statusLabel(row.import_status))}
                           </span>
                         </div>
                         <div className="mt-1 text-sm text-[var(--text-muted)]">{formatDateTime(row.created_at)}</div>
@@ -3191,9 +3198,9 @@ export default function TelemetryPage() {
                     ) : null}
 
                     {row.parse_warnings && row.parse_warnings.length > 0 ? (
-                      <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-3 text-xs leading-5 text-orange-800">
+                      <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-3 text-xs leading-5 text-orange-200">
                         <div className="mb-1 font-bold"><LocalizedText text="Avvisi import" /></div>
-                        {row.parse_warnings.join(" ")}
+                        {row.parse_warnings.map(translateTelemetryWarning).join(" ")}
                       </div>
                     ) : null}
 
@@ -3356,7 +3363,7 @@ export default function TelemetryPage() {
                               const driver = row.driver_id ? drivers.find((item) => item.id === row.driver_id) : null;
                               return (
                                 <option key={row.id} value={row.id}>
-                                  {row.file_name || "File telemetria"}{event?.name ? ` · ${event.name}` : ""}{driver ? ` · ${driverName(driver)}` : ""}
+                                  {row.file_name || tr("File telemetria")}{event?.name ? ` · ${event.name}` : ""}{driver ? ` · ${driverName(driver)}` : ""}
                                 </option>
                               );
                             })}
@@ -3570,10 +3577,10 @@ export default function TelemetryPage() {
               ) : null}
 
               {wizardValidation.warnings.length > 0 ? (
-                <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
+                <div className="mb-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4 text-sm leading-6 text-orange-200">
                   <div className="font-bold"><LocalizedText text="Avvisi" /></div>
                   {wizardValidation.warnings.map((warning) => (
-                    <div key={warning}>• {warning}</div>
+                    <div key={warning}>• {translateTelemetryWarning(warning)}</div>
                   ))}
                 </div>
               ) : null}

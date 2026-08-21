@@ -541,7 +541,7 @@ export default function ComponentsPage() {
       >
         {loading ? (
           <div className="text-[var(--text-secondary)]">
-            Caricamento componenti...
+            {tr("Caricamento componenti...")}
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState title={tr("Nessun componente trovato")} />
@@ -570,7 +570,7 @@ export default function ComponentsPage() {
                               {tr(row.type)} · {row.identifier}
                             </div>
                             <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                              {carName || "Non montato"}
+                              {carName || tr("Non montato")}
                             </div>
                           </div>
                           <InfoMini label="Ore rev." value={formatHours(info.revisionHours)} />
@@ -605,7 +605,7 @@ export default function ComponentsPage() {
                         {tr(row.type)} · {row.identifier}
                       </div>
                       <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                        {carName || "Non montato"}
+                        {carName || tr("Non montato")}
                       </div>
                     </div>
                     <StatusBadge label={status.label} tone={status.tone} />
@@ -660,7 +660,7 @@ export default function ComponentsPage() {
                     />
                     <InfoMini
                       label="Stato montaggio"
-                      value={row.car_id ? "Montato" : "Smontato"}
+                      value={row.car_id ? tr("Montato") : tr("Smontato")}
                     />
                   </div>
 

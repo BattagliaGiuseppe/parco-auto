@@ -403,7 +403,7 @@ function buildFormFromTurn(turn: TurnRow): TurnForm {
 
 function InfoBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>

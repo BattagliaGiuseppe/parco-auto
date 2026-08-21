@@ -1165,8 +1165,8 @@ export default function AttendancePage() {
 
       {detailMember ? (
         <ModalShell
-          title={`Scheda presenze · ${getStaffLabel(detailMember)}`}
-          subtitle="Elenco mensile dei giorni lavorati con entrate, uscite, ore, luogo, evento e note."
+          title={tr("Scheda presenze - membro team")}
+          subtitle={tr("Elenco mensile dei giorni lavorati con entrate, uscite, ore, luogo, evento e note.")}
           maxWidth="max-w-6xl"
           onClose={() => setDetailMember(null)}
           footer={
@@ -1174,7 +1174,7 @@ export default function AttendancePage() {
               {canManage ? (
                 <>
                   <Button variant="secondary" onClick={() => openAdminClockModal(detailMember, activeStaffIds.has(detailMember.id) ? "out" : "in")}>
-                    {activeStaffIds.has(detailMember.id) ? "Registra uscita" : "Registra entrata"}
+                    {activeStaffIds.has(detailMember.id) ? tr("Registra uscita") : tr("Registra entrata")}
                   </Button>
                   <Button variant="ghost" onClick={() => openResetModal(detailMember)}><LocalizedText text="Azzera contatore" /></Button>
                 </>
@@ -1216,7 +1216,7 @@ export default function AttendancePage() {
             {detailLoading ? (
               <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]"><LocalizedText text="Caricamento dettaglio mensile..." /></div>
             ) : detailRecords.length === 0 ? (
-              <EmptyState title={tr("Nessuna timbratura nel mese")} description="Non risultano entrate o uscite per il mese selezionato." />
+              <EmptyState title={tr("Nessuna timbratura nel mese")} description={tr("Non risultano entrate o uscite per il mese selezionato.")} />
             ) : (
               <MemberMonthRecords records={detailRecords} canManage={canManage} onEdit={openEditRecordModal} />
             )}

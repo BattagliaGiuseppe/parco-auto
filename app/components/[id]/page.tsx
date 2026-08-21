@@ -136,7 +136,7 @@ function parseNullableNumber(value: string) {
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-6 text-[var(--brand-accent)]">
       <div className="flex items-start gap-3">
         <Info size={18} className="mt-0.5 shrink-0" />
         <div>{children}</div>
@@ -595,7 +595,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-red-50 px-4 py-2 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <Unlink size={16} className="mr-2 inline" />
-                    {savingMount ? "Smontaggio..." : "Smonta componente"}
+                    {savingMount ? tr("Smontaggio...") : tr("Smonta componente")}
                   </button>
                 ) : (
                   <button
@@ -625,20 +625,17 @@ export default function ComponentDetailPage() {
 
       <SectionCard
         title={tr("Lettura operativa")}
-        subtitle="Questa pagina riunisce stato tecnico, montaggio e storico del componente."
+        subtitle={tr("Questa pagina riunisce stato tecnico, montaggio e storico del componente.")}
       >
         <InfoBlock>
-          Usa la scheda componente per controllare ore, soglie, revisioni e
-          posizione attuale sul mezzo. Le manutenzioni restano nello storico
-          dedicato, mentre da qui puoi intervenire su revisione, montaggio e
-          dati tecnici del componente.
+          {tr("Usa la scheda componente per controllare ore, soglie, revisioni e posizione attuale sul mezzo. Le manutenzioni restano nello storico dedicato, mentre da qui puoi intervenire su revisione, montaggio e dati tecnici del componente.")}
         </InfoBlock>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
           title={tr("Stato tecnico")}
-          subtitle="Dati del componente, soglie e indicazioni operative"
+          subtitle={tr("Dati del componente, soglie e indicazioni operative")}
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <InfoCard label="Tipo" value={component.type} />
@@ -676,14 +673,12 @@ export default function ComponentDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StatusBadge label={status.label} tone={status.tone} />
                 <StatusBadge
-                  label={mountedCar ? "Montato" : "Smontato"}
+                  label={mountedCar ? tr("Montato") : tr("Smontato")}
                   tone={mountedCar ? "green" : "neutral"}
                 />
               </div>
               <div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
-                Usa “Revisione / reset ore” quando l’intervento comporta un
-                ripristino del componente. Usa invece la scheda manutenzioni per
-                lavori ordinari o da pianificare.
+{tr("Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del componente. Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.")}
               </div>
             </div>
           </div>
@@ -696,19 +691,19 @@ export default function ComponentDetailPage() {
 
         <SectionCard
           title={tr("Posizione attuale")}
-          subtitle="Montaggio rapido e stato del componente sul mezzo"
+          subtitle={tr("Montaggio rapido e stato del componente sul mezzo")}
         >
           {mountedCar ? (
             <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
                 <CarFront size={16} className="text-yellow-600" />
-                Mezzo montato
+                {tr("Mezzo montato")}
               </div>
               <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
                 {mountedCar.name}
               </div>
               <div className="mt-1 text-sm text-[var(--text-muted)]">
-                Telaio {mountedCar.chassis_number || "—"}
+                {tr("Telaio")} {mountedCar.chassis_number || "—"}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
@@ -728,7 +723,7 @@ export default function ComponentDetailPage() {
           ) : (
             <EmptyState
               title={tr("Componente attualmente smontato")}
-              description="Puoi montarlo da qui oppure dal modulo Montaggi."
+              description={tr("Puoi montarlo da qui oppure dal modulo Montaggi.")}
             />
           )}
         </SectionCard>
@@ -737,7 +732,7 @@ export default function ComponentDetailPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard
           title={tr("Storico manutenzioni")}
-          subtitle="Interventi tecnici eseguiti sul componente"
+          subtitle={tr("Interventi tecnici eseguiti sul componente")}
         >
           {maintenances.length === 0 ? (
             <EmptyState title={tr("Nessuna manutenzione registrata")} />
@@ -797,12 +792,12 @@ export default function ComponentDetailPage() {
 
         <SectionCard
           title={tr("Revisioni e documenti")}
-          subtitle="Storico revisioni e allegati collegati"
+          subtitle={tr("Storico revisioni e allegati collegati")}
         >
           <div className="space-y-4">
             <div>
               <div className="mb-2 font-semibold text-[var(--text-primary)]">
-                Revisioni
+                {tr("Revisioni")}
               </div>
               {revisions.length === 0 ? (
                 <EmptyState title={tr("Nessuna revisione registrata")} />
@@ -820,12 +815,12 @@ export default function ComponentDetailPage() {
                           </div>
                           <div className="mt-1 text-sm text-[var(--text-muted)]">
                             {row.reset_hours
-                              ? "Con reset ore"
-                              : "Senza reset ore"}
+                              ? tr("Con reset ore")
+                              : tr("Senza reset ore")}
                           </div>
                         </div>
                         <StatusBadge
-                          label={row.reset_hours ? "Reset ore" : "Revisione"}
+                          label={row.reset_hours ? tr("Reset ore") : tr("Revisione")}
                           tone={row.reset_hours ? "purple" : "blue"}
                         />
                       </div>
@@ -1093,7 +1088,7 @@ export default function ComponentDetailPage() {
               className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <RotateCcw size={16} className="mr-2 inline" />
-              {savingRevision ? "Salvataggio..." : "Registra revisione"}
+              {savingRevision ? tr("Salvataggio...") : tr("Registra revisione")}
             </button>
           </div>
         </ModalShell>
