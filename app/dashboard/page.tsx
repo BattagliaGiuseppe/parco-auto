@@ -217,7 +217,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
     switch (code) {
       case "cars_ready":
         return (
-          <SectionCard key={code} title={label} subtitle={`${tr("Prontezza operativa")} · ${safeLowerLabel(getDashboardWidgetDisplayLabel({ widget_code: "cars_ready", label: "", config: { label_mode: "auto" } }, labels, language).split("·").pop()?.trim() || labels.vehicle)}`}>
+          <SectionCard key={code} title={label} subtitle={t("dashboard.readinessCarsSubtitle", "Prontezza operativa · auto")}>
             {cars.length === 0 ? <EmptyState title={tr("Nessun elemento registrato")} /> : (
               <div className="space-y-3">
                 {cars.map((car) => {

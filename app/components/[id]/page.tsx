@@ -595,7 +595,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-red-50 px-4 py-2 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <Unlink size={16} className="mr-2 inline" />
-                    {savingMount ? tr("Smontaggio...") : tr("Smonta componente")}
+                    {savingMount ? tr("Smontaggio...") : t("components.action.unmountComponent", "Smonta componente")}
                   </button>
                 ) : (
                   <button
@@ -603,7 +603,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Link2 size={16} className="mr-2 inline" />
-                    Monta su auto
+                    {t("components.action.mountOnVehicle", "Monta su auto")}
                   </button>
                 )}
               </>
@@ -628,7 +628,7 @@ export default function ComponentDetailPage() {
         subtitle={tr("Questa pagina riunisce stato tecnico, montaggio e storico del componente.")}
       >
         <InfoBlock>
-          {tr("Usa la scheda componente per controllare ore, soglie, revisioni e posizione attuale sul mezzo. Le manutenzioni restano nello storico dedicato, mentre da qui puoi intervenire su revisione, montaggio e dati tecnici del componente.")}
+          {t("components.detail.operationalText", "Usa la scheda componente per controllare ore, soglie, revisioni e posizione attuale sul mezzo. Le manutenzioni restano nello storico dedicato, mentre da qui puoi intervenire su revisione, montaggio e dati tecnici del componente.")}
         </InfoBlock>
       </SectionCard>
 
@@ -673,12 +673,12 @@ export default function ComponentDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StatusBadge label={status.label} tone={status.tone} />
                 <StatusBadge
-                  label={mountedCar ? tr("Montato") : tr("Smontato")}
+                  label={mountedCar ? t("components.status.mounted", "Montato") : t("components.status.unmounted", "Smontato")}
                   tone={mountedCar ? "green" : "neutral"}
                 />
               </div>
               <div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
-{tr("Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del componente. Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.")}
+{t("components.detail.resetHint", "Usa “Revisione / reset ore” quando l’intervento comporta un ripristino del componente. Usa invece la scheda manutenzioni per lavori ordinari o da pianificare.")}
               </div>
             </div>
           </div>
@@ -697,7 +697,7 @@ export default function ComponentDetailPage() {
             <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
                 <CarFront size={16} className="text-yellow-600" />
-                {tr("Mezzo montato")}
+                {t("components.status.mountedVehicle", "Mezzo montato")}
               </div>
               <div className="mt-2 text-lg font-bold text-[var(--text-primary)]">
                 {mountedCar.name}
@@ -820,7 +820,7 @@ export default function ComponentDetailPage() {
                           </div>
                         </div>
                         <StatusBadge
-                          label={row.reset_hours ? tr("Reset ore") : tr("Revisione")}
+                          label={row.reset_hours ? t("components.badge.hoursReset", "Reset ore") : tr("Revisione")}
                           tone={row.reset_hours ? "purple" : "blue"}
                         />
                       </div>

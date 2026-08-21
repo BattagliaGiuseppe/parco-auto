@@ -274,7 +274,7 @@ export default function MountsPage() {
         helper: "Componenti attualmente installati",
       },
       {
-        label: "Storico totale",
+        label: t("mounts.stats.totalHistory", "Storico totale"),
         value: String(mounts.length),
         icon: <Layers3 size={18} />,
         helper: "Interventi di montaggio e smontaggio registrati",
@@ -286,13 +286,13 @@ export default function MountsPage() {
         helper: "Mezzi disponibili nel team",
       },
       {
-        label: "Componenti liberi",
+        label: t("mounts.stats.freeComponents", "Componenti liberi"),
         value: String(components.length),
         icon: <PlusCircle size={18} />,
         helper: "Pronti per un nuovo montaggio",
       },
     ],
-    [activeMounts.length, mounts.length, cars.length, components.length],
+    [activeMounts.length, mounts.length, cars.length, components.length, t],
   );
 
   async function addMount(e: FormEvent) {
@@ -644,7 +644,7 @@ export default function MountsPage() {
                             {(mount.components?.type || tr("Componente")).replace(/_/g, " ")} · {mount.components?.identifier || tr("senza codice")}
                           </div>
                           <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                            {mount.reason ? tr(mount.reason) : tr("Nessuna nota tecnica")}
+                            {mount.reason ? (mount.reason === "Montaggio iniziale da anagrafica componente" ? t("mounts.history.initialMount", mount.reason) : tr(mount.reason)) : tr("Nessuna nota tecnica")}
                           </div>
                         </div>
                         <InfoMini label="Montato" value={formatDate(mount.mounted_at)} />
@@ -726,7 +726,7 @@ export default function MountsPage() {
 
                 {mount.reason ? (
                   <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-3 text-sm leading-6 text-yellow-200">
-                    {tr(mount.reason)}
+                    {mount.reason === "Montaggio iniziale da anagrafica componente" ? t("mounts.history.initialMount", mount.reason) : tr(mount.reason)}
                   </div>
                 ) : null}
 
@@ -738,7 +738,7 @@ export default function MountsPage() {
                       className="race-action-danger px-4 py-2 text-sm"
                     >
                       <Unlink size={16} className="mr-2 inline" />
-                      <LocalizedText text="Smonta componente" />
+                      {t("components.action.unmountComponent", "Smonta componente")}
                     </button>
                   </div>
                 ) : null}

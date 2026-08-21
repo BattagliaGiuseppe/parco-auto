@@ -219,18 +219,28 @@ function getMonthBounds(monthValue: string) {
   return { start, end };
 }
 
-function formatMonthLabel(monthValue: string) {
-  const { start } = getMonthBounds(monthValue);
-  return start.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+function localeForLanguage(language: string) {
+  switch (language) {
+    case "en": return "en-US";
+    case "fr": return "fr-FR";
+    case "es": return "es-ES";
+    case "de": return "de-DE";
+    default: return "it-IT";
+  }
 }
 
-function buildMonthOptions(count = 18) {
+function formatMonthLabel(monthValue: string, language = "it") {
+  const { start } = getMonthBounds(monthValue);
+  return start.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric" });
+}
+
+function buildMonthOptions(count = 18, language = "it") {
   const base = new Date();
   base.setDate(1);
   return Array.from({ length: count }, (_, index) => {
     const d = new Date(base.getFullYear(), base.getMonth() - index, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    return { value, label: d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }) };
+    return { value, label: d.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric" }) };
   });
 }
 
@@ -290,7 +300,7 @@ async function copyToClipboard(value: string) {
 }
 
 export default function AttendancePage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
   const router = useRouter();
   const access = usePermissionAccess();
@@ -522,7 +532,7 @@ export default function AttendancePage() {
     [filteredStaff, summaryByStaffId]
   );
 
-  const monthOptions = useMemo(() => buildMonthOptions(18), []);
+  const monthOptions = useMemo(() => buildMonthOptions(18, language), [language]);
   const detailSummary = useMemo(() => buildMemberMonthSummary(detailRecords), [detailRecords]);
 
   async function clockIn() {
@@ -1165,8 +1175,8 @@ export default function AttendancePage() {
 
       {detailMember ? (
         <ModalShell
-          title={tr("Scheda presenze - membro team")}
-          subtitle={tr("Elenco mensile dei giorni lavorati con entrate, uscite, ore, luogo, evento e note.")}
+          title={t("attendance.memberSheet.title", "Scheda presenze - membro team")}
+          subtitle={t("attendance.memberSheet.subtitle", "Elenco mensile dei giorni lavorati con entrate, uscite, ore, luogo, evento e note.")}
           maxWidth="max-w-6xl"
           onClose={() => setDetailMember(null)}
           footer={
@@ -1174,9 +1184,9 @@ export default function AttendancePage() {
               {canManage ? (
                 <>
                   <Button variant="secondary" onClick={() => openAdminClockModal(detailMember, activeStaffIds.has(detailMember.id) ? "out" : "in")}>
-                    {activeStaffIds.has(detailMember.id) ? tr("Registra uscita") : tr("Registra entrata")}
+                    {activeStaffIds.has(detailMember.id) ? t("attendance.memberSheet.registerExit", "Registra uscita") : t("attendance.memberSheet.registerEntry", "Registra entrata")}
                   </Button>
-                  <Button variant="ghost" onClick={() => openResetModal(detailMember)}><LocalizedText text="Azzera contatore" /></Button>
+                  <Button variant="ghost" onClick={() => openResetModal(detailMember)}>{t("attendance.memberSheet.resetCounter", "Azzera contatore")}</Button>
                 </>
               ) : null}
               <Button onClick={() => setDetailMember(null)}><LocalizedText text="Chiudi" /></Button>
@@ -1192,10 +1202,10 @@ export default function AttendancePage() {
                 </div>
                 <div className="mt-3 text-xl font-black text-[var(--text-primary)]">{getStaffLabel(detailMember)}</div>
                 <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                  {[detailMember.email, detailMember.phone].filter(Boolean).join(" · ") || tr("Nessun contatto salvato")}
+                  {[detailMember.email, detailMember.phone].filter(Boolean).join(" · ") || t("attendance.memberSheet.noContact", "Nessun contatto salvato")}
                 </div>
               </div>
-              <UiField label="Mese da consultare">
+              <UiField label={t("attendance.memberSheet.monthToView", "Mese da consultare")}>
                 <select className={uiSelectClassName} value={detailMonth} onChange={(event) => setDetailMonth(event.target.value)}>
                   {monthOptions.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
                 </select>
@@ -1203,10 +1213,10 @@ export default function AttendancePage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <MiniInfo icon={<CalendarRange size={15} />} label="Mese" value={formatMonthLabel(detailMonth)} />
-              <MiniInfo icon={<TimerReset size={15} />} label="Ore mese" value={formatDuration(detailSummary.totalMinutes)} />
-              <MiniInfo icon={<CalendarDays size={15} />} label="Giorni" value={String(detailSummary.daysWorked)} />
-              <MiniInfo icon={<Clock3 size={15} />} label="Timbrature" value={String(detailRecords.length)} />
+              <MiniInfo icon={<CalendarRange size={15} />} label={t("attendance.memberSheet.month", "Mese")} value={formatMonthLabel(detailMonth, language)} />
+              <MiniInfo icon={<TimerReset size={15} />} label={t("attendance.memberSheet.monthHours", "Ore mese")} value={formatDuration(detailSummary.totalMinutes)} />
+              <MiniInfo icon={<CalendarDays size={15} />} label={t("attendance.memberSheet.days", "Giorni")} value={String(detailSummary.daysWorked)} />
+              <MiniInfo icon={<Clock3 size={15} />} label={t("attendance.memberSheet.clockIns", "Timbrature")} value={String(detailRecords.length)} />
             </div>
 
             {detailError ? (
@@ -1216,7 +1226,7 @@ export default function AttendancePage() {
             {detailLoading ? (
               <div className="race-card-grid px-5 py-4 text-sm text-[var(--text-secondary)]"><LocalizedText text="Caricamento dettaglio mensile..." /></div>
             ) : detailRecords.length === 0 ? (
-              <EmptyState title={tr("Nessuna timbratura nel mese")} description={tr("Non risultano entrate o uscite per il mese selezionato.")} />
+              <EmptyState title={t("attendance.memberSheet.noClockIns", "Nessuna timbratura nel mese")} description={t("attendance.memberSheet.noClockInsDesc", "Non risultano entrate o uscite per il mese selezionato.")} />
             ) : (
               <MemberMonthRecords records={detailRecords} canManage={canManage} onEdit={openEditRecordModal} />
             )}

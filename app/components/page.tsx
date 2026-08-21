@@ -117,6 +117,18 @@ function ProgressBar({ value }: { value: number | null }) {
 export default function ComponentsPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
+  const translateComponentStatusLabel = (status: ReturnType<typeof getStatus>) => {
+    switch (status.code) {
+      case "revision_due":
+        return t("components.status.revisionRequired", status.label);
+      case "mounted":
+        return t("components.status.mounted", status.label);
+      case "unmounted":
+        return t("components.status.unmounted", status.label);
+      default:
+        return tr(status.label);
+    }
+  };
   const access = usePermissionAccess();
   const canViewComponents = access.hasPermission("components.view");
   const canEditComponents = access.hasPermission("components.edit", [
@@ -459,7 +471,7 @@ export default function ComponentsPage() {
               <LocalizedText text="Ore residue" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
-              <LocalizedText text="Indicano quanto manca alla revisione in base alla soglia configurata." />
+              {t("components.list.remainingHoursHelp", "Indicano quanto manca alla revisione in base alla soglia configurata.")}
             </div>
           </div>
         </div>
@@ -570,14 +582,14 @@ export default function ComponentsPage() {
                               {tr(row.type)} · {row.identifier}
                             </div>
                             <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                              {carName || tr("Non montato")}
+                              {carName || t("components.status.notMounted", "Non montato")}
                             </div>
                           </div>
                           <InfoMini label="Ore rev." value={formatHours(info.revisionHours)} />
                           <InfoMini label="Vita acc." value={formatHours(info.lifeHours)} />
                           <InfoMini label="Ore residue" value={info.remainingHours === null ? "—" : formatHours(info.remainingHours)} />
                           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                            <StatusBadge label={status.label} tone={status.tone} />
+                            <StatusBadge label={translateComponentStatusLabel(status)} tone={status.tone} />
                             <Link href={`/components/${row.id}`} className="race-action-secondary px-3 py-2 text-sm">
                               <LocalizedText text="Apri" />
                             </Link>
@@ -605,15 +617,15 @@ export default function ComponentsPage() {
                         {tr(row.type)} · {row.identifier}
                       </div>
                       <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                        {carName || tr("Non montato")}
+                        {carName || t("components.status.notMounted", "Non montato")}
                       </div>
                     </div>
-                    <StatusBadge label={status.label} tone={status.tone} />
+                    <StatusBadge label={translateComponentStatusLabel(status)} tone={status.tone} />
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                     <InfoMini
-                      label="Da revisione"
+                      label={t("components.list.dueForRevision", "Da revisione")}
                       value={formatHours(info.revisionHours)}
                     />
                     <InfoMini
@@ -659,8 +671,8 @@ export default function ComponentsPage() {
                       value={formatDate(row.expiry_date)}
                     />
                     <InfoMini
-                      label="Stato montaggio"
-                      value={row.car_id ? tr("Montato") : tr("Smontato")}
+                      label={t("components.list.mountingStatus", "Stato montaggio")}
+                      value={row.car_id ? t("components.status.mounted", "Montato") : t("components.status.unmounted", "Smontato")}
                     />
                   </div>
 

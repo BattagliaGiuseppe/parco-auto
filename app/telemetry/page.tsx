@@ -1940,11 +1940,31 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
 export default function TelemetryPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
+  const translateTelemetryStatus = (status?: string | null) => {
+    const key = status === "parsed"
+      ? "telemetry.status.dataRead"
+      : status === "pending_parse"
+        ? "telemetry.status.pendingParse"
+        : status === "analysis_ready"
+          ? "telemetry.status.analysisReady"
+          : status === "needs_review"
+            ? "telemetry.status.needsReview"
+            : status === "error"
+              ? "telemetry.status.error"
+              : "telemetry.status.archived";
+    return t(key, statusLabel(status));
+  };
   const translateTelemetryWarning = (warning: string) => {
-    const storedRows = warning.match(/^Il file ha (\d+) righe: salverò un campionamento di massimo (\d+) punti per i grafici\.$/);
-    if (storedRows) {
-      return `${tr("Il file ha")} ${storedRows[1]} ${tr("righe: salverò un campionamento di massimo")} ${storedRows[2]} ${tr("punti per i grafici")}.`;
-    }
+    let translated = warning;
+    translated = translated.replace(
+      /File AIM CSV riconosciuto: uso Segment Times AIM per ricostruire i giri e collegare i campioni al giro corretto\.?/gi,
+      t("telemetry.importWarnings.aimCsv", "File AIM CSV riconosciuto: uso Segment Times AIM per ricostruire i giri e collegare i campioni al giro corretto.")
+    );
+    translated = translated.replace(
+      /Il file ha\s+(\d+)\s+righe:.*?massimo\s+(\d+)\s+punti per i grafici\.?/gi,
+      (_match: string, rows: string, points: string) => `${t("telemetry.importWarnings.rowsPrefix", "Il file ha")} ${rows} ${t("telemetry.importWarnings.rowsMiddle", "righe: salverò un campionamento di massimo")} ${points} ${t("telemetry.importWarnings.rowsSuffix", "punti per i grafici")}.`
+    );
+    if (translated !== warning) return translated;
     return tr(warning);
   };
   const access = usePermissionAccess();
@@ -2895,7 +2915,7 @@ export default function TelemetryPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} />
-                  {saving ? tr("Salvataggio...") : parsedCsvDraft ? tr("Salva telemetria analizzata") : tr("Registra file")}
+                  {saving ? tr("Salvataggio...") : parsedCsvDraft ? tr("Salva telemetria analizzata") : t("telemetry.registerFile", "Registra file")}
                 </button>
               </div>
             </div>
@@ -2977,7 +2997,7 @@ export default function TelemetryPage() {
                                 row.import_status
                               )}`}
                             >
-                              {tr(statusLabel(row.import_status))}
+                              {translateTelemetryStatus(row.import_status)}
                             </span>
                           </div>
                           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
@@ -3067,7 +3087,7 @@ export default function TelemetryPage() {
                               row.import_status
                             )}`}
                           >
-                            {tr(statusLabel(row.import_status))}
+                            {translateTelemetryStatus(row.import_status)}
                           </span>
                         </div>
                         <div className="mt-1 text-sm text-[var(--text-muted)]">{formatDateTime(row.created_at)}</div>
@@ -3199,7 +3219,7 @@ export default function TelemetryPage() {
 
                     {row.parse_warnings && row.parse_warnings.length > 0 ? (
                       <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-3 text-xs leading-5 text-orange-200">
-                        <div className="mb-1 font-bold"><LocalizedText text="Avvisi import" /></div>
+                        <div className="mb-1 font-bold">{t("telemetry.importWarnings.title", "Avvisi import")}</div>
                         {row.parse_warnings.map(translateTelemetryWarning).join(" ")}
                       </div>
                     ) : null}
