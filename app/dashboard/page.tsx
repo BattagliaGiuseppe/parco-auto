@@ -249,7 +249,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-extrabold text-[var(--text-primary)]">{row.type} · {row.identifier}</div>
-                        <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.car_id ? `Montato su mezzo collegato` : "Attualmente smontato"}</div>
+                        <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.car_id ? tr("Montato su mezzo collegato") : tr("Attualmente smontato")}</div>
                       </div>
                       <StatusBadge label={componentSeverity(row) >= 3 ? "Urgente" : "Attenzione"} tone={componentSeverity(row) >= 3 ? "red" : "yellow"} />
                     </div>

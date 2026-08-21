@@ -2638,16 +2638,28 @@ export default function TelemetryPage() {
               </Field>
 
               <Field label="File">
-                <input
-                  className={inputClassName}
-                  type="file"
-                  accept=".csv,.txt,.xlsx,.pdf,.zip,video/*,image/*"
-                  onChange={(event) => {
-                    const selectedFile = event.target.files?.[0] || null;
-                    setFile(selectedFile);
-                    setParsedCsvDraft(null);
-                  }}
-                />
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                  <label
+                    htmlFor="telemetry-main-file-input"
+                    className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95"
+                  >
+                    <LocalizedText text="Scegli file" />
+                  </label>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">
+                    {file?.name || tr("Nessun file selezionato")}
+                  </span>
+                  <input
+                    id="telemetry-main-file-input"
+                    className="sr-only"
+                    type="file"
+                    accept=".csv,.txt,.xlsx,.pdf,.zip,video/*,image/*"
+                    onChange={(event) => {
+                      const selectedFile = event.target.files?.[0] || null;
+                      setFile(selectedFile);
+                      setParsedCsvDraft(null);
+                    }}
+                  />
+                </div>
               </Field>
 
               {file && ["csv", "aim_export"].includes(form.data_format) ? (
@@ -2876,7 +2888,7 @@ export default function TelemetryPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2 text-sm font-bold text-[var(--brand-on-accent)] shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload size={16} />
-                  {saving ? "Salvataggio..." : parsedCsvDraft ? "Salva telemetria analizzata" : "Registra file"}
+                  {saving ? tr("Salvataggio...") : parsedCsvDraft ? tr("Salva telemetria analizzata") : tr("Registra file")}
                 </button>
               </div>
             </div>
@@ -3102,7 +3114,7 @@ export default function TelemetryPage() {
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {deletingFileId === row.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                            Elimina
+                            <LocalizedText text="Elimina" />
                           </button>
                         ) : null}
                       </div>
@@ -3118,7 +3130,7 @@ export default function TelemetryPage() {
                       <div>{tr("Mezzo")}: {safeText(car?.name)}</div>
                       <div>{tr("Pilota")}: {driverName(driver)}</div>
                       <div>{tr("Sessione")}: {safeText(session?.name)}</div>
-                      <div>{tr("Turno")}: {row.event_car_turn_id ? "Collegato" : "—"}</div>
+                      <div>{tr("Turno")}: {row.event_car_turn_id ? tr("Collegato") : "—"}</div>
                       <div>{tr("Canali")}: {row.channels_count || rowChannels.length || 0}</div>
                       <div>{tr("Giri")}: {row.laps_count || rowLaps.length || 0}</div>
                       <div>{tr("Campioni letti")}: {row.samples_count || 0}</div>
@@ -3133,7 +3145,7 @@ export default function TelemetryPage() {
 
                     {row.event_car_turn_id ? (
                       <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-xs leading-5 text-[var(--text-secondary)]">
-                        Turno collegato: {turnLabels.get(row.event_car_turn_id) || row.event_car_turn_id}
+                        {tr("Turno collegato")}: {turnLabels.get(row.event_car_turn_id) || row.event_car_turn_id}
                       </div>
                     ) : null}
 
@@ -3171,7 +3183,7 @@ export default function TelemetryPage() {
                           ))}
                           {rowChannels.length > 12 ? (
                             <span className="rounded-full border border-white/10 bg-[rgba(16,23,31,0.96)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)]">
-                              +{rowChannels.length - 12} altri
+                              +{rowChannels.length - 12} {tr("altri")}
                             </span>
                           ) : null}
                         </div>

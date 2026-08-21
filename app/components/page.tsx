@@ -459,8 +459,7 @@ export default function ComponentsPage() {
               <LocalizedText text="Ore residue" />
             </div>
             <div className="mt-1 text-[var(--text-secondary)]">
-              Indicano quanto manca alla revisione in base alla soglia
-              configurata.
+              <LocalizedText text="Indicano quanto manca alla revisione in base alla soglia configurata." />
             </div>
           </div>
         </div>
@@ -640,7 +639,7 @@ export default function ComponentsPage() {
                       <span><LocalizedText text="Avanzamento verso revisione" /></span>
                       <span>
                         {info.progress === null
-                          ? "Soglia non impostata"
+                          ? tr("Soglia non impostata")
                           : `${info.progress.toFixed(0)}%`}
                       </span>
                     </div>
@@ -648,8 +647,8 @@ export default function ComponentsPage() {
                     {info.warningThreshold !== null ||
                     info.revisionThreshold !== null ? (
                       <div className="mt-2 text-xs text-[var(--text-muted)]">
-                        Warning: {formatHours(info.warningThreshold)} ·
-                        Revisione: {formatHours(info.revisionThreshold)}
+                        {tr("Warning")}: {formatHours(info.warningThreshold)} ·
+                        {tr("Revisione")}: {formatHours(info.revisionThreshold)}
                       </div>
                     ) : null}
                   </div>

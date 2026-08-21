@@ -546,7 +546,7 @@ export default function ComponentDetailPage() {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
         <div className="rounded-3xl border border-white/15 bg-[var(--surface-card)]/[0.045] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
-          <LocalizedText text="Caricamento componente..." />
+          Caricamento componente...
         </div>
       </div>
     );
@@ -567,7 +567,7 @@ export default function ComponentDetailPage() {
       ) : null}
 
       <PageHeader
-        title={`${tr(component.type)} · ${component.identifier}`}
+        title={`${component.type} · ${component.identifier}`}
         subtitle="Scheda tecnica completa del componente"
         icon={<Boxes size={22} />}
         actions={
@@ -595,7 +595,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-red-50 px-4 py-2 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <Unlink size={16} className="mr-2 inline" />
-                    {savingMount ? tr("Smontaggio...") : tr("Smonta componente")}
+                    {savingMount ? "Smontaggio..." : "Smonta componente"}
                   </button>
                 ) : (
                   <button
@@ -603,7 +603,7 @@ export default function ComponentDetailPage() {
                     className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
                   >
                     <Link2 size={16} className="mr-2 inline" />
-                    {tr("Monta su auto")}
+                    Monta su auto
                   </button>
                 )}
               </>
@@ -641,7 +641,7 @@ export default function ComponentDetailPage() {
           subtitle="Dati del componente, soglie e indicazioni operative"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <InfoCard label="Tipo" value={tr(component.type)} />
+            <InfoCard label="Tipo" value={component.type} />
             <InfoCard label="Identificativo" value={component.identifier} />
             <InfoCard
               label="Ultima manutenzione"
@@ -751,7 +751,7 @@ export default function ComponentDetailPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-bold text-[var(--text-primary)]">
-                        {tr(row.type || "Manutenzione")}
+                        {row.type || "Manutenzione"}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {formatDate(row.date)}
@@ -860,7 +860,7 @@ export default function ComponentDetailPage() {
                       className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4"
                     >
                       <div className="font-bold text-[var(--text-primary)]">
-                        {row.title || tr(row.type || "Documento")}
+                        {row.title || row.type || "Documento"}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {row.file_name || formatDate(row.uploaded_at)}
@@ -920,10 +920,7 @@ export default function ComponentDetailPage() {
                   setEditForm({ ...editForm, hours: e.target.value })
                 }
               />
-              <FieldHint>
-                Ore accumulate dall’ultima revisione/reset. Le soglie usano
-                questo valore.
-              </FieldHint>
+              <FieldHint>{"Ore accumulate dall’ultima revisione/reset. Le soglie usano questo valore."}</FieldHint>
             </Field>
             <Field label="Ore vita accumulate">
               <input
@@ -936,10 +933,7 @@ export default function ComponentDetailPage() {
                   setEditForm({ ...editForm, life_hours: e.target.value })
                 }
               />
-              <FieldHint>
-                Storico totale del componente. Non viene azzerato dalle
-                revisioni.
-              </FieldHint>
+              <FieldHint>{"Storico totale del componente. Non viene azzerato dalle revisioni."}</FieldHint>
             </Field>
             <Field label="Soglia attenzione">
               <input
@@ -1006,7 +1000,7 @@ export default function ComponentDetailPage() {
               className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
             >
               <Save size={16} className="mr-2 inline" />
-              {savingEdit ? "Salvataggio..." : "Salva componente"}
+              {savingEdit ? tr("Salvataggio...") : tr("Salva componente")}
             </button>
           </div>
         </ModalShell>
@@ -1077,7 +1071,7 @@ export default function ComponentDetailPage() {
               />
               <div>
                 <div className="font-semibold text-[var(--text-primary)]">
-                  <LocalizedText text="Azzera le ore del componente" />
+                  Azzera le ore del componente
                 </div>
                 <div className="mt-1 text-sm text-[var(--text-muted)]">
                   Attivalo solo se la revisione riporta il componente a zero ore
@@ -1158,7 +1152,7 @@ export default function ComponentDetailPage() {
               className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
             >
               <Link2 size={16} className="mr-2 inline" />
-              {savingMount ? "Montaggio..." : "Conferma montaggio"}
+              {savingMount ? tr("Montaggio...") : tr("Conferma montaggio")}
             </button>
           </div>
         </ModalShell>
@@ -1186,11 +1180,11 @@ function ModalShell({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-2xl font-bold text-[var(--text-primary)]">
-              {title}
+              {t(`ui.${title}`, title)}
             </div>
             {subtitle ? (
               <div className="mt-1 text-sm text-[var(--text-muted)]">
-                {subtitle}
+                {t(`ui.${subtitle}`, subtitle)}
               </div>
             ) : null}
           </div>
@@ -1244,7 +1238,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-white/10 bg-[var(--surface-card)]/[0.035] p-4">
       <div className="text-sm text-[var(--text-muted)]">{t(`ui.${label}`, label)}</div>
       <div className="mt-1 text-base font-bold text-[var(--text-primary)]">
-        {t(`ui.${value}`, value)}
+        {value}
       </div>
     </div>
   );

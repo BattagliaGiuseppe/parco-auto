@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const [data, setData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -26,10 +29,10 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
     setSaving(true);
     try {
       await supabase.from("event_car_data").insert([{ event_car_id: eventCarId, section: "setup", data }]);
-      alert("Setup salvato");
+      alert(tr("Setup salvato"));
     } catch (err) {
       console.error(err);
-      alert("Errore salvataggio setup");
+      alert(tr("Errore salvataggio setup"));
     } finally { setSaving(false); }
   }
 
@@ -49,16 +52,16 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {fields.map(([key, label]) => (
           <div key={key}>
-            <label className="mb-1 block text-sm font-semibold text-neutral-700">{label}</label>
+            <label className="mb-1 block text-sm font-semibold text-neutral-700">{tr(label)}</label>
             <input className="w-full rounded-xl border p-3" value={data[key] || ""} onChange={(e) => setData((prev) => ({ ...prev, [key]: e.target.value }))} />
           </div>
         ))}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-semibold text-neutral-700">Note setup</label>
+        <label className="mb-1 block text-sm font-semibold text-neutral-700">{tr("Note setup")}</label>
         <textarea className="min-h-[110px] w-full rounded-xl border p-3" value={data.notes || ""} onChange={(e) => setData((prev) => ({ ...prev, notes: e.target.value }))} />
       </div>
-      <button onClick={save} disabled={saving} className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">{saving ? "Salvataggio..." : "Salva setup"}</button>
+      <button onClick={save} disabled={saving} className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95">{saving ? tr("Salvataggio...") : tr("Salva setup")}</button>
     </div>
   );
 }

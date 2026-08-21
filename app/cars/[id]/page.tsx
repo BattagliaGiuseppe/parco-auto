@@ -297,7 +297,7 @@ export default function CarDetailPage() {
       label: "Telaio",
       value: car.chassis_number || "—",
       icon: <CarFront size={18} />,
-      helper: `Codice telaio · ${vehicleLabelLower}`,
+      helper: tr("Codice telaio"),
     },
   ];
 
@@ -341,7 +341,7 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title={`${tr("Panoramica")} ${tr(vehicleLabel)}`}
+        title={tr("Panoramica auto")}
         subtitle={tr("Identità, immagine e ore complessive registrate")}
       >
         <div className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-black/25">

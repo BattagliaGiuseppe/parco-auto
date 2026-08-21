@@ -797,13 +797,25 @@ export default function CarsPage() {
                           className="h-32 w-full object-cover"
                         />
                       </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="form-control-dark"
-                        disabled={uploadingImage}
-                        onChange={(event) => void handleCarImageUpload(event.target.files?.[0])}
-                      />
+                      <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                        <label
+                          htmlFor="car-sheet-image-input"
+                          className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95"
+                        >
+                          <LocalizedText text="Scegli file" />
+                        </label>
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">
+                          {tr("Nessun file selezionato")}
+                        </span>
+                        <input
+                          id="car-sheet-image-input"
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          disabled={uploadingImage}
+                          onChange={(event) => void handleCarImageUpload(event.target.files?.[0])}
+                        />
+                      </div>
                       <div className="text-xs leading-5 text-[var(--text-secondary)]">
                         {tr("Puoi sostituire l'immagine mostrata nelle schede. Formati immagine, massimo 3 MB.")}
                       </div>
@@ -1078,10 +1090,10 @@ export default function CarsPage() {
                 className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
               >
                 {saving
-                  ? "Salvataggio..."
+                  ? tr("Salvataggio...")
                   : editing
-                    ? "Salva modifiche"
-                    : "Salva scheda"}
+                    ? tr("Salva modifiche")
+                    : tr("Salva scheda")}
               </button>
             </div>
           </div>

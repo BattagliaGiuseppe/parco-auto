@@ -56,6 +56,49 @@ const OVERRIDE_MODES = [
   { value: "deny", label: "Nega" },
 ] as const;
 
+const PERMISSION_COPY_BY_CODE: Record<string, { label: string; description: string }> = {
+  "attendance.clock_self": { label: "Timbratura personale", description: "Entrata e uscita dal proprio account o pagina rapida" },
+  "attendance.export": { label: "Esporta presenze", description: "Esportazione riepiloghi presenze" },
+  "attendance.kiosk": { label: "Kiosk presenze", description: "Uso della modalità tablet, badge, PIN e QR evento per le presenze" },
+  "attendance.manage": { label: "Gestisci presenze", description: "Gestione staff e correzione presenze" },
+  "attendance.view": { label: "Visualizza presenze", description: "Accesso al modulo presenze e timbrature" },
+  "cars.edit": { label: "Modifica auto", description: "Creazione e aggiornamento mezzi" },
+  "cars.view": { label: "Visualizza auto", description: "Accesso in lettura al modulo auto" },
+  "components.edit": { label: "Modifica componenti", description: "Creazione e aggiornamento componenti" },
+  "components.view": { label: "Visualizza componenti", description: "Accesso in lettura al modulo componenti" },
+  "dashboard.view": { label: "Visualizza dashboard", description: "Accesso alla dashboard principale" },
+  "drivers.edit": { label: "Modifica piloti", description: "Creazione e aggiornamento documentale piloti" },
+  "drivers.view": { label: "Visualizza piloti", description: "Accesso al modulo piloti" },
+  "event_console.edit": { label: "Modifica console evento", description: "Modifica dati operativi collegati a evento e mezzo" },
+  "event_console.view": { label: "Visualizza console evento", description: "Accesso alle pagine dettaglio evento e console mezzo" },
+  "events.edit": { label: "Modifica eventi", description: "Creazione e aggiornamento eventi" },
+  "events.view": { label: "Visualizza eventi", description: "Accesso al modulo eventi" },
+  "installations.view": { label: "Visualizza installazioni", description: "Accesso alla pagina legacy installazioni" },
+  "inventory.edit": { label: "Modifica magazzino", description: "Inserimento e import articoli di magazzino" },
+  "inventory.view": { label: "Visualizza magazzino", description: "Accesso al modulo magazzino" },
+  "maintenances.edit": { label: "Modifica manutenzioni", description: "Creazione e modifica manutenzioni" },
+  "maintenances.view": { label: "Visualizza manutenzioni", description: "Accesso al modulo manutenzioni" },
+  "mounts.edit": { label: "Modifica montaggi", description: "Creazione montaggi e smontaggi" },
+  "mounts.view": { label: "Visualizza montaggi", description: "Accesso al modulo montaggi" },
+  "settings.manage": { label: "Gestisci impostazioni", description: "Accesso al control center e alle impostazioni team" },
+  "tasks.assign": { label: "Assegna attività", description: "Assegnazione attività ai membri del team" },
+  "tasks.delete": { label: "Elimina attività", description: "Eliminazione attività e promemoria" },
+  "tasks.edit": { label: "Gestisci attività", description: "Creazione e modifica attività e promemoria" },
+  "tasks.view": { label: "Visualizza attività", description: "Accesso al modulo attività e promemoria" },
+  "team.manage": { label: "Gestisci team e accessi", description: "Gestione membri, ruoli, inviti e accessi" },
+  "telemetry.edit": { label: "Modifica telemetria", description: "Registrazione e gestione file telemetria" },
+  "telemetry.view": { label: "Visualizza telemetria", description: "Accesso in lettura all'archivio telemetria" },
+};
+
+function getPermissionCopy(permission: AppPermission, tr: (value: string) => string) {
+  const copy = PERMISSION_COPY_BY_CODE[permission.code];
+  return {
+    label: copy ? tr(copy.label) : permission.label ? tr(permission.label) : permission.code,
+    description: copy ? tr(copy.description) : permission.description ? tr(permission.description) : permission.code,
+  };
+}
+
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
@@ -625,8 +668,8 @@ export default function TeamAccessPage() {
                     {permissionCatalog.map((permission) => (
                       <tr key={permission.code} className="border-b border-white/10 align-top hover:bg-white/[0.035]">
                         <td className="px-3 py-3">
-                          <div className="font-semibold text-[var(--text-primary)]">{permission.label ? tr(permission.label) : permission.code}</div>
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">{permission.description ? tr(permission.description) : permission.code}</div>
+                          <div className="font-semibold text-[var(--text-primary)]">{getPermissionCopy(permission, tr).label}</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">{getPermissionCopy(permission, tr).description}</div>
                         </td>
                         {TEAM_ROLES.map((role) => {
                           const enabled = rolePermissionMap[role]?.has(permission.code) ?? false;
@@ -683,7 +726,7 @@ export default function TeamAccessPage() {
                     >
                       {permissionCatalog.map((permission) => (
                         <option key={permission.code} value={permission.code}>
-                          {permission.label ? tr(permission.label) : permission.code}
+                          {getPermissionCopy(permission, tr).label}
                         </option>
                       ))}
                     </select>
@@ -742,10 +785,10 @@ export default function TeamAccessPage() {
                         >
                           <div>
                             <div className="font-semibold text-[var(--text-primary)]">
-                              {permission?.label || override.permission_code}
+                              {permission ? getPermissionCopy(permission, tr).label : override.permission_code}
                             </div>
                             <div className="mt-1 text-xs text-[var(--text-muted)]">
-                              {override.permission_code}
+                              {permission ? getPermissionCopy(permission, tr).description : override.permission_code}
                             </div>
                           </div>
 

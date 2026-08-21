@@ -385,19 +385,19 @@ export default function EventCarPage() {
       label: "Turni tecnici",
       value: String(turnsWithMetrics.length),
       icon: <Gauge size={18} />,
-      helper: `${fuelSummary.totalLaps} giri • ${fuelSummary.totalMinutes} minuti`,
+      helper: `${fuelSummary.totalLaps} ${tr("giri")} • ${fuelSummary.totalMinutes} ${tr("minuti")}`,
     },
     {
       label: "Fuel evento",
       value: fuelSummary.perLap > 0 ? `${fuelSummary.perLap.toFixed(2)} L/${tr("giro")}` : "—",
       icon: <Fuel size={18} />,
-      helper: `${fuelSummary.totalUsed.toFixed(1)} L consumati`,
+      helper: `${fuelSummary.totalUsed.toFixed(1)} ${tr("L consumati")}`,
     },
     {
       label: "Best lap / temp max",
       value: formatLapTime(bestLap),
       icon: <ShieldAlert size={18} />,
-      helper: `Acqua ${displayNumber(maxWater, "°C")} • Olio ${displayNumber(maxOil, "°C")}`,
+      helper: `${tr("Acqua max")} ${displayNumber(maxWater, "°C")} • ${tr("Olio max")} ${displayNumber(maxOil, "°C")}`,
     },
   ];
 

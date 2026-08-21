@@ -984,19 +984,19 @@ export default function EventCarTurnsPage() {
       label: "Laps totali",
       value: String(totalLaps),
       icon: <Gauge size={18} />,
-      helper: `${totalMinutes} minuti complessivi`,
+      helper: `${totalMinutes} ${tr("minuti complessivi")}`,
     },
     {
       label: "Fuel consumato",
       value: `${displayNumber(totalFuelUsed, " L")}`,
       icon: <Flame size={18} />,
-      helper: totalLaps > 0 ? `${displayNumber(round1(totalFuelUsed / totalLaps), " L/giro")}` : "Consumo medio non disponibile",
+      helper: totalLaps > 0 ? displayNumber(round1(totalFuelUsed / totalLaps), ` L/${tr("giro")}`) : tr("Consumo medio non disponibile"),
     },
     {
       label: "Best lap giornata",
       value: formatLapTime(bestLapDay),
       icon: <Clock3 size={18} />,
-      helper: `Acqua max ${displayNumber(maxWaterDay, "°C")} • Olio max ${displayNumber(maxOilDay, "°C")}`,
+      helper: `${tr("Acqua max")} ${displayNumber(maxWaterDay, "°C")} • ${tr("Olio max")} ${displayNumber(maxOilDay, "°C")}`,
     },
   ];
 
