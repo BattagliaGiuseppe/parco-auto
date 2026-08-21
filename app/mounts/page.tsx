@@ -644,7 +644,7 @@ export default function MountsPage() {
                             {(mount.components?.type || tr("Componente")).replace(/_/g, " ")} · {mount.components?.identifier || tr("senza codice")}
                           </div>
                           <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                            {mount.reason || tr("Nessuna nota tecnica")}
+                            {mount.reason ? tr(mount.reason) : tr("Nessuna nota tecnica")}
                           </div>
                         </div>
                         <InfoMini label="Montato" value={formatDate(mount.mounted_at)} />
@@ -726,7 +726,7 @@ export default function MountsPage() {
 
                 {mount.reason ? (
                   <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-3 text-sm leading-6 text-yellow-200">
-                    {mount.reason}
+                    {tr(mount.reason)}
                   </div>
                 ) : null}
 

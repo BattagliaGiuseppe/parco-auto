@@ -552,14 +552,14 @@ export default function CarsPage() {
       ) : null}
 
       <PageHeader
-        title={`Scheda ${vehicleLabel}`}
-        subtitle={`Gestione ${vehicleLabelLower}, componenti standard, documenti e stampa tecnica`}
+        title={tr("Schede mezzo")}
+        subtitle={tr("Gestione mezzi, componenti standard, documenti e stampa tecnica")}
         icon={<CarFront size={22} />}
         actions={
           canEditCars ? (
             <Button onClick={openCreate}>
               <PlusCircle size={16} className="mr-2 inline" />
-              Aggiungi scheda
+              <LocalizedText text="Aggiungi scheda" />
             </Button>
           ) : undefined
         }
@@ -576,15 +576,15 @@ export default function CarsPage() {
       </SectionCard>
 
       <SectionCard
-        title={`Ricerca e vista ${vehicleLabel}`}
-        subtitle={`La vista sintetica è pensata per consultare subito ${vehicleLabelLower} senza appesantire la pagina.`}
+        title={tr("Ricerca e vista mezzi")}
+        subtitle={tr("La vista sintetica è pensata per consultare subito i mezzi senza appesantire la pagina.")}
       >
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.035] px-4 py-3">
             <Search size={18} className="text-[var(--text-muted)]" />
             <input
               className="w-full bg-transparent text-[var(--text-primary)] outline-none placeholder:text-white/30"
-              placeholder={`Cerca nome ${vehicleLabelLower} o telaio`}
+              placeholder={tr("Cerca nome mezzo o telaio")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -604,8 +604,8 @@ export default function CarsPage() {
         />
       ) : viewMode === "compact" ? (
         <SectionCard
-          title={`Elenco ${vehicleLabel}`}
-          subtitle="Vista sintetica di default: righe compatte, stato e azioni principali sempre visibili."
+          title={tr("Elenco mezzi")}
+          subtitle={tr("Vista sintetica di default: righe compatte, stato e azioni principali sempre visibili.")}
         >
           <div className="space-y-3">
             {filteredCars.map((car) => {
@@ -620,7 +620,7 @@ export default function CarsPage() {
                         {car.name}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
-                        Telaio {car.chassis_number || "—"}
+                        <LocalizedText text="Telaio" /> {car.chassis_number || "—"}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 xl:col-span-3">
@@ -657,7 +657,7 @@ export default function CarsPage() {
             <SectionCard
               key={car.id}
               title={car.name}
-              subtitle={`Telaio ${car.chassis_number || "—"}`}
+              subtitle={`${tr("Telaio")} ${car.chassis_number || "—"}`}
             >
               <div className="mb-4">
                 <img
@@ -699,9 +699,8 @@ export default function CarsPage() {
                               {tr(component.type)} · {component.identifier}
                             </div>
                             <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                              Ore rev. {formatComponentHours(component.hours)} /
-                              vita acc.{" "}
-                              {formatComponentHours(component.life_hours)}
+                              {tr("Ore revisione abbreviate")} {formatComponentHours(component.hours)} /
+                              {tr("Vita accumulata abbreviata")} {formatComponentHours(component.life_hours)}
                             </div>
                           </div>
                           <StatusBadge
@@ -762,13 +761,13 @@ export default function CarsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
           <div className="modal-panel dark-scrollbar max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl p-6">
             <PageHeader
-              title={editing ? `Modifica ${editing.name}` : "Nuova scheda"}
-              subtitle={`Crea o aggiorna la scheda e associa i componenti definiti dal template del team`}
+              title={editing ? `${tr("Modifica")} ${editing.name}` : tr("Nuova scheda")}
+              subtitle={tr("Crea o aggiorna la scheda e associa i componenti definiti dal template del team")}
             />
             <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
-              <SectionCard title={`Identità scheda`}>
+              <SectionCard title={tr("Identità scheda")}>
                 <div className="space-y-4">
-                  <Field label="Nome" required>
+                  <Field label="Nome scheda" required>
                     <input
                       className="form-control-dark"
                       value={name}
@@ -794,7 +793,7 @@ export default function CarsPage() {
                       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/25">
                         <img
                           src={imageUrl || "/mia-foto.png"}
-                          alt="Anteprima immagine scheda"
+                          alt={tr("Anteprima immagine scheda")}
                           className="h-32 w-full object-cover"
                         />
                       </div>

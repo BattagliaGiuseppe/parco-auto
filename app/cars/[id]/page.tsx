@@ -305,7 +305,7 @@ export default function CarDetailPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={car.name}
-        subtitle={`Scheda ${vehicleLabelLower} con componenti montati, soglie e storico revisioni`}
+        subtitle={tr("Scheda mezzo con componenti montati, soglie e storico revisioni")}
         icon={<CarFront size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
@@ -341,8 +341,8 @@ export default function CarDetailPage() {
       </SectionCard>
 
       <SectionCard
-        title={`Panoramica ${vehicleLabel}`}
-        subtitle="Identità, immagine e ore complessive registrate"
+        title={`${tr("Panoramica")} ${tr(vehicleLabel)}`}
+        subtitle={tr("Identità, immagine e ore complessive registrate")}
       >
         <div className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
           <img
@@ -360,13 +360,13 @@ export default function CarDetailPage() {
 
       <SectionCard
         title={tr("Attività aperte")}
-        subtitle="Promemoria e lavori da fare collegati a questo mezzo."
+        subtitle={tr("Promemoria e lavori da fare collegati a questo mezzo.")}
         actions={<Link href="/tasks" className="race-action-secondary px-4 py-2 text-sm"><LocalizedText text="Apri attività" /></Link>}
       >
         {tasks.length === 0 ? (
           <EmptyState
             title={tr("Nessuna attività aperta per questo mezzo")}
-            description="Quando crei un promemoria collegato a questa scheda lo ritroverai direttamente qui."
+            description={tr("Quando crei un promemoria collegato a questa scheda lo ritroverai direttamente qui.")}
           />
         ) : (
           <div className="space-y-3">
@@ -379,12 +379,12 @@ export default function CarDetailPage() {
                   </div>
                   <div className="mt-3 text-lg font-black text-[var(--text-primary)]">{task.title}</div>
                   <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                    {task.component_id?.identifier ? `${task.component_id.type || "Componente"} · ${task.component_id.identifier}` : "Attività generale"}
+                    {task.component_id?.identifier ? `${tr(task.component_id.type || "Componente")} · ${task.component_id.identifier}` : tr("Attività generale")}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
                   <span className="inline-flex items-center gap-2"><CalendarDays size={15} /> {formatDate(task.due_date)}</span>
-                  <span>Assegnata: {task.assigned_to_team_user_id?.name || task.assigned_to_team_user_id?.email || "—"}</span>
+                  <span>{tr("Assegnata")}: {task.assigned_to_team_user_id?.name || task.assigned_to_team_user_id?.email || "—"}</span>
                   <Link href="/tasks" className="race-action-link"><LocalizedText text="Gestisci" /></Link>
                 </div>
               </div>
@@ -395,12 +395,12 @@ export default function CarDetailPage() {
 
       <SectionCard
         title={tr("Componenti montati")}
-        subtitle="Controlla ore, soglie, scadenze e ultima revisione dei componenti attivi sul mezzo."
+        subtitle={tr("Controlla ore, soglie, scadenze e ultima revisione dei componenti attivi sul mezzo.")}
       >
         {car.components.length === 0 ? (
           <EmptyState
             title={tr("Nessun componente montato")}
-            description="Monta un componente sulla vettura per visualizzarlo qui."
+            description={tr("Monta un componente sulla vettura per visualizzarlo qui.")}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

@@ -417,7 +417,7 @@ export default function ComponentsPage() {
               }}
             >
               <PlusCircle size={16} className="mr-2 inline" />
-              Nuovo componente
+              <LocalizedText text="Nuovo componente" />
             </Button>
           ) : undefined
         }
@@ -699,7 +699,7 @@ export default function ComponentsPage() {
                 <LocalizedText text="Annulla" />
               </Button>
               <Button onClick={saveComponent} disabled={saving}>
-                {saving ? "Salvataggio..." : "Salva componente"}
+                {saving ? tr("Salvataggio...") : tr("Salva componente")}
               </Button>
             </>
           }

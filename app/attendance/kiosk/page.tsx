@@ -79,6 +79,7 @@ function getStaffLabel(staff: StaffMember | null) {
 }
 
 export default function AttendanceKioskPage() {
+  const { t } = useLanguage();
   const access = usePermissionAccess();
   const [badgeCode, setBadgeCode] = useState("");
   const [pinCode, setPinCode] = useState("");
@@ -267,22 +268,22 @@ export default function AttendanceKioskPage() {
 
             <UiField label="Modalità">
               <select className={uiSelectClassName} value={mode} onChange={(event) => setMode(event.target.value as KioskMode)}>
-                <option value="toggle">Automatico: entrata/uscita</option>
-                <option value="in">Forza entrata</option>
-                <option value="out">Forza uscita</option>
+                <option value="toggle">{t("ui.Automatico: entrata/uscita", "Automatico: entrata/uscita")}</option>
+                <option value="in">{t("ui.Forza entrata", "Forza entrata")}</option>
+                <option value="out">{t("ui.Forza uscita", "Forza uscita")}</option>
               </select>
             </UiField>
 
             <UiField label="Luogo">
               <select className={uiSelectClassName} value={locationLabel} onChange={(event) => setLocationLabel(event.target.value as LocationLabel)}>
-                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{t(`ui.${label}`, label)}</option>)}
               </select>
             </UiField>
 
             <div className="md:col-span-2">
               <UiField label="Evento collegato">
                 <select className={uiSelectClassName} value={eventId} onChange={(event) => setEventId(event.target.value)} disabled={loadingEvents}>
-                  <option value="">Nessun evento</option>
+                  <option value="">{t("ui.Nessun evento", "Nessun evento")}</option>
                   {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
                 </select>
               </UiField>
@@ -294,7 +295,7 @@ export default function AttendanceKioskPage() {
                   className={uiTextareaClassName}
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
-                  placeholder="Es. arrivo in circuito, carico materiale, supporto evento..."
+                  placeholder={t("ui.Es. arrivo in circuito, carico materiale, supporto evento...", "Es. arrivo in circuito, carico materiale, supporto evento...")}
                 />
               </UiField>
             </div>
@@ -303,10 +304,10 @@ export default function AttendanceKioskPage() {
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Button onClick={submitKioskClock} disabled={saving} className="min-h-[56px] text-base sm:col-span-2">
               {mode === "out" ? <LogOut size={19} className="mr-2" /> : <LogIn size={19} className="mr-2" />}
-              {saving ? "Registrazione..." : "Registra timbratura"}
+              {saving ? t("ui.Registrazione...", "Registrazione...") : t("ui.Registra timbratura", "Registra timbratura")}
             </Button>
             <Button variant="secondary" onClick={() => { setBadgeCode(""); setPinCode(""); setNote(""); setMessage(""); setError(""); }} disabled={saving} className="min-h-[56px]">
-              Pulisci
+              {t("ui.Pulisci", "Pulisci")}
             </Button>
           </div>
         </SectionCard>
@@ -314,9 +315,9 @@ export default function AttendanceKioskPage() {
         <div className="space-y-5">
           <SectionCard title="Contesto kiosk" subtitle="Queste informazioni vengono salvate insieme alla timbratura.">
             <div className="space-y-3">
-              <KioskInfo icon={<MapPin size={16} />} label="Luogo" value={LOCATION_LABELS[locationLabel]} />
-              <KioskInfo icon={<CalendarDays size={16} />} label="Evento" value={selectedEvent ? `${selectedEvent.name} · ${formatDate(selectedEvent.date)}` : "Nessun evento"} />
-              <KioskInfo icon={<ShieldCheck size={16} />} label="Sicurezza" value="Badge e PIN sono salvati in forma hash nel database." />
+              <KioskInfo icon={<MapPin size={16} />} label="Luogo" value={t(`ui.${LOCATION_LABELS[locationLabel]}`, LOCATION_LABELS[locationLabel])} />
+              <KioskInfo icon={<CalendarDays size={16} />} label="Evento" value={selectedEvent ? `${selectedEvent.name} · ${formatDate(selectedEvent.date)}` : t("ui.Nessun evento", "Nessun evento")} />
+              <KioskInfo icon={<ShieldCheck size={16} />} label="Sicurezza" value={t("ui.Badge e PIN sono salvati in forma hash nel database.", "Badge e PIN sono salvati in forma hash nel database.")} />
             </div>
           </SectionCard>
 

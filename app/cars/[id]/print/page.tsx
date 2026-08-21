@@ -42,6 +42,8 @@ function formatHours(value: number | null | undefined) {
 }
 
 export default function CarPrintPage() {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const params = useParams();
   const carId = params?.id as string;
   const [car, setCar] = useState<CarRow | null>(null);
@@ -85,8 +87,8 @@ export default function CarPrintPage() {
       <div className="mx-auto max-w-5xl space-y-6 print:max-w-none print:space-y-4">
         <div className="print:hidden">
           <PageHeader
-            title={`Stampa scheda · ${car.name}`}
-            subtitle="Versione stampabile del mezzo con layout allineato al nuovo standard."
+            title={`${tr("Stampa scheda")} · ${car.name}`}
+            subtitle={tr("Versione stampabile del mezzo con layout allineato al nuovo standard.")}
             icon={<CarFront size={22} />}
             actions={
               <>
@@ -96,14 +98,14 @@ export default function CarPrintPage() {
                   style={{ backgroundColor: "var(--brand-accent)", color: "var(--brand-on-accent)" }}
                 >
                   <Printer size={16} className="mr-2 inline" />
-                  Stampa
+                  <LocalizedText text="Stampa" />
                 </button>
                 <Link
                   href={`/cars/${carId}`}
                   className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-semibold text-[var(--text-primary)]"
                 >
                   <ArrowLeft size={16} className="mr-2 inline" />
-                  Scheda mezzo
+                  <LocalizedText text="Scheda mezzo" />
                 </Link>
               </>
             }
@@ -112,17 +114,17 @@ export default function CarPrintPage() {
 
         <div className="mx-auto flex max-w-5xl flex-col gap-6 print:min-h-[257mm] print:gap-4">
           <PrintLetterhead
-            title="Scheda tecnica mezzo"
-            subtitle="Documento stampabile su carta intestata team"
+            title={tr("Scheda tecnica mezzo")}
+            subtitle={tr("Documento stampabile su carta intestata team")}
             rightMeta={[
-              { label: "Mezzo", value: car.name || "—" },
-              { label: "Telaio", value: car.chassis_number || "—" },
+              { label: tr("Mezzo"), value: car.name || "—" },
+              { label: tr("Telaio"), value: car.chassis_number || "—" },
             ]}
           />
 
           <SectionCard
-            title="Panoramica mezzo"
-            subtitle="Dati essenziali del mezzo e informazioni operative."
+            title={tr("Panoramica mezzo")}
+            subtitle={tr("Dati essenziali del mezzo e informazioni operative.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -138,8 +140,8 @@ export default function CarPrintPage() {
           </SectionCard>
 
           <SectionCard
-            title="Componenti montati"
-            subtitle="Componenti installati sul mezzo al momento della stampa."
+            title={tr("Componenti montati")}
+            subtitle={tr("Componenti installati sul mezzo al momento della stampa.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             {componentCount === 0 ? (
@@ -169,8 +171,8 @@ export default function CarPrintPage() {
           </SectionCard>
 
           <SectionCard
-            title="Documenti collegati"
-            subtitle="Documenti associati al mezzo."
+            title={tr("Documenti collegati")}
+            subtitle={tr("Documenti associati al mezzo.")}
             className="print:rounded-none print:border print:border-[var(--border-default)] print:shadow-none"
           >
             {documents.length === 0 ? (
@@ -211,7 +213,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
-      <div className="text-sm text-[var(--text-secondary)]">{label}</div>
+      <div className="text-sm text-[var(--text-secondary)]">{t(`ui.${label}`, label)}</div>
       <div className="mt-1 text-lg font-bold text-[var(--text-primary)]">{value}</div>
     </div>
   );

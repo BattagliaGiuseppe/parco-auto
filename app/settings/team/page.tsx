@@ -526,16 +526,16 @@ export default function TeamAccessPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-base font-bold text-[var(--text-primary)]">
-                              {member.name || member.email || "Utente senza nome"}
+                              {member.name || member.email || tr("Utente senza nome")}
                             </div>
                             <MemberStatusBadge active={draft.is_active} />
                           </div>
                           <div className="mt-1 text-sm text-[var(--text-secondary)] break-all">
-                            {member.email || "Email non disponibile"}
+                            {member.email || tr("Email non disponibile")}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--text-muted)]">
-                            <span>ID membro: {member.id}</span>
-                            <span>Creato: {formatDate(member.created_at)}</span>
+                            <span>{tr("ID membro")}: {member.id}</span>
+                            <span>{tr("Creato")}: {formatDate(member.created_at)}</span>
                             {member.id === ctx.teamUserId ? <span><LocalizedText text="Account corrente" /></span> : null}
                           </div>
                         </div>
@@ -552,7 +552,7 @@ export default function TeamAccessPage() {
                             >
                               {TEAM_ROLES.map((role) => (
                                 <option key={role} value={role}>
-                                  {TEAM_ROLE_LABELS[role]}
+                                  {tr(TEAM_ROLE_LABELS[role])}
                                 </option>
                               ))}
                             </select>
@@ -581,7 +581,7 @@ export default function TeamAccessPage() {
                               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
-                              Salva membro
+                              <LocalizedText text="Salva membro" />
                             </button>
                           </div>
                         </div>
@@ -589,7 +589,7 @@ export default function TeamAccessPage() {
 
                       {isLastOwner ? (
                         <div className="mt-3 rounded-xl border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs text-[var(--brand-accent)]">
-                          Questo è l&apos;ultimo owner attivo del team: non può essere disattivato né retrocesso finché non esiste un altro owner attivo.
+                          <LocalizedText text="Questo è l'ultimo owner attivo del team: non può essere disattivato né retrocesso finché non esiste un altro owner attivo." />
                         </div>
                       ) : null}
                     </div>
@@ -616,7 +616,7 @@ export default function TeamAccessPage() {
                       <th className="px-3 py-3 font-semibold"><LocalizedText text="Permesso" /></th>
                       {TEAM_ROLES.map((role) => (
                         <th key={role} className="px-3 py-3 font-semibold">
-                          {TEAM_ROLE_LABELS[role]}
+                          {tr(TEAM_ROLE_LABELS[role])}
                         </th>
                       ))}
                     </tr>
@@ -625,8 +625,8 @@ export default function TeamAccessPage() {
                     {permissionCatalog.map((permission) => (
                       <tr key={permission.code} className="border-b border-white/10 align-top hover:bg-white/[0.035]">
                         <td className="px-3 py-3">
-                          <div className="font-semibold text-[var(--text-primary)]">{permission.label || permission.code}</div>
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">{permission.description || permission.code}</div>
+                          <div className="font-semibold text-[var(--text-primary)]">{permission.label ? tr(permission.label) : permission.code}</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">{permission.description ? tr(permission.description) : permission.code}</div>
                         </td>
                         {TEAM_ROLES.map((role) => {
                           const enabled = rolePermissionMap[role]?.has(permission.code) ?? false;
@@ -683,7 +683,7 @@ export default function TeamAccessPage() {
                     >
                       {permissionCatalog.map((permission) => (
                         <option key={permission.code} value={permission.code}>
-                          {permission.label || permission.code}
+                          {permission.label ? tr(permission.label) : permission.code}
                         </option>
                       ))}
                     </select>

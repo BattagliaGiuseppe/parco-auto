@@ -903,7 +903,7 @@ export default function AttendancePage() {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_1.5fr_auto]">
           <UiField label="Luogo">
             <select className={uiSelectClassName} value={clockLocation} onChange={(event) => setClockLocation(event.target.value as LocationLabel)} disabled={!!currentOpenRecord}>
-              {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
             </select>
           </UiField>
 
@@ -989,7 +989,7 @@ export default function AttendancePage() {
 
           <select className={uiSelectClassName} value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
             <option value="all"><LocalizedText text="Tutti i luoghi" /></option>
-            {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
         </div>
 
@@ -1038,7 +1038,7 @@ export default function AttendancePage() {
           footer={
             <>
               <Button variant="secondary" onClick={() => setStaffModalOpen(false)} disabled={savingStaff}><LocalizedText text="Annulla" /></Button>
-              <Button onClick={saveStaffMember} disabled={savingStaff || !staffForm.full_name.trim()}>{savingStaff ? "Salvataggio..." : "Aggiungi staff"}</Button>
+              <Button onClick={saveStaffMember} disabled={savingStaff || !staffForm.full_name.trim()}>{savingStaff ? tr("Salvataggio...") : tr("Aggiungi staff")}</Button>
             </>
           }
         >
@@ -1071,7 +1071,7 @@ export default function AttendancePage() {
           footer={
             <>
               <Button variant="secondary" onClick={() => setAdminClockModalOpen(false)} disabled={savingAdminClock}><LocalizedText text="Annulla" /></Button>
-              <Button onClick={saveAdminClock} disabled={savingAdminClock || !adminClockForm.staff_member_id}>{savingAdminClock ? "Salvataggio..." : "Registra timbratura"}</Button>
+              <Button onClick={saveAdminClock} disabled={savingAdminClock || !adminClockForm.staff_member_id}>{savingAdminClock ? tr("Salvataggio...") : tr("Registra timbratura")}</Button>
             </>
           }
         >
@@ -1093,7 +1093,7 @@ export default function AttendancePage() {
             </UiField>
             <UiField label="Luogo">
               <select className={uiSelectClassName} value={adminClockForm.location_label} onChange={(event) => setAdminClockForm((prev) => ({ ...prev, location_label: event.target.value as LocationLabel }))}>
-                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
             {adminClockForm.mode === "in" ? (
@@ -1145,12 +1145,12 @@ export default function AttendancePage() {
             </UiField>
             <UiField label="Luogo entrata">
               <select className={uiSelectClassName} value={editRecordForm.check_in_location_label} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_in_location_label: event.target.value as LocationLabel }) : prev)}>
-                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
             <UiField label="Luogo uscita">
               <select className={uiSelectClassName} value={editRecordForm.check_out_location_label} onChange={(event) => setEditRecordForm((prev) => prev ? ({ ...prev, check_out_location_label: event.target.value as LocationLabel }) : prev)}>
-                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
               </select>
             </UiField>
             <UiField label="Nota entrata">
@@ -1192,7 +1192,7 @@ export default function AttendancePage() {
                 </div>
                 <div className="mt-3 text-xl font-black text-[var(--text-primary)]">{getStaffLabel(detailMember)}</div>
                 <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                  {[detailMember.email, detailMember.phone].filter(Boolean).join(" · ") || "Nessun contatto salvato"}
+                  {[detailMember.email, detailMember.phone].filter(Boolean).join(" · ") || tr("Nessun contatto salvato")}
                 </div>
               </div>
               <UiField label="Mese da consultare">
@@ -1236,7 +1236,7 @@ export default function AttendancePage() {
               <Button variant="secondary" onClick={() => setBadgeModalMember(null)} disabled={badgeGenerating}><LocalizedText text="Chiudi" /></Button>
               <Button onClick={generateBadgeCredentials} disabled={badgeGenerating}>
                 <RefreshCw size={16} className="mr-2" />
-                {badgeGenerating ? "Generazione..." : "Genera / rigenera"}
+                {badgeGenerating ? tr("Generazione...") : tr("Genera / rigenera")}
               </Button>
             </>
           }
@@ -1275,7 +1275,7 @@ export default function AttendancePage() {
                   <div className="racing-kicker text-[var(--brand-accent)]"><LocalizedText text="Codici generati" /></div>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <CredentialBox label="Codice badge" value={badgeResult.badge_code} />
-                    <CredentialBox label="PIN rapido" value={badgeResult.pin_code || "Non generato"} />
+                    <CredentialBox label="PIN rapido" value={badgeResult.pin_code || tr("Non generato")} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button variant="secondary" onClick={() => copyToClipboard(buildKioskUrl({ badge: badgeResult.badge_code || undefined }))}>
@@ -1294,7 +1294,7 @@ export default function AttendancePage() {
             <div className="race-card-grid flex flex-col items-center justify-center p-5 text-center">
               {badgeResult?.badge_code ? (
                 <>
-                  <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(buildKioskUrl({ badge: badgeResult.badge_code }))} alt="QR badge personale" />
+                  <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(buildKioskUrl({ badge: badgeResult.badge_code }))} alt={tr("QR badge personale")} />
                   <div className="mt-4 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="QR badge personale" /></div>
                   <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]"><LocalizedText text="Scansionandolo dal tablet si apre il kiosk con badge già compilato." /></div>
                 </>
@@ -1313,7 +1313,7 @@ export default function AttendancePage() {
       {eventQrModalOpen ? (
         <ModalShell
           title={tr("QR evento / pista")}
-          subtitle="Apri questa schermata sul tablet o stampa il QR evento. Chi timbra dovrà inserire badge o PIN, con evento e luogo già precompilati."
+          subtitle={tr("Apri questa schermata sul tablet o stampa il QR evento. Chi timbra dovrà inserire badge o PIN, con evento e luogo già precompilati.")}
           maxWidth="max-w-4xl"
           onClose={() => setEventQrModalOpen(false)}
           footer={
@@ -1340,7 +1340,7 @@ export default function AttendancePage() {
               </UiField>
               <UiField label="Luogo predefinito">
                 <select className={uiSelectClassName} value={eventQrLocation} onChange={(event) => setEventQrLocation(event.target.value as LocationLabel)}>
-                  {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  {Object.entries(LOCATION_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
                 </select>
               </UiField>
               <div className="race-card-grid p-4 text-sm leading-6 text-[var(--text-secondary)]">
@@ -1349,7 +1349,7 @@ export default function AttendancePage() {
               <CredentialBox label="Link kiosk evento" value={getEventQrLink()} />
             </div>
             <div className="race-card-grid flex flex-col items-center justify-center p-5 text-center">
-              <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(getEventQrLink())} alt="QR evento presenze" />
+              <img className="rounded-2xl border border-white/10 bg-white p-3" src={qrImageUrl(getEventQrLink())} alt={tr("QR evento presenze")} />
               <div className="mt-4 text-sm font-bold text-[var(--text-primary)]"><LocalizedText text="QR evento" /></div>
               <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]"><LocalizedText text="Scansione rapida per aprire il kiosk con evento già selezionato." /></div>
             </div>
@@ -1464,6 +1464,8 @@ function StaffStatsRow({
   onBadge: () => void;
   onOpenDetail: () => void;
 }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   return (
     <div className="data-row grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.85fr_0.85fr_0.75fr_1.25fr] xl:items-center">
       <div className="min-w-0">
@@ -1472,7 +1474,7 @@ function StaffStatsRow({
           {activeRecord ? <StatusBadge label={getLocationLabel(activeRecord.check_in_location_label)} tone={activeRecord.check_in_location_label === "pista" ? "yellow" : "blue"} /> : null}
         </div>
         <div className="mt-3 text-base font-black text-[var(--text-primary)]">{getStaffLabel(member)}</div>
-        <div className="mt-1 text-sm text-[var(--text-secondary)]">{[member.role_label, member.email].filter(Boolean).join(" · ") || "Nessun dettaglio"}</div>
+        <div className="mt-1 text-sm text-[var(--text-secondary)]">{[member.role_label, member.email].filter(Boolean).join(" · ") || tr("Nessun dettaglio")}</div>
       </div>
 
       <MetricBlock label="Ore periodo" value={formatDuration(getNumber(summary?.minutes_since_reset))} tone="yellow" />
@@ -1487,7 +1489,7 @@ function StaffStatsRow({
           <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}><LocalizedText text="Dettaglio" /></Button>
           {canManage ? (
             <>
-              <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita" : "Entrata"}</Button>
+              <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? tr("Uscita") : tr("Entrata")}</Button>
               <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!latestRecord}><LocalizedText text="Modifica" /></Button>
               <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onReset}><LocalizedText text="Azzera" /></Button>
               <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onBadge}><LocalizedText text="Badge/PIN" /></Button>
@@ -1515,6 +1517,8 @@ function MetricBlock({ label, value, tone }: { label: string; value: string; ton
 }
 
 function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord, onOpenDetail }: { staff: StaffMember; activeRecord: AttendanceRecord | null; canManage: boolean; onAdminClock: (mode: AdminClockMode) => void; onEditRecord?: () => void; onOpenDetail: () => void }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   return (
     <div className="data-row flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
@@ -1524,7 +1528,7 @@ function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord, 
         </div>
         <div className="mt-3 text-lg font-black text-[var(--text-primary)]">{getStaffLabel(staff)}</div>
         <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-          {[staff.role_label, staff.email, staff.phone].filter(Boolean).join(" · ") || "Nessun dettaglio contatto"}
+          {[staff.role_label, staff.email, staff.phone].filter(Boolean).join(" · ") || tr("Nessun dettaglio contatto")}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:min-w-[320px]">
@@ -1535,7 +1539,7 @@ function StaffRow({ staff, activeRecord, canManage, onAdminClock, onEditRecord, 
         <Button variant="secondary" className="px-3 py-1.5 text-[11px]" onClick={onOpenDetail}><LocalizedText text="Dettaglio" /></Button>
         {canManage ? (
           <>
-            <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? "Uscita admin" : "Entrata admin"}</Button>
+            <Button variant={activeRecord ? "danger" : "secondary"} className="px-3 py-1.5 text-[11px]" onClick={() => onAdminClock(activeRecord ? "out" : "in")}>{activeRecord ? tr("Uscita admin") : tr("Entrata admin")}</Button>
             <Button variant="ghost" className="px-3 py-1.5 text-[11px]" onClick={onEditRecord} disabled={!onEditRecord}><LocalizedText text="Modifica" /></Button>
           </>
         ) : null}
@@ -1570,6 +1574,8 @@ function groupRecordsByDay(records: AttendanceRecord[]) {
 }
 
 function MemberMonthRecords({ records, canManage, onEdit }: { records: AttendanceRecord[]; canManage: boolean; onEdit: (record: AttendanceRecord) => void }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const grouped = groupRecordsByDay(records);
 
   return (
@@ -1596,7 +1602,7 @@ function MemberMonthRecords({ records, canManage, onEdit }: { records: Attendanc
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Uscita" /></div>
                     <div className={`mt-1 flex items-center gap-2 text-sm font-black ${isOpen ? "text-amber-200" : "text-red-200"}`}><LogOut size={14} />{formatTime(record.check_out_at)}</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">{record.check_out_at ? getLocationLabel(record.check_out_location_label) : "Timbratura aperta"}</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">{record.check_out_at ? tr(getLocationLabel(record.check_out_location_label)) : tr("Timbratura aperta")}</div>
                   </div>
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Ore" /></div>
@@ -1604,8 +1610,8 @@ function MemberMonthRecords({ records, canManage, onEdit }: { records: Attendanc
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]"><LocalizedText text="Evento / note" /></div>
-                    <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{record.event?.name || "Nessun evento"}</div>
-                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{[record.check_in_note, record.check_out_note].filter(Boolean).join(" · ") || "Nessuna nota"}</div>
+                    <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{record.event?.name || tr("Nessun evento")}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{[record.check_in_note, record.check_out_note].filter(Boolean).join(" · ") || tr("Nessuna nota")}</div>
                   </div>
                   <div className="flex flex-wrap justify-end gap-2">
                     <StatusBadge label={isOpen ? "Aperta" : "Chiusa"} tone={isOpen ? "green" : "neutral"} />
@@ -1626,6 +1632,8 @@ function MemberMonthRecords({ records, canManage, onEdit }: { records: Attendanc
   );
 }
 function AttendanceRecordCard({ record, canManage, onEdit }: { record: AttendanceRecord; canManage: boolean; onEdit: () => void }) {
+  const { t } = useLanguage();
+  const tr = (value: string) => t(`ui.${value}`, value);
   const isOpen = !record.check_out_at;
   return (
     <div className="race-card-grid p-5">
@@ -1644,7 +1652,7 @@ function AttendanceRecordCard({ record, canManage, onEdit }: { record: Attendanc
       </div>
       <h3 className="mt-4 text-xl font-black text-[var(--text-primary)]">{getStaffLabel(record.staff_member)}</h3>
       <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-        {record.event?.name ? `Evento: ${record.event.name}` : "Nessun evento collegato"}
+        {record.event?.name ? `${tr("Evento")}: ${record.event.name}` : tr("Nessun evento collegato")}
       </div>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <MiniInfo icon={<LogIn size={15} />} label="Entrata" value={formatDateTime(record.check_in_at)} />
