@@ -28,7 +28,13 @@ import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import { TeamFileImage, TeamFileLink } from "@/components/TeamFileAsset";
+import { TeamFileImage } from "@/components/TeamFileAsset";
+import {
+  hasDriverDocumentFile,
+  removeDriverDocumentFile,
+  resolveDriverDocumentUrl,
+  uploadDriverDocumentFile,
+} from "@/lib/driverDocumentStorage";
 
 type SafetyItem = {
   id?: string;
@@ -104,6 +110,10 @@ export default function DriverDetailPage() {
     expires_at: "",
   });
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [documentDraft, setDocumentDraft] = useState({ title: "", document_type: "", expires_at: "" });
+  const [documentReplacementFile, setDocumentReplacementFile] = useState<File | null>(null);
+  const [savingDocumentEdit, setSavingDocumentEdit] = useState(false);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSafety, setSavingSafety] = useState(false);
@@ -274,41 +284,159 @@ export default function DriverDetailPage() {
       return;
     }
 
-    let payload: any = {
-      team_id: ctx.teamId,
-      driver_id: driverId,
-      title: documentForm.title || documentForm.document_type || "Documento pilota",
-      document_type: documentForm.document_type || null,
-      expires_at: documentForm.expires_at || null,
-      uploaded_by_team_user_id: ctx.teamUserId,
-    };
+    let insertedId: string | null = null;
+    let uploadedPath: string | null = null;
 
-    if (documentFile) {
-      const upload = await uploadTeamFile({
-        file: documentFile,
-        area: "driver-documents",
-        recordId: driverId,
-      });
-      payload = {
-        ...payload,
-        file_url: upload.storageRef,
-        file_name: upload.fileName,
-        storage_path: upload.path,
-        mime_type: upload.mimeType,
-        size_bytes: upload.sizeBytes,
+    try {
+      const { data, error } = await supabase
+        .from("driver_documents")
+        .insert([
+          {
+            team_id: ctx.teamId,
+            driver_id: driverId,
+            title: documentForm.title || documentForm.document_type || "Documento pilota",
+            document_type: documentForm.document_type || null,
+            expires_at: documentForm.expires_at || null,
+            uploaded_by_team_user_id: ctx.teamUserId,
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      insertedId = data.id;
+
+      if (documentFile) {
+        const upload = await uploadDriverDocumentFile({
+          driverId,
+          documentId: insertedId,
+          file: documentFile,
+        });
+        uploadedPath = upload.path;
+
+        const { error: updateError } = await supabase
+          .from("driver_documents")
+          .update({
+            file_path: upload.path,
+            file_url: null,
+            storage_path: null,
+            file_name: upload.fileName,
+            mime_type: upload.mimeType,
+            size_bytes: upload.sizeBytes,
+          })
+          .eq("team_id", ctx.teamId)
+          .eq("id", insertedId);
+
+        if (updateError) throw updateError;
+      }
+
+      setDocumentForm({ title: "", document_type: "", expires_at: "" });
+      setDocumentFile(null);
+      await load();
+      showFeedback("success", "Documento aggiunto correttamente.");
+    } catch (error: any) {
+      console.error(error);
+      if (uploadedPath) {
+        await removeDriverDocumentFile({ file_path: uploadedPath }).catch(() => undefined);
+      }
+      if (insertedId) {
+        await supabase
+          .from("driver_documents")
+          .delete()
+          .eq("team_id", ctx.teamId)
+          .eq("id", insertedId);
+      }
+      showFeedback("error", error?.message || "Errore salvataggio documento.");
+    }
+  }
+
+  async function openDocument(row: any) {
+    try {
+      const url = await resolveDriverDocumentUrl(row);
+      if (!url) throw new Error("File non disponibile.");
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      console.error(error);
+      showFeedback("error", error?.message || "Errore apertura documento.");
+    }
+  }
+
+  function startEditDocument(row: any) {
+    setEditingDocumentId(row.id);
+    setDocumentDraft({
+      title: row.title || "",
+      document_type: row.document_type || "",
+      expires_at: row.expires_at || "",
+    });
+    setDocumentReplacementFile(null);
+  }
+
+  function cancelEditDocument() {
+    setEditingDocumentId(null);
+    setDocumentDraft({ title: "", document_type: "", expires_at: "" });
+    setDocumentReplacementFile(null);
+  }
+
+  async function saveEditedDocument() {
+    if (!canEditDrivers || !editingDocumentId) return;
+    const current = documents.find((row) => row.id === editingDocumentId);
+    if (!current) return;
+
+    const ctx = await getCurrentTeamContext();
+    setSavingDocumentEdit(true);
+    setFeedback(null);
+    let uploadedPath: string | null = null;
+
+    try {
+      const payload: any = {
+        title: documentDraft.title.trim() || documentDraft.document_type || "Documento pilota",
+        document_type: documentDraft.document_type || null,
+        expires_at: documentDraft.expires_at || null,
+        updated_at: new Date().toISOString(),
       };
-    }
 
-    const { error } = await supabase.from("driver_documents").insert([payload]);
-    if (error) {
-      showFeedback("error", error.message);
-      return;
-    }
+      if (documentReplacementFile) {
+        const upload = await uploadDriverDocumentFile({
+          driverId,
+          documentId: editingDocumentId,
+          file: documentReplacementFile,
+        });
+        uploadedPath = upload.path;
+        Object.assign(payload, {
+          file_path: upload.path,
+          file_url: null,
+          storage_path: null,
+          file_name: upload.fileName,
+          mime_type: upload.mimeType,
+          size_bytes: upload.sizeBytes,
+        });
+      }
 
-    setDocumentForm({ title: "", document_type: "", expires_at: "" });
-    setDocumentFile(null);
-    await load();
-    showFeedback("success", "Documento aggiunto correttamente.");
+      const { error } = await supabase
+        .from("driver_documents")
+        .update(payload)
+        .eq("team_id", ctx.teamId)
+        .eq("id", editingDocumentId);
+      if (error) throw error;
+
+      if (documentReplacementFile) {
+        await removeDriverDocumentFile(current).catch((storageError) => {
+          console.warn("Impossibile rimuovere il vecchio file documento", storageError);
+        });
+      }
+
+      cancelEditDocument();
+      await load();
+      showFeedback("success", "Documento aggiornato correttamente.");
+    } catch (error: any) {
+      console.error(error);
+      if (uploadedPath) {
+        await removeDriverDocumentFile({ file_path: uploadedPath }).catch(() => undefined);
+      }
+      showFeedback("error", error?.message || "Errore aggiornamento documento.");
+    } finally {
+      setSavingDocumentEdit(false);
+    }
   }
 
   function seedDefaultSafetyItems() {
@@ -415,21 +543,28 @@ export default function DriverDetailPage() {
     showFeedback("success", "Licenza eliminata.");
   }
 
-  async function deleteDocument(documentId: string) {
+  async function deleteDocument(row: any) {
     if (!canEditDrivers) return;
+    if (!confirm(tr("Eliminare questo documento pilota?"))) return;
     const ctx = await getCurrentTeamContext();
     setFeedback(null);
+
     const { error } = await supabase
       .from("driver_documents")
       .delete()
       .eq("team_id", ctx.teamId)
-      .eq("id", documentId);
+      .eq("id", row.id);
 
     if (error) {
       showFeedback("error", error.message);
       return;
     }
 
+    await removeDriverDocumentFile(row).catch((storageError) => {
+      console.warn("Documento eliminato dal database ma file non rimosso dallo storage", storageError);
+    });
+
+    if (editingDocumentId === row.id) cancelEditDocument();
     await load();
     showFeedback("success", "Documento eliminato.");
   }
@@ -958,6 +1093,7 @@ export default function DriverDetailPage() {
           </div>
         </SectionCard>
 
+        <div id="driver-documents" className="scroll-mt-24">
         <SectionCard title={tr("Documenti")} subtitle={tr("File pilota, certificati e allegati operativi.")}>
           {canEditDrivers ? (
             <>
@@ -1012,44 +1148,105 @@ export default function DriverDetailPage() {
                   key={row.id}
                   className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
                 >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="font-bold text-neutral-900">
-                        {row.title || row.document_type || tr("Documento pilota")}
+                  {editingDocumentId === row.id ? (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <Field
+                          label="Titolo"
+                          value={documentDraft.title}
+                          onChange={(value) => setDocumentDraft({ ...documentDraft, title: value })}
+                        />
+                        <Field
+                          label="Tipo documento"
+                          value={documentDraft.document_type}
+                          onChange={(value) => setDocumentDraft({ ...documentDraft, document_type: value })}
+                        />
+                        <Field
+                          label="Scadenza"
+                          type="date"
+                          value={documentDraft.expires_at}
+                          onChange={(value) => setDocumentDraft({ ...documentDraft, expires_at: value })}
+                        />
+                        <div className="md:col-span-3">
+                          <Label>{tr("Sostituisci file")}</Label>
+                          <input
+                            className="w-full rounded-xl border px-4 py-3"
+                            type="file"
+                            onChange={(e) => setDocumentReplacementFile(e.target.files?.[0] || null)}
+                          />
+                          <div className="mt-1 text-xs text-neutral-500">
+                            {documentReplacementFile?.name || row.file_name || tr("Mantieni il file attuale")}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-neutral-500">
-                        {row.expires_at
-                          ? `${tr("Scadenza")} ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
-                          : tr("Nessuna scadenza")}
-                        {row.file_name ? ` · ${row.file_name}` : ""}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {row.file_url ? (
-                        <TeamFileLink
-                          src={row.file_url}
-                          storagePath={row.storage_path}
-                          className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
-                        >
-                          {tr("Apri file")}
-                        </TeamFileLink>
-                      ) : null}
-                      {canEditDrivers ? (
+                      <div className="mt-3 flex flex-wrap justify-end gap-2">
                         <button
-                          onClick={() => deleteDocument(row.id)}
-                          className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                          onClick={cancelEditDocument}
+                          disabled={savingDocumentEdit}
+                          className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
                         >
-                          <Trash2 size={15} className="mr-2 inline" />
-                          {tr("Elimina")}
+                          <X size={15} className="mr-2 inline" />
+                          {tr("Annulla")}
                         </button>
-                      ) : null}
+                        <button
+                          onClick={saveEditedDocument}
+                          disabled={savingDocumentEdit}
+                          className="inline-flex rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60"
+                        >
+                          <Save size={15} className="mr-2 inline" />
+                          {savingDocumentEdit ? tr("Salvataggio...") : tr("Salva documento")}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="font-bold text-neutral-900">
+                          {row.title || row.document_type || tr("Documento pilota")}
+                        </div>
+                        <div className="mt-1 text-sm text-neutral-500">
+                          {row.expires_at
+                            ? `${tr("Scadenza")} ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
+                            : tr("Nessuna scadenza")}
+                          {row.file_name ? ` · ${row.file_name}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {hasDriverDocumentFile(row) ? (
+                          <button
+                            onClick={() => openDocument(row)}
+                            className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                          >
+                            {tr("Apri file")}
+                          </button>
+                        ) : null}
+                        {canEditDrivers ? (
+                          <>
+                            <button
+                              onClick={() => startEditDocument(row)}
+                              className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                            >
+                              <Pencil size={15} className="mr-2 inline" />
+                              {tr("Modifica")}
+                            </button>
+                            <button
+                              onClick={() => deleteDocument(row)}
+                              className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                            >
+                              <Trash2 size={15} className="mr-2 inline" />
+                              {tr("Elimina")}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))
             )}
           </div>
         </SectionCard>
+        </div>
       </div>
     </div>
   );

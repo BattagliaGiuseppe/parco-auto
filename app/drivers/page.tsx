@@ -37,6 +37,12 @@ import ViewModeToggle from "@/components/ViewModeToggle";
 import { usePersistedViewMode } from "@/lib/usePersistedViewMode";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import {
+  hasDriverDocumentFile,
+  removeDriverDocumentFile,
+  resolveDriverDocumentUrl,
+  uploadDriverDocumentFile,
+} from "@/lib/driverDocumentStorage";
 
 const inputClass = uiInputClassName;
 const selectClass = uiInputClassName;
@@ -91,6 +97,11 @@ type DriverDocument = {
   issued_at: string | null;
   expires_at: string | null;
   file_path: string | null;
+  file_url: string | null;
+  storage_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
   notes: string | null;
   created_at: string | null;
 };
@@ -641,11 +652,27 @@ export default function DriversPage() {
       if (error) throw error;
 
       if (docFile && data?.id) {
-        const path = `${ctx.teamId}/${driver.id}/${data.id}_${safeFileName(docFile.name)}`;
-        const upload = await supabase.storage.from("driver-documents").upload(path, docFile, { upsert: true });
-        if (upload.error) throw upload.error;
-        const update = await supabase.from("driver_documents").update({ file_path: path }).eq("team_id", ctx.teamId).eq("id", data.id);
-        if (update.error) throw update.error;
+        const upload = await uploadDriverDocumentFile({
+          driverId: driver.id,
+          documentId: data.id,
+          file: docFile,
+        });
+        const update = await supabase
+          .from("driver_documents")
+          .update({
+            file_path: upload.path,
+            file_url: null,
+            storage_path: null,
+            file_name: upload.fileName,
+            mime_type: upload.mimeType,
+            size_bytes: upload.sizeBytes,
+          })
+          .eq("team_id", ctx.teamId)
+          .eq("id", data.id);
+        if (update.error) {
+          await removeDriverDocumentFile({ file_path: upload.path }).catch(() => undefined);
+          throw update.error;
+        }
       }
 
       setDocForm(emptyDocumentForm);
@@ -661,11 +688,10 @@ export default function DriversPage() {
   }
 
   async function openDocument(doc: DriverDocument) {
-    if (!doc.file_path) return;
     try {
-      const { data, error } = await supabase.storage.from("driver-documents").createSignedUrl(doc.file_path, 60);
-      if (error) throw error;
-      if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      const url = await resolveDriverDocumentUrl(doc);
+      if (!url) throw new Error("File non disponibile.");
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (error: any) {
       console.error(error);
       setFeedback({ type: "error", message: error?.message || "Errore apertura documento." });
@@ -677,11 +703,17 @@ export default function DriversPage() {
     if (!confirm(tr("Eliminare questo documento pilota?"))) return;
     try {
       const ctx = await getCurrentTeamContext();
-      if (doc.file_path) {
-        await supabase.storage.from("driver-documents").remove([doc.file_path]);
-      }
-      const { error } = await supabase.from("driver_documents").delete().eq("team_id", ctx.teamId).eq("id", doc.id);
+      const { error } = await supabase
+        .from("driver_documents")
+        .delete()
+        .eq("team_id", ctx.teamId)
+        .eq("id", doc.id);
       if (error) throw error;
+
+      await removeDriverDocumentFile(doc).catch((storageError) => {
+        console.warn("Documento eliminato dal database ma file non rimosso dallo storage", storageError);
+      });
+
       await load();
       setFeedback({ type: "success", message: "Documento eliminato." });
     } catch (error: any) {
@@ -1145,15 +1177,23 @@ export default function DriversPage() {
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {doc.file_path ? (
+                                    {hasDriverDocumentFile(doc) ? (
                                       <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]">
                                         <Eye className="h-4 w-4" /> <LocalizedText text="Apri file" />
                                       </button>
                                     ) : null}
                                     {canEditDrivers ? (
-                                      <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
-                                        <Trash2 className="h-4 w-4" /> <LocalizedText text="Elimina" />
-                                      </button>
+                                      <>
+                                        <Link
+                                          href={`/drivers/${driver.id}#driver-documents`}
+                                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]"
+                                        >
+                                          <Edit3 className="h-4 w-4" /> <LocalizedText text="Modifica" />
+                                        </Link>
+                                        <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
+                                          <Trash2 className="h-4 w-4" /> <LocalizedText text="Elimina" />
+                                        </button>
+                                      </>
                                     ) : null}
                                   </div>
                                 </div>

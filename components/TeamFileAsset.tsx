@@ -15,11 +15,19 @@ export function TeamFileImage({
   fallbackSrc = "/logo.png",
   ...props
 }: TeamFileImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string>(fallbackSrc);
+  const hasSource = Boolean(src || storagePath);
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(hasSource ? null : fallbackSrc);
 
   useEffect(() => {
     let active = true;
-    setResolvedSrc(fallbackSrc);
+    const hasCurrentSource = Boolean(src || storagePath);
+    setResolvedSrc(hasCurrentSource ? null : fallbackSrc);
+
+    if (!hasCurrentSource) {
+      return () => {
+        active = false;
+      };
+    }
 
     void resolveTeamFileUrl(src, storagePath)
       .then((url) => {
@@ -34,7 +42,13 @@ export function TeamFileImage({
     };
   }, [src, storagePath, fallbackSrc]);
 
-  return <img {...props} src={resolvedSrc} />;
+  return (
+    <img
+      {...props}
+      src={resolvedSrc || fallbackSrc}
+      style={{ ...props.style, visibility: resolvedSrc ? "visible" : "hidden" }}
+    />
+  );
 }
 
 type TeamFileLinkProps = {
