@@ -304,12 +304,16 @@ export default function DriverDetailPage() {
         .single();
 
       if (error) throw error;
-      insertedId = data.id;
+      const insertedDocumentId = data?.id;
+      if (!insertedDocumentId) {
+        throw new Error("Impossibile determinare l'ID del documento appena creato.");
+      }
+      insertedId = insertedDocumentId;
 
       if (documentFile) {
         const upload = await uploadDriverDocumentFile({
           driverId,
-          documentId: insertedId,
+          documentId: insertedDocumentId,
           file: documentFile,
         });
         uploadedPath = upload.path;
@@ -325,7 +329,7 @@ export default function DriverDetailPage() {
             size_bytes: upload.sizeBytes,
           })
           .eq("team_id", ctx.teamId)
-          .eq("id", insertedId);
+          .eq("id", insertedDocumentId);
 
         if (updateError) throw updateError;
       }
