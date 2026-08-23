@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
-import { uploadTeamFile } from "@/lib/storage";
 import { usePermissionAccess } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
@@ -53,6 +52,21 @@ const DEFAULT_SAFETY_ITEMS: SafetyItem[] = [
   { item_name: "Guanti", homologation: "", expiry_date: "", note: "", is_present: true },
   { item_name: "Scarpe", homologation: "", expiry_date: "", note: "", is_present: true },
 ];
+
+function safeDriverPhotoFileName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+}
+
+function getDriverPhotoUrl(path: string | null | undefined) {
+  if (!path) return null;
+  return supabase.storage.from("driver-photos").getPublicUrl(path).data.publicUrl;
+}
 
 function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
   const { t } = useLanguage();
@@ -197,16 +211,22 @@ export default function DriverDetailPage() {
     setFeedback(null);
     try {
       const ctx = await getCurrentTeamContext();
-      let photoUrl = driverForm.photo_url || null;
+      let photoPath = driverForm.photo_path || null;
 
       if (profilePhotoFile) {
         setUploadingPhoto(true);
-        const upload = await uploadTeamFile({
-          file: profilePhotoFile,
-          area: "driver-profile",
-          recordId: driverId,
-        });
-        photoUrl = upload.storageRef;
+        const ext = profilePhotoFile.name.split(".").pop() || "jpg";
+        const safeName = safeDriverPhotoFileName(profilePhotoFile.name || `foto.${ext}`);
+        const nextPath = `${ctx.teamId}/${driverId}/${Date.now()}_${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("driver-photos")
+          .upload(nextPath, profilePhotoFile, { upsert: true });
+        if (uploadError) throw uploadError;
+
+        if (photoPath) {
+          await supabase.storage.from("driver-photos").remove([photoPath]);
+        }
+        photoPath = nextPath;
       }
 
       const payload = {
@@ -220,7 +240,8 @@ export default function DriverDetailPage() {
         emergency_contact: driverForm.emergency_contact || null,
         notes: driverForm.notes || null,
         is_active: driverForm.is_active ?? true,
-        photo_url: photoUrl,
+        photo_path: photoPath,
+        ...(profilePhotoFile ? { photo_url: null } : {}),
       };
 
       const { error } = await supabase
@@ -748,12 +769,18 @@ export default function DriverDetailPage() {
           subtitle={tr("Dati anagrafici principali, note e foto profilo.")}
         >
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5">
-            {driverForm.photo_url ? (
+            {driverForm.photo_path ? (
+              <img
+                src={getDriverPhotoUrl(driverForm.photo_path) || "/mia-foto.png"}
+                alt={driverFullName || tr("Profilo pilota")}
+                className="h-36 w-36 rounded-full object-cover ring-4 ring-white/15 shadow-sm"
+              />
+            ) : driverForm.photo_url ? (
               <TeamFileImage
                 src={driverForm.photo_url}
                 fallbackSrc="/mia-foto.png"
                 alt={driverFullName || tr("Profilo pilota")}
-                className="h-36 w-36 rounded-full object-cover ring-4 ring-white shadow-sm"
+                className="h-36 w-36 rounded-full object-cover ring-4 ring-white/15 shadow-sm"
               />
             ) : (
               <div className="flex h-36 w-36 items-center justify-center rounded-full bg-white/[0.08] text-4xl font-bold text-[var(--text-muted)]">
@@ -916,7 +943,7 @@ export default function DriverDetailPage() {
                       {canEditDrivers ? (
                         <button
                           onClick={() => removeSafetyItemRow(index)}
-                          className="inline-flex items-center justify-center rounded-xl bg-red-50 px-3 py-3 text-red-600 hover:bg-red-100"
+                          className="inline-flex items-center justify-center rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-3 text-red-200 transition hover:bg-red-500/20"
                           title={tr("Rimuovi riga")}
                         >
                           <Trash2 size={16} />
@@ -1088,7 +1115,7 @@ export default function DriverDetailPage() {
                             </button>
                             <button
                               onClick={() => deleteLicense(row.id)}
-                              className="inline-flex rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                              className="inline-flex rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"
                             >
                               <Trash2 size={15} className="mr-2 inline" />
                               {tr("Elimina")}
@@ -1131,11 +1158,19 @@ export default function DriverDetailPage() {
                 />
                 <div className="md:col-span-3">
                   <Label>{tr("File")}</Label>
-                  <input
-                    className="w-full rounded-xl border px-4 py-3"
-                    type="file"
-                    onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
-                  />
+                  <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                    <label className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95">
+                      {tr("Scegli file")}
+                      <input
+                        className="sr-only"
+                        type="file"
+                        onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">
+                      {documentFile?.name || tr("Nessun file selezionato")}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="mt-3">
@@ -1180,13 +1215,18 @@ export default function DriverDetailPage() {
                         />
                         <div className="md:col-span-3">
                           <Label>{tr("Sostituisci file")}</Label>
-                          <input
-                            className="w-full rounded-xl border px-4 py-3"
-                            type="file"
-                            onChange={(e) => setDocumentReplacementFile(e.target.files?.[0] || null)}
-                          />
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {documentReplacementFile?.name || row.file_name || tr("Mantieni il file attuale")}
+                          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                            <label className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95">
+                              {tr("Scegli file")}
+                              <input
+                                className="sr-only"
+                                type="file"
+                                onChange={(e) => setDocumentReplacementFile(e.target.files?.[0] || null)}
+                              />
+                            </label>
+                            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">
+                              {documentReplacementFile?.name || row.file_name || tr("Mantieni il file attuale")}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1242,7 +1282,7 @@ export default function DriverDetailPage() {
                             </button>
                             <button
                               onClick={() => deleteDocument(row)}
-                              className="inline-flex rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                              className="inline-flex rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"
                             >
                               <Trash2 size={15} className="mr-2 inline" />
                               {tr("Elimina")}

@@ -84,6 +84,7 @@ type Driver = {
   shoe_size: string | null;
   address: string | null;
   photo_path: string | null;
+  photo_url: string | null;
   notes: string | null;
   created_at: string | null;
 };
@@ -584,7 +585,7 @@ export default function DriversPage() {
       if (driverId && photoFile) {
         const path = await uploadDriverPhoto(ctx.teamId, driverId, currentPhotoPath);
         if (path) {
-          const { error } = await supabase.from("drivers").update({ photo_path: path }).eq("id", driverId).eq("team_id", ctx.teamId);
+          const { error } = await supabase.from("drivers").update({ photo_path: path, photo_url: null }).eq("id", driverId).eq("team_id", ctx.teamId);
           if (error) throw error;
         }
       }
@@ -606,7 +607,7 @@ export default function DriversPage() {
     try {
       const ctx = await getCurrentTeamContext();
       await supabase.storage.from("driver-photos").remove([driver.photo_path]);
-      const { error } = await supabase.from("drivers").update({ photo_path: null }).eq("team_id", ctx.teamId).eq("id", driver.id);
+      const { error } = await supabase.from("drivers").update({ photo_path: null, photo_url: null }).eq("team_id", ctx.teamId).eq("id", driver.id);
       if (error) throw error;
       await load();
       setFeedback({ type: "success", message: "Foto pilota rimossa." });
