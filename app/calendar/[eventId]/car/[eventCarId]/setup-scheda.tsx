@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { getCurrentTeamContext } from "@/lib/teamContext";
 
 export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   const { t } = useLanguage();
@@ -12,9 +13,11 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
 
   useEffect(() => {
     async function load() {
+      const ctx = await getCurrentTeamContext();
       const { data: row } = await supabase
         .from("event_car_data")
         .select("data")
+        .eq("team_id", ctx.teamId)
         .eq("event_car_id", eventCarId)
         .eq("section", "setup")
         .order("created_at", { ascending: false })
@@ -28,7 +31,11 @@ export default function SetupScheda({ eventCarId }: { eventCarId: string }) {
   async function save() {
     setSaving(true);
     try {
-      await supabase.from("event_car_data").insert([{ event_car_id: eventCarId, section: "setup", data }]);
+      const ctx = await getCurrentTeamContext();
+      const { error } = await supabase.from("event_car_data").insert([
+        { team_id: ctx.teamId, event_car_id: eventCarId, section: "setup", data },
+      ]);
+      if (error) throw error;
       alert(tr("Setup salvato"));
     } catch (err) {
       console.error(err);
