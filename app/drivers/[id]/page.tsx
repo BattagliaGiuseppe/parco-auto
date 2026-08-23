@@ -129,6 +129,7 @@ export default function DriverDetailPage() {
   const [documentReplacementFile, setDocumentReplacementFile] = useState<File | null>(null);
   const [savingDocumentEdit, setSavingDocumentEdit] = useState(false);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSafety, setSavingSafety] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -204,6 +205,20 @@ export default function DriverDetailPage() {
     () => safetyItems.filter((item) => item.is_present),
     [safetyItems]
   );
+
+  useEffect(() => {
+    if (!profilePhotoFile) {
+      setProfilePhotoPreviewUrl(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(profilePhotoFile);
+    setProfilePhotoPreviewUrl(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [profilePhotoFile]);
 
   async function saveProfile() {
     if (!canEditDrivers || !driverForm) return;
@@ -769,7 +784,13 @@ export default function DriverDetailPage() {
           subtitle={tr("Dati anagrafici principali, note e foto profilo.")}
         >
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5">
-            {driverForm.photo_path ? (
+            {profilePhotoPreviewUrl ? (
+              <img
+                src={profilePhotoPreviewUrl}
+                alt={tr("Anteprima nuova foto profilo")}
+                className="h-36 w-36 rounded-full object-cover ring-4 ring-white/15 shadow-sm"
+              />
+            ) : driverForm.photo_path ? (
               <img
                 src={getDriverPhotoUrl(driverForm.photo_path) || "/mia-foto.png"}
                 alt={driverFullName || tr("Profilo pilota")}
