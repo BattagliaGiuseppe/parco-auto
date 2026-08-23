@@ -193,6 +193,28 @@ type TelemetrySample = {
 
 type AnalysisAxis = "time" | "distance" | "sample";
 
+type TelemetryArchiveStats = {
+  files_count: number;
+  linked_turns_count: number;
+  pending_parse_count: number;
+  insights_count: number;
+};
+
+type TelemetryArchivePayload = {
+  items: TelemetryFile[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  stats: TelemetryArchiveStats;
+};
+
+type TelemetryAnalysisBundle = {
+  samples: TelemetrySample[];
+  channels: TelemetryChannel[];
+  laps: TelemetryLap[];
+  stored_points_count: number;
+};
+
 function buildDefaultForm(): TelemetryForm {
   return {
     file_name: "",
@@ -464,8 +486,9 @@ type ParsedTelemetryPayload = {
   };
 };
 
-const MAX_STORED_SAMPLES = 5000;
+const MAX_STORED_SAMPLES = 3000;
 const MAX_PARSED_ROWS = 60000;
+const TELEMETRY_PAGE_SIZE = 25;
 
 const CHANNEL_DEFINITIONS: ChannelDefinition[] = [
   { key: "ignore", label: "Ignora colonna", unit: "", aliases: [] },
@@ -1901,8 +1924,13 @@ function buildParsedTelemetryPayload(wizard: CsvWizardState): ParsedTelemetryPay
       };
     });
 
-  const sampleStep = Math.max(1, Math.ceil(parsedRows.length / MAX_STORED_SAMPLES));
-  const samples = parsedRows.filter((_, index) => index % sampleStep === 0).slice(0, MAX_STORED_SAMPLES);
+  const samples =
+    parsedRows.length <= MAX_STORED_SAMPLES
+      ? parsedRows
+      : Array.from({ length: MAX_STORED_SAMPLES }, (_, index) => {
+          const sourceIndex = Math.round((index * (parsedRows.length - 1)) / (MAX_STORED_SAMPLES - 1));
+          return parsedRows[sourceIndex];
+        });
 
   const timeValues = parsedRows.map((row) => row.time_seconds).filter((value): value is number => value !== null);
   const speedValues = parsedRows.map((row) => row.values_json.speed).filter((value): value is number => typeof value === "number");
@@ -1973,6 +2001,16 @@ export default function TelemetryPage() {
   const canEditTelemetry = access.hasPermission("telemetry.edit", ["owner", "admin"]);
 
   const [rows, setRows] = useState<TelemetryFile[]>([]);
+  const [archivePage, setArchivePage] = useState(1);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archiveStats, setArchiveStats] = useState<TelemetryArchiveStats>({
+    files_count: 0,
+    linked_turns_count: 0,
+    pending_parse_count: 0,
+    insights_count: 0,
+  });
+  const [debouncedFilter, setDebouncedFilter] = useState("");
+  const [comparisonCandidates, setComparisonCandidates] = useState<TelemetryFile[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -2005,29 +2043,10 @@ export default function TelemetryPage() {
   const [analysisCompareFileLoading, setAnalysisCompareFileLoading] = useState(false);
   const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
-  async function load() {
-    setLoading(true);
-
+  async function loadReferenceData() {
     try {
       const ctx = await getCurrentTeamContext();
-
-      const [
-        filesRes,
-        carsRes,
-        driversRes,
-        eventsRes,
-        sessionsRes,
-        eventCarsRes,
-        turnsRes,
-        channelsRes,
-        lapsRes,
-        insightsRes,
-      ] = await Promise.all([
-        supabase
-          .from("telemetry_files")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .order("created_at", { ascending: false }),
+      const [carsRes, driversRes, eventsRes, sessionsRes, eventCarsRes, turnsRes] = await Promise.all([
         supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name"),
         supabase
           .from("drivers")
@@ -2038,16 +2057,8 @@ export default function TelemetryPage() {
         supabase.from("event_sessions").select("*").eq("team_id", ctx.teamId).order("created_at", { ascending: false }),
         supabase.from("event_cars").select("*").eq("team_id", ctx.teamId),
         supabase.from("event_car_turns").select("*").eq("team_id", ctx.teamId).order("created_at", { ascending: false }),
-        supabase.from("telemetry_channels").select("*").eq("team_id", ctx.teamId),
-        supabase.from("telemetry_laps").select("*").eq("team_id", ctx.teamId),
-        supabase
-          .from("telemetry_insights")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .order("created_at", { ascending: false }),
       ]);
 
-      if (filesRes.error) throw filesRes.error;
       if (carsRes.error) throw carsRes.error;
       if (driversRes.error) throw driversRes.error;
       if (eventsRes.error) throw eventsRes.error;
@@ -2055,16 +2066,85 @@ export default function TelemetryPage() {
       if (eventCarsRes.error) throw eventCarsRes.error;
       if (turnsRes.error) throw turnsRes.error;
 
-      setRows((filesRes.data || []) as TelemetryFile[]);
       setCars((carsRes.data || []) as Car[]);
       setDrivers((driversRes.data || []) as Driver[]);
       setEvents((eventsRes.data || []) as EventRow[]);
       setSessions((sessionsRes.data || []) as SessionRow[]);
       setEventCars((eventCarsRes.data || []) as EventCar[]);
       setTurns((turnsRes.data || []) as TurnRow[]);
-      setChannels(((channelsRes.data || []) as TelemetryChannel[]) || []);
-      setLaps(((lapsRes.data || []) as TelemetryLap[]) || []);
-      setInsights(((insightsRes.data || []) as TelemetryInsight[]) || []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore caricamento riferimenti telemetria.";
+      setFeedback({ type: "error", message });
+    }
+  }
+
+  async function loadArchive(page = archivePage, search = debouncedFilter) {
+    setLoading(true);
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase.rpc("telemetry_archive_page", {
+        p_team_id: ctx.teamId,
+        p_search: search,
+        p_page: page,
+        p_page_size: TELEMETRY_PAGE_SIZE,
+      });
+
+      if (error) throw error;
+
+      const payload = (data || {}) as unknown as Partial<TelemetryArchivePayload>;
+      const pageRows = Array.isArray(payload.items) ? (payload.items as TelemetryFile[]) : [];
+      const totalCount = Number(payload.total_count || 0);
+      const statsPayload = (payload.stats || {}) as Partial<TelemetryArchiveStats>;
+
+      if (pageRows.length === 0 && totalCount > 0 && page > 1) {
+        setArchivePage(Math.max(1, page - 1));
+        return;
+      }
+
+      setRows(pageRows);
+      setArchiveTotal(totalCount);
+      setArchiveStats({
+        files_count: Number(statsPayload.files_count || 0),
+        linked_turns_count: Number(statsPayload.linked_turns_count || 0),
+        pending_parse_count: Number(statsPayload.pending_parse_count || 0),
+        insights_count: Number(statsPayload.insights_count || 0),
+      });
+
+      const fileIds = pageRows.map((row) => row.id).filter(Boolean);
+      if (fileIds.length === 0) {
+        setChannels([]);
+        setLaps([]);
+        setInsights([]);
+        return;
+      }
+
+      const [channelsRes, lapsRes, insightsRes] = await Promise.all([
+        supabase
+          .from("telemetry_channels")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .in("telemetry_file_id", fileIds),
+        supabase
+          .from("telemetry_laps")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .in("telemetry_file_id", fileIds),
+        supabase
+          .from("telemetry_insights")
+          .select("*")
+          .eq("team_id", ctx.teamId)
+          .in("telemetry_file_id", fileIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (channelsRes.error) throw channelsRes.error;
+      if (lapsRes.error) throw lapsRes.error;
+      if (insightsRes.error) throw insightsRes.error;
+
+      setChannels((channelsRes.data || []) as TelemetryChannel[]);
+      setLaps((lapsRes.data || []) as TelemetryLap[]);
+      setInsights((insightsRes.data || []) as TelemetryInsight[]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore caricamento telemetria.";
       setFeedback({ type: "error", message });
@@ -2075,9 +2155,24 @@ export default function TelemetryPage() {
 
   useEffect(() => {
     if (!access.loading && canViewTelemetry) {
-      void load();
+      void loadReferenceData();
     }
   }, [access.loading, canViewTelemetry]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setArchivePage(1);
+      setDebouncedFilter(filter.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [filter]);
+
+  useEffect(() => {
+    if (!access.loading && canViewTelemetry) {
+      void loadArchive(archivePage, debouncedFilter);
+    }
+  }, [access.loading, canViewTelemetry, archivePage, debouncedFilter]);
 
   useEffect(() => {
     const savedMode = window.localStorage.getItem("telemetry_archive_view_mode");
@@ -2130,64 +2225,34 @@ export default function TelemetryPage() {
     () => [
       {
         label: "File registrati",
-        value: String(rows.length),
+        value: String(archiveStats.files_count),
         icon: <FileArchive className="h-5 w-5" />,
         helper: "Pacchetti telemetria archiviati",
       },
       {
         label: "Turni collegati",
-        value: String(new Set(rows.map((row) => row.event_car_turn_id).filter(Boolean)).size),
+        value: String(archiveStats.linked_turns_count),
         icon: <Link2 className="h-5 w-5" />,
         helper: "File collegati a turni specifici",
       },
       {
         label: "Da analizzare",
-        value: String(rows.filter((row) => row.import_status === "pending_parse").length),
+        value: String(archiveStats.pending_parse_count),
         icon: <Gauge className="h-5 w-5" />,
         helper: "File pronti per parsing/import canali",
       },
       {
         label: "Insight tecnici",
-        value: String(insights.length),
+        value: String(archiveStats.insights_count),
         icon: <BarChart3 className="h-5 w-5" />,
         helper: "Base futura per ingegnere di pista",
       },
     ],
-    [rows, insights.length]
+    [archiveStats]
   );
 
-  const filtered = useMemo(() => {
-    const query = filter.trim().toLowerCase();
-    if (!query) return rows;
-
-    return rows.filter((row) => {
-      const car = row.car_id ? maps.cars.get(row.car_id) : undefined;
-      const driver = row.driver_id ? maps.drivers.get(row.driver_id) : undefined;
-      const event = row.event_id ? maps.events.get(row.event_id) : undefined;
-      const session = row.session_id ? maps.sessions.get(row.session_id) : undefined;
-      const turn = row.event_car_turn_id ? turnLabels.get(row.event_car_turn_id) : "";
-
-      return [
-        row.file_name,
-        row.notes,
-        row.source_software,
-        row.file_category,
-        row.data_format,
-        row.logger_model,
-        row.track_name,
-        row.tags?.join(" "),
-        car?.name,
-        driverName(driver),
-        event?.name,
-        session?.name,
-        turn,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [filter, rows, maps, turnLabels]);
+  const filtered = rows;
+  const archiveTotalPages = Math.max(1, Math.ceil(archiveTotal / TELEMETRY_PAGE_SIZE));
 
   function handleTurnChange(turnId: string) {
     const selectedTurn = turns.find((turn) => turn.id === turnId);
@@ -2324,7 +2389,7 @@ export default function TelemetryPage() {
         type: "success",
         message: `CSV importato: ${parsedPayload.summary.channels_count} canali, ${parsedPayload.summary.samples_count} campioni letti, ${parsedPayload.summary.sampled_points_count} punti salvati per grafici.`,
       });
-      await load();
+      await loadArchive(archivePage, debouncedFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore import CSV telemetria.";
       setCsvWizard(csvWizard ? { ...csvWizard, importing: false, error: message } : null);
@@ -2412,7 +2477,7 @@ export default function TelemetryPage() {
           `File telemetria registrato correttamente.${importedMessage} Ora è collegato ai dati sportivi e pronto per le future analisi canali.`,
       });
 
-      await load();
+      await loadArchive(archivePage, debouncedFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore durante il salvataggio del file telemetria.";
       setFeedback({ type: "error", message });
@@ -2470,7 +2535,7 @@ export default function TelemetryPage() {
       }
 
       setFeedback({ type: "success", message: "File telemetria eliminato correttamente." });
-      await load();
+      await loadArchive(archivePage, debouncedFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore durante l'eliminazione del file telemetria.";
       setFeedback({ type: "error", message });
@@ -2479,31 +2544,48 @@ export default function TelemetryPage() {
     }
   }
 
-  async function fetchTelemetrySamplesForFile(fileId: string) {
+  async function fetchTelemetryAnalysisBundle(fileId: string) {
     const ctx = await getCurrentTeamContext();
-    const pageSize = 1000;
-    let from = 0;
-    let allSamples: TelemetrySample[] = [];
+    const { data, error } = await supabase.rpc("telemetry_analysis_bundle", {
+      p_team_id: ctx.teamId,
+      p_telemetry_file_id: fileId,
+    });
 
-    while (true) {
-      const { data, error } = await supabase
-        .from("telemetry_samples")
-        .select("*")
-        .eq("team_id", ctx.teamId)
-        .eq("telemetry_file_id", fileId)
-        .order("sample_index", { ascending: true })
-        .range(from, from + pageSize - 1);
+    if (error) throw error;
 
-      if (error) throw error;
+    const payload = (data || {}) as unknown as Partial<TelemetryAnalysisBundle>;
+    return {
+      samples: Array.isArray(payload.samples) ? (payload.samples as TelemetrySample[]) : [],
+      channels: Array.isArray(payload.channels) ? (payload.channels as TelemetryChannel[]) : [],
+      laps: Array.isArray(payload.laps) ? (payload.laps as TelemetryLap[]) : [],
+      stored_points_count: Number(payload.stored_points_count || 0),
+    } satisfies TelemetryAnalysisBundle;
+  }
 
-      const batch = ((data || []) as TelemetrySample[]) || [];
-      allSamples = allSamples.concat(batch);
+  async function fetchComparisonCandidates(excludeFileId: string) {
+    const ctx = await getCurrentTeamContext();
+    const { data, error } = await supabase.rpc("telemetry_comparison_candidates", {
+      p_team_id: ctx.teamId,
+      p_exclude_file_id: excludeFileId,
+      p_limit: 250,
+    });
 
-      if (batch.length < pageSize) break;
-      from += pageSize;
-    }
+    if (error) throw error;
+    return Array.isArray(data) ? (data as TelemetryFile[]) : [];
+  }
 
-    return allSamples;
+  function mergeChannelsForFile(fileId: string, incoming: TelemetryChannel[]) {
+    setChannels((current) => [
+      ...current.filter((channel) => channel.telemetry_file_id !== fileId),
+      ...incoming,
+    ]);
+  }
+
+  function mergeLapsForFile(fileId: string, incoming: TelemetryLap[]) {
+    setLaps((current) => [
+      ...current.filter((lap) => lap.telemetry_file_id !== fileId),
+      ...incoming,
+    ]);
   }
 
   async function openAnalysis(row: TelemetryFile) {
@@ -2515,6 +2597,7 @@ export default function TelemetryPage() {
     setAnalysisCompareFileId("");
     setAnalysisCompareFileLap("best");
     setAnalysisCompareFileSamples([]);
+    setComparisonCandidates([]);
 
     const rowChannels = channels.filter((channel) => channel.telemetry_file_id === row.id);
     const priority = ["speed", "rpm", "throttle", "brake", "brake_pressure", "gear", "water_temp", "oil_temp"];
@@ -2523,8 +2606,19 @@ export default function TelemetryPage() {
     setSelectedAnalysisChannels((defaults.length ? defaults : fallback).slice(0, 4));
 
     try {
-      const allSamples = await fetchTelemetrySamplesForFile(row.id);
-      setAnalysisSamples(allSamples);
+      const [bundle, candidates] = await Promise.all([
+        fetchTelemetryAnalysisBundle(row.id),
+        fetchComparisonCandidates(row.id),
+      ]);
+
+      setAnalysisSamples(bundle.samples);
+      mergeChannelsForFile(row.id, bundle.channels);
+      mergeLapsForFile(row.id, bundle.laps);
+      setComparisonCandidates(candidates);
+
+      const bundlePriority = priority.filter((key) => bundle.channels.some((channel) => channel.channel_key === key));
+      const bundleFallback = bundle.channels.map((channel) => channel.channel_key || "").filter(Boolean);
+      setSelectedAnalysisChannels((bundlePriority.length ? bundlePriority : bundleFallback).slice(0, 4));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore caricamento campioni telemetria.";
       setFeedback({ type: "error", message });
@@ -2543,8 +2637,10 @@ export default function TelemetryPage() {
     setAnalysisCompareFileLoading(true);
 
     try {
-      const allSamples = await fetchTelemetrySamplesForFile(fileId);
-      setAnalysisCompareFileSamples(allSamples);
+      const bundle = await fetchTelemetryAnalysisBundle(fileId);
+      setAnalysisCompareFileSamples(bundle.samples);
+      mergeChannelsForFile(fileId, bundle.channels);
+      mergeLapsForFile(fileId, bundle.laps);
 
       if (analysisPrimaryLap === "all") {
         setAnalysisPrimaryLap("best");
@@ -2561,7 +2657,7 @@ export default function TelemetryPage() {
   const selectedTurn = form.event_car_turn_id ? turns.find((turn) => turn.id === form.event_car_turn_id) : null;
   const analysisLapOptions = analysisFile ? availableLapNumbersFromSamples(analysisSamples) : [];
   const analysisBestLapNumber = analysisFile ? bestLapNumberForFile(laps, analysisFile.id) : null;
-  const analysisCompareFile = analysisCompareFileId ? rows.find((row) => row.id === analysisCompareFileId) || null : null;
+  const analysisCompareFile = analysisCompareFileId ? comparisonCandidates.find((row) => row.id === analysisCompareFileId) || null : null;
   const comparisonFileLapOptions = analysisCompareFile ? availableLapNumbersFromSamples(analysisCompareFileSamples) : [];
   const comparisonFileBestLapNumber = analysisCompareFile ? bestLapNumberForFile(laps, analysisCompareFile.id) : null;
   const resolvedPrimaryLap = resolveLapSelection(analysisPrimaryLap, analysisBestLapNumber);
@@ -2588,9 +2684,7 @@ export default function TelemetryPage() {
     : resolvedCompareLap !== null
       ? `Giro ${resolvedCompareLap}`
       : "Confronto";
-  const comparableTelemetryFiles = analysisFile
-    ? rows.filter((row) => row.id !== analysisFile.id && (row.sampled_points_count || 0) > 0)
-    : [];
+  const comparableTelemetryFiles = analysisFile ? comparisonCandidates : [];
   const wizardValidation = validateCsvWizard(csvWizard);
 
   if (access.loading) {
@@ -3239,6 +3333,32 @@ export default function TelemetryPage() {
                   </div>
                 );
               })}
+
+              {archiveTotal > TELEMETRY_PAGE_SIZE ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">
+                    {tr("Pagina")} {archivePage} / {archiveTotalPages} · {archiveTotal} file
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setArchivePage((current) => Math.max(1, current - 1))}
+                      disabled={archivePage <= 1 || loading}
+                      className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {tr("Precedente")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArchivePage((current) => Math.min(archiveTotalPages, current + 1))}
+                      disabled={archivePage >= archiveTotalPages || loading}
+                      className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {tr("Successiva")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         </SectionCard>
