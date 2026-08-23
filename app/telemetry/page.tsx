@@ -2017,6 +2017,8 @@ export default function TelemetryPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [eventCars, setEventCars] = useState<EventCar[]>([]);
   const [turns, setTurns] = useState<TurnRow[]>([]);
+  const [turnLookupSearch, setTurnLookupSearch] = useState("");
+  const [eventLookupSearch, setEventLookupSearch] = useState("");
   const [channels, setChannels] = useState<TelemetryChannel[]>([]);
   const [laps, setLaps] = useState<TelemetryLap[]>([]);
   const [insights, setInsights] = useState<TelemetryInsight[]>([]);
@@ -2043,37 +2045,118 @@ export default function TelemetryPage() {
   const [analysisCompareFileLoading, setAnalysisCompareFileLoading] = useState(false);
   const [selectedAnalysisChannels, setSelectedAnalysisChannels] = useState<string[]>([]);
 
+  function applyTurnLookupRows(rows: any[]) {
+    const nextTurns: TurnRow[] = [];
+    const nextEventCars = new Map<string, EventCar>();
+    const nextEvents = new Map<string, EventRow>();
+    const nextSessions = new Map<string, SessionRow>();
+
+    for (const row of rows) {
+      nextTurns.push({
+        id: row.id,
+        event_car_id: row.event_car_id,
+        event_session_id: row.event_session_id,
+        driver_id: row.driver_id,
+        minutes: row.minutes,
+        laps: row.laps,
+        recorded_at: row.recorded_at,
+        created_at: row.created_at,
+      });
+      if (row.event_car_id) nextEventCars.set(row.event_car_id, { id: row.event_car_id, event_id: row.event_id, car_id: row.car_id });
+      if (row.event_id) nextEvents.set(row.event_id, { id: row.event_id, name: row.event_name || "Evento" });
+      if (row.event_session_id) nextSessions.set(row.event_session_id, { id: row.event_session_id, event_id: row.event_id, name: row.session_name || "Sessione" });
+    }
+    setTurns(nextTurns);
+    setEventCars(Array.from(nextEventCars.values()));
+    setEvents((current) => {
+      const byId = new Map(current.map((row) => [row.id, row]));
+      for (const row of nextEvents.values()) byId.set(row.id, row);
+      return Array.from(byId.values());
+    });
+    setSessions((current) => {
+      const byId = new Map(current.map((row) => [row.id, row]));
+      for (const row of nextSessions.values()) byId.set(row.id, row);
+      return Array.from(byId.values());
+    });
+  }
+
   async function loadReferenceData() {
     try {
       const ctx = await getCurrentTeamContext();
-      const [carsRes, driversRes, eventsRes, sessionsRes, eventCarsRes, turnsRes] = await Promise.all([
+      const [carsRes, driversRes, eventsRes, turnsRes] = await Promise.all([
         supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name"),
-        supabase
-          .from("drivers")
-          .select("id,first_name,last_name,nickname")
-          .eq("team_id", ctx.teamId)
-          .order("last_name"),
-        supabase.from("events").select("*").eq("team_id", ctx.teamId).order("created_at", { ascending: false }),
-        supabase.from("event_sessions").select("*").eq("team_id", ctx.teamId).order("created_at", { ascending: false }),
-        supabase.from("event_cars").select("*").eq("team_id", ctx.teamId),
-        supabase.from("event_car_turns").select("*").eq("team_id", ctx.teamId).order("created_at", { ascending: false }),
+        supabase.from("drivers").select("id,first_name,last_name,nickname").eq("team_id", ctx.teamId).order("last_name"),
+        supabase.rpc("team_reference_lookup", { p_team_id: ctx.teamId, p_kind: "events", p_search: null, p_limit: 30, p_parent_id: null }),
+        supabase.rpc("team_reference_lookup", { p_team_id: ctx.teamId, p_kind: "turns", p_search: null, p_limit: 30, p_parent_id: null }),
       ]);
-
       if (carsRes.error) throw carsRes.error;
       if (driversRes.error) throw driversRes.error;
       if (eventsRes.error) throw eventsRes.error;
-      if (sessionsRes.error) throw sessionsRes.error;
-      if (eventCarsRes.error) throw eventCarsRes.error;
       if (turnsRes.error) throw turnsRes.error;
-
       setCars((carsRes.data || []) as Car[]);
       setDrivers((driversRes.data || []) as Driver[]);
       setEvents((eventsRes.data || []) as EventRow[]);
-      setSessions((sessionsRes.data || []) as SessionRow[]);
-      setEventCars((eventCarsRes.data || []) as EventCar[]);
-      setTurns((turnsRes.data || []) as TurnRow[]);
+      applyTurnLookupRows((turnsRes.data || []) as any[]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore caricamento riferimenti telemetria.";
+      setFeedback({ type: "error", message });
+    }
+  }
+
+  async function loadTurnLookup(searchValue: string) {
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase.rpc("team_reference_lookup", {
+        p_team_id: ctx.teamId,
+        p_kind: "turns",
+        p_search: searchValue.trim() || null,
+        p_limit: 30,
+        p_parent_id: form.event_id || null,
+      });
+      if (error) throw error;
+      applyTurnLookupRows((data || []) as any[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore ricerca turni.";
+      setFeedback({ type: "error", message });
+    }
+  }
+
+  async function loadEventLookup(searchValue: string) {
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase.rpc("team_reference_lookup", {
+        p_team_id: ctx.teamId,
+        p_kind: "events",
+        p_search: searchValue.trim() || null,
+        p_limit: 30,
+        p_parent_id: null,
+      });
+      if (error) throw error;
+      setEvents((data || []) as EventRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore ricerca eventi.";
+      setFeedback({ type: "error", message });
+    }
+  }
+
+  async function loadSessionsForEvent(eventId: string) {
+    if (!eventId) {
+      setSessions([]);
+      return;
+    }
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase.rpc("team_reference_lookup", {
+        p_team_id: ctx.teamId,
+        p_kind: "sessions",
+        p_search: null,
+        p_limit: 100,
+        p_parent_id: eventId,
+      });
+      if (error) throw error;
+      setSessions((data || []) as SessionRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Errore caricamento sessioni.";
       setFeedback({ type: "error", message });
     }
   }
@@ -2158,6 +2241,21 @@ export default function TelemetryPage() {
       void loadReferenceData();
     }
   }, [access.loading, canViewTelemetry]);
+  useEffect(() => {
+    if (access.loading || !canViewTelemetry) return;
+    const timer = window.setTimeout(() => void loadTurnLookup(turnLookupSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [turnLookupSearch, form.event_id, access.loading, canViewTelemetry]);
+
+  useEffect(() => {
+    if (access.loading || !canViewTelemetry) return;
+    const timer = window.setTimeout(() => void loadEventLookup(eventLookupSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [eventLookupSearch, access.loading, canViewTelemetry]);
+
+  useEffect(() => {
+    if (!access.loading && canViewTelemetry) void loadSessionsForEvent(form.event_id);
+  }, [form.event_id, access.loading, canViewTelemetry]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -2894,18 +2992,26 @@ export default function TelemetryPage() {
               </div>
 
               <Field label="Turno specifico" hint="consigliato per analisi future">
-                <select
-                  className={selectClassName}
-                  value={form.event_car_turn_id}
-                  onChange={(event) => handleTurnChange(event.target.value)}
-                >
-                  <option value="">{tr("Nessun turno collegato")}</option>
-                  {turns.map((turn) => (
-                    <option key={turn.id} value={turn.id}>
-                      {turnLabels.get(turn.id) || turn.id}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2">
+                  <input
+                    className={inputClassName}
+                    value={turnLookupSearch}
+                    onChange={(event) => setTurnLookupSearch(event.target.value)}
+                    placeholder={tr("Cerca turno per evento, mezzo, sessione o pilota...")}
+                  />
+                  <select
+                    className={selectClassName}
+                    value={form.event_car_turn_id}
+                    onChange={(event) => handleTurnChange(event.target.value)}
+                  >
+                    <option value="">{tr("Nessun turno collegato")}</option>
+                    {turns.map((turn) => (
+                      <option key={turn.id} value={turn.id}>
+                        {turnLabels.get(turn.id) || turn.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </Field>
 
               {selectedTurn ? (
@@ -2946,18 +3052,26 @@ export default function TelemetryPage() {
                 </Field>
 
                 <Field label="Evento">
-                  <select
-                    className={selectClassName}
-                    value={form.event_id}
-                    onChange={(event) => setForm({ ...form, event_id: event.target.value })}
-                  >
-                    <option value=""><LocalizedText text="Evento" /></option>
-                    {events.map((row) => (
-                      <option key={row.id} value={row.id}>
-                        {row.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <input
+                      className={inputClassName}
+                      value={eventLookupSearch}
+                      onChange={(event) => setEventLookupSearch(event.target.value)}
+                      placeholder={tr("Cerca evento...")}
+                    />
+                    <select
+                      className={selectClassName}
+                      value={form.event_id}
+                      onChange={(event) => setForm({ ...form, event_id: event.target.value, session_id: "" })}
+                    >
+                      <option value=""><LocalizedText text="Evento" /></option>
+                      {events.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </Field>
 
                 <Field label="Sessione">

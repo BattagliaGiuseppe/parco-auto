@@ -299,6 +299,8 @@ async function copyToClipboard(value: string) {
   }
 }
 
+const ATTENDANCE_PAGE_SIZE = 50;
+
 export default function AttendancePage() {
   const { t, language } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
@@ -308,6 +310,12 @@ export default function AttendancePage() {
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [liveRecords, setLiveRecords] = useState<AttendanceRecord[]>([]);
+  const [latestRecords, setLatestRecords] = useState<AttendanceRecord[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [todayMetrics, setTodayMetrics] = useState({ records_count: 0, minutes: 0, track_presence: 0 });
   const [summaries, setSummaries] = useState<AttendanceSummary[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null);
@@ -374,7 +382,7 @@ export default function AttendancePage() {
   const canExport = isAttendanceAdmin && access.hasPermission("attendance.export", ["owner", "admin"]);
   const canKiosk = isAttendanceAdmin && access.hasPermission("attendance.kiosk", ["owner", "admin"]);
 
-  const activeRecords = useMemo(() => records.filter((row) => !row.check_out_at), [records]);
+  const activeRecords = liveRecords;
   const activeStaffIds = useMemo(() => new Set(activeRecords.map((row) => row.staff_member_id)), [activeRecords]);
   const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
   const summaryByStaffId = useMemo(() => new Map(summaries.map((summary) => [summary.staff_member_id, summary])), [summaries]);
@@ -384,24 +392,14 @@ export default function AttendancePage() {
   );
   const latestRecordByStaffId = useMemo(() => {
     const map = new Map<string, AttendanceRecord>();
-    for (const record of records) {
-      const current = map.get(record.staff_member_id);
-      if (!current || new Date(record.check_in_at).getTime() > new Date(current.check_in_at).getTime()) {
-        map.set(record.staff_member_id, record);
-      }
-    }
+    for (const record of latestRecords) map.set(record.staff_member_id, record);
     return map;
-  }, [records]);
+  }, [latestRecords]);
 
-  const todayRecords = useMemo(() => records.filter((row) => new Date(row.check_in_at) >= new Date(startOfTodayIso())), [records]);
-  const todayMinutes = useMemo(
-    () => todayRecords.reduce((sum, row) => sum + minutesBetween(row.check_in_at, row.check_out_at), 0),
-    [todayRecords]
-  );
-  const trackPresence = useMemo(
-    () => activeRecords.filter((row) => row.check_in_location_label === "pista").length,
-    [activeRecords]
-  );
+  const todayMinutes = todayMetrics.minutes;
+  const trackPresence = todayMetrics.track_presence;
+  const totalPages = Math.max(1, Math.ceil(total / ATTENDANCE_PAGE_SIZE));
+
   const periodMinutes = useMemo(
     () => summaries.reduce((sum, summary) => sum + getNumber(summary.minutes_since_reset), 0),
     [summaries]
@@ -414,52 +412,37 @@ export default function AttendancePage() {
 
     try {
       const ctx = access.ctx;
-      const since = new Date();
-      since.setDate(since.getDate() - 180);
-      since.setHours(0, 0, 0, 0);
-
       const ensureRes = canClockSelf
         ? await supabase.rpc("attendance_ensure_staff_member", { p_team_id: ctx.teamId })
         : ({ data: null, error: null } as any);
-
       if (ensureRes.error) throw ensureRes.error;
 
-      const [staffRes, recordsRes, eventsRes, summaryRes] = await Promise.all([
-        supabase
-          .from("team_staff_members")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .order("full_name", { ascending: true }),
-        supabase
-          .from("attendance_records")
-          .select(`
-            *,
-            staff_member:staff_member_id(*),
-            event:event_id(id,name,date)
-          `)
-          .eq("team_id", ctx.teamId)
-          .gte("check_in_at", since.toISOString())
-          .order("check_in_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("events")
-          .select("id,name,date")
-          .eq("team_id", ctx.teamId)
-          .order("date", { ascending: false })
-          .limit(80),
+      const [staffRes, eventsRes, summaryRes, consoleRes] = await Promise.all([
+        supabase.from("team_staff_members").select("*").eq("team_id", ctx.teamId).order("full_name", { ascending: true }),
+        supabase.from("events").select("id,name,date").eq("team_id", ctx.teamId).order("date", { ascending: false }).limit(80),
         supabase.rpc("attendance_staff_summary", { p_team_id: ctx.teamId }),
+        supabase.rpc("attendance_console_page", {
+          p_team_id: ctx.teamId,
+          p_page: page,
+          p_page_size: ATTENDANCE_PAGE_SIZE,
+          p_search: debouncedSearch || null,
+          p_status_filter: statusFilter,
+          p_location_filter: locationFilter,
+          p_since_days: 180,
+        }),
       ]);
 
       if (staffRes.error) throw staffRes.error;
-      if (recordsRes.error) throw recordsRes.error;
       if (eventsRes.error) throw eventsRes.error;
       if (summaryRes.error) throw summaryRes.error;
+      if (consoleRes.error) throw consoleRes.error;
 
-      const normalizedRecords: AttendanceRecord[] = ((recordsRes.data || []) as any[]).map((row) => ({
+      const payload = (consoleRes.data || {}) as any;
+      const normalizeRecords = (rows: any[]) => rows.map((row) => ({
         ...row,
         staff_member: normalizeRelation<StaffMember>(row.staff_member),
         event: normalizeRelation<EventOption>(row.event),
-      }));
+      })) as AttendanceRecord[];
 
       const normalizedSummaries: AttendanceSummary[] = ((summaryRes.data || []) as any[]).map((row) => ({
         staff_member_id: row.staff_member_id,
@@ -474,16 +457,36 @@ export default function AttendancePage() {
       }));
 
       setStaff((staffRes.data || []) as StaffMember[]);
-      setRecords(normalizedRecords);
+      setRecords(normalizeRecords(payload.records || []));
+      setLiveRecords((payload.active_records || []) as AttendanceRecord[]);
+      setLatestRecords((payload.latest_records || []) as AttendanceRecord[]);
       setEvents((eventsRes.data || []) as EventOption[]);
       setSummaries(normalizedSummaries);
       setCurrentStaff(normalizeRelation<StaffMember>(ensureRes.data));
+      setTotal(Number(payload.total || 0));
+      setTodayMetrics({
+        records_count: Number(payload.today?.records_count || 0),
+        minutes: Number(payload.today?.minutes || 0),
+        track_presence: Number(payload.today?.track_presence || 0),
+      });
     } catch (err: any) {
       setError(err.message || "Errore durante il caricamento presenze.");
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, locationFilter]);
 
   useEffect(() => {
     if (!access.loading && access.ctx && !canView && canClockSelf) {
@@ -495,7 +498,7 @@ export default function AttendancePage() {
     if (!access.loading && access.ctx && canView) {
       void loadData();
     }
-  }, [access.loading, access.ctx?.teamId, canView]);
+  }, [access.loading, access.ctx?.teamId, canView, page, debouncedSearch, statusFilter, locationFilter]);
 
   const filteredStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -512,20 +515,7 @@ export default function AttendancePage() {
     });
   }, [activeStaffIds, search, staff, statusFilter]);
 
-  const filteredRecords = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return records.filter((row) => {
-      if (locationFilter !== "all" && row.check_in_location_label !== locationFilter) return false;
-      if (statusFilter === "present" && row.check_out_at) return false;
-      if (statusFilter === "absent") return false;
-      if (!q) return true;
-      return [row.staff_member?.full_name, row.staff_member?.email, row.event?.name, row.check_in_note, row.check_out_note]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [locationFilter, records, search, statusFilter]);
+  const filteredRecords = records;
 
   const filteredSummaryRows = useMemo(
     () => filteredStaff.map((member) => ({ member, summary: summaryByStaffId.get(member.id) || null })),
@@ -1039,6 +1029,16 @@ export default function AttendancePage() {
           )}
         </div>
       </SectionCard>
+
+      {viewMode !== "compact" && totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("timbrature")}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+          </div>
+        </div>
+      ) : null}
 
       {staffModalOpen ? (
         <ModalShell

@@ -113,6 +113,8 @@ function pickOne<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+const MOUNTS_PAGE_SIZE = 50;
+
 export default function MountsPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
@@ -121,6 +123,10 @@ export default function MountsPage() {
   const canEditMounts = access.hasPermission("mounts.edit", ["owner", "admin"]);
 
   const [mounts, setMounts] = useState<MountRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [mountStats, setMountStats] = useState({ active: 0, history_total: 0, cars_total: 0, free_components: 0 });
   const [cars, setCars] = useState<CarRow[]>([]);
   const [components, setComponents] = useState<ComponentRow[]>([]);
   const [teamUsers, setTeamUsers] = useState<TeamUserLite[]>([]);
@@ -149,102 +155,76 @@ export default function MountsPage() {
     message: string;
   } | null>(null);
 
-  async function loadAll() {
+  async function loadReferenceData() {
+    const ctx = await getCurrentTeamContext();
+    const [carsRes, compsRes, usersRes] = await Promise.all([
+      supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
+      supabase.from("components").select("id,type,identifier,car_id").eq("team_id", ctx.teamId).is("car_id", null).order("identifier", { ascending: true }),
+      getTeamUsers(),
+    ]);
+    if (carsRes.error) throw carsRes.error;
+    if (compsRes.error) throw compsRes.error;
+    setCars((carsRes.data || []) as CarRow[]);
+    setComponents((compsRes.data || []) as ComponentRow[]);
+    setTeamUsers((usersRes || []) as TeamUserLite[]);
+    setTeamRole(ctx.role);
+    setMountedBy(ctx.teamUserId);
+  }
+
+  async function loadMounts() {
     setLoading(true);
     setFeedback(null);
-
     try {
       const ctx = await getCurrentTeamContext();
-
-      const [mountsRes, carsRes, compsRes, usersRes] = await Promise.all([
-        supabase
-          .from("car_components")
-          .select(
-            "id, mounted_at, removed_at, status, reason, cars:car_id(id,name), components:component_id(id,type,identifier), mounted_by_team_user_id(id,name,email), removed_by_team_user_id(id,name,email)",
-          )
-          .eq("team_id", ctx.teamId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("cars")
-          .select("id, name")
-          .eq("team_id", ctx.teamId)
-          .order("name", { ascending: true }),
-        supabase
-          .from("components")
-          .select("id, type, identifier, car_id")
-          .eq("team_id", ctx.teamId)
-          .is("car_id", null)
-          .order("identifier", { ascending: true }),
-        getTeamUsers(),
-      ]);
-
-      if (mountsRes.error) throw mountsRes.error;
-      if (carsRes.error) throw carsRes.error;
-      if (compsRes.error) throw compsRes.error;
-
-      const normalizedMounts: MountRow[] = (
-        (mountsRes.data || []) as MountRowRaw[]
-      ).map((row) => ({
-        id: row.id,
-        mounted_at: row.mounted_at,
-        removed_at: row.removed_at,
-        status: row.status,
-        reason: row.reason,
-        cars: pickOne(row.cars),
-        components: pickOne(row.components),
-        mounted_by_team_user_id: pickOne(row.mounted_by_team_user_id),
-        removed_by_team_user_id: pickOne(row.removed_by_team_user_id),
-      }));
-
-      setMounts(normalizedMounts);
-      setCars((carsRes.data || []) as CarRow[]);
-      setComponents((compsRes.data || []) as ComponentRow[]);
-      setTeamUsers((usersRes || []) as TeamUserLite[]);
-      setTeamRole(ctx.role);
-      setMountedBy(ctx.teamUserId);
+      const { data, error } = await supabase.rpc("mounts_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: MOUNTS_PAGE_SIZE,
+        p_search: debouncedSearch || null,
+        p_status_filter: statusFilter,
+        p_car_filter: carFilter || null,
+      });
+      if (error) throw error;
+      const payload = (data || {}) as any;
+      setMounts((payload.items || []) as MountRow[]);
+      setTotal(Number(payload.total || 0));
+      setMountStats({
+        active: Number(payload.stats?.active || 0),
+        history_total: Number(payload.stats?.history_total || 0),
+        cars_total: Number(payload.stats?.cars_total || 0),
+        free_components: Number(payload.stats?.free_components || 0),
+      });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Errore caricamento montaggi";
+      const message = error instanceof Error ? error.message : "Errore caricamento montaggi";
       setFeedback({ type: "error", message });
       setMounts([]);
-      setCars([]);
-      setComponents([]);
-      setTeamUsers([]);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!access.loading && canViewMounts) {
-      void loadAll();
-    }
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, carFilter]);
+
+  useEffect(() => {
+    if (!access.loading && canViewMounts) void loadReferenceData();
   }, [access.loading, canViewMounts]);
 
-  const activeMounts = useMemo(
-    () => mounts.filter((row) => !row.removed_at),
-    [mounts],
-  );
+  useEffect(() => {
+    if (!access.loading && canViewMounts) void loadMounts();
+  }, [access.loading, canViewMounts, page, debouncedSearch, statusFilter, carFilter]);
 
-  const filteredMounts = useMemo(() => {
-    return mounts.filter((row) => {
-      if (statusFilter === "active" && row.removed_at) return false;
-      if (statusFilter === "history" && !row.removed_at) return false;
-      if (carFilter && row.cars?.id !== carFilter) return false;
-
-      const haystack = `${row.components?.identifier || ""} ${
-        row.components?.type || ""
-      } ${row.cars?.name || ""}`
-        .toLowerCase()
-        .trim();
-
-      if (search.trim() && !haystack.includes(search.toLowerCase().trim())) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [mounts, statusFilter, carFilter, search]);
+  const filteredMounts = mounts;
+  const totalPages = Math.max(1, Math.ceil(total / MOUNTS_PAGE_SIZE));
 
   const groupedMounts = useMemo(() => {
     const groups = new Map<string, { key: string; label: string; rows: MountRow[] }>();
@@ -267,32 +247,12 @@ export default function MountsPage() {
 
   const stats = useMemo(
     () => [
-      {
-        label: "Montaggi attivi",
-        value: String(activeMounts.length),
-        icon: <Link2 size={18} />,
-        helper: "Componenti attualmente installati",
-      },
-      {
-        label: t("mounts.stats.totalHistory", "Storico totale"),
-        value: String(mounts.length),
-        icon: <Layers3 size={18} />,
-        helper: "Interventi di montaggio e smontaggio registrati",
-      },
-      {
-        label: "Auto coinvolte",
-        value: String(cars.length),
-        icon: <CarFront size={18} />,
-        helper: "Mezzi disponibili nel team",
-      },
-      {
-        label: t("mounts.stats.freeComponents", "Componenti liberi"),
-        value: String(components.length),
-        icon: <PlusCircle size={18} />,
-        helper: "Pronti per un nuovo montaggio",
-      },
+      { label: "Montaggi attivi", value: String(mountStats.active), icon: <Link2 size={18} />, helper: "Componenti attualmente installati" },
+      { label: t("mounts.stats.totalHistory", "Storico totale"), value: String(mountStats.history_total), icon: <Layers3 size={18} />, helper: "Interventi di montaggio e smontaggio registrati" },
+      { label: "Auto coinvolte", value: String(mountStats.cars_total), icon: <CarFront size={18} />, helper: "Mezzi disponibili nel team" },
+      { label: t("mounts.stats.freeComponents", "Componenti liberi"), value: String(mountStats.free_components), icon: <PlusCircle size={18} />, helper: "Pronti per un nuovo montaggio" },
     ],
-    [activeMounts.length, mounts.length, cars.length, components.length, t],
+    [mountStats, t],
   );
 
   async function addMount(e: FormEvent) {
@@ -333,7 +293,7 @@ export default function MountsPage() {
       setMountedAt(new Date().toISOString().slice(0, 10));
       setReason("");
 
-      await loadAll();
+      await Promise.all([loadMounts(), loadReferenceData()]);
       setFeedback({
         type: "success",
         message: "Componente montato correttamente.",
@@ -368,7 +328,7 @@ export default function MountsPage() {
 
       if (error) throw error;
 
-      await loadAll();
+      await Promise.all([loadMounts(), loadReferenceData()]);
       setFeedback({
         type: "success",
         message: "Componente smontato correttamente.",
@@ -747,6 +707,16 @@ export default function MountsPage() {
           </div>
         )}
       </SectionCard>
+
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("movimenti")}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

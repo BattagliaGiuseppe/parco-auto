@@ -196,6 +196,8 @@ export default function TasksPage() {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [inventory, setInventory] = useState<InventoryOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [eventLookupSearch, setEventLookupSearch] = useState("");
+  const [inventoryLookupSearch, setInventoryLookupSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -273,28 +275,52 @@ export default function TasksPage() {
     if (!access.ctx || !canView) return;
     try {
       const ctx = access.ctx;
-      const [membersRes, carsRes, componentsRes, eventsRes, inventoryRes, driversRes] = await Promise.all([
+      const [membersRes, carsRes, componentsRes, driversRes] = await Promise.all([
         supabase.from("team_users").select("id,name,email,role").eq("team_id", ctx.teamId).eq("is_active", true).order("name", { ascending: true }),
         supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
         supabase.from("components").select("id,type,identifier,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
-        supabase.from("events").select("id,name,date").eq("team_id", ctx.teamId).order("date", { ascending: false }).limit(80),
-        supabase.from("inventory_items").select("id,name").eq("team_id", ctx.teamId).is("archived_at", null).order("name", { ascending: true }).limit(250),
         supabase.from("drivers").select("id,first_name,last_name").eq("team_id", ctx.teamId).order("last_name", { ascending: true }),
       ]);
       if (membersRes.error) throw membersRes.error;
       if (carsRes.error) throw carsRes.error;
       if (componentsRes.error) throw componentsRes.error;
-      if (eventsRes.error) throw eventsRes.error;
-      if (inventoryRes.error) throw inventoryRes.error;
       if (driversRes.error) throw driversRes.error;
       setMembers((membersRes.data || []) as TeamMember[]);
       setCars((carsRes.data || []) as CarOption[]);
       setComponents((componentsRes.data || []) as ComponentOption[]);
-      setEvents((eventsRes.data || []) as EventOption[]);
-      setInventory((inventoryRes.data || []) as InventoryOption[]);
       setDrivers((driversRes.data || []) as DriverOption[]);
     } catch (err: any) {
       setError(err.message || "Errore durante il caricamento delle opzioni attività.");
+    }
+  }
+
+  async function loadTaskLookup(kind: "events" | "inventory", searchValue: string) {
+    if (!access.ctx || !canView) return;
+    const { data, error } = await supabase.rpc("team_reference_lookup", {
+      p_team_id: access.ctx.teamId,
+      p_kind: kind,
+      p_search: searchValue.trim() || null,
+      p_limit: 30,
+      p_parent_id: null,
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    if (kind === "events") {
+      const rows = (data || []) as EventOption[];
+      setEvents((current) => {
+        const selected = editingTask?.event ? [editingTask.event] : [];
+        const byId = new Map([...selected, ...rows].map((row) => [row.id, row]));
+        return Array.from(byId.values());
+      });
+    } else {
+      const rows = (data || []) as InventoryOption[];
+      setInventory((current) => {
+        const selected = editingTask?.inventory_item ? [editingTask.inventory_item] : [];
+        const byId = new Map([...selected, ...rows].map((row) => [row.id, row]));
+        return Array.from(byId.values());
+      });
     }
   }
 
@@ -305,6 +331,18 @@ export default function TasksPage() {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const timer = window.setTimeout(() => void loadTaskLookup("events", eventLookupSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [modalOpen, eventLookupSearch, access.ctx?.teamId]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const timer = window.setTimeout(() => void loadTaskLookup("inventory", inventoryLookupSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [modalOpen, inventoryLookupSearch, access.ctx?.teamId]);
 
   useEffect(() => {
     if (!access.loading && access.ctx && canView) {
@@ -347,12 +385,20 @@ export default function TasksPage() {
 
   function openCreateModal() {
     setEditingTask(null);
+    setEventLookupSearch("");
+    setInventoryLookupSearch("");
+    setEvents([]);
+    setInventory([]);
     setForm(EMPTY_FORM);
     setModalOpen(true);
   }
 
   function openEditModal(task: TaskRow) {
     setEditingTask(task);
+    setEventLookupSearch("");
+    setInventoryLookupSearch("");
+    setEvents(task.event ? [task.event] : []);
+    setInventory(task.inventory_item ? [task.inventory_item] : []);
     setForm({
       title: task.title,
       description: task.description || "",
@@ -734,17 +780,23 @@ export default function TasksPage() {
             </UiField>
 
             <UiField label="Evento collegato">
-              <select className={uiSelectClassName} value={form.event_id} onChange={(e) => setForm((prev) => ({ ...prev, event_id: e.target.value }))}>
-                <option value="">{tr("Nessun evento")}</option>
-                {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
-              </select>
+              <div className="space-y-2">
+                <input className={uiInputClassName} value={eventLookupSearch} onChange={(e) => setEventLookupSearch(e.target.value)} placeholder={tr("Cerca evento...")} />
+                <select className={uiSelectClassName} value={form.event_id} onChange={(e) => setForm((prev) => ({ ...prev, event_id: e.target.value }))}>
+                  <option value="">{tr("Nessun evento")}</option>
+                  {events.map((event) => <option key={event.id} value={event.id}>{event.name} · {formatDate(event.date)}</option>)}
+                </select>
+              </div>
             </UiField>
 
             <UiField label="Articolo magazzino">
-              <select className={uiSelectClassName} value={form.inventory_item_id} onChange={(e) => setForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}>
-                <option value="">{tr("Nessun articolo")}</option>
-                {inventory.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              <div className="space-y-2">
+                <input className={uiInputClassName} value={inventoryLookupSearch} onChange={(e) => setInventoryLookupSearch(e.target.value)} placeholder={tr("Cerca articolo...")} />
+                <select className={uiSelectClassName} value={form.inventory_item_id} onChange={(e) => setForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}>
+                  <option value="">{tr("Nessun articolo")}</option>
+                  {inventory.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </div>
             </UiField>
 
             <UiField label="Pilota collegato">

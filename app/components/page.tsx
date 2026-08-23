@@ -114,6 +114,8 @@ function ProgressBar({ value }: { value: number | null }) {
   );
 }
 
+const COMPONENTS_PAGE_SIZE = 50;
+
 export default function ComponentsPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
@@ -137,6 +139,11 @@ export default function ComponentsPage() {
   ]);
 
   const [rows, setRows] = useState<ComponentRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [componentStats, setComponentStats] = useState({ total: 0, mounted: 0, unmounted: 0, attention: 0, revision: 0 });
   const [cars, setCars] = useState<CarOption[]>([]);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,37 +158,43 @@ export default function ComponentsPage() {
   const [form, setForm] = useState(emptyForm);
   const [viewMode, setViewMode] = usePersistedViewMode("components-view-mode");
 
-  async function loadAll() {
+  async function loadReferenceData() {
+    const ctx = await getCurrentTeamContext();
+    const [carsRes, defsRes] = await Promise.all([
+      supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
+      supabase.from("team_component_definitions").select("*").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
+    ]);
+    if (carsRes.error) throw carsRes.error;
+    if (defsRes.error) throw defsRes.error;
+    setCars((carsRes.data || []) as CarOption[]);
+    setDefinitions((defsRes.data || []) as Definition[]);
+  }
+
+  async function loadRows() {
     setLoading(true);
     try {
       const ctx = await getCurrentTeamContext();
-      const [rowsRes, carsRes, defsRes] = await Promise.all([
-        supabase
-          .from("components")
-          .select(
-            "id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours,notes,car_id,car:car_id(name)",
-          )
-          .eq("team_id", ctx.teamId)
-          .order("identifier", { ascending: true }),
-        supabase
-          .from("cars")
-          .select("id,name")
-          .eq("team_id", ctx.teamId)
-          .order("name", { ascending: true }),
-        supabase
-          .from("team_component_definitions")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .order("order_index", { ascending: true }),
-      ]);
-
-      if (rowsRes.error) throw rowsRes.error;
-      if (carsRes.error) throw carsRes.error;
-      if (defsRes.error) throw defsRes.error;
-
-      setRows((rowsRes.data || []) as ComponentRow[]);
-      setCars((carsRes.data || []) as CarOption[]);
-      setDefinitions((defsRes.data || []) as Definition[]);
+      const { data, error } = await supabase.rpc("components_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: COMPONENTS_PAGE_SIZE,
+        p_search: debouncedSearch || null,
+        p_status_filter: statusFilter,
+        p_car_filter: carFilter || null,
+        p_type_filter: typeFilter || null,
+      });
+      if (error) throw error;
+      const payload = (data || {}) as any;
+      setRows((payload.items || []) as ComponentRow[]);
+      setTotal(Number(payload.total || 0));
+      setTypeOptions((payload.type_options || []) as string[]);
+      setComponentStats({
+        total: Number(payload.stats?.total || 0),
+        mounted: Number(payload.stats?.mounted || 0),
+        unmounted: Number(payload.stats?.unmounted || 0),
+        attention: Number(payload.stats?.attention || 0),
+        revision: Number(payload.stats?.revision || 0),
+      });
     } catch (error) {
       console.error("Errore caricamento componenti:", error);
       alert("Errore nel caricamento dei componenti");
@@ -191,50 +204,35 @@ export default function ComponentsPage() {
   }
 
   useEffect(() => {
-    if (!access.loading && canViewComponents) {
-      void loadAll();
-    }
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, carFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!access.loading && canViewComponents) void loadReferenceData();
   }, [access.loading, canViewComponents]);
 
+  useEffect(() => {
+    if (!access.loading && canViewComponents) void loadRows();
+  }, [access.loading, canViewComponents, page, debouncedSearch, statusFilter, carFilter, typeFilter]);
+
   const availableTypes = useMemo(() => {
-    const fromDefinitions = definitions.map((definition) => ({
-      value: definition.code,
-      label: tr(definition.label),
-    }));
-    const fromRows = [...new Set(rows.map((row) => row.type))]
-      .filter(
-        (value) =>
-          !fromDefinitions.some((definition) => definition.value === value),
-      )
+    const fromDefinitions = definitions.map((definition) => ({ value: definition.code, label: tr(definition.label) }));
+    const fromRows = typeOptions
+      .filter((value) => !fromDefinitions.some((definition) => definition.value === value))
       .map((value) => ({ value, label: value }));
     return [...fromDefinitions, ...fromRows];
-  }, [definitions, rows, t]);
+  }, [definitions, typeOptions, t]);
 
-  const filtered = useMemo(() => {
-    return rows.filter((row) => {
-      const carName = normalizeCarName(row.car) || "";
-      const q = search.trim().toLowerCase();
-      const status = getStatus(row);
-
-      if (statusFilter === "mounted" && !row.car_id) return false;
-      if (statusFilter === "unmounted" && row.car_id) return false;
-      if (statusFilter === "attention" && status.label !== "Attenzione")
-        return false;
-      if (
-        statusFilter === "revision" &&
-        status.label !== "Revisione necessaria"
-      )
-        return false;
-      if (carFilter && row.car_id !== carFilter) return false;
-      if (typeFilter && row.type !== typeFilter) return false;
-      if (
-        q &&
-        !`${row.identifier} ${row.type} ${carName}`.toLowerCase().includes(q)
-      )
-        return false;
-      return true;
-    });
-  }, [rows, statusFilter, carFilter, typeFilter, search]);
+  const filtered = rows;
+  const totalPages = Math.max(1, Math.ceil(total / COMPONENTS_PAGE_SIZE));
 
   const groupedByCar = useMemo(() => {
     const groups = new Map<string, { key: string; label: string; rows: ComponentRow[] }>();
@@ -252,39 +250,12 @@ export default function ComponentsPage() {
     });
   }, [filtered]);
 
-  const stats = useMemo(() => {
-    const statuses = rows.map((row) => getStatus(row));
-    const revisionCount = statuses.filter(
-      (status) =>
-        status.label === "Revisione necessaria" || status.label === "Scaduto",
-    ).length;
-    const attentionCount = statuses.filter(
-      (status) => status.label === "Attenzione",
-    ).length;
-
-    return [
-      {
-        label: "Totale componenti",
-        value: String(rows.length),
-        icon: <Boxes size={18} />,
-      },
-      {
-        label: "Montati",
-        value: String(rows.filter((row) => !!row.car_id).length),
-        icon: <CheckCircle2 size={18} />,
-      },
-      {
-        label: "In attenzione",
-        value: String(attentionCount),
-        icon: <AlertTriangle size={18} />,
-      },
-      {
-        label: "Da revisionare",
-        value: String(revisionCount),
-        icon: <RotateCcw size={18} />,
-      },
-    ];
-  }, [rows]);
+  const stats = useMemo(() => [
+    { label: "Totale componenti", value: String(componentStats.total), icon: <Boxes size={18} /> },
+    { label: "Montati", value: String(componentStats.mounted), icon: <CheckCircle2 size={18} /> },
+    { label: "In attenzione", value: String(componentStats.attention), icon: <AlertTriangle size={18} /> },
+    { label: "Da revisionare", value: String(componentStats.revision), icon: <RotateCcw size={18} /> },
+  ], [componentStats]);
 
   async function saveComponent() {
     if (!canEditComponents) return;
@@ -370,7 +341,7 @@ export default function ComponentsPage() {
 
       setOpen(false);
       setForm(emptyForm);
-      await loadAll();
+      await Promise.all([loadRows(), loadReferenceData()]);
     } catch (error) {
       console.error(error);
       alert("Errore salvataggio componente");
@@ -697,6 +668,16 @@ export default function ComponentsPage() {
           </div>
         )}
       </SectionCard>
+
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("componenti")}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+          </div>
+        </div>
+      ) : null}
 
       {open ? (
         <ModalShell

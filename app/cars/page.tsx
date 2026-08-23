@@ -167,6 +167,8 @@ function getDefinitionCategoryCopy(definition: Definition) {
   };
 }
 
+const CARS_PAGE_SIZE = 30;
+
 export default function CarsPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
@@ -180,6 +182,10 @@ export default function CarsPage() {
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [allComponents, setAllComponents] = useState<ComponentOption[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [carStats, setCarStats] = useState({ cars_total: 0, definitions_total: 0, available_components: 0, critical_components: 0 });
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -195,47 +201,70 @@ export default function CarsPage() {
   const [toast, setToast] = useState("");
   const [viewMode, setViewMode] = usePersistedViewMode("cars-view-mode");
 
-  async function loadAll() {
+  async function loadReferenceData() {
+    const ctx = await getCurrentTeamContext();
+    const [defsRes, compsRes] = await Promise.all([
+      supabase
+        .from("team_component_definitions")
+        .select("*")
+        .eq("team_id", ctx.teamId)
+        .order("order_index", { ascending: true }),
+      supabase
+        .from("components")
+        .select("id,type,identifier,expiry_date,car_id,car:car_id(name)")
+        .eq("team_id", ctx.teamId)
+        .order("identifier", { ascending: true }),
+    ]);
+    if (defsRes.error) throw defsRes.error;
+    if (compsRes.error) throw compsRes.error;
+    setDefinitions((defsRes.data || []) as Definition[]);
+    setAllComponents((compsRes.data || []) as ComponentOption[]);
+  }
+
+  async function loadCars() {
     setLoading(true);
     try {
       const ctx = await getCurrentTeamContext();
-      const [carsRes, defsRes, compsRes] = await Promise.all([
-        supabase
-          .from("cars")
-          .select(
-            `id,name,chassis_number,hours,notes,image_url,components(id,type,identifier,expiry_date,hours,life_hours,warning_threshold_hours,revision_threshold_hours)`,
-          )
-          .eq("team_id", ctx.teamId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("team_component_definitions")
-          .select("*")
-          .eq("team_id", ctx.teamId)
-          .order("order_index", { ascending: true }),
-        supabase
-          .from("components")
-          .select("id,type,identifier,expiry_date,car_id,car:car_id(name)")
-          .eq("team_id", ctx.teamId)
-          .order("identifier", { ascending: true }),
-      ]);
-      setCars(
-        ((carsRes.data || []) as any[]).map((car) => ({
-          ...car,
-          components: car.components || [],
-        })) as CarRow[],
-      );
-      setDefinitions((defsRes.data || []) as Definition[]);
-      setAllComponents((compsRes.data || []) as ComponentOption[]);
+      const { data, error } = await supabase.rpc("cars_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: CARS_PAGE_SIZE,
+        p_search: debouncedSearch || null,
+      });
+      if (error) throw error;
+      const payload = (data || {}) as any;
+      setCars(((payload.items || []) as any[]).map((car) => ({ ...car, components: car.components || [] })) as CarRow[]);
+      setTotal(Number(payload.total || 0));
+      setCarStats({
+        cars_total: Number(payload.stats?.cars_total || 0),
+        definitions_total: Number(payload.stats?.definitions_total || 0),
+        available_components: Number(payload.stats?.available_components || 0),
+        critical_components: Number(payload.stats?.critical_components || 0),
+      });
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     if (!access.loading && canViewCars) {
-      void loadAll();
+      void loadReferenceData();
     }
   }, [access.loading, canViewCars]);
+
+  useEffect(() => {
+    if (!access.loading && canViewCars) {
+      void loadCars();
+    }
+  }, [access.loading, canViewCars, page, debouncedSearch]);
 
   useEffect(() => {
     const next: Record<string, ComponentForm> = {};
@@ -247,48 +276,16 @@ export default function CarsPage() {
 
   const stats = useMemo(
     () => [
-      {
-        label: vehicleLabel,
-        value: String(cars.length),
-        icon: <CarFront size={18} />,
-      },
-      {
-        label: "Definizioni attive",
-        value: String(definitions.length),
-        icon: <Settings2 size={18} />,
-      },
-      {
-        label: "Componenti disponibili",
-        value: String(allComponents.length),
-        icon: <Boxes size={18} />,
-      },
-      {
-        label: "Con criticità",
-        value: String(
-          cars.reduce(
-            (acc, car) =>
-              acc +
-              car.components.filter(
-                (component) => getComponentStatus(component).label !== "OK",
-              ).length,
-            0,
-          ),
-        ),
-        icon: <Search size={18} />,
-      },
+      { label: vehicleLabel, value: String(carStats.cars_total), icon: <CarFront size={18} /> },
+      { label: "Definizioni attive", value: String(carStats.definitions_total), icon: <Settings2 size={18} /> },
+      { label: "Componenti disponibili", value: String(carStats.available_components), icon: <Boxes size={18} /> },
+      { label: "Con criticità", value: String(carStats.critical_components), icon: <Search size={18} /> },
     ],
-    [cars, definitions.length, allComponents.length, vehicleLabel],
+    [carStats, vehicleLabel],
   );
 
-  const filteredCars = useMemo(() => {
-    if (!search.trim()) return cars;
-    const q = search.toLowerCase();
-    return cars.filter(
-      (car) =>
-        car.name.toLowerCase().includes(q) ||
-        (car.chassis_number || "").toLowerCase().includes(q),
-    );
-  }, [cars, search]);
+  const filteredCars = cars;
+  const totalPages = Math.max(1, Math.ceil(total / CARS_PAGE_SIZE));
 
   function openCreate() {
     if (!canEditCars) return;
@@ -500,7 +497,7 @@ export default function CarsPage() {
       setOpen(false);
       setToast("Scheda salvata");
       setTimeout(() => setToast(""), 2500);
-      await loadAll();
+      await Promise.all([loadCars(), loadReferenceData()]);
     } catch (error) {
       console.error(error);
       alert("Errore salvataggio scheda");
@@ -758,6 +755,16 @@ export default function CarsPage() {
           ))}
         </div>
       )}
+
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {vehicleLabelLower}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+          </div>
+        </div>
+      ) : null}
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">

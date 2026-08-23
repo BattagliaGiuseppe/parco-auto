@@ -73,6 +73,8 @@ const emptyForm: MaintenanceForm = {
   revisionDescription: "",
 };
 
+const MAINTENANCES_PAGE_SIZE = 50;
+
 export default function MaintenancesPage() {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
@@ -84,6 +86,10 @@ export default function MaintenancesPage() {
   ]);
 
   const [maintenances, setMaintenances] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [maintenanceStats, setMaintenanceStats] = useState({ total: 0, open: 0, cars_involved: 0, components_involved: 0 });
   const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -104,16 +110,29 @@ export default function MaintenancesPage() {
 
   async function fetchMaintenances() {
     setLoading(true);
-    const ctx = await getCurrentTeamContext();
-    const { data } = await supabase
-      .from("maintenances")
-      .select(
-        "id, date, type, notes, status, priority, car_id(id,name), component_id(id,identifier,type), assigned_to_team_user_id(id,name,email)",
-      )
-      .eq("team_id", ctx.teamId)
-      .order("date", { ascending: false });
-    setMaintenances(data || []);
-    setLoading(false);
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { data, error } = await supabase.rpc("maintenances_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: MAINTENANCES_PAGE_SIZE,
+        p_search: debouncedSearch || null,
+        p_status_filter: maintenanceStatusFilter,
+        p_car_filter: maintenanceCarFilter || null,
+      });
+      if (error) throw error;
+      const payload = (data || {}) as any;
+      setMaintenances(payload.items || []);
+      setTotal(Number(payload.total || 0));
+      setMaintenanceStats({
+        total: Number(payload.stats?.total || 0),
+        open: Number(payload.stats?.open || 0),
+        cars_involved: Number(payload.stats?.cars_involved || 0),
+        components_involved: Number(payload.stats?.components_involved || 0),
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchCarsAndComponents() {
@@ -138,59 +157,40 @@ export default function MaintenancesPage() {
   }
 
   useEffect(() => {
-    if (!access.loading && canViewMaintenances) {
-      void fetchMaintenances();
-      void fetchCarsAndComponents();
-    }
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(maintenanceSearch.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [maintenanceSearch]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [maintenanceCarFilter, maintenanceStatusFilter]);
+
+  useEffect(() => {
+    if (!access.loading && canViewMaintenances) void fetchCarsAndComponents();
   }, [access.loading, canViewMaintenances]);
+
+  useEffect(() => {
+    if (!access.loading && canViewMaintenances) void fetchMaintenances();
+  }, [access.loading, canViewMaintenances, page, debouncedSearch, maintenanceCarFilter, maintenanceStatusFilter]);
 
   const stats = useMemo(
     () => [
-      {
-        label: "Totale",
-        value: String(maintenances.length),
-        icon: <Wrench size={18} />,
-      },
-      {
-        label: "Aperte",
-        value: String(
-          maintenances.filter((m) => m.status !== "completed").length,
-        ),
-        icon: <CalendarDays size={18} />,
-      },
-      {
-        label: "Auto coinvolte",
-        value: String(
-          new Set(maintenances.map((m) => m.car_id?.id).filter(Boolean)).size,
-        ),
-        icon: <CarFront size={18} />,
-      },
-      {
-        label: "Componenti",
-        value: String(
-          new Set(maintenances.map((m) => m.component_id?.id).filter(Boolean))
-            .size,
-        ),
-        icon: <Boxes size={18} />,
-      },
+      { label: "Totale", value: String(maintenanceStats.total), icon: <Wrench size={18} /> },
+      { label: "Aperte", value: String(maintenanceStats.open), icon: <CalendarDays size={18} /> },
+      { label: "Auto coinvolte", value: String(maintenanceStats.cars_involved), icon: <CarFront size={18} /> },
+      { label: "Componenti", value: String(maintenanceStats.components_involved), icon: <Boxes size={18} /> },
     ],
-    [maintenances],
+    [maintenanceStats],
   );
 
   const selectedComponent =
     components.find((component) => component.id === form.componentId) || null;
 
-  const filteredMaintenances = useMemo(() => {
-    const q = maintenanceSearch.trim().toLowerCase();
-    return maintenances.filter((m) => {
-      if (maintenanceCarFilter && m.car_id?.id !== maintenanceCarFilter) return false;
-      if (maintenanceStatusFilter === "open" && m.status === "completed") return false;
-      if (maintenanceStatusFilter === "completed" && m.status !== "completed") return false;
-      const haystack = `${m.type || ""} ${m.car_id?.name || ""} ${m.component_id?.identifier || ""} ${m.component_id?.type || ""} ${m.notes || ""}`.toLowerCase();
-      if (q && !haystack.includes(q)) return false;
-      return true;
-    });
-  }, [maintenances, maintenanceCarFilter, maintenanceStatusFilter, maintenanceSearch]);
+  const filteredMaintenances = maintenances;
+  const totalPages = Math.max(1, Math.ceil(total / MAINTENANCES_PAGE_SIZE));
 
   const groupedMaintenances = useMemo(() => {
     const groups = new Map<string, { key: string; label: string; rows: any[] }>();
@@ -578,6 +578,16 @@ export default function MaintenancesPage() {
           </div>
         )}
       </SectionCard>
+
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("interventi")}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+          </div>
+        </div>
+      ) : null}
 
       {openModal && canEditMaintenances ? (
         <ModalShell
