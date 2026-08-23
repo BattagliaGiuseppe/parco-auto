@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Activity, ArrowLeft, CalendarClock, Gauge, TimerReset, Trophy } from "lucide-react";
+import { Activity, ArrowLeft, CalendarClock, ChevronLeft, ChevronRight, Gauge, TimerReset, Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { usePermissionAccess } from "@/lib/permissions";
@@ -25,6 +25,17 @@ type PerformanceRow = {
   best_lap_ms: number | null;
   avg_lap_ms: number | null;
 };
+
+type PerformanceSummary = {
+  events: number;
+  turns: number;
+  minutes: number;
+  laps: number;
+  best_lap_ms: number | null;
+  avg_lap_ms: number | null;
+};
+
+const PAGE_SIZE = 50;
 
 function round1(value: number) {
   return Math.round(value * 10) / 10;
@@ -53,87 +64,52 @@ export default function DriverPerformancePage() {
   const canViewDrivers = access.hasPermission("drivers.view");
   const params = useParams();
   const driverId = params?.id as string;
+
   const [rows, setRows] = useState<PerformanceRow[]>([]);
   const [driver, setDriver] = useState<any>(null);
+  const [summary, setSummary] = useState<PerformanceSummary>({ events: 0, turns: 0, minutes: 0, laps: 0, best_lap_ms: null, avg_lap_ms: null });
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError("");
       try {
         const ctx = await getCurrentTeamContext();
-        const [driverRes, turnsRes, metricsRes, eventCarsRes, eventsRes, carsRes] = await Promise.all([
-          supabase.from("drivers").select("id,first_name,last_name").eq("team_id", ctx.teamId).eq("id", driverId).single(),
-          supabase
-            .from("event_car_turns")
-            .select("id,driver_id,event_car_id,recorded_at,minutes,laps,created_at")
-            .eq("team_id", ctx.teamId)
-            .eq("driver_id", driverId),
-          supabase.from("event_car_turn_metrics").select("turn_id,best_lap_ms,avg_lap_ms").eq("team_id", ctx.teamId),
-          supabase.from("event_cars").select("id,event_id,car_id").eq("team_id", ctx.teamId),
-          supabase.from("events").select("id,name,date").eq("team_id", ctx.teamId),
-          supabase.from("cars").select("id,name").eq("team_id", ctx.teamId),
-        ]);
-
-        if (driverRes.error) throw driverRes.error;
-        if (turnsRes.error) throw turnsRes.error;
-        if (metricsRes.error) throw metricsRes.error;
-        if (eventCarsRes.error) throw eventCarsRes.error;
-        if (eventsRes.error) throw eventsRes.error;
-        if (carsRes.error) throw carsRes.error;
-
-        const metricsMap = new Map<string, any>((metricsRes.data || []).map((row: any) => [String(row.turn_id), row]));
-        const eventCarMap = new Map<string, any>((eventCarsRes.data || []).map((row: any) => [String(row.id), row]));
-        const eventMap = new Map<string, any>((eventsRes.data || []).map((row: any) => [String(row.id), row]));
-        const carMap = new Map<string, any>((carsRes.data || []).map((row: any) => [String(row.id), row]));
-
-        const nextRows: PerformanceRow[] = (turnsRes.data || []).map((turn: any) => {
-          const eventCar = eventCarMap.get(String(turn.event_car_id));
-          const eventInfo = eventCar?.event_id ? eventMap.get(String(eventCar.event_id)) : null;
-          const carInfo = eventCar?.car_id ? carMap.get(String(eventCar.car_id)) : null;
-          const metrics = metricsMap.get(String(turn.id));
-          return {
-            id: String(turn.id),
-            event_id: eventCar?.event_id ? String(eventCar.event_id) : null,
-            event_name: eventInfo?.name || tr("Evento senza nome"),
-            car_name: carInfo?.name || tr("Auto non indicata"),
-            recorded_at: turn.recorded_at || turn.created_at || null,
-            minutes: Number(turn.minutes || 0),
-            laps: Number(turn.laps || 0),
-            best_lap_ms: metrics?.best_lap_ms != null ? Number(metrics.best_lap_ms) : null,
-            avg_lap_ms: metrics?.avg_lap_ms != null ? Number(metrics.avg_lap_ms) : null,
-          };
+        const { data, error: rpcError } = await supabase.rpc("driver_performance_page", {
+          p_team_id: ctx.teamId,
+          p_driver_id: driverId,
+          p_page: page,
+          p_page_size: PAGE_SIZE,
         });
+        if (rpcError) throw rpcError;
 
-        nextRows.sort((a, b) => new Date(b.recorded_at || 0).getTime() - new Date(a.recorded_at || 0).getTime());
-        setDriver(driverRes.data);
-        setRows(nextRows);
-      } catch (error) {
-        console.error(error);
+        const payload = (data || {}) as any;
+        setDriver(payload.driver || null);
+        setRows((payload.rows || []) as PerformanceRow[]);
+        setSummary({
+          events: Number(payload.summary?.events || 0),
+          turns: Number(payload.summary?.turns || 0),
+          minutes: Number(payload.summary?.minutes || 0),
+          laps: Number(payload.summary?.laps || 0),
+          best_lap_ms: payload.summary?.best_lap_ms == null ? null : Number(payload.summary.best_lap_ms),
+          avg_lap_ms: payload.summary?.avg_lap_ms == null ? null : Number(payload.summary.avg_lap_ms),
+        });
+        setTotal(Number(payload.total || 0));
+      } catch (err: any) {
+        console.error(err);
         setRows([]);
+        setError(err?.message || tr("Errore durante il caricamento delle performance."));
       } finally {
         setLoading(false);
       }
     }
 
     if (!access.loading && canViewDrivers && driverId) void load();
-  }, [access.loading, canViewDrivers, driverId]);
-
-  const summary = useMemo(() => {
-    const eventIds = new Set(rows.map((row) => row.event_id).filter(Boolean));
-    const totalMinutes = rows.reduce((sum, row) => sum + row.minutes, 0);
-    const totalLaps = rows.reduce((sum, row) => sum + row.laps, 0);
-    const bestValues = rows.map((row) => row.best_lap_ms).filter((value): value is number => value != null && Number.isFinite(value));
-    const avgValues = rows.map((row) => row.avg_lap_ms).filter((value): value is number => value != null && Number.isFinite(value));
-    return {
-      events: eventIds.size,
-      turns: rows.length,
-      hours: round1(totalMinutes / 60),
-      laps: totalLaps,
-      bestLap: bestValues.length ? Math.min(...bestValues) : null,
-      avgLap: avgValues.length ? Math.round(avgValues.reduce((sum, value) => sum + value, 0) / avgValues.length) : null,
-    };
-  }, [rows]);
+  }, [access.loading, canViewDrivers, driverId, page]);
 
   if (!access.loading && !canViewDrivers) {
     return (
@@ -148,18 +124,16 @@ export default function DriverPerformancePage() {
   }
 
   const driverName = driver ? `${driver.first_name || ""} ${driver.last_name || ""}`.trim() : tr("Pilota");
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title={`${tr("Performance")} · ${driverName}`}
-        subtitle={tr("Dati calcolati dagli stessi turni mostrati nella scheda sintetica del pilota.")}
+        subtitle={tr("Dati aggregati lato server sull'intero storico del pilota.")}
         icon={<Activity size={22} />}
         actions={
-          <Link
-            href={`/drivers/${driverId}`}
-            className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-bold text-white hover:bg-white/[0.12]"
-          >
+          <Link href={`/drivers/${driverId}`} className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-bold text-white hover:bg-white/[0.12]">
             <ArrowLeft size={16} className="mr-2" />
             {tr("Scheda profilo")}
           </Link>
@@ -171,56 +145,49 @@ export default function DriverPerformancePage() {
           items={[
             { label: "Eventi", value: String(summary.events), icon: <Trophy size={18} /> },
             { label: "Turni", value: String(summary.turns), icon: <TimerReset size={18} /> },
-            { label: "Ore guida", value: `${summary.hours} h`, icon: <CalendarClock size={18} /> },
+            { label: "Ore guida", value: `${round1(summary.minutes / 60)} h`, icon: <CalendarClock size={18} /> },
             { label: "Giri", value: String(summary.laps), icon: <Gauge size={18} /> },
-            { label: "Best lap", value: formatLapTime(summary.bestLap), icon: <Activity size={18} /> },
+            { label: "Best lap", value: formatLapTime(summary.best_lap_ms), icon: <Activity size={18} /> },
           ]}
         />
       </SectionCard>
 
-      <SectionCard
-        title={tr("Performance eventi")}
-        subtitle={tr("Storico dei turni registrati per il pilota, con auto, durata, giri e tempi.")}
-      >
+      <SectionCard title={tr("Performance eventi")} subtitle={tr("Storico paginato dei turni, con statistiche globali calcolate sul database.")}>
+        {error ? <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">{error}</div> : null}
         {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-sm font-semibold text-[var(--text-muted)]">
-            {tr("Caricamento performance...")}
-          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-sm font-semibold text-[var(--text-muted)]">{tr("Caricamento performance...")}</div>
         ) : rows.length === 0 ? (
           <EmptyState title={tr("Nessun turno/evento collegato al pilota.")} />
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/10">
-            <div className="grid grid-cols-7 gap-2 bg-white/[0.045] px-4 py-3 text-[11px] font-black uppercase tracking-wide text-[var(--text-muted)]">
-              <span>{tr("Data")}</span>
-              <span className="col-span-2">{tr("Evento")}</span>
-              <span>{tr("Auto")}</span>
-              <span>{tr("Durata")}</span>
-              <span>{tr("Giri")}</span>
-              <span>{tr("Best lap")}</span>
-            </div>
-            {rows.map((row) => (
-              <div key={row.id} className="grid grid-cols-7 gap-2 border-t border-white/10 px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">
-                <span>{formatDateTime(row.recorded_at)}</span>
-                <span className="col-span-2 truncate text-[var(--text-primary)]">{row.event_name}</span>
-                <span className="truncate">{row.car_name}</span>
-                <span>{row.minutes} min</span>
-                <span>{row.laps}</span>
-                <span>{formatLapTime(row.best_lap_ms)}</span>
+          <>
+            <div className="overflow-hidden rounded-2xl border border-white/10">
+              <div className="grid grid-cols-7 gap-2 bg-white/[0.045] px-4 py-3 text-[11px] font-black uppercase tracking-wide text-[var(--text-muted)]">
+                <span>{tr("Data")}</span><span className="col-span-2">{tr("Evento")}</span><span>{tr("Auto")}</span><span>{tr("Durata")}</span><span>{tr("Giri")}</span><span>{tr("Best lap")}</span>
               </div>
-            ))}
-          </div>
+              {rows.map((row) => (
+                <div key={row.id} className="grid grid-cols-7 gap-2 border-t border-white/10 px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">
+                  <span>{formatDateTime(row.recorded_at)}</span>
+                  <span className="col-span-2 truncate text-[var(--text-primary)]">{row.event_name || tr("Evento senza nome")}</span>
+                  <span className="truncate">{row.car_name || tr("Auto non indicata")}</span>
+                  <span>{row.minutes} min</span><span>{row.laps}</span><span>{formatLapTime(row.best_lap_ms)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+              <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("turni")}</div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-bold text-white disabled:opacity-40"><ChevronLeft size={16} />{tr("Indietro")}</button>
+                <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-bold text-white disabled:opacity-40">{tr("Avanti")}<ChevronRight size={16} /></button>
+              </div>
+            </div>
+          </>
         )}
 
-        {rows.length > 0 ? (
+        {summary.turns > 0 ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-              <div className="text-xs font-black uppercase tracking-wide text-[var(--text-muted)]">{tr("Media tempi")}</div>
-              <div className="mt-1 text-lg font-black text-[var(--text-primary)]">{formatLapTime(summary.avgLap)}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-              <div className="text-xs font-black uppercase tracking-wide text-[var(--text-muted)]">{tr("Fonte dati")}</div>
-              <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">event_car_turns + event_car_turn_metrics</div>
-            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"><div className="text-xs font-black uppercase tracking-wide text-[var(--text-muted)]">{tr("Media tempi")}</div><div className="mt-1 text-lg font-black text-[var(--text-primary)]">{formatLapTime(summary.avg_lap_ms)}</div></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"><div className="text-xs font-black uppercase tracking-wide text-[var(--text-muted)]">{tr("Fonte dati")}</div><div className="mt-1 text-sm font-bold text-[var(--text-primary)]">event_car_turns + event_car_turn_metrics</div></div>
           </div>
         ) : null}
       </SectionCard>

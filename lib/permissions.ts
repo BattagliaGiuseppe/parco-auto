@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  canManageTeamRole,
   getCurrentTeamContext,
   TeamContext,
   TeamRole,
@@ -82,6 +81,11 @@ export function getEffectivePermissionCodes(params: {
   const roleMap = buildRolePermissionMap(params.rolePermissions);
   const base = new Set(Array.from(roleMap[params.role] || []));
 
+  // Backend parity: owner is unconditional and cannot be reduced by per-user overrides.
+  if (params.role === "owner") {
+    return Array.from(base).sort();
+  }
+
   for (const override of params.overrides || []) {
     if (override.is_allowed) {
       base.add(override.permission_code);
@@ -107,15 +111,9 @@ export function hasPermissionOrRole(params: {
   role?: string | null;
   fallbackRoles?: string[];
 }) {
-  if (hasPermissionCode(params.permissionCodes, params.permissionCode)) {
-    return true;
-  }
-
-  if (!params.role || !params.fallbackRoles?.length) {
-    return false;
-  }
-
-  return params.fallbackRoles.includes(params.role);
+  // Granular permissions are authoritative. Role fallbacks were kept only during
+  // the migration period and would make explicit DENY overrides ineffective.
+  return hasPermissionCode(params.permissionCodes, params.permissionCode);
 }
 
 export async function getPermissionCatalog(): Promise<AppPermission[]> {
@@ -289,9 +287,7 @@ export function usePermissionAccess(): PermissionAccessState {
     ctx,
     permissionCodes,
     hasPermission,
-    canManageSettings: hasPermission("settings.manage", ["owner", "admin"]),
-    canManageTeam:
-      hasPermission("team.manage", ["owner", "admin"]) ||
-      canManageTeamRole(ctx?.role),
+    canManageSettings: hasPermission("settings.manage"),
+    canManageTeam: hasPermission("team.manage"),
   };
 }

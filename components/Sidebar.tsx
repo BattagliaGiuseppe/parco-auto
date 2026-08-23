@@ -27,7 +27,6 @@ import {
   getCurrentTeamContext,
   getCurrentTeamSettings,
   TEAM_ROLE_LABELS,
-  canManageTeamRole,
 } from "@/lib/teamContext";
 import { getCurrentUserEffectivePermissions } from "@/lib/permissions";
 import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
@@ -116,8 +115,8 @@ export default function Sidebar() {
   }, []);
 
   const has = (permissionCode: string) => permissionCodes.includes(permissionCode);
-  const canManageSettings = has("settings.manage") || canManageTeamRole(teamRole);
-  const canManageTeam = has("team.manage") || canManageTeamRole(teamRole);
+  const canManageSettings = has("settings.manage");
+  const canManageTeam = has("team.manage");
 
   const moduleIcons: Partial<Record<ModuleId, ReactNode>> = {
     cars: <CarFront size={18} />,

@@ -375,12 +375,11 @@ export default function AttendancePage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
 
-  const isAttendanceAdmin = access.ctx?.role === "owner" || access.ctx?.role === "admin" || access.hasPermission("attendance.manage", ["owner", "admin"]);
-  const canView = isAttendanceAdmin && access.hasPermission("attendance.view", ["owner", "admin"]);
-  const canClockSelf = access.hasPermission("attendance.clock_self", ["owner", "admin", "engineer", "mechanic", "viewer"]);
-  const canManage = isAttendanceAdmin && access.hasPermission("attendance.manage", ["owner", "admin"]);
-  const canExport = isAttendanceAdmin && access.hasPermission("attendance.export", ["owner", "admin"]);
-  const canKiosk = isAttendanceAdmin && access.hasPermission("attendance.kiosk", ["owner", "admin"]);
+  const canView = access.hasPermission("attendance.view");
+  const canClockSelf = access.hasPermission("attendance.clock_self");
+  const canManage = access.hasPermission("attendance.manage");
+  const canExport = access.hasPermission("attendance.export");
+  const canKiosk = access.hasPermission("attendance.kiosk");
 
   const activeRecords = liveRecords;
   const activeStaffIds = useMemo(() => new Set(activeRecords.map((row) => row.staff_member_id)), [activeRecords]);

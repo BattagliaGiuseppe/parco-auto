@@ -21,7 +21,6 @@ import { brandConfig } from "@/lib/brand";
 import {
   TEAM_ROLE_LABELS,
   TEAM_ROLES,
-  canManageTeamRole,
   getCurrentTeamContext,
   getCurrentTeamSettings,
   getTeamUsers,
@@ -261,7 +260,7 @@ export default function TeamAccessPage() {
     );
   }
 
-  const canManageTeam = access.canManageTeam || canManageTeamRole(ctx?.role);
+  const canManageTeam = access.canManageTeam;
   const ownerCount = members.filter(
     (member) => member.role === "owner" && member.is_active
   ).length;
@@ -371,6 +370,10 @@ export default function TeamAccessPage() {
   async function saveOverride() {
     if (!selectedMemberId || !selectedPermissionCode) {
       setFeedback("Seleziona membro e permesso prima di salvare l'override.");
+      return;
+    }
+    if (selectedMember?.role === "owner") {
+      setFeedback("Il ruolo Owner mantiene sempre tutti i permessi e non accetta override.");
       return;
     }
 
@@ -753,7 +756,7 @@ export default function TeamAccessPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => void saveOverride()}
-                    disabled={savingOverride || !selectedMemberId || !selectedPermissionCode}
+                    disabled={savingOverride || !selectedMemberId || !selectedPermissionCode || selectedMember?.role === "owner"}
                     className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {savingOverride ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
