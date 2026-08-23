@@ -15,6 +15,7 @@ import FormStatusBanner from "@/components/FormStatusBanner";
 import { uiInputClassName, uiTextareaClassName } from "@/components/UiField";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileLink } from "@/components/TeamFileAsset";
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   const { t } = useLanguage();
@@ -91,7 +92,7 @@ export default function CarDocumentsPage() {
         });
         payload = {
           ...payload,
-          file_url: upload.publicUrl,
+          file_url: upload.storageRef,
           storage_path: upload.path,
           file_name: upload.fileName,
           mime_type: upload.mimeType,
@@ -244,14 +245,13 @@ export default function CarDocumentsPage() {
                     </div>
                   ) : null}
                   {row.file_url ? (
-                    <a
-                      href={row.file_url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <TeamFileLink
+                      src={row.file_url}
+                      storagePath={row.storage_path}
                       className="race-action-secondary mt-3 px-4 py-2 text-sm"
                     >
                       <LocalizedText text="Apri file" />
-                    </a>
+                    </TeamFileLink>
                   ) : null}
                 </div>
               ))}

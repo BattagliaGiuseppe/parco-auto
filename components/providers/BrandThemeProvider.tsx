@@ -10,6 +10,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTeamSettings } from "@/lib/teamContext";
+import { resolveTeamFileUrl } from "@/lib/storage";
 import {
   applyBrandingThemeToDocument,
   buildBrandingTheme,
@@ -47,7 +48,19 @@ export default function BrandThemeProvider({ children }: { children: ReactNode }
       }
 
       const settings = (await getCurrentTeamSettings()) as RawBrandingSettings | null;
-      setTheme(buildBrandingTheme(settings));
+      const nextTheme = buildBrandingTheme(settings);
+      const [sidebarLogoUrl, headerLogoUrl, printLogoUrl] = await Promise.all([
+        resolveTeamFileUrl(nextTheme.sidebarLogoUrl).catch(() => nextTheme.sidebarLogoUrl),
+        resolveTeamFileUrl(nextTheme.headerLogoUrl).catch(() => nextTheme.headerLogoUrl),
+        resolveTeamFileUrl(nextTheme.printLogoUrl).catch(() => nextTheme.printLogoUrl),
+      ]);
+
+      setTheme({
+        ...nextTheme,
+        sidebarLogoUrl,
+        headerLogoUrl,
+        printLogoUrl,
+      });
     } catch {
       setTheme(DEFAULT_BRANDING_THEME);
     }

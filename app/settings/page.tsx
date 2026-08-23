@@ -51,6 +51,7 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { SUPPORTED_LANGUAGES, normalizeLanguage, translateKnownText } from "@/lib/i18n";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileImage } from "@/components/TeamFileAsset";
 
 type BrandingConfig = {
   showLogoInHeader: boolean;
@@ -620,8 +621,9 @@ function BrandPreview({
               <div className="flex items-center gap-3">
                 {config.showLogoInSidebar ? (
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
-                    <img
-                      src={sidebarLogoUrl || "/logo.png"}
+                    <TeamFileImage
+                      src={sidebarLogoUrl}
+                      fallbackSrc="/logo.png"
                       alt={teamName || "Team"}
                       className="h-10 w-10 object-contain"
                     />
@@ -670,8 +672,9 @@ function BrandPreview({
                     {config.showLogoInHeader ? (
                       <div className="mb-3 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
                         <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[rgba(16,23,31,0.96)]">
-                          <img
-                            src={headerLogoUrl || "/logo.png"}
+                          <TeamFileImage
+                            src={headerLogoUrl}
+                            fallbackSrc="/logo.png"
                             alt={teamName || "Team"}
                             className="h-6 w-6 object-contain"
                           />
@@ -713,7 +716,7 @@ function BrandPreview({
                     <div className="flex items-center gap-3">
                       {config.showLogoInPrint && config.printLetterheadMode !== "title_only" ? (
                         <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
-                          <img src={printLogoUrl || "/logo.png"} alt={teamName || "Team"} className="h-9 w-9 object-contain" />
+                          <TeamFileImage src={printLogoUrl} fallbackSrc="/logo.png" alt={teamName || "Team"} className="h-9 w-9 object-contain" />
                         </div>
                       ) : null}
                       <div>
@@ -1150,7 +1153,7 @@ async function uploadBrandAsset(kind: "sidebar" | "header" | "print", file: File
         : kind === "header"
         ? "header_logo_url"
         : "print_logo_url",
-      upload.publicUrl
+      upload.storageRef
     );
 
     setFeedback({

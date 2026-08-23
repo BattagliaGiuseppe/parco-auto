@@ -35,6 +35,7 @@ import { uploadTeamFile } from "@/lib/storage";
 import { getCurrentTeamContext } from "@/lib/teamContext";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileLink } from "@/components/TeamFileAsset";
 
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-[rgba(16,23,31,0.96)] px-4 py-3 text-sm text-[var(--text-secondary)] shadow-sm outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/15";
@@ -2379,7 +2380,7 @@ export default function TelemetryPage() {
         payload = {
           ...payload,
           file_name: form.file_name.trim() || upload.fileName,
-          file_url: upload.publicUrl,
+          file_url: upload.storageRef,
           storage_path: upload.path,
           file_type: upload.mimeType,
           file_size_bytes: upload.sizeBytes,
@@ -3047,14 +3048,13 @@ export default function TelemetryPage() {
                           ) : null}
 
                           {row.file_url ? (
-                            <a
-                              href={row.file_url}
-                              target="_blank"
-                              rel="noreferrer"
+                            <TeamFileLink
+                              src={row.file_url}
+                              storagePath={row.storage_path}
                               className="inline-flex items-center justify-center rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                             >
                               <LocalizedText text="Apri" />
-                            </a>
+                            </TeamFileLink>
                           ) : null}
 
                           {canEditTelemetry ? (
@@ -3123,14 +3123,13 @@ export default function TelemetryPage() {
                         ) : null}
 
                         {row.file_url ? (
-                          <a
-                            href={row.file_url}
-                            target="_blank"
-                            rel="noreferrer"
+                          <TeamFileLink
+                            src={row.file_url}
+                            storagePath={row.storage_path}
                             className="inline-flex items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.045]"
                           >
                             <LocalizedText text="Apri file" />
-                          </a>
+                          </TeamFileLink>
                         ) : null}
 
                         {canEditTelemetry ? (

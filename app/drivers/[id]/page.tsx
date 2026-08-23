@@ -28,6 +28,7 @@ import EmptyState from "@/components/EmptyState";
 import PagePermissionState from "@/components/PagePermissionState";
 import FormStatusBanner from "@/components/FormStatusBanner";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { TeamFileImage, TeamFileLink } from "@/components/TeamFileAsset";
 
 type SafetyItem = {
   id?: string;
@@ -195,7 +196,7 @@ export default function DriverDetailPage() {
           area: "driver-profile",
           recordId: driverId,
         });
-        photoUrl = upload.publicUrl;
+        photoUrl = upload.storageRef;
       }
 
       const payload = {
@@ -290,7 +291,7 @@ export default function DriverDetailPage() {
       });
       payload = {
         ...payload,
-        file_url: upload.publicUrl,
+        file_url: upload.storageRef,
         file_name: upload.fileName,
         storage_path: upload.path,
         mime_type: upload.mimeType,
@@ -599,8 +600,9 @@ export default function DriverDetailPage() {
         >
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
             {driverForm.photo_url ? (
-              <img
+              <TeamFileImage
                 src={driverForm.photo_url}
+                fallbackSrc="/mia-foto.png"
                 alt={driverFullName || tr("Profilo pilota")}
                 className="h-36 w-36 rounded-full object-cover ring-4 ring-white shadow-sm"
               />
@@ -1024,14 +1026,13 @@ export default function DriverDetailPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {row.file_url ? (
-                        <a
-                          href={row.file_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        <TeamFileLink
+                          src={row.file_url}
+                          storagePath={row.storage_path}
                           className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                         >
                           {tr("Apri file")}
-                        </a>
+                        </TeamFileLink>
                       ) : null}
                       {canEditDrivers ? (
                         <button

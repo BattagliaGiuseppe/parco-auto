@@ -23,6 +23,7 @@ import { useBrandTheme } from "@/components/providers/BrandThemeProvider";
 import { safeLowerLabel } from "@/lib/controlCenter";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileImage } from "@/components/TeamFileAsset";
 
 type CarComponent = {
   id: string;
@@ -345,8 +346,9 @@ export default function CarDetailPage() {
         subtitle={tr("Identità, immagine e ore complessive registrate")}
       >
         <div className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
-          <img
-            src={car.image_url || "/mia-foto.png"}
+          <TeamFileImage
+            src={car.image_url}
+            fallbackSrc="/mia-foto.png"
             alt={car.name}
             className="h-56 w-full object-cover"
           />

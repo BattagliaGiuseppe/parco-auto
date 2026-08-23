@@ -33,6 +33,7 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileLink } from "@/components/TeamFileAsset";
 
 type ComponentRow = {
   id: string;
@@ -76,6 +77,7 @@ type DocumentRow = {
   type: string | null;
   file_url: string | null;
   file_name: string | null;
+  storage_path: string | null;
   uploaded_at: string;
 };
 
@@ -228,7 +230,7 @@ export default function ComponentDetailPage() {
             .order("date", { ascending: false }),
           supabase
             .from("documents")
-            .select("id,title,type,file_url,file_name,uploaded_at")
+            .select("id,title,type,file_url,file_name,storage_path,uploaded_at")
             .eq("team_id", ctx.teamId)
             .eq("component_id", componentId)
             .order("uploaded_at", { ascending: false }),
@@ -861,14 +863,13 @@ export default function ComponentDetailPage() {
                         {row.file_name || formatDate(row.uploaded_at)}
                       </div>
                       {row.file_url ? (
-                        <a
-                          href={row.file_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        <TeamFileLink
+                          src={row.file_url}
+                          storagePath={row.storage_path}
                           className="mt-3 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-[var(--surface-card)]/[0.035]"
                         >
                           <LocalizedText text="Apri file" />
-                        </a>
+                        </TeamFileLink>
                       ) : null}
                     </div>
                   ))}

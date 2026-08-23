@@ -12,6 +12,7 @@ import SectionCard from "@/components/SectionCard";
 import PrintLetterhead from "@/components/PrintLetterhead";
 import PrintDocumentFooter from "@/components/PrintDocumentFooter";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { TeamFileImage } from "@/components/TeamFileAsset";
 
 export default function DriverPrintPage() {
   const { t } = useLanguage();
@@ -115,8 +116,9 @@ export default function DriverPrintPage() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
               <div className="rounded-2xl border border-[var(--border-default)] p-5">
                 {driver.photo_url ? (
-                  <img
+                  <TeamFileImage
                     src={driver.photo_url}
+                    fallbackSrc="/mia-foto.png"
                     alt={driverName || tr("Profilo pilota")}
                     className="h-52 w-full rounded-2xl object-cover"
                   />

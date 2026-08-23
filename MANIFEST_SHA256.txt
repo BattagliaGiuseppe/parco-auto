@@ -1,0 +1,17 @@
+dcd4e7bf232a5e8b1aea4599337ad29a468ac0814fa0c503345274ce8ce339eb  ./README_P0_B.md
+5c52e8790b54a437e0f83393ed2c9e43e8fd402bf1790062897677780b6a913a  ./app/cars/[id]/documents/page.tsx
+4510ec678e947928d6a58ed4ef8bcd207bdc5a01d20506c90b6770270ea61ac7  ./app/cars/[id]/page.tsx
+9a40ea3c3f116b5fa9214a464a76a005293924ed1627ed20c568f3fc590d2c51  ./app/cars/page.tsx
+31b232ca2e6c92f05c7030e0426407d18d7bece170684275274d08ac6b4d9718  ./app/components/[id]/page.tsx
+c18d189bc85bd6b3d7ca9a720b36c18edd8e8e13cb4bcc8da57957564fb99d2d  ./app/drivers/[id]/page.tsx
+d5c60d356bff8f0e7db148b5a8ebed72f1a938ea635721dc6ad12d60cff20b67  ./app/drivers/[id]/print/page.tsx
+db13a45693d604acad2b59a222d4d6408fb421d8103d6b7efce0b8c7d6888e14  ./app/settings/page.tsx
+d193c9d37a9bb12106e851fcb6f41867a7cb9aff7c6efcf330b00b23520b9f26  ./app/telemetry/page.tsx
+2301cc1dbeec558b6dd8919bd183a741b25cd1fb84b2ce4fafa75c57c2d1d7d5  ./components/TeamFileAsset.tsx
+fff15dbe19daafdc7bead8687af9a39b7483e844098a6919a3cc00ed61fc1f64  ./components/providers/BrandThemeProvider.tsx
+4f0ca8f4292b25a7644fd3ca1bba15966434c829c8ba11c76f700a108bee1e1d  ./lib/brandingTheme.ts
+af366048e38f65bda7929706ac19d48564f9a4760e3cdb8885f388c1964261dc  ./lib/storage.ts
+6a694909edea6dab32d5ae9d0f4896056eaa06d1288b0b7029dc081f3f5a32a9  ./supabase/migrations/20260822_002_p0b_storage_isolation.sql
+3faa23a3acfec96623310de4e5d99ffd0ae4cb1dce442e7576f83f4b93349732  ./supabase/rollback/20260822_002_p0b_storage_isolation_rollback.sql
+725fbe28770863d9d477bb23c588ea21e421a32a3944775c4e26cd39a466c7b8  ./supabase/verification/20260822_002_p0b_storage_postcheck.sql
+62bf333c477fc245d34b2b4f26f3eda373c8a626349ce16269a6643fcd3ac4ed  ./supabase/verification/20260822_002_p0b_storage_precheck.sql

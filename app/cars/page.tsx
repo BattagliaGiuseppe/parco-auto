@@ -31,6 +31,7 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { formatComponentHours } from "@/lib/componentStatus";
 import { safeLowerLabel } from "@/lib/controlCenter";
 import LocalizedText from "@/components/LocalizedText";
+import { TeamFileImage } from "@/components/TeamFileAsset";
 
 type CarRow = {
   id: string;
@@ -447,7 +448,7 @@ export default function CarsPage() {
         area: "car-images",
         recordId: editing?.id || "new-car",
       });
-      setImageUrl(upload.publicUrl);
+      setImageUrl(upload.storageRef);
     } catch (error) {
       console.error(error);
       alert("Errore caricamento immagine mezzo.");
@@ -660,8 +661,9 @@ export default function CarsPage() {
               subtitle={`${tr("Telaio")} ${car.chassis_number || "—"}`}
             >
               <div className="mb-4">
-                <img
-                  src={car.image_url || "/mia-foto.png"}
+                <TeamFileImage
+                  src={car.image_url}
+                  fallbackSrc="/mia-foto.png"
                   alt={vehicleLabel}
                   className="h-40 w-full rounded-2xl object-cover"
                 />
@@ -791,8 +793,9 @@ export default function CarsPage() {
                   <Field label="Immagine scheda">
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
                       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/25">
-                        <img
-                          src={imageUrl || "/mia-foto.png"}
+                        <TeamFileImage
+                          src={imageUrl}
+                          fallbackSrc="/mia-foto.png"
                           alt={tr("Anteprima immagine scheda")}
                           className="h-32 w-full object-cover"
                         />

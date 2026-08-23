@@ -90,7 +90,7 @@ function readBoolean(value: unknown, fallback = false) {
 
 function normalizeAssetPath(value: string | null | undefined, fallback: string | null) {
   if (!value) return fallback;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("team-file://")) return value;
   return value.startsWith("/") ? value : `/${value}`;
 }
 
