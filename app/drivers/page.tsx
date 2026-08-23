@@ -13,6 +13,7 @@ import {
   Phone,
   Printer,
   PlusCircle,
+  Save,
   Search,
   ShieldCheck,
   TimerReset,
@@ -330,6 +331,10 @@ export default function DriversPage() {
   const [docForm, setDocForm] = useState<DocumentForm>(emptyDocumentForm);
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docSaving, setDocSaving] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [documentEditForm, setDocumentEditForm] = useState<DocumentForm>(emptyDocumentForm);
+  const [documentReplacementFile, setDocumentReplacementFile] = useState<File | null>(null);
+  const [documentEditSaving, setDocumentEditSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive" | "alerts">("all");
   const [viewMode, setViewMode] = usePersistedViewMode("drivers-view-mode");
@@ -698,6 +703,91 @@ export default function DriversPage() {
     }
   }
 
+  function startDocumentEdit(doc: DriverDocument) {
+    setEditingDocumentId(doc.id);
+    setDocumentEditForm({
+      document_type: doc.document_type || "other",
+      title: doc.title || "",
+      document_number: doc.document_number || "",
+      issued_at: doc.issued_at || "",
+      expires_at: doc.expires_at || "",
+      notes: doc.notes || "",
+    });
+    setDocumentReplacementFile(null);
+  }
+
+  function cancelDocumentEdit() {
+    setEditingDocumentId(null);
+    setDocumentEditForm(emptyDocumentForm);
+    setDocumentReplacementFile(null);
+  }
+
+  async function saveDocumentEdit(doc: DriverDocument) {
+    if (!canEditDrivers || editingDocumentId !== doc.id) return;
+    if (!documentEditForm.title.trim()) {
+      setFeedback({ type: "error", message: "Inserisci il titolo del documento." });
+      return;
+    }
+
+    setDocumentEditSaving(true);
+    let uploadedPath: string | null = null;
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const payload: Record<string, unknown> = {
+        document_type: documentEditForm.document_type || null,
+        title: documentEditForm.title.trim(),
+        document_number: nullable(documentEditForm.document_number),
+        issued_at: documentEditForm.issued_at || null,
+        expires_at: documentEditForm.expires_at || null,
+        notes: nullable(documentEditForm.notes),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (documentReplacementFile) {
+        const upload = await uploadDriverDocumentFile({
+          driverId: doc.driver_id,
+          documentId: doc.id,
+          file: documentReplacementFile,
+        });
+        uploadedPath = upload.path;
+        Object.assign(payload, {
+          file_path: upload.path,
+          file_url: null,
+          storage_path: null,
+          file_name: upload.fileName,
+          mime_type: upload.mimeType,
+          size_bytes: upload.sizeBytes,
+        });
+      }
+
+      const { error } = await supabase
+        .from("driver_documents")
+        .update(payload)
+        .eq("team_id", ctx.teamId)
+        .eq("id", doc.id);
+      if (error) throw error;
+
+      if (documentReplacementFile) {
+        await removeDriverDocumentFile(doc).catch((storageError) => {
+          console.warn("Impossibile rimuovere il vecchio file documento", storageError);
+        });
+      }
+
+      cancelDocumentEdit();
+      await load();
+      setFeedback({ type: "success", message: "Documento aggiornato correttamente." });
+    } catch (error: any) {
+      console.error(error);
+      if (uploadedPath) {
+        await removeDriverDocumentFile({ file_path: uploadedPath }).catch(() => undefined);
+      }
+      setFeedback({ type: "error", message: error?.message || "Errore aggiornamento documento." });
+    } finally {
+      setDocumentEditSaving(false);
+    }
+  }
+
   async function deleteDocument(doc: DriverDocument) {
     if (!canEditDrivers) return;
     if (!confirm(tr("Eliminare questo documento pilota?"))) return;
@@ -1006,9 +1096,12 @@ export default function DriversPage() {
                         <button onClick={() => setExpandedDriverId(expandedDriverId === driver.id ? null : driver.id)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
                           {expandedDriverId === driver.id ? t("common.close", "Chiudi") : t("common.open", "Apri")}
                         </button>
+                        <Link href={`/drivers/${driver.id}`} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">
+                          {tr("Scheda profilo")}
+                        </Link>
                         {canEditDrivers ? (
                           <button onClick={() => openEdit(driver)} className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-xs font-bold text-[var(--brand-accent)] hover:bg-[var(--brand-accent)]/18">
-                            {t("common.edit", "Modifica")}
+                            {tr("Modifica profilo")}
                           </button>
                         ) : null}
                       </div>
@@ -1064,6 +1157,9 @@ export default function DriversPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:justify-end">
+                        <Link href={`/drivers/${driver.id}`} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
+                          {tr("Scheda profilo")}
+                        </Link>
                         <Link href={`/calendar?driver=${driver.id}`} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]">
                           {t("module.events", "Eventi")}
                         </Link>
@@ -1075,6 +1171,7 @@ export default function DriversPage() {
                             setExpandedDriverId(expanded ? null : driver.id);
                             setDocForm(emptyDocumentForm);
                             setDocFile(null);
+                            cancelDocumentEdit();
                           }}
                           className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-white/[0.045]"
                         >
@@ -1082,8 +1179,8 @@ export default function DriversPage() {
                         </button>
                         {canEditDrivers ? (
                           <>
-                            <button onClick={() => openEdit(driver)} className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800">
-                              <Edit3 className="h-4 w-4" /> {t("common.edit", "Modifica")}
+                            <button onClick={() => openEdit(driver)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-sm font-bold text-[var(--brand-on-accent)] hover:brightness-95">
+                              <Edit3 className="h-4 w-4" /> {tr("Modifica profilo")}
                             </button>
                             {driver.photo_path ? (
                               <button onClick={() => removePhoto(driver)} className="rounded-xl border border-red-400/30 px-3 py-2 text-sm font-bold text-red-200 hover:bg-red-500/10">
@@ -1163,39 +1260,87 @@ export default function DriversPage() {
                             {docs.map((doc) => {
                               const tone = expiryTone(doc.expires_at);
                               return (
-                                <div key={doc.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 p-3 md:flex-row md:items-center md:justify-between">
-                                  <div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <FileText className="h-4 w-4 text-[var(--text-muted)]" />
-                                      <span className="font-black text-[var(--text-primary)]">{doc.title || getDocumentLabel(doc.document_type)}</span>
-                                      <StatusPill tone={tone === "expired" ? "red" : tone === "expiring" ? "yellow" : tone === "ok" ? "green" : "neutral"}>
-                                        {doc.expires_at ? `${tr("Scade")} ${formatDate(doc.expires_at)}` : tr("Senza scadenza")}
-                                      </StatusPill>
-                                    </div>
-                                    <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
-                                      {tr(getDocumentLabel(doc.document_type))} · {doc.document_number || tr("Numero non inserito")} · {tr("Emesso")} {formatDate(doc.issued_at)}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {hasDriverDocumentFile(doc) ? (
-                                      <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]">
-                                        <Eye className="h-4 w-4" /> <LocalizedText text="Apri file" />
-                                      </button>
-                                    ) : null}
-                                    {canEditDrivers ? (
-                                      <>
-                                        <Link
-                                          href={`/drivers/${driver.id}#driver-documents`}
-                                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]"
-                                        >
-                                          <Edit3 className="h-4 w-4" /> <LocalizedText text="Modifica" />
-                                        </Link>
-                                        <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
-                                          <Trash2 className="h-4 w-4" /> <LocalizedText text="Elimina" />
+                                <div key={doc.id} className="rounded-2xl border border-white/10 p-3">
+                                  {editingDocumentId === doc.id ? (
+                                    <div className="space-y-4">
+                                      <div className="grid gap-3 md:grid-cols-3">
+                                        <UiField label="Tipo documento">
+                                          <select value={documentEditForm.document_type} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, document_type: e.target.value }))} className={selectClass}>
+                                            {DOCUMENT_TYPES.map((type) => <option key={type.value} value={type.value}>{tr(type.label)}</option>)}
+                                          </select>
+                                        </UiField>
+                                        <UiField label="Titolo">
+                                          <input value={documentEditForm.title} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, title: e.target.value }))} className={inputClass} />
+                                        </UiField>
+                                        <UiField label="Numero documento">
+                                          <input value={documentEditForm.document_number} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, document_number: e.target.value }))} className={inputClass} />
+                                        </UiField>
+                                        <UiField label="Data emissione">
+                                          <input type="date" value={documentEditForm.issued_at} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, issued_at: e.target.value }))} className={inputClass} />
+                                        </UiField>
+                                        <UiField label="Data scadenza">
+                                          <input type="date" value={documentEditForm.expires_at} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, expires_at: e.target.value }))} className={inputClass} />
+                                        </UiField>
+                                        <UiField label="Sostituisci file">
+                                          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-2">
+                                            <label htmlFor={`driver-doc-replace-${doc.id}`} className="inline-flex cursor-pointer items-center rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95">
+                                              {tr("Scegli file")}
+                                            </label>
+                                            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--text-secondary)]">{documentReplacementFile?.name || doc.file_name || tr("Mantieni il file attuale")}</span>
+                                            <input id={`driver-doc-replace-${doc.id}`} type="file" accept="application/pdf,image/*" onChange={(e) => setDocumentReplacementFile(e.target.files?.[0] || null)} className="sr-only" />
+                                          </div>
+                                        </UiField>
+                                        <div className="md:col-span-3">
+                                          <UiField label="Note">
+                                            <textarea value={documentEditForm.notes} onChange={(e) => setDocumentEditForm((prev) => ({ ...prev, notes: e.target.value }))} className={textAreaClass} />
+                                          </UiField>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-wrap justify-end gap-2">
+                                        <button onClick={cancelDocumentEdit} disabled={documentEditSaving} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-[var(--text-secondary)] hover:bg-white/[0.045] disabled:opacity-60">
+                                          <X className="h-4 w-4" /> {tr("Annulla")}
                                         </button>
-                                      </>
-                                    ) : null}
-                                  </div>
+                                        <button onClick={() => saveDocumentEdit(doc)} disabled={documentEditSaving} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-accent)] px-3 py-2 text-xs font-black text-[var(--brand-on-accent)] hover:brightness-95 disabled:opacity-60">
+                                          <Save className="h-4 w-4" /> {documentEditSaving ? tr("Salvataggio...") : tr("Salva modifiche")}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                      <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <FileText className="h-4 w-4 text-[var(--text-muted)]" />
+                                          <span className="font-black text-[var(--text-primary)]">{doc.title || getDocumentLabel(doc.document_type)}</span>
+                                          <StatusPill tone={tone === "expired" ? "red" : tone === "expiring" ? "yellow" : tone === "ok" ? "green" : "neutral"}>
+                                            {doc.expires_at ? `${tr("Scade")} ${formatDate(doc.expires_at)}` : tr("Senza scadenza")}
+                                          </StatusPill>
+                                        </div>
+                                        <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
+                                          {tr(getDocumentLabel(doc.document_type))} · {doc.document_number || tr("Numero non inserito")} · {tr("Emesso")} {formatDate(doc.issued_at)}
+                                        </p>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {hasDriverDocumentFile(doc) ? (
+                                          <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]">
+                                            <Eye className="h-4 w-4" /> <LocalizedText text="Apri file" />
+                                          </button>
+                                        ) : null}
+                                        {canEditDrivers ? (
+                                          <>
+                                            <button
+                                              onClick={() => startDocumentEdit(doc)}
+                                              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/[0.045]"
+                                            >
+                                              <Edit3 className="h-4 w-4" /> <LocalizedText text="Modifica" />
+                                            </button>
+                                            <button onClick={() => deleteDocument(doc)} className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">
+                                              <Trash2 className="h-4 w-4" /> <LocalizedText text="Elimina" />
+                                            </button>
+                                          </>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}

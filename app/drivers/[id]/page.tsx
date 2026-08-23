@@ -58,7 +58,7 @@ function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
   const { t } = useLanguage();
   const tr = (value: string) => t(`ui.${value}`, value);
   return (
-    <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-5 text-sm text-neutral-600">
+    <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.045] p-5 text-sm text-[var(--text-secondary)]">
       {tr("Nessuna checklist sicurezza registrata.")}
       {onPrefill ? (
         <button
@@ -74,9 +74,9 @@ function EmptySafetyState({ onPrefill }: { onPrefill?: () => void }) {
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-900">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm leading-6 text-[var(--text-secondary)]">
       <div className="flex items-start gap-3">
-        <Info size={18} className="mt-0.5 shrink-0" />
+        <Info size={18} className="mt-0.5 shrink-0 text-[var(--brand-accent)]" />
         <div>{children}</div>
       </div>
     </div>
@@ -656,7 +656,7 @@ export default function DriverDetailPage() {
   if (!driver || !driverForm) {
     return (
       <div className={`flex flex-col gap-6 p-6`}>
-        <div className="rounded-3xl border border-neutral-200 bg-white px-6 py-5 text-sm text-neutral-500 shadow-sm">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.045] px-6 py-5 text-sm text-[var(--text-muted)] shadow-sm">
           {tr("Caricamento pilota...")}
         </div>
       </div>
@@ -673,6 +673,15 @@ export default function DriverDetailPage() {
         icon={<UserRound size={22} />}
         actions={
           <div className="flex flex-wrap gap-3">
+            {canEditDrivers ? (
+              <Link
+                href="#driver-profile"
+                className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-bold text-white hover:bg-white/[0.12]"
+              >
+                <Pencil size={16} className="mr-2 inline" />
+                {tr("Modifica profilo")}
+              </Link>
+            ) : null}
             <Link
               href={`/drivers/${driver.id}/performance`}
               className="rounded-xl bg-[var(--brand-accent)] px-4 py-2 font-bold text-[var(--brand-on-accent)] hover:brightness-95"
@@ -681,14 +690,14 @@ export default function DriverDetailPage() {
             </Link>
             <Link
               href={`/drivers/${driver.id}/print`}
-              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+              className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
             >
               <Printer size={16} className="mr-2 inline" />
               {tr("Stampa scheda")}
             </Link>
             <Link
               href="/drivers"
-              className="rounded-xl border px-4 py-2 font-bold hover:bg-neutral-50"
+              className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-bold text-white hover:bg-white/[0.12]"
             >
               <ArrowLeft size={16} className="mr-2 inline" />
               {tr("Indietro")}
@@ -733,11 +742,12 @@ export default function DriverDetailPage() {
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
+        <div id="driver-profile" className="scroll-mt-24">
         <SectionCard
           title={tr("Profilo pilota")}
           subtitle={tr("Dati anagrafici principali, note e foto profilo.")}
         >
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5">
             {driverForm.photo_url ? (
               <TeamFileImage
                 src={driverForm.photo_url}
@@ -746,12 +756,12 @@ export default function DriverDetailPage() {
                 className="h-36 w-36 rounded-full object-cover ring-4 ring-white shadow-sm"
               />
             ) : (
-              <div className="flex h-36 w-36 items-center justify-center rounded-full bg-neutral-200 text-4xl font-bold text-neutral-500">
+              <div className="flex h-36 w-36 items-center justify-center rounded-full bg-white/[0.08] text-4xl font-bold text-[var(--text-muted)]">
                 {(driver.first_name?.[0] || "") + (driver.last_name?.[0] || "") || "P"}
               </div>
             )}
             {canEditDrivers ? (
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]">
                 <Camera size={16} />
                 {uploadingPhoto ? tr("Caricamento foto...") : tr("Seleziona foto profilo")}
                 <input
@@ -763,7 +773,7 @@ export default function DriverDetailPage() {
               </label>
             ) : null}
             {profilePhotoFile ? (
-              <div className="text-xs text-neutral-500">{profilePhotoFile.name}</div>
+              <div className="text-xs text-[var(--text-muted)]">{profilePhotoFile.name}</div>
             ) : null}
           </div>
 
@@ -826,9 +836,7 @@ export default function DriverDetailPage() {
             <Label>Note</Label>
             <textarea
               disabled={!canEditDrivers}
-              className={`min-h-32 w-full rounded-xl border px-4 py-3 ${
-                !canEditDrivers ? "bg-neutral-100 text-neutral-500" : "bg-white"
-              }`}
+              className={`form-control-dark min-h-32 ${!canEditDrivers ? "opacity-70" : ""}`}
               value={driverForm.notes || ""}
               onChange={(e) => setDriverForm({ ...driverForm, notes: e.target.value })}
               placeholder={tr("Note tecniche, preferenze, taglia sedile, contatti paddock...")}
@@ -848,6 +856,7 @@ export default function DriverDetailPage() {
             </div>
           ) : null}
         </SectionCard>
+        </div>
 
         <SectionCard
           title={tr("Checklist sicurezza pilota")}
@@ -860,7 +869,7 @@ export default function DriverDetailPage() {
               {safetyItems.map((item, index) => (
                 <div
                   key={`${item.id || "new"}-${index}`}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                  className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"
                 >
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_1fr_180px_1.2fr_56px]">
                     <Field
@@ -886,16 +895,14 @@ export default function DriverDetailPage() {
                       <Label>Nota tecnica</Label>
                       <textarea
                         disabled={!canEditDrivers}
-                        className={`min-h-12 w-full rounded-xl border px-4 py-3 ${
-                          !canEditDrivers ? "bg-neutral-100 text-neutral-500" : "bg-white"
-                        }`}
+                        className={`form-control-dark min-h-12 ${!canEditDrivers ? "opacity-70" : ""}`}
                         value={item.note}
                         onChange={(e) => updateSafetyItem(index, { note: e.target.value })}
                         placeholder={tr("Taglia, stato, rilievo tecnico...")}
                       />
                     </div>
                     <div className="flex flex-col justify-between gap-2">
-                      <label className="mt-7 flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm font-semibold text-neutral-700">
+                      <label className="mt-7 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-3 text-sm font-semibold text-[var(--text-primary)]">
                         <input
                           type="checkbox"
                           disabled={!canEditDrivers}
@@ -927,14 +934,14 @@ export default function DriverDetailPage() {
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={addSafetyItemRow}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+                  className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                 >
                   <PlusCircle size={16} className="mr-2 inline" />
                   {tr("Aggiungi elemento")}
                 </button>
                 <button
                   onClick={seedDefaultSafetyItems}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 font-semibold text-neutral-700 hover:bg-neutral-50"
+                  className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                 >
                   {tr("Carica checklist base")}
                 </button>
@@ -1006,7 +1013,7 @@ export default function DriverDetailPage() {
                 return (
                   <div
                     key={row.id}
-                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"
                   >
                     {isEditing ? (
                       <>
@@ -1044,7 +1051,7 @@ export default function DriverDetailPage() {
                         <div className="mt-3 flex flex-wrap justify-end gap-2">
                           <button
                             onClick={cancelEditLicense}
-                            className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                            className="inline-flex rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                           >
                             <X size={15} className="mr-2 inline" />
                             {tr("Annulla")}
@@ -1061,8 +1068,8 @@ export default function DriverDetailPage() {
                     ) : (
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="font-bold text-neutral-900">{row.license_type}</div>
-                          <div className="mt-1 text-sm text-neutral-500">
+                          <div className="font-bold text-[var(--text-primary)]">{row.license_type}</div>
+                          <div className="mt-1 text-sm text-[var(--text-muted)]">
                             {row.license_number || tr("Numero non inserito")}
                             {row.issued_by ? ` · ${row.issued_by}` : ""}
                             {row.expiry_date
@@ -1074,7 +1081,7 @@ export default function DriverDetailPage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => startEditLicense(row)}
-                              className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                              className="inline-flex rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                             >
                               <Pencil size={15} className="mr-2 inline" />
                               {tr("Modifica")}
@@ -1150,7 +1157,7 @@ export default function DriverDetailPage() {
               documents.map((row) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                  className="rounded-2xl border border-white/10 bg-white/[0.045] p-4"
                 >
                   {editingDocumentId === row.id ? (
                     <>
@@ -1178,7 +1185,7 @@ export default function DriverDetailPage() {
                             type="file"
                             onChange={(e) => setDocumentReplacementFile(e.target.files?.[0] || null)}
                           />
-                          <div className="mt-1 text-xs text-neutral-500">
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">
                             {documentReplacementFile?.name || row.file_name || tr("Mantieni il file attuale")}
                           </div>
                         </div>
@@ -1187,7 +1194,7 @@ export default function DriverDetailPage() {
                         <button
                           onClick={cancelEditDocument}
                           disabled={savingDocumentEdit}
-                          className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                          className="inline-flex rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12] disabled:opacity-60"
                         >
                           <X size={15} className="mr-2 inline" />
                           {tr("Annulla")}
@@ -1205,10 +1212,10 @@ export default function DriverDetailPage() {
                   ) : (
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <div className="font-bold text-neutral-900">
+                        <div className="font-bold text-[var(--text-primary)]">
                           {row.title || row.document_type || tr("Documento pilota")}
                         </div>
-                        <div className="mt-1 text-sm text-neutral-500">
+                        <div className="mt-1 text-sm text-[var(--text-muted)]">
                           {row.expires_at
                             ? `${tr("Scadenza")} ${new Date(row.expires_at).toLocaleDateString("it-IT")}`
                             : tr("Nessuna scadenza")}
@@ -1219,7 +1226,7 @@ export default function DriverDetailPage() {
                         {hasDriverDocumentFile(row) ? (
                           <button
                             onClick={() => openDocument(row)}
-                            className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                            className="inline-flex rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                           >
                             {tr("Apri file")}
                           </button>
@@ -1228,7 +1235,7 @@ export default function DriverDetailPage() {
                           <>
                             <button
                               onClick={() => startEditDocument(row)}
-                              className="inline-flex rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                              className="inline-flex rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-white/[0.12]"
                             >
                               <Pencil size={15} className="mr-2 inline" />
                               {tr("Modifica")}
@@ -1260,7 +1267,7 @@ function Label({ children }: { children: React.ReactNode }) {
   const { t } = useLanguage();
   const rendered = typeof children === "string" ? t(`ui.${children}`, children) : children;
   return (
-    <label className="mb-1 block text-sm font-semibold text-neutral-700">
+    <label className="mb-1 block text-sm font-bold text-[var(--text-primary)]">
       {rendered}
     </label>
   );
@@ -1285,9 +1292,7 @@ function Field({
       <input
         type={type}
         disabled={disabled}
-        className={`w-full rounded-xl border px-4 py-3 ${
-          disabled ? "bg-neutral-100 text-neutral-500" : "bg-white"
-        }`}
+        className={`form-control-dark ${disabled ? "opacity-70" : ""}`}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
       />
