@@ -58,6 +58,7 @@ type InventoryItem = {
   image_path: string | null;
   image_updated_at?: string | null;
   updated_at?: string | null;
+  archived_at?: string | null;
 };
 
 type InventoryMovementType =
@@ -1001,6 +1002,7 @@ export default function InventoryPage() {
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [imageUploadingId, setImageUploadingId] = useState<string | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [columnOrder, setColumnOrder] = useState<InventoryTableColumnKey[]>([
     ...defaultTableColumnOrder,
@@ -1017,6 +1019,7 @@ export default function InventoryPage() {
         .from("inventory_items")
         .select("*")
         .eq("team_id", ctx.teamId)
+        .is("archived_at", null)
         .order("name");
 
       if (error) {
@@ -1359,6 +1362,49 @@ export default function InventoryPage() {
     }
   }
 
+  async function archiveInventoryItem(row: InventoryItem) {
+    if (!canEditInventory || deletingItemId) return;
+
+    const confirmed = window.confirm(
+      `${tr("Eliminare l'articolo")} "${row.name}"?\n\n${tr("L'articolo verrà rimosso dal magazzino operativo, ma lo storico dei movimenti resterà conservato.")}`
+    );
+    if (!confirmed) return;
+
+    setFeedback(null);
+    setDeletingItemId(row.id);
+
+    try {
+      const ctx = await getCurrentTeamContext();
+      const { error } = await supabase
+        .from("inventory_items")
+        .update({
+          archived_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("team_id", ctx.teamId)
+        .eq("id", row.id)
+        .is("archived_at", null);
+
+      if (error) throw error;
+
+      await load({ keepFeedback: true });
+      setFeedback({
+        type: "success",
+        message: `${tr("Articolo eliminato dal magazzino operativo")}: ${row.name}.`,
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? `${tr("Errore eliminazione articolo")}: ${error.message}`
+            : tr("Errore eliminazione articolo."),
+      });
+    } finally {
+      setDeletingItemId(null);
+    }
+  }
+
   async function createMovement(params: {
     itemId: string;
     quantityDelta: number;
@@ -1524,13 +1570,20 @@ export default function InventoryPage() {
     }
 
     const parsedQuantity = parseNumber(movementForm.quantity, Number.NaN);
-    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    const isAdjustment = movementForm.movementType === "adjustment";
+
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
+      setFeedback({ type: "error", message: tr("Inserisci una quantità valida maggiore o uguale a zero.") });
+      return;
+    }
+
+    if (!isAdjustment && parsedQuantity <= 0) {
       setFeedback({ type: "error", message: tr("Inserisci una quantità valida maggiore di zero.") });
       return;
     }
 
     let quantityDelta = parsedQuantity;
-    if (movementForm.movementType === "adjustment") {
+    if (isAdjustment) {
       quantityDelta = parsedQuantity - Number(item.quantity ?? 0);
       if (quantityDelta === 0) {
         setFeedback({ type: "info", message: tr("La quantità finale è uguale alla giacenza attuale: nessuna rettifica necessaria.") });
@@ -1627,6 +1680,7 @@ export default function InventoryPage() {
         .from("inventory_items")
         .select("*")
         .eq("team_id", teamId)
+        .is("archived_at", null)
         .eq("sku", sku)
         .maybeSingle();
 
@@ -1639,6 +1693,7 @@ export default function InventoryPage() {
         .from("inventory_items")
         .select("*")
         .eq("team_id", teamId)
+        .is("archived_at", null)
         .eq("barcode", barcode)
         .maybeSingle();
 
@@ -2046,6 +2101,19 @@ export default function InventoryPage() {
             </button>
             <button
               type="button"
+              onClick={() => void archiveInventoryItem(row)}
+              disabled={deletingItemId === row.id}
+              className="rounded-lg bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {deletingItemId === row.id ? (
+                <Loader2 size={12} className="mr-1 inline animate-spin" />
+              ) : (
+                <Trash2 size={12} className="mr-1 inline" />
+              )}
+              {deletingItemId === row.id ? tr("Eliminazione...") : tr("Elimina")}
+            </button>
+            <button
+              type="button"
               onClick={() => openMovementForm(row, "in")}
               className="rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
             >
@@ -2317,6 +2385,15 @@ export default function InventoryPage() {
                     {canEditInventory ? (
                       <>
                         <button type="button" onClick={() => openEditItemForm(row)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-white/10">{tr("Modifica")}</button>
+                        <button
+                          type="button"
+                          onClick={() => void archiveInventoryItem(row)}
+                          disabled={deletingItemId === row.id}
+                          className="rounded-xl border border-red-400/30 bg-red-500/12 px-3 py-2 text-xs font-bold text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingItemId === row.id ? <Loader2 size={12} className="mr-1 inline animate-spin" /> : <Trash2 size={12} className="mr-1 inline" />}
+                          {deletingItemId === row.id ? tr("Eliminazione...") : tr("Elimina")}
+                        </button>
                         <button type="button" onClick={() => openMovementForm(row, "in")} className="rounded-xl border border-emerald-400/30 bg-emerald-500/12 px-3 py-2 text-xs font-bold text-emerald-200">{tr("Carico")}</button>
                         <button type="button" onClick={() => openMovementForm(row, "out")} className="rounded-xl border border-red-400/30 bg-red-500/12 px-3 py-2 text-xs font-bold text-red-200">{tr("Scarico")}</button>
                       </>
