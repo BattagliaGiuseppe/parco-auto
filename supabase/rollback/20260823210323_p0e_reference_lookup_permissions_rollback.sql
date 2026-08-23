@@ -1,0 +1,3 @@
+-- Intentionally no automatic rollback to the weaker lookup authorization model.
+-- If rollback is ever necessary, restore the previous function definition from repository history.
+-- This avoids accidentally re-introducing cross-module data leakage.
