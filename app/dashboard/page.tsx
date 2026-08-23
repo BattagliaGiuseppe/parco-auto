@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [dashboardStats, setDashboardStats] = useState({ cars_total: 0, cars_ready: 0, urgent_components: 0, warning_components: 0, open_maintenances: 0, upcoming_events: 0, low_stock: 0, open_tasks: 0, attendance_open: 0, attendance_in_track: 0 });
   const [teamRole, setTeamRole] = useState<string | null>(null);
   const { theme } = useBrandTheme();
 
@@ -84,77 +85,37 @@ export default function DashboardPage() {
       setLoading(true);
       try {
         const ctx = await getCurrentTeamContext();
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const [settingsRes, widgetsRes, carsRes, compsRes, eventsRes, maintRes, driverDocsRes, inventoryRes, tasksRes, attendanceRes] = await Promise.all([
+        const [settingsRes, widgetsRes, bundleRes] = await Promise.all([
           supabase.from("app_settings").select("team_name,vehicle_type,labels,modules,enable_events,enable_maintenances").eq("team_id", ctx.teamId).single(),
           supabase.from("team_dashboard_widgets").select("widget_code,label,is_enabled,size,role_scope,order_index,config").eq("team_id", ctx.teamId).order("order_index", { ascending: true }),
-          supabase.from("cars").select("id,name,hours").eq("team_id", ctx.teamId).order("name", { ascending: true }),
-          supabase.from("components").select("id,type,identifier,expiry_date,hours,warning_threshold_hours,revision_threshold_hours,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
-          supabase.from("events").select("id,name,date,circuit_id(name)").eq("team_id", ctx.teamId).order("date", { ascending: true }),
-          supabase.from("maintenances").select("id,type,status,priority,date,car_id(name),component_id(identifier)").eq("team_id", ctx.teamId).order("created_at", { ascending: false }).limit(12),
-          supabase.from("driver_documents").select("id,expires_at,driver_id(first_name,last_name)").eq("team_id", ctx.teamId).not("expires_at", "is", null).order("expires_at", { ascending: true }).limit(8),
-          supabase.from("inventory_items").select("id,name,quantity,minimum_quantity,reserved_quantity").eq("team_id", ctx.teamId).order("name", { ascending: true }),
-          supabase.from("tasks").select("id,title,status,priority,due_date,car_id(name),assigned_to_team_user_id(name,email)").eq("team_id", ctx.teamId).neq("status", "done").neq("status", "cancelled").order("created_at", { ascending: false }).limit(8),
-          supabase.from("attendance_records").select("id,check_in_at,check_out_at,check_in_location_label").eq("team_id", ctx.teamId).gte("check_in_at", todayStart.toISOString()).order("check_in_at", { ascending: false }).limit(50),
+          supabase.rpc("get_dashboard_operational_bundle", { p_team_id: ctx.teamId }),
         ]);
+        if (bundleRes.error) throw bundleRes.error;
+        const bundle = (bundleRes.data || {}) as any;
+
         setTeamRole(ctx.role || null);
         setSettings((settingsRes.data || null) as AppSettings | null);
         setWidgets(((widgetsRes.data || []) as Widget[]).filter((w) => w.is_enabled));
-        setCars((carsRes.data || []) as Car[]);
-setComponents((compsRes.data || []) as Component[]);
-
-const normalizedEvents: Event[] = (eventsRes.data || []).map((row: any) => ({
-  id: row.id,
-  name: row.name,
-  date: row.date,
-  circuit_id: Array.isArray(row.circuit_id)
-    ? row.circuit_id[0] ?? { name: null }
-    : row.circuit_id ?? { name: null },
-}));
-
-setEvents(normalizedEvents);
-
-const normalizedMaintenances: Maintenance[] = (maintRes.data || []).map((row: any) => ({
-  id: row.id,
-  type: row.type,
-  status: row.status,
-  priority: row.priority,
-  date: row.date,
-  car_id: Array.isArray(row.car_id)
-    ? row.car_id[0] ?? { name: null }
-    : row.car_id ?? { name: null },
-  component_id: Array.isArray(row.component_id)
-    ? row.component_id[0] ?? { identifier: null }
-    : row.component_id ?? { identifier: null },
-}));
-
-setMaintenances(normalizedMaintenances);
-const normalizedDriverDocs: DriverDoc[] = (driverDocsRes.data || []).map((row: any) => ({
-  id: row.id,
-  expires_at: row.expires_at,
-  driver_id: Array.isArray(row.driver_id)
-    ? row.driver_id[0] ?? { first_name: null, last_name: null }
-    : row.driver_id ?? { first_name: null, last_name: null },
-}));
-
-setDriverDocs(normalizedDriverDocs);
-setInventory((inventoryRes.data || []) as Inventory[]);
-const normalizedTasks: Task[] = !tasksRes.error
-  ? ((tasksRes.data || []) as any[]).map((row) => ({
-      id: row.id,
-      title: row.title,
-      status: row.status,
-      priority: row.priority,
-      due_date: row.due_date,
-      car_id: Array.isArray(row.car_id) ? row.car_id[0] ?? { name: null } : row.car_id ?? { name: null },
-      assigned_to_team_user_id: Array.isArray(row.assigned_to_team_user_id)
-        ? row.assigned_to_team_user_id[0] ?? { name: null, email: null }
-        : row.assigned_to_team_user_id ?? { name: null, email: null },
-    }))
-  : [];
-setTasks(normalizedTasks);
-setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as AttendanceRecord[]) : []);
+        setCars((bundle.cars || []) as Car[]);
+        setComponents((bundle.components || []) as Component[]);
+        setEvents((bundle.events || []) as Event[]);
+        setMaintenances((bundle.maintenances || []) as Maintenance[]);
+        setDriverDocs((bundle.driver_docs || []) as DriverDoc[]);
+        setInventory((bundle.inventory || []) as Inventory[]);
+        setTasks((bundle.tasks || []) as Task[]);
+        setAttendanceRecords((bundle.attendance || []) as AttendanceRecord[]);
+        setDashboardStats({
+          cars_total: Number(bundle.stats?.cars_total || 0),
+          cars_ready: Number(bundle.stats?.cars_ready || 0),
+          urgent_components: Number(bundle.stats?.urgent_components || 0),
+          warning_components: Number(bundle.stats?.warning_components || 0),
+          open_maintenances: Number(bundle.stats?.open_maintenances || 0),
+          upcoming_events: Number(bundle.stats?.upcoming_events || 0),
+          low_stock: Number(bundle.stats?.low_stock || 0),
+          open_tasks: Number(bundle.stats?.open_tasks || 0),
+          attendance_open: Number(bundle.stats?.attendance_open || 0),
+          attendance_in_track: Number(bundle.stats?.attendance_in_track || 0),
+        });
       } finally {
         setLoading(false);
       }
@@ -170,43 +131,40 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
 
   const urgentComponents = useMemo(() => components.filter((c) => componentSeverity(c) >= 3), [components]);
   const warningComponents = useMemo(() => components.filter((c) => componentSeverity(c) === 2), [components]);
-  const upcomingEvents = useMemo(() => events.filter((e) => isFutureOrToday(e.date)).slice(0, 5), [events]);
-  const openMaintenances = useMemo(() => maintenances.filter((m) => m.status !== "completed").slice(0, 6), [maintenances]);
-  const expiringDriverDocs = useMemo(() => driverDocs.filter((row) => row.expires_at && isFutureOrToday(row.expires_at)).slice(0, 6), [driverDocs]);
-  const lowStock = useMemo(() => inventory.filter((row) => Number(row.quantity || 0) <= Number(row.minimum_quantity || 0)), [inventory]);
-  const openTasks = useMemo(() => tasks.filter((row) => row.status !== "done" && row.status !== "cancelled"), [tasks]);
+  const upcomingEvents = events;
+  const openMaintenances = maintenances;
+  const expiringDriverDocs = driverDocs;
+  const lowStock = inventory;
+  const openTasks = tasks;
   const attendanceOpen = useMemo(() => attendanceRecords.filter((row) => !row.check_out_at), [attendanceRecords]);
   const attendanceInTrack = useMemo(() => attendanceRecords.filter((row) => (row.check_in_location_label || "").toLowerCase().includes("pista")), [attendanceRecords]);
-  const carsReady = useMemo(() => {
-    const problemCarIds = new Set(components.filter((c) => componentSeverity(c) >= 2 && c.car_id).map((c) => c.car_id as string));
-    return cars.filter((car) => !problemCarIds.has(car.id)).length;
-  }, [cars, components]);
+  const carsReady = dashboardStats.cars_ready;
 
   const stats: StatItem[] = [
     {
       label: getDashboardWidgetDisplayLabel({ widget_code: "cars_ready", label: "", config: { label_mode: "auto" } }, labels, language),
-      value: `${carsReady}/${cars.length}`,
+      value: `${carsReady}/${dashboardStats.cars_total}`,
       icon: <CheckCircle2 size={18} />,
-      helper: cars.length === 0 ? tr("Nessun mezzo registrato") : tr("Senza warning componenti"),
-      tone: carsReady === cars.length ? "green" : "yellow",
+      helper: dashboardStats.cars_total === 0 ? tr("Nessun mezzo registrato") : tr("Senza warning componenti"),
+      tone: carsReady === dashboardStats.cars_total ? "green" : "yellow",
     },
     {
       label: tr("Criticità urgenti"),
-      value: String(urgentComponents.length),
+      value: String(dashboardStats.urgent_components),
       icon: <AlertTriangle size={18} />,
-      helper: urgentComponents.length > 0 ? tr("Da gestire prima del prossimo turno") : tr("Nessuna urgenza"),
-      tone: urgentComponents.length > 0 ? "red" : "green",
+      helper: dashboardStats.urgent_components > 0 ? tr("Da gestire prima del prossimo turno") : tr("Nessuna urgenza"),
+      tone: dashboardStats.urgent_components > 0 ? "red" : "green",
     },
     {
       label: getDashboardWidgetDisplayLabel({ widget_code: "maintenances_open", label: "", config: { label_mode: "auto" } }, labels, language),
-      value: String(openMaintenances.length),
+      value: String(dashboardStats.open_maintenances),
       icon: <Wrench size={18} />,
       helper: tr("Interventi non completati"),
-      tone: openMaintenances.length > 0 ? "yellow" : "green",
+      tone: dashboardStats.open_maintenances > 0 ? "yellow" : "green",
     },
     {
       label: getDashboardWidgetDisplayLabel({ widget_code: "upcoming_events", label: "", config: { label_mode: "auto" } }, labels, language),
-      value: String(upcomingEvents.length),
+      value: String(dashboardStats.upcoming_events),
       icon: <CalendarDays size={18} />,
       helper: tr("Calendario operativo"),
       tone: "blue",
@@ -218,7 +176,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
       case "cars_ready":
         return (
           <SectionCard key={code} title={label} subtitle={t("dashboard.readinessCarsSubtitle", "Prontezza operativa · auto")}>
-            {cars.length === 0 ? <EmptyState title={tr("Nessun elemento registrato")} /> : (
+            {dashboardStats.cars_total === 0 ? <EmptyState title={tr("Nessun elemento registrato")} /> : (
               <div className="space-y-3">
                 {cars.map((car) => {
                   const hasProblems = components.some((c) => c.car_id === car.id && componentSeverity(c) >= 2);
@@ -362,8 +320,8 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
             {attendanceRecords.length === 0 ? <EmptyState title={tr("Nessuna timbratura oggi")} /> : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <QuickPill icon={<Users size={16} />} label="Presenti ora" value={String(attendanceOpen.length)} />
-                  <QuickPill icon={<CalendarDays size={16} />} label="In pista" value={String(attendanceInTrack.length)} />
+                  <QuickPill icon={<Users size={16} />} label="Presenti ora" value={String(dashboardStats.attendance_open)} />
+                  <QuickPill icon={<CalendarDays size={16} />} label="In pista" value={String(dashboardStats.attendance_in_track)} />
                 </div>
                 <Link href="/attendance" className="race-action-link text-sm"><LocalizedText text="Apri presenze →" /></Link>
               </div>
@@ -410,7 +368,7 @@ setAttendanceRecords(!attendanceRes.error ? ((attendanceRes.data || []) as Atten
           <QuickPill icon={<CarFront size={16} />} label={`${tr("Totale")} · ${getDashboardWidgetDisplayLabel({ widget_code: "cars_ready", label: "", config: { label_mode: "auto" } }, labels, language).split("·").pop()?.trim() || labels.vehicle}`} value={String(cars.length)} />
           <QuickPill icon={<Wrench size={16} />} label={`${tr("Warning")} · ${getDashboardWidgetDisplayLabel({ widget_code: "components_alerts", label: "", config: { label_mode: "auto" } }, labels, language).split("·").pop()?.trim() || labels.component}`} value={String(warningComponents.length)} />
           <QuickPill icon={<Users size={16} />} label={getDashboardWidgetDisplayLabel({ widget_code: "drivers_documents", label: "", config: { label_mode: "auto" } }, labels, language)} value={String(expiringDriverDocs.length)} />
-          <QuickPill icon={<Package size={16} />} label={getDashboardWidgetDisplayLabel({ widget_code: "inventory_low_stock", label: "", config: { label_mode: "auto" } }, labels, language)} value={String(lowStock.length)} />
+          <QuickPill icon={<Package size={16} />} label={getDashboardWidgetDisplayLabel({ widget_code: "inventory_low_stock", label: "", config: { label_mode: "auto" } }, labels, language)} value={String(dashboardStats.low_stock)} />
           <QuickPill icon={<ClipboardList size={16} />} label={getDashboardWidgetDisplayLabel({ widget_code: "tasks_open", label: "", config: { label_mode: "auto" } }, labels, language)} value={String(openTasks.length)} />
         </div>
       </SectionCard>

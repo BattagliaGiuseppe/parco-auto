@@ -118,6 +118,8 @@ const AREA_LABELS: Record<TaskArea, string> = {
   altro: "Altro",
 };
 
+const TASKS_PAGE_SIZE = 50;
+
 const EMPTY_FORM: TaskFormState = {
   title: "",
   description: "",
@@ -180,9 +182,6 @@ function taskLinkSummary(task: TaskRow) {
   return parts.length > 0 ? parts.join(" · ") : "Nessun collegamento operativo";
 }
 
-function isOpenTask(task: TaskRow) {
-  return task.status !== "done" && task.status !== "cancelled";
-}
 
 export default function TasksPage() {
   const access = usePermissionAccess();
@@ -201,6 +200,10 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [taskStats, setTaskStats] = useState({ open_count: 0, urgent_open_count: 0, due_soon_open_count: 0 });
   const [statusFilter, setStatusFilter] = useState("open");
   const [areaFilter, setAreaFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -225,42 +228,28 @@ export default function TasksPage() {
 
     try {
       const ctx = access.ctx;
-      const [tasksRes, membersRes, carsRes, componentsRes, eventsRes, inventoryRes, driversRes] = await Promise.all([
-        supabase
-          .from("tasks")
-          .select(`
-            *,
-            car:car_id(id,name),
-            component:component_id(id,type,identifier,car_id),
-            event:event_id(id,name,date),
-            inventory_item:inventory_item_id(id,name),
-            driver:driver_id(id,first_name,last_name),
-            assigned_to:assigned_to_team_user_id(id,name,email,role)
-          `)
-          .eq("team_id", ctx.teamId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("team_users")
-          .select("id,name,email,role")
-          .eq("team_id", ctx.teamId)
-          .eq("is_active", true)
-          .order("name", { ascending: true }),
-        supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
-        supabase.from("components").select("id,type,identifier,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
-        supabase.from("events").select("id,name,date").eq("team_id", ctx.teamId).order("date", { ascending: false }).limit(80),
-        supabase.from("inventory_items").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }).limit(250),
-        supabase.from("drivers").select("id,first_name,last_name").eq("team_id", ctx.teamId).order("last_name", { ascending: true }),
-      ]);
+      const { data, error } = await supabase.rpc("tasks_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: TASKS_PAGE_SIZE,
+        p_search: debouncedSearch || null,
+        p_status_filter: statusFilter,
+        p_area_filter: areaFilter,
+        p_priority_filter: priorityFilter,
+        p_assignee_filter: assigneeFilter,
+        p_car_filter: carFilter,
+      });
+      if (error) throw error;
 
-      if (tasksRes.error) throw tasksRes.error;
-      if (membersRes.error) throw membersRes.error;
-      if (carsRes.error) throw carsRes.error;
-      if (componentsRes.error) throw componentsRes.error;
-      if (eventsRes.error) throw eventsRes.error;
-      if (inventoryRes.error) throw inventoryRes.error;
-      if (driversRes.error) throw driversRes.error;
+      const taskPayload = (data || {}) as any;
+      setTotal(Number(taskPayload.total || 0));
+      setTaskStats({
+        open_count: Number(taskPayload.stats?.open_count || 0),
+        urgent_open_count: Number(taskPayload.stats?.urgent_open_count || 0),
+        due_soon_open_count: Number(taskPayload.stats?.due_soon_open_count || 0),
+      });
 
-      const normalizedTasks: TaskRow[] = ((tasksRes.data || []) as any[]).map((row) => ({
+      const normalizedTasks: TaskRow[] = ((taskPayload.items || []) as any[]).map((row) => ({
         ...row,
         area: (row.area || "altro") as TaskArea,
         status: (row.status || "todo") as TaskStatus,
@@ -272,14 +261,7 @@ export default function TasksPage() {
         driver: normalizeRelation<DriverOption>(row.driver),
         assigned_to: normalizeRelation<TeamMember>(row.assigned_to),
       }));
-
       setTasks(normalizedTasks);
-      setMembers((membersRes.data || []) as TeamMember[]);
-      setCars((carsRes.data || []) as CarOption[]);
-      setComponents((componentsRes.data || []) as ComponentOption[]);
-      setEvents((eventsRes.data || []) as EventOption[]);
-      setInventory((inventoryRes.data || []) as InventoryOption[]);
-      setDrivers((driversRes.data || []) as DriverOption[]);
     } catch (err: any) {
       setError(err.message || "Errore durante il caricamento delle attività.");
     } finally {
@@ -287,53 +269,61 @@ export default function TasksPage() {
     }
   }
 
+  async function loadOptions() {
+    if (!access.ctx || !canView) return;
+    try {
+      const ctx = access.ctx;
+      const [membersRes, carsRes, componentsRes, eventsRes, inventoryRes, driversRes] = await Promise.all([
+        supabase.from("team_users").select("id,name,email,role").eq("team_id", ctx.teamId).eq("is_active", true).order("name", { ascending: true }),
+        supabase.from("cars").select("id,name").eq("team_id", ctx.teamId).order("name", { ascending: true }),
+        supabase.from("components").select("id,type,identifier,car_id").eq("team_id", ctx.teamId).order("identifier", { ascending: true }),
+        supabase.from("events").select("id,name,date").eq("team_id", ctx.teamId).order("date", { ascending: false }).limit(80),
+        supabase.from("inventory_items").select("id,name").eq("team_id", ctx.teamId).is("archived_at", null).order("name", { ascending: true }).limit(250),
+        supabase.from("drivers").select("id,first_name,last_name").eq("team_id", ctx.teamId).order("last_name", { ascending: true }),
+      ]);
+      if (membersRes.error) throw membersRes.error;
+      if (carsRes.error) throw carsRes.error;
+      if (componentsRes.error) throw componentsRes.error;
+      if (eventsRes.error) throw eventsRes.error;
+      if (inventoryRes.error) throw inventoryRes.error;
+      if (driversRes.error) throw driversRes.error;
+      setMembers((membersRes.data || []) as TeamMember[]);
+      setCars((carsRes.data || []) as CarOption[]);
+      setComponents((componentsRes.data || []) as ComponentOption[]);
+      setEvents((eventsRes.data || []) as EventOption[]);
+      setInventory((inventoryRes.data || []) as InventoryOption[]);
+      setDrivers((driversRes.data || []) as DriverOption[]);
+    } catch (err: any) {
+      setError(err.message || "Errore durante il caricamento delle opzioni attività.");
+    }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (!access.loading && access.ctx && canView) {
+      void loadOptions();
+    }
+  }, [access.loading, access.ctx?.teamId, canView]);
+
   useEffect(() => {
     if (!access.loading && access.ctx && canView) {
       void loadData();
     }
-  }, [access.loading, access.ctx?.teamId, canView]);
+  }, [access.loading, access.ctx?.teamId, canView, page, debouncedSearch, statusFilter, areaFilter, priorityFilter, assigneeFilter, carFilter]);
 
   const filteredComponents = useMemo(() => {
     if (!form.car_id) return components;
     return components.filter((component) => !component.car_id || component.car_id === form.car_id);
   }, [components, form.car_id]);
 
-  const filteredTasks = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return tasks.filter((task) => {
-      if (statusFilter === "open" && !isOpenTask(task)) return false;
-      if (statusFilter !== "all" && statusFilter !== "open" && task.status !== statusFilter) return false;
-      if (areaFilter !== "all" && task.area !== areaFilter) return false;
-      if (priorityFilter !== "all" && task.priority !== priorityFilter) return false;
-      if (assigneeFilter !== "all") {
-        if (assigneeFilter === "unassigned" && task.assigned_to_team_user_id) return false;
-        if (assigneeFilter !== "unassigned" && task.assigned_to_team_user_id !== assigneeFilter) return false;
-      }
-      if (carFilter !== "all") {
-        if (carFilter === "__no_car" && task.car_id) return false;
-        if (carFilter !== "__no_car" && task.car_id !== carFilter) return false;
-      }
-      if (!q) return true;
-
-      const haystack = [
-        task.title,
-        task.description,
-        task.car?.name,
-        task.component?.identifier,
-        task.component?.type,
-        task.event?.name,
-        task.inventory_item?.name,
-        getDriverLabel(task.driver),
-        getMemberLabel(task.assigned_to),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(q);
-    });
-  }, [areaFilter, assigneeFilter, carFilter, priorityFilter, search, statusFilter, tasks]);
+  const filteredTasks = tasks;
 
   const groupedTasks = useMemo(() => {
     const groups = new Map<string, { key: string; label: string; rows: TaskRow[] }>();
@@ -353,21 +343,7 @@ export default function TasksPage() {
     });
   }, [filteredTasks]);
 
-  const openTasks = useMemo(() => tasks.filter(isOpenTask), [tasks]);
-  const urgentTasks = useMemo(() => openTasks.filter((task) => task.priority === "urgent"), [openTasks]);
-  const dueSoonTasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const limit = new Date(today);
-    limit.setDate(limit.getDate() + 7);
-
-    return openTasks.filter((task) => {
-      if (!task.due_date) return false;
-      const due = new Date(task.due_date);
-      due.setHours(0, 0, 0, 0);
-      return due <= limit;
-    });
-  }, [openTasks]);
+  const totalPages = Math.max(1, Math.ceil(total / TASKS_PAGE_SIZE));
 
   function openCreateModal() {
     setEditingTask(null);
@@ -552,9 +528,9 @@ export default function TasksPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <QuickStat icon={<ClipboardList size={18} />} label="Aperte" value={String(openTasks.length)} tone="blue" />
-        <QuickStat icon={<AlertTriangle size={18} />} label="Urgenti" value={String(urgentTasks.length)} tone={urgentTasks.length ? "red" : "green"} />
-        <QuickStat icon={<Clock3 size={18} />} label="Scadenza 7 giorni" value={String(dueSoonTasks.length)} tone={dueSoonTasks.length ? "yellow" : "green"} />
+        <QuickStat icon={<ClipboardList size={18} />} label="Aperte" value={String(taskStats.open_count)} tone="blue" />
+        <QuickStat icon={<AlertTriangle size={18} />} label="Urgenti" value={String(taskStats.urgent_open_count)} tone={taskStats.urgent_open_count ? "red" : "green"} />
+        <QuickStat icon={<Clock3 size={18} />} label="Scadenza 7 giorni" value={String(taskStats.due_soon_open_count)} tone={taskStats.due_soon_open_count ? "yellow" : "green"} />
       </div>
 
       <SectionCard
@@ -579,29 +555,29 @@ export default function TasksPage() {
             />
           </label>
 
-          <select className={uiSelectClassName} value={carFilter} onChange={(e) => setCarFilter(e.target.value)}>
+          <select className={uiSelectClassName} value={carFilter} onChange={(e) => { setCarFilter(e.target.value); setPage(1); }}>
             <option value="all">{tr("Tutte le auto")}</option>
             {cars.map((car) => <option key={car.id} value={car.id}>{car.name}</option>)}
             <option value="__no_car">{tr("Senza auto")}</option>
           </select>
 
-          <select className={uiSelectClassName} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className={uiSelectClassName} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="open">{tr("Solo aperte")}</option>
             <option value="all">{tr("Tutti gli stati")}</option>
             {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
-          <select className={uiSelectClassName} value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
+          <select className={uiSelectClassName} value={areaFilter} onChange={(e) => { setAreaFilter(e.target.value); setPage(1); }}>
             <option value="all">{tr("Tutte le aree")}</option>
             {Object.entries(AREA_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
-          <select className={uiSelectClassName} value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+          <select className={uiSelectClassName} value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}>
             <option value="all">{tr("Tutte le priorità")}</option>
             {Object.entries(PRIORITY_LABELS).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}
           </select>
 
-          <select className={uiSelectClassName} value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+          <select className={uiSelectClassName} value={assigneeFilter} onChange={(e) => { setAssigneeFilter(e.target.value); setPage(1); }}>
             <option value="all">{tr("Tutti")}</option>
             <option value="unassigned">{tr("Non assegnate")}</option>
             {members.map((member) => <option key={member.id} value={member.id}>{getMemberLabel(member)}</option>)}
@@ -657,6 +633,16 @@ export default function TasksPage() {
             </div>
           )}
         </div>
+
+        {totalPages > 1 ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {page} / {totalPages} · {total} {tr("attività")}</div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       {modalOpen ? (

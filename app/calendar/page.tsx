@@ -33,6 +33,8 @@ import { usePermissionAccess } from "@/lib/permissions";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import LocalizedText from "@/components/LocalizedText";
 
+const EVENTS_PAGE_SIZE = 30;
+
 type Feedback = {
   type: "success" | "error" | "info";
   message: string;
@@ -64,6 +66,10 @@ export default function CalendarPage() {
   const canEditEvents = access.hasPermission("events.edit", ["owner", "admin"]);
 
   const [events, setEvents] = useState<any[]>([]);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsTotal, setEventsTotal] = useState(0);
+  const [linkedCarsTotal, setLinkedCarsTotal] = useState(0);
+  const [nextEventDate, setNextEventDate] = useState<string | null>(null);
   const [circuits, setCircuits] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -86,11 +92,11 @@ export default function CalendarPage() {
     try {
       const ctx = await getCurrentTeamContext();
       const [eventsRes, circuitsRes] = await Promise.all([
-        supabase
-          .from("events")
-          .select("id, date, name, notes, circuit_id(id,name), event_cars(id)")
-          .eq("team_id", ctx.teamId)
-          .order("date", { ascending: false }),
+        supabase.rpc("events_archive_page", {
+          p_team_id: ctx.teamId,
+          p_page: eventsPage,
+          p_page_size: EVENTS_PAGE_SIZE,
+        }),
         supabase
           .from("circuits")
           .select("id, name")
@@ -101,12 +107,16 @@ export default function CalendarPage() {
       if (eventsRes.error) throw eventsRes.error;
       if (circuitsRes.error) throw circuitsRes.error;
 
-      const normalizedEvents = (eventsRes.data || []).map((event: any) => ({
+      const payload = (eventsRes.data || {}) as any;
+      const normalizedEvents = (payload.items || []).map((event: any) => ({
         ...event,
         circuit_id: normalizeCircuit(event.circuit_id),
       }));
 
       setEvents(normalizedEvents);
+      setEventsTotal(Number(payload.total || 0));
+      setLinkedCarsTotal(Number(payload.linked_cars_total || 0));
+      setNextEventDate(payload.next_event_date || null);
       setCircuits(circuitsRes.data || []);
     } catch (error: any) {
       setFeedback({
@@ -124,7 +134,7 @@ export default function CalendarPage() {
     if (!access.loading && canViewEvents) {
       void loadAll();
     }
-  }, [access.loading, canViewEvents]);
+  }, [access.loading, canViewEvents, eventsPage]);
 
   function openCreate(event?: any) {
     const normalizedEvent = event
@@ -264,21 +274,16 @@ export default function CalendarPage() {
   }
 
   const stats = useMemo(() => {
-    const totalCars = events.reduce(
-      (sum, event) => sum + Number(event.event_cars?.length || 0),
-      0,
-    );
-
     return [
       {
         label: "Eventi registrati",
-        value: String(events.length),
+        value: String(eventsTotal),
         icon: <CalendarDays size={18} />,
         helper: "Weekend, test e gare presenti in calendario",
       },
       {
         label: "Mezzi collegati",
-        value: String(totalCars),
+        value: String(linkedCarsTotal),
         icon: <Wrench size={18} />,
         helper: "Somma dei mezzi assegnati agli eventi",
       },
@@ -290,16 +295,14 @@ export default function CalendarPage() {
       },
       {
         label: "Prossimo evento",
-        value: events.find((event) => !!event.date)?.date
-          ? new Date(
-              events.find((event) => !!event.date)?.date,
-            ).toLocaleDateString("it-IT")
-          : "Non definito",
+        value: nextEventDate ? new Date(nextEventDate).toLocaleDateString("it-IT") : "Non definito",
         icon: <Info size={18} />,
         helper: "Prima data disponibile nel calendario attuale",
       },
     ];
-  }, [events, circuits.length]);
+  }, [eventsTotal, linkedCarsTotal, nextEventDate, circuits.length]);
+
+  const totalPages = Math.max(1, Math.ceil(eventsTotal / EVENTS_PAGE_SIZE));
 
   if (access.loading) {
     return (
@@ -450,6 +453,16 @@ export default function CalendarPage() {
             ))}
           </div>
         )}
+
+        {totalPages > 1 ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <div className="text-sm font-semibold text-[var(--text-muted)]">{tr("Pagina")} {eventsPage} / {totalPages} · {eventsTotal} {tr("eventi")}</div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setEventsPage((value) => Math.max(1, value - 1))} disabled={eventsPage <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Precedente")}</button>
+              <button type="button" onClick={() => setEventsPage((value) => Math.min(totalPages, value + 1))} disabled={eventsPage >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">{tr("Successiva")}</button>
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       {open && canEditEvents ? (

@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS public.driver_session_performance_team_driver_created_idx;
+DROP INDEX IF EXISTS public.tasks_team_created_idx;
+DROP INDEX IF EXISTS public.maintenances_team_date_desc_idx;
+DROP INDEX IF EXISTS public.maintenances_team_status_created_idx;
+DROP INDEX IF EXISTS public.components_team_car_idx;
+DROP INDEX IF EXISTS public.event_car_turns_team_event_car_recorded_idx;
+DROP INDEX IF EXISTS public.event_car_turns_team_driver_recorded_idx;
+DROP INDEX IF EXISTS public.event_cars_team_event_idx;
+DROP INDEX IF EXISTS public.events_team_date_desc_idx;

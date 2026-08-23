@@ -49,6 +49,8 @@ const inputClass = uiInputClassName;
 const selectClass = uiInputClassName;
 const textAreaClass = `${uiInputClassName} min-h-[84px]`;
 
+const DRIVER_PAGE_SIZE = 50;
+
 const DOCUMENT_TYPES = [
   { value: "license", label: "Licenza" },
   { value: "medical", label: "Idoneità medica" },
@@ -337,7 +339,11 @@ export default function DriversPage() {
   const [documentReplacementFile, setDocumentReplacementFile] = useState<File | null>(null);
   const [documentEditSaving, setDocumentEditSaving] = useState(false);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive" | "alerts">("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [driverStats, setDriverStats] = useState({ total_drivers: 0, active_drivers: 0, expired_documents: 0, expiring_documents: 0, drivers_with_alerts: 0 });
   const [viewMode, setViewMode] = usePersistedViewMode("drivers-view-mode");
   const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
@@ -345,119 +351,40 @@ export default function DriversPage() {
     setLoading(true);
     try {
       const ctx = await getCurrentTeamContext();
-      const [driversRes, documentsRes] = await Promise.all([
-        supabase.from("drivers").select("*").eq("team_id", ctx.teamId).order("last_name", { ascending: true }),
-        supabase.from("driver_documents").select("*").eq("team_id", ctx.teamId).order("expires_at", { ascending: true, nullsFirst: false }),
-      ]);
-      if (driversRes.error) throw driversRes.error;
-      if (documentsRes.error) throw documentsRes.error;
-      setDrivers((driversRes.data || []) as Driver[]);
-      setDocuments((documentsRes.data || []) as DriverDocument[]);
+      const { data, error } = await supabase.rpc("drivers_archive_page", {
+        p_team_id: ctx.teamId,
+        p_page: page,
+        p_page_size: DRIVER_PAGE_SIZE,
+        p_search: debouncedQuery || null,
+        p_filter: filter,
+      });
+      if (error) throw error;
 
-      const [turnsRes, metricsRes, eventCarsRes, eventsRes, carsRes] = await Promise.all([
-        supabase
-          .from("event_car_turns")
-          .select("id,driver_id,event_car_id,recorded_at,minutes,laps,created_at")
-          .eq("team_id", ctx.teamId),
-        supabase
-          .from("event_car_turn_metrics")
-          .select("turn_id,best_lap_ms,avg_lap_ms")
-          .eq("team_id", ctx.teamId),
-        supabase.from("event_cars").select("id,event_id,car_id").eq("team_id", ctx.teamId),
-        supabase.from("events").select("id,name,date"),
-        supabase.from("cars").select("id,name").eq("team_id", ctx.teamId),
-      ]);
+      const payload = (data || {}) as any;
+      const rows = Array.isArray(payload.items) ? payload.items : [];
+      setDrivers(rows as Driver[]);
+      setTotal(Number(payload.total || 0));
+      setDriverStats({
+        total_drivers: Number(payload.stats?.total_drivers || 0),
+        active_drivers: Number(payload.stats?.active_drivers || 0),
+        expired_documents: Number(payload.stats?.expired_documents || 0),
+        expiring_documents: Number(payload.stats?.expiring_documents || 0),
+        drivers_with_alerts: Number(payload.stats?.drivers_with_alerts || 0),
+      });
 
-      if (!turnsRes.error && !eventCarsRes.error) {
-        const metricsMap = new Map<string, any>(((metricsRes.data || []) as any[]).map((row) => [String(row.turn_id), row]));
-        const eventCarMap = new Map<string, any>(((eventCarsRes.data || []) as any[]).map((row) => [String(row.id), row]));
-        const eventMap = new Map<string, any>(((eventsRes.data || []) as any[]).map((row) => [String(row.id), row]));
-        const carMap = new Map<string, any>(((carsRes.data || []) as any[]).map((row) => [String(row.id), row]));
-        const summaries: Record<string, DriverPerformanceSummary> = {};
-        const details: Record<string, DriverPerformanceDetail[]> = {};
-        const eventIdsByDriver: Record<string, Set<string>> = {};
-        const bestLapValuesByDriver: Record<string, number[]> = {};
-        const avgLapValuesByDriver: Record<string, number[]> = {};
-
-        ((turnsRes.data || []) as any[]).forEach((turn) => {
-          const driverId = turn.driver_id ? String(turn.driver_id) : "";
-          if (!driverId) return;
-          const eventCar = eventCarMap.get(String(turn.event_car_id));
-          const eventInfo = eventCar?.event_id ? eventMap.get(String(eventCar.event_id)) : null;
-          const carInfo = eventCar?.car_id ? carMap.get(String(eventCar.car_id)) : null;
-          const metrics = metricsMap.get(String(turn.id));
-          const minutes = Number(turn.minutes || 0);
-          const laps = Number(turn.laps || 0);
-          const bestLap = metrics?.best_lap_ms != null ? Number(metrics.best_lap_ms) : null;
-          const avgLap = metrics?.avg_lap_ms != null ? Number(metrics.avg_lap_ms) : null;
-          const recordedAt = turn.recorded_at || turn.created_at || null;
-          const eventName = eventInfo?.name || tr("Evento senza nome");
-          const carName = carInfo?.name || tr("Auto non indicata");
-
-          if (!summaries[driverId]) {
-            summaries[driverId] = {
-              driver_id: driverId,
-              events_count: 0,
-              turns_count: 0,
-              total_minutes: 0,
-              total_hours: 0,
-              total_laps: 0,
-              best_lap_ms: null,
-              avg_lap_ms: null,
-              last_turn_at: null,
-              last_event_name: null,
-              last_car_name: null,
-            };
-            eventIdsByDriver[driverId] = new Set<string>();
-            bestLapValuesByDriver[driverId] = [];
-            avgLapValuesByDriver[driverId] = [];
-            details[driverId] = [];
-          }
-
-          const summary = summaries[driverId];
-          summary.turns_count += 1;
-          summary.total_minutes += minutes;
-          summary.total_hours = round1(summary.total_minutes / 60);
-          summary.total_laps += laps;
-          if (eventCar?.event_id) eventIdsByDriver[driverId].add(String(eventCar.event_id));
-          if (bestLap != null && Number.isFinite(bestLap)) bestLapValuesByDriver[driverId].push(bestLap);
-          if (avgLap != null && Number.isFinite(avgLap)) avgLapValuesByDriver[driverId].push(avgLap);
-          if (recordedAt && (!summary.last_turn_at || new Date(recordedAt).getTime() > new Date(summary.last_turn_at).getTime())) {
-            summary.last_turn_at = recordedAt;
-            summary.last_event_name = eventName;
-            summary.last_car_name = carName;
-          }
-
-          details[driverId].push({
-            id: String(turn.id),
-            driver_id: driverId,
-            event_name: eventName,
-            car_name: carName,
-            recorded_at: recordedAt,
-            minutes,
-            laps,
-            best_lap_ms: bestLap,
-            avg_lap_ms: avgLap,
-          });
-        });
-
-        Object.keys(summaries).forEach((driverId) => {
-          summaries[driverId].events_count = eventIdsByDriver[driverId]?.size || 0;
-          const bestValues = bestLapValuesByDriver[driverId] || [];
-          const avgValues = avgLapValuesByDriver[driverId] || [];
-          summaries[driverId].best_lap_ms = bestValues.length ? Math.min(...bestValues) : null;
-          summaries[driverId].avg_lap_ms = avgValues.length ? Math.round(avgValues.reduce((sum, value) => sum + value, 0) / avgValues.length) : null;
-          details[driverId] = (details[driverId] || [])
-            .sort((a, b) => new Date(b.recorded_at || 0).getTime() - new Date(a.recorded_at || 0).getTime())
-            .slice(0, 8);
-        });
-
-        setPerformanceByDriver(summaries);
-        setPerformanceDetailsByDriver(details);
-      } else {
-        setPerformanceByDriver({});
-        setPerformanceDetailsByDriver({});
+      const allDocuments: DriverDocument[] = [];
+      const summaries: Record<string, DriverPerformanceSummary> = {};
+      const details: Record<string, DriverPerformanceDetail[]> = {};
+      for (const row of rows) {
+        const driverId = String(row.id);
+        const rowDocuments = Array.isArray(row.documents) ? row.documents : [];
+        allDocuments.push(...(rowDocuments as DriverDocument[]));
+        if (row.performance) summaries[driverId] = row.performance as DriverPerformanceSummary;
+        details[driverId] = Array.isArray(row.recent_performance) ? row.recent_performance as DriverPerformanceDetail[] : [];
       }
+      setDocuments(allDocuments);
+      setPerformanceByDriver(summaries);
+      setPerformanceDetailsByDriver(details);
     } catch (error) {
       console.error(error);
       setFeedback({ type: "error", message: "Errore caricamento piloti o documenti." });
@@ -467,8 +394,16 @@ export default function DriversPage() {
   }
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
     if (!access.loading && canViewDrivers) void load();
-  }, [access.loading, canViewDrivers]);
+  }, [access.loading, canViewDrivers, page, debouncedQuery, filter]);
 
   function resetDriverModal() {
     setOpen(false);
@@ -914,43 +849,16 @@ export default function DriversPage() {
     printWindow.document.close();
   }
 
-  const filteredDrivers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return drivers.filter((driver) => {
-      const text = [
-        driver.first_name,
-        driver.last_name,
-        driver.nickname,
-        driver.email,
-        driver.phone,
-        driver.racing_number,
-        driver.license_number,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      const matchesSearch = !normalized || text.includes(normalized);
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "active" && driver.is_active !== false) ||
-        (filter === "inactive" && driver.is_active === false) ||
-        (filter === "alerts" && driverHasAlert(driver));
-      return matchesSearch && matchesFilter;
-    });
-  }, [drivers, documents, query, filter]);
+  const filteredDrivers = drivers;
 
-  const stats = useMemo(() => {
-    const activeDrivers = drivers.filter((driver) => driver.is_active !== false).length;
-    const expiredDocuments = documents.filter((doc) => expiryTone(doc.expires_at) === "expired").length;
-    const expiringDocuments = documents.filter((doc) => expiryTone(doc.expires_at) === "expiring").length;
-    const driversWithAlerts = drivers.filter((driver) => driverHasAlert(driver)).length;
-    return [
-      { label: "Piloti registrati", value: String(drivers.length), icon: <Users className="h-5 w-5" />, helper: "Anagrafiche disponibili nel team" },
-      { label: "Piloti attivi", value: String(activeDrivers), icon: <ShieldCheck className="h-5 w-5" />, helper: "Piloti utilizzabili per eventi e turni" },
-      { label: "Scadenze vicine", value: String(expiringDocuments), icon: <CalendarClock className="h-5 w-5" />, helper: "Documenti in scadenza entro 30 giorni" },
-      { label: "Da verificare", value: String(driversWithAlerts + expiredDocuments), icon: <AlertTriangle className="h-5 w-5" />, helper: "Piloti o documenti con criticità" },
-    ];
-  }, [drivers, documents]);
+  const stats = useMemo(() => [
+    { label: "Piloti registrati", value: String(driverStats.total_drivers), icon: <Users className="h-5 w-5" />, helper: "Anagrafiche disponibili nel team" },
+    { label: "Piloti attivi", value: String(driverStats.active_drivers), icon: <ShieldCheck className="h-5 w-5" />, helper: "Piloti utilizzabili per eventi e turni" },
+    { label: "Scadenze vicine", value: String(driverStats.expiring_documents), icon: <CalendarClock className="h-5 w-5" />, helper: "Documenti in scadenza entro 30 giorni" },
+    { label: "Da verificare", value: String(driverStats.drivers_with_alerts + driverStats.expired_documents), icon: <AlertTriangle className="h-5 w-5" />, helper: "Piloti o documenti con criticità" },
+  ], [driverStats]);
+
+  const totalPages = Math.max(1, Math.ceil(total / DRIVER_PAGE_SIZE));
 
   if (access.loading) {
     return (
@@ -1034,7 +942,7 @@ export default function DriversPage() {
               ].map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => setFilter(value as typeof filter)}
+                  onClick={() => { setFilter(value as typeof filter); setPage(1); }}
                   className={`rounded-xl border px-3 py-2 text-sm font-bold ${
                     filter === value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]" : "border-white/10 bg-white/[0.045] text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]"
                   }`}
@@ -1396,6 +1304,22 @@ export default function DriversPage() {
               })}
             </div>
           )}
+
+          {totalPages > 1 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+              <div className="text-sm font-semibold text-[var(--text-muted)]">
+                {tr("Pagina")} {page} / {totalPages} · {total} {tr("piloti")}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1 || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">
+                  {tr("Precedente")}
+                </button>
+                <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages || loading} className="race-action-secondary px-4 py-2 text-sm disabled:opacity-40">
+                  {tr("Successiva")}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 
