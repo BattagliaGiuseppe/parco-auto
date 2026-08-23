@@ -124,6 +124,13 @@ type Feedback = {
   message: string;
 };
 
+type InventoryStatsSummary = {
+  total_items: number;
+  low_stock: number;
+  reserved_items: number;
+  categories: number;
+};
+
 type ImportRecord = Partial<Record<CanonicalInventoryField, string>>;
 
 type ImportSummary = {
@@ -252,6 +259,8 @@ const tableColumnLabels: Record<InventoryTableColumnKey, string> = {
 const tableColumnStorageKey = "inventory.tableColumnOrder.v1";
 const inventoryImageBucket = "inventory-images";
 const maxInventoryImageBytes = 5 * 1024 * 1024;
+const inventoryPageSize = 50;
+const inventorySearchDebounceMs = 300;
 
 const importFieldOptions: { value: ImportMappingValue; label: string; required?: boolean }[] = [
   { value: "ignore", label: "Ignora colonna" },
@@ -997,7 +1006,16 @@ export default function InventoryPage() {
   const [movementHistory, setMovementHistory] = useState<InventoryMovement[]>([]);
   const [movementHistoryLoading, setMovementHistoryLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "reserved" | "withPhoto" | "withoutPhoto">("all");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [inventoryStats, setInventoryStats] = useState<InventoryStatsSummary>({
+    total_items: 0,
+    low_stock: 0,
+    reserved_items: 0,
+    categories: 0,
+  });
   const [viewMode, setViewMode] = usePersistedViewMode("inventory-view-mode");
   const [importWizard, setImportWizard] = useState<ImportWizardState | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -1009,29 +1027,76 @@ export default function InventoryPage() {
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function load(options?: { keepFeedback?: boolean }) {
+  async function load(options?: { keepFeedback?: boolean; pageOverride?: number }) {
     setLoading(true);
     if (!options?.keepFeedback) setFeedback(null);
 
     try {
       const ctx = await getCurrentTeamContext();
-      const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("team_id", ctx.teamId)
-        .is("archived_at", null)
-        .order("name");
+      const requestedPage = Math.max(options?.pageOverride ?? page, 1);
+      const from = (requestedPage - 1) * inventoryPageSize;
+      const to = from + inventoryPageSize - 1;
 
-      if (error) {
+      let itemsQuery = supabase
+        .from("inventory_items")
+        .select(
+          "id,team_id,sku,name,category,brand,supplier_name,supplier_code,manufacturer_code,barcode,quantity,minimum_quantity,reserved_quantity,reorder_quantity,unit,location,unit_cost,currency,notes,image_path,image_updated_at,updated_at,archived_at",
+          { count: "exact" }
+        )
+        .eq("team_id", ctx.teamId)
+        .is("archived_at", null);
+
+      if (debouncedSearch) {
+        itemsQuery = itemsQuery.ilike("search_text", `%${debouncedSearch}%`);
+      }
+
+      if (stockFilter === "low") itemsQuery = itemsQuery.eq("is_low_stock", true);
+      if (stockFilter === "reserved") itemsQuery = itemsQuery.gt("reserved_quantity", 0);
+      if (stockFilter === "withPhoto") itemsQuery = itemsQuery.not("image_path", "is", null);
+      if (stockFilter === "withoutPhoto") itemsQuery = itemsQuery.is("image_path", null);
+
+      const [itemsRes, statsRes] = await Promise.all([
+        itemsQuery.order("name").order("id").range(from, to),
+        supabase.rpc("get_inventory_stats", { p_team_id: ctx.teamId }),
+      ]);
+
+      if (itemsRes.error) {
         setFeedback({
           type: "error",
-          message: `${tr("Impossibile caricare il magazzino")}: ${error.message}`,
-         });
+          message: `${tr("Impossibile caricare il magazzino")}: ${itemsRes.error.message}`,
+        });
         setRows([]);
         return;
       }
 
-      setRows((data as InventoryItem[] | null) ?? []);
+      if (statsRes.error) {
+        setFeedback({
+          type: "error",
+          message: `${tr("Impossibile caricare le statistiche del magazzino")}: ${statsRes.error.message}`,
+        });
+      }
+
+      const nextRows = (itemsRes.data as InventoryItem[] | null) ?? [];
+      const nextCount = itemsRes.count ?? 0;
+      const maxPage = Math.max(1, Math.ceil(nextCount / inventoryPageSize));
+
+      if (requestedPage > maxPage) {
+        setPage(maxPage);
+        return;
+      }
+
+      setRows(nextRows);
+      setTotalCount(nextCount);
+
+      if (statsRes.data && typeof statsRes.data === "object") {
+        const raw = statsRes.data as Record<string, unknown>;
+        setInventoryStats({
+          total_items: Number(raw.total_items ?? 0),
+          low_stock: Number(raw.low_stock ?? 0),
+          reserved_items: Number(raw.reserved_items ?? 0),
+          categories: Number(raw.categories ?? 0),
+        });
+      }
     } catch (error) {
       setFeedback({
         type: "error",
@@ -1047,10 +1112,19 @@ export default function InventoryPage() {
   }
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(search.trim().toLowerCase());
+    }, inventorySearchDebounceMs);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     if (!access.loading && canViewInventory) {
-      void load();
+      void load({ pageOverride: page });
     }
-  }, [access.loading, canViewInventory]);
+  }, [access.loading, canViewInventory, page, debouncedSearch, stockFilter]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1091,75 +1165,40 @@ export default function InventoryPage() {
     return () => URL.revokeObjectURL(previewUrl);
   }, [formImageFile]);
 
-  const stats = useMemo(() => {
-    const underMinimum = rows.filter((row) => {
-      const available = Number(row.quantity ?? 0) - Number(row.reserved_quantity ?? 0);
-      return available <= Number(row.minimum_quantity ?? 0);
-    }).length;
-
-    return [
+  const stats = useMemo(
+    () => [
       {
         label: tr("Articoli"),
-        value: String(rows.length),
+        value: String(inventoryStats.total_items),
         icon: <Package size={18} />,
         helper: tr("Totale articoli registrati"),
       },
       {
         label: tr("Sotto minima"),
-        value: String(underMinimum),
+        value: String(inventoryStats.low_stock),
         icon: <Info size={18} />,
         helper: tr("Disponibilità netta sotto soglia"),
       },
       {
         label: tr("Impegnati"),
-        value: String(rows.filter((row) => Number(row.reserved_quantity ?? 0) > 0).length),
+        value: String(inventoryStats.reserved_items),
         icon: <Package size={18} />,
         helper: tr("Materiale già riservato"),
       },
       {
         label: tr("Categorie"),
-        value: String(new Set(rows.map((row) => row.category).filter(Boolean)).size),
+        value: String(inventoryStats.categories),
         icon: <Package size={18} />,
         helper: tr("Categorie merceologiche presenti"),
       },
-    ];
-  }, [rows, tr]);
+    ],
+    [inventoryStats, tr]
+  );
 
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const quantity = Number(row.quantity ?? 0);
-      const reserved = Number(row.reserved_quantity ?? 0);
-      const available = Math.max(quantity - reserved, 0);
-      const minimum = Number(row.minimum_quantity ?? 0);
-
-      if (stockFilter === "low" && available > minimum) return false;
-      if (stockFilter === "reserved" && reserved <= 0) return false;
-      if (stockFilter === "withPhoto" && !row.image_path) return false;
-      if (stockFilter === "withoutPhoto" && row.image_path) return false;
-
-      if (!query) return true;
-
-      const searchable = [
-        row.name,
-        row.sku,
-        row.category,
-        row.brand,
-        row.supplier_name,
-        row.supplier_code,
-        row.manufacturer_code,
-        row.barcode,
-        row.location,
-        row.notes,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return searchable.includes(query);
-    });
-  }, [rows, search, stockFilter]);
+  const filteredRows = rows;
+  const totalPages = Math.max(1, Math.ceil(totalCount / inventoryPageSize));
+  const firstVisibleItem = totalCount === 0 ? 0 : (page - 1) * inventoryPageSize + 1;
+  const lastVisibleItem = Math.min(page * inventoryPageSize, totalCount);
 
   const importValidation = useMemo(() => {
     if (!importWizard) return null;
@@ -2001,7 +2040,7 @@ export default function InventoryPage() {
           <div className="w-28">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
               {imageUrl ? (
-                <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} className="h-full w-full object-cover" />
+                <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <ImageIcon size={22} className="text-[var(--text-muted)]" />
               )}
@@ -2308,7 +2347,7 @@ export default function InventoryPage() {
           />
           <select
             value={stockFilter}
-            onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)}
+            onChange={(event) => { setPage(1); setStockFilter(event.target.value as typeof stockFilter); }}
             className={inputClassName}
           >
             <option value="all">{tr("Tutti gli articoli")}</option>
@@ -2366,7 +2405,7 @@ export default function InventoryPage() {
                 <div key={row.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-sm">
                   <div className="flex gap-3">
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
-                      {imageUrl ? <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} className="h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[var(--text-muted)]" />}
+                      {imageUrl ? <img src={imageUrl} alt={`${tr("Foto")} ${row.name}`} loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[var(--text-muted)]" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-black text-[var(--text-primary)]">{row.name}</div>
@@ -2430,6 +2469,35 @@ export default function InventoryPage() {
             </table>
           </div>
         )}
+
+        {!loading && totalCount > 0 ? (
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">
+              {tr("Visualizzati")} {firstVisibleItem}-{lastVisibleItem} {tr("di")} {totalCount}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1 || loading}
+                className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-bold text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {tr("Precedente")}
+              </button>
+              <span className="min-w-24 text-center text-xs font-bold text-[var(--text-secondary)]">
+                {tr("Pagina")} {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page >= totalPages || loading}
+                className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-bold text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {tr("Successiva")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       {formOpen ? (
