@@ -1,0 +1,4 @@
+select table_name from information_schema.tables where table_schema='public' and table_name in ('connected_devices','connected_device_keys','connected_ingest_batches','connected_sessions','connected_session_laps','connected_hour_ledger') order by table_name;
+select code from public.app_permissions where code in ('devices.view','devices.edit') order by code;
+select p.proname,has_function_privilege('authenticated',p.oid,'EXECUTE') auth_exec,has_function_privilege('anon',p.oid,'EXECUTE') anon_exec from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('connected_devices_page','create_connected_device','rotate_connected_device_key','revoke_connected_device','ingest_connected_session') order by p.proname;
+select tablename,policyname,cmd from pg_policies where schemaname='public' and tablename like 'connected_%' order by tablename,cmd;

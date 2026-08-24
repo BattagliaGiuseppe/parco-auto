@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ClipboardList,
   TimerReset,
+  RadioTower,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { brandConfig } from "@/lib/brand";
@@ -152,6 +153,12 @@ export default function Sidebar() {
         enabled: isModuleEnabled(settings, "cars") && has("cars.view"),
       },
       ...moduleLinks,
+      {
+        href: "/connected-devices",
+        label: t("navigation.connectedVehicles", "Mezzi connessi"),
+        icon: <RadioTower size={18} />,
+        enabled: isModuleEnabled(settings, "telemetry") && has("devices.view"),
+      },
       { href: "/settings", label: getModuleLabel("settings", theme.labels, language), icon: <Settings size={18} />, enabled: canManageSettings },
       { href: "/settings/team", label: getModuleLabel("team_access", theme.labels, language), icon: <ShieldCheck size={18} />, enabled: canManageTeam },
     ];

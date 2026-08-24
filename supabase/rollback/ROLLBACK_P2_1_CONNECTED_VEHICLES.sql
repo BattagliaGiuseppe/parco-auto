@@ -1,0 +1,16 @@
+drop function if exists public.ingest_connected_session(text,text,jsonb);
+drop function if exists public.revoke_connected_device(uuid,uuid);
+drop function if exists public.rotate_connected_device_key(uuid,uuid);
+drop function if exists public.create_connected_device(uuid,uuid,text,text,text,text,text,text);
+drop function if exists public.connected_devices_page(uuid);
+drop function if exists public.apply_connected_session_hours(uuid);
+drop function if exists public.set_connected_updated_at();
+drop table if exists public.connected_hour_ledger cascade;
+drop table if exists public.connected_session_laps cascade;
+drop table if exists public.connected_sessions cascade;
+drop table if exists public.connected_ingest_batches cascade;
+drop table if exists public.connected_device_keys cascade;
+drop table if exists public.connected_devices cascade;
+delete from public.team_user_permissions where permission_code in ('devices.view','devices.edit');
+delete from public.role_permissions where permission_code in ('devices.view','devices.edit');
+delete from public.app_permissions where code in ('devices.view','devices.edit');
