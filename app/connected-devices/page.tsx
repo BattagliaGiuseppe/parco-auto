@@ -103,7 +103,20 @@ export default function ConnectedDevicesPage() {
     {error && <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {[[t("connectedDevices.total", "Dispositivi"),bundle.stats.total,RadioTower],[t("connectedDevices.active", "Attivi"),bundle.stats.active,ShieldCheck],[t("connectedDevices.online", "Online 15 min"),bundle.stats.online_15m,Activity],[t("connectedDevices.sessions30", "Sessioni 30 gg"),bundle.stats.sessions_30d,CarFront]].map(([label,value,Icon],i) => <div key={i} className="rounded-2xl border bg-white p-4 shadow-sm dark:bg-neutral-950"><div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wide text-neutral-500">{String(label)}</span>{typeof Icon !== "string" && <Icon size={18}/>}</div><div className="mt-2 text-3xl font-black">{Number(value)}</div></div>)}
+      {([
+        { label: t("connectedDevices.total", "Dispositivi"), value: bundle.stats.total, Icon: RadioTower },
+        { label: t("connectedDevices.active", "Attivi"), value: bundle.stats.active, Icon: ShieldCheck },
+        { label: t("connectedDevices.online", "Online 15 min"), value: bundle.stats.online_15m, Icon: Activity },
+        { label: t("connectedDevices.sessions30", "Sessioni 30 gg"), value: bundle.stats.sessions_30d, Icon: CarFront },
+      ] satisfies Array<{ label: string; value: number; Icon: typeof RadioTower }>).map(({ label, value, Icon }) => (
+        <div key={label} className="rounded-2xl border bg-white p-4 shadow-sm dark:bg-neutral-950">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wide text-neutral-500">{label}</span>
+            <Icon size={18} />
+          </div>
+          <div className="mt-2 text-3xl font-black">{value}</div>
+        </div>
+      ))}
     </div>
 
     <section className="rounded-2xl border bg-white shadow-sm dark:bg-neutral-950"><div className="border-b px-4 py-3 font-black">{t("connectedDevices.registry", "Registro dispositivi")}</div>{loading ? <div className="p-6 text-sm text-neutral-500">{t("common.loading", "Caricamento...")}</div> : bundle.devices.length===0 ? <div className="p-6 text-sm text-neutral-500">{t("connectedDevices.empty", "Nessun dispositivo associato. La piattaforma è pronta per il primo logger.")}</div> : <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500 dark:bg-neutral-900"><tr><th className="px-4 py-3">Device</th><th className="px-4 py-3">Mezzo</th><th className="px-4 py-3">Provider</th><th className="px-4 py-3">Stato</th><th className="px-4 py-3">Ultimo contatto</th><th className="px-4 py-3">Sessioni</th>{canEdit&&<th className="px-4 py-3"/>}</tr></thead><tbody>{bundle.devices.map((d)=><tr key={d.id} className="border-t"><td className="px-4 py-3"><div className="font-bold">{d.name}</div><div className="text-xs text-neutral-500">{d.model||d.serial_number||d.active_key_prefix||"—"}</div></td><td className="px-4 py-3">{d.car_name}</td><td className="px-4 py-3 capitalize">{d.provider}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${d.status==='revoked'?'bg-red-100 text-red-700':onlineIds.has(d.id)?'bg-emerald-100 text-emerald-700':'bg-neutral-100 text-neutral-700'}`}>{d.status==='revoked'?'Revocato':onlineIds.has(d.id)?'Online':'Offline'}</span></td><td className="px-4 py-3">{fmtDate(d.last_seen_at)}</td><td className="px-4 py-3">{d.sessions_count||0}</td>{canEdit&&<td className="px-4 py-3"><div className="flex justify-end gap-2">{d.status!=='revoked'&&<><button title="Ruota chiave" onClick={()=>void rotateKey(d)} className="rounded-lg border p-2"><KeyRound size={15}/></button><button title="Revoca" onClick={()=>void revoke(d)} className="rounded-lg border p-2 text-red-600"><Unplug size={15}/></button></>}</div></td>}</tr>)}</tbody></table></div>}</section>
