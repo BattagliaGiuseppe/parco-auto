@@ -653,7 +653,7 @@ export default function EventCarPage() {
             <div className="space-y-3">
               {recentTurns.map((turn: any) => {
                 const session = sessions.find((row) => row.id === turn.event_session_id);
-                const assigned = assignedDrivers.find((row: any) => row.driver_id?.id === turn.driver_id);
+                const turnDriver = drivers.find((row: any) => row.id === turn.driver_id);
                 const metrics = turn.metrics;
                 const fuelUsed =
                   turn.fuel_start_liters != null && turn.fuel_end_liters != null
@@ -672,8 +672,8 @@ export default function EventCarPage() {
                   <div key={turn.id} className="data-row p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="text-sm font-bold text-[var(--text-primary)]">
-                        {assigned?.driver_id
-                          ? `${assigned.driver_id.first_name} ${assigned.driver_id.last_name}`
+                        {turnDriver
+                          ? `${turnDriver.first_name} ${turnDriver.last_name}`
                           : tr("Pilota non assegnato")}
                       </div>
                       {session ? <StatusChip label={session.name} /> : null}

@@ -1,13 +1,11 @@
-# P2.1 UI consistency hotfix
+# P2.2.2 Driver Display Hotfix
 
-Sovrascrivere solamente:
+Corregge la discrepanza tra Timeline Turni e "Ultimi turni tecnici".
 
-- `app/connected-devices/page.tsx`
+## Modifica
+La card "Ultimi turni tecnici" ora legge il pilota direttamente da `event_car_turns.driver_id` e risolve il nome dall'elenco piloti del team, invece di cercarlo soltanto in `event_car_drivers`.
 
-Correzioni:
-- contrasto esplicito light/dark per input e select;
-- testo leggibile nei form e nelle modali;
-- card, tabelle, bordi e pulsanti coerenti con il resto dell'app;
-- nessuna modifica a database, RPC o logica P2.1.
+## File da sovrascrivere
+- `app/calendar/[eventId]/car/[eventCarId]/page.tsx`
 
-Non eseguire SQL.
+Nessuna modifica SQL / Supabase richiesta.
