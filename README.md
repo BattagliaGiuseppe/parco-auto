@@ -1,8 +1,13 @@
-# P2.1 Build Hotfix
+# P2.1 UI consistency hotfix
 
-Corregge esclusivamente l'errore TypeScript nelle card statistiche della pagina Mezzi connessi.
+Sovrascrivere solamente:
 
-Sovrascrivere:
-- app/connected-devices/page.tsx
+- `app/connected-devices/page.tsx`
 
-Nessuna migration SQL. Nessuna modifica Supabase richiesta.
+Correzioni:
+- contrasto esplicito light/dark per input e select;
+- testo leggibile nei form e nelle modali;
+- card, tabelle, bordi e pulsanti coerenti con il resto dell'app;
+- nessuna modifica a database, RPC o logica P2.1.
+
+Non eseguire SQL.
