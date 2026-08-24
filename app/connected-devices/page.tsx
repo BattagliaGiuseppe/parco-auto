@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type CarOption = { id: string; name: string; chassis_number?: string | null };
 type DriverOption = { id: string; first_name: string; last_name: string; nickname?: string | null; racing_number?: string | null; is_active?: boolean };
+type CircuitOption = { id: string; name: string; city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null; detection_radius_m?: number | null };
 type DeviceRow = {
   id: string; car_id: string; car_name: string; name: string; provider: string; model?: string | null;
   serial_number?: string | null; external_device_id?: string | null; source_type: string; status: string;
@@ -26,7 +27,7 @@ type SessionRow = {
   gps_latitude?: number | null; gps_longitude?: number | null; track_entry_at?: string | null; track_exit_at?: string | null;
 };
 type PageBundle = {
-  devices: DeviceRow[]; cars: CarOption[]; drivers: DriverOption[]; recent_sessions: SessionRow[];
+  devices: DeviceRow[]; cars: CarOption[]; drivers: DriverOption[]; circuits: CircuitOption[]; recent_sessions: SessionRow[];
   stats: { total: number; active: number; online_15m: number; sessions_30d: number; track_30d?: number; engine_only_30d?: number; needs_review?: number };
 };
 
@@ -52,10 +53,13 @@ export default function ConnectedDevicesPage() {
   const access = usePermissionAccess();
   const canView = access.hasPermission("devices.view");
   const canEdit = access.hasPermission("devices.edit");
-  const [bundle, setBundle] = useState<PageBundle>({ devices: [], cars: [], drivers: [], recent_sessions: [], stats: { total: 0, active: 0, online_15m: 0, sessions_30d: 0, needs_review: 0 } });
+  const canEditCircuits = access.hasPermission("events.edit");
+  const [bundle, setBundle] = useState<PageBundle>({ devices: [], cars: [], drivers: [], circuits: [], recent_sessions: [], stats: { total: 0, active: 0, online_15m: 0, sessions_30d: 0, needs_review: 0 } });
   const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false); const [saving, setSaving] = useState(false); const [secret, setSecret] = useState<SecretState>(null);
   const [form, setForm] = useState({ carId: "", name: "", provider: "generic", model: "", serial: "", externalId: "", sourceType: "logger", defaultDriverId: "" });
+  const [geofenceDrafts, setGeofenceDrafts] = useState<Record<string, { latitude: string; longitude: string; radius: string }>>({});
+  const [savingCircuitId, setSavingCircuitId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!access.ctx?.teamId || !canView) { setLoading(false); return; }
@@ -69,6 +73,32 @@ export default function ConnectedDevicesPage() {
   useEffect(() => { if (!form.carId && bundle.cars[0]?.id) setForm((f) => ({ ...f, carId: bundle.cars[0].id })); }, [bundle.cars, form.carId]);
 
   const onlineIds = useMemo(() => new Set(bundle.devices.filter((d) => d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() <= 15 * 60 * 1000).map((d) => d.id)), [bundle.devices]);
+
+  useEffect(() => {
+    setGeofenceDrafts(Object.fromEntries((bundle.circuits || []).map((c) => [c.id, {
+      latitude: c.latitude == null ? "" : String(c.latitude),
+      longitude: c.longitude == null ? "" : String(c.longitude),
+      radius: c.detection_radius_m == null ? "" : String(c.detection_radius_m),
+    }])));
+  }, [bundle.circuits]);
+
+  async function saveCircuitGeofence(circuit: CircuitOption) {
+    if (!access.ctx?.teamId || !canEditCircuits) return;
+    const draft = geofenceDrafts[circuit.id] || { latitude: "", longitude: "", radius: "" };
+    const empty = !draft.latitude.trim() && !draft.longitude.trim() && !draft.radius.trim();
+    const latitude = empty ? null : Number(draft.latitude.replace(",", "."));
+    const longitude = empty ? null : Number(draft.longitude.replace(",", "."));
+    const radius = empty ? null : Number(draft.radius);
+    if (!empty && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isInteger(radius))) {
+      setError("Coordinate o raggio non validi."); return;
+    }
+    setSavingCircuitId(circuit.id); setError(null);
+    const { error } = await supabase.rpc("set_connected_circuit_geofence", {
+      p_team_id: access.ctx.teamId, p_circuit_id: circuit.id, p_latitude: latitude, p_longitude: longitude, p_detection_radius_m: radius,
+    });
+    setSavingCircuitId(null);
+    if (error) setError(error.message); else await load();
+  }
 
   async function createDevice() {
     if (!access.ctx?.teamId || !form.carId || !form.name.trim()) return;
@@ -160,6 +190,21 @@ export default function ConnectedDevicesPage() {
     </div>
 
     <section className="rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"><div className="border-b border-neutral-200 px-4 py-3 font-black dark:border-neutral-800">{t("connectedDevices.registry", "Registro dispositivi")}</div>{loading ? <div className="p-6 text-sm text-neutral-500">{t("common.loading", "Caricamento...")}</div> : bundle.devices.length===0 ? <div className="p-6 text-sm text-neutral-500">{t("connectedDevices.empty", "Nessun dispositivo associato. La piattaforma è pronta per il primo logger.")}</div> : <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500 dark:bg-neutral-900"><tr><th className="px-4 py-3">Device</th><th className="px-4 py-3">Mezzo</th><th className="px-4 py-3">Provider</th><th className="px-4 py-3">Pilota predefinito</th><th className="px-4 py-3">Stato</th><th className="px-4 py-3">Ultimo contatto</th><th className="px-4 py-3">Sessioni</th>{canEdit&&<th className="px-4 py-3"/>}</tr></thead><tbody>{bundle.devices.map((d)=><tr key={d.id} className="border-t border-neutral-200 dark:border-neutral-800"><td className="px-4 py-3"><div className="font-bold">{d.name}</div><div className="text-xs text-neutral-500">{d.model||d.serial_number||d.active_key_prefix||"—"}</div></td><td className="px-4 py-3">{d.car_name}</td><td className="px-4 py-3 capitalize">{d.provider}</td><td className="px-4 py-3"><div className="min-w-[180px]">{canEdit&&d.status!=='revoked'?<select value={d.default_driver_id||""} onChange={(e)=>void setDeviceDefaultDriver(d,e.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"><option value="">Nessun predefinito</option>{bundle.drivers.map((drv)=><option key={drv.id} value={drv.id}>{drv.first_name} {drv.last_name}{drv.racing_number?` #${drv.racing_number}`:""}</option>)}</select>:<span>{d.default_driver_name||"—"}</span>}</div></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${d.status==='revoked'?'bg-red-100 text-red-700':onlineIds.has(d.id)?'bg-emerald-100 text-emerald-700':'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'}`}>{d.status==='revoked'?'Revocato':onlineIds.has(d.id)?'Online':'Offline'}</span></td><td className="px-4 py-3">{fmtDate(d.last_seen_at)}</td><td className="px-4 py-3">{d.sessions_count||0}</td>{canEdit&&<td className="px-4 py-3"><div className="flex justify-end gap-2">{d.status!=='revoked'&&<><button title="Ruota chiave" onClick={()=>void rotateKey(d)} className="rounded-lg border border-neutral-300 bg-white p-2 text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"><KeyRound size={15}/></button><button title="Revoca" onClick={()=>void revoke(d)} className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:bg-neutral-900 dark:text-red-400 dark:hover:bg-red-950/30"><Unplug size={15}/></button></>}</div></td>}</tr>)}</tbody></table></div>}</section>
+
+
+    <section className="rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <div className="font-black">Geofence circuiti</div>
+        <div className="mt-1 text-xs text-neutral-500">Coordinate centrali e raggio usati per riconoscere automaticamente il circuito dai dati GPS del logger.</div>
+      </div>
+      {bundle.circuits.length===0 ? <div className="p-6 text-sm text-neutral-500">Nessun circuito disponibile nel team.</div> : <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500 dark:bg-neutral-900"><tr><th className="px-4 py-3">Circuito</th><th className="px-4 py-3">Latitudine</th><th className="px-4 py-3">Longitudine</th><th className="px-4 py-3">Raggio</th><th className="px-4 py-3">Stato</th>{canEditCircuits&&<th className="px-4 py-3"/>}</tr></thead>
+          <tbody>{bundle.circuits.map((c)=>{const d=geofenceDrafts[c.id]||{latitude:"",longitude:"",radius:""};const configured=c.latitude!=null&&c.longitude!=null&&c.detection_radius_m!=null;return <tr key={c.id} className="border-t border-neutral-200 dark:border-neutral-800"><td className="px-4 py-3"><div className="font-semibold">{c.name}</div>{(c.city||c.country)&&<div className="text-xs text-neutral-500">{[c.city,c.country].filter(Boolean).join(" · ")}</div>}</td><td className="px-4 py-3">{canEditCircuits?<input inputMode="decimal" value={d.latitude} onChange={(e)=>setGeofenceDrafts((x)=>({...x,[c.id]:{...d,latitude:e.target.value}}))} placeholder="es. 42.1609" className="w-36 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/>:<span>{c.latitude??"—"}</span>}</td><td className="px-4 py-3">{canEditCircuits?<input inputMode="decimal" value={d.longitude} onChange={(e)=>setGeofenceDrafts((x)=>({...x,[c.id]:{...d,longitude:e.target.value}}))} placeholder="es. 12.3690" className="w-36 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/>:<span>{c.longitude??"—"}</span>}</td><td className="px-4 py-3">{canEditCircuits?<div className="flex items-center gap-1"><input inputMode="numeric" value={d.radius} onChange={(e)=>setGeofenceDrafts((x)=>({...x,[c.id]:{...d,radius:e.target.value}}))} placeholder="1000" className="w-24 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/><span className="text-xs text-neutral-500">m</span></div>:<span>{c.detection_radius_m?`${c.detection_radius_m} m`:"—"}</span>}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${configured?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'}`}>{configured?'Configurata':'Da configurare'}</span></td>{canEditCircuits&&<td className="px-4 py-3"><button disabled={savingCircuitId===c.id} onClick={()=>void saveCircuitGeofence(c)} className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-bold text-neutral-900 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">{savingCircuitId===c.id?'Salvataggio...':'Salva'}</button></td>}</tr>})}</tbody>
+        </table>
+      </div>}
+      {canEditCircuits&&<div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800">Per rimuovere una geofence, svuota tutti e tre i campi e salva. Il raggio consentito è 50–10.000 m.</div>}
+    </section>
 
     <section className="rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"><div className="border-b border-neutral-200 px-4 py-3 font-black dark:border-neutral-800">{t("connectedDevices.recentSessions", "Sessioni automatiche recenti")}</div>{bundle.recent_sessions.length===0?<div className="p-6 text-sm text-neutral-500">{t("connectedDevices.noSessions", "Nessuna sessione ricevuta dai dispositivi.")}</div>:<div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500 dark:bg-neutral-900"><tr><th className="px-4 py-3">Data</th><th className="px-4 py-3">Mezzo</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Circuito</th><th className="px-4 py-3">Motore</th><th className="px-4 py-3">Pista</th><th className="px-4 py-3">Giri</th><th className="px-4 py-3">Best</th><th className="px-4 py-3">V max</th><th className="px-4 py-3">Pilota</th><th className="px-4 py-3">Attività</th></tr></thead><tbody>{bundle.recent_sessions.map((s)=><tr key={s.id} className="border-t border-neutral-200 dark:border-neutral-800"><td className="px-4 py-3">{fmtDate(s.started_at)}</td><td className="px-4 py-3"><div className="font-semibold">{s.car_name}</div><div className="text-xs text-neutral-500">{s.device_name}</div></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${s.activity_type==='track'?'bg-emerald-100 text-emerald-700':s.activity_type==='engine_only'?'bg-sky-100 text-sky-700':'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'}`}>{s.activity_type==='track'?'Pista':s.activity_type==='engine_only'?'Solo motore':'Non classificata'}</span></td><td className="px-4 py-3"><div className="font-semibold">{s.detected_circuit_name||s.track_name||"—"}</div>{s.detection_confidence!=null&&<div className="text-xs text-neutral-500">Conf. {Math.round(Number(s.detection_confidence)*100)}%</div>}</td><td className="px-4 py-3">{fmtDuration(s.engine_seconds)}</td><td className="px-4 py-3">{fmtDuration(s.track_seconds)}</td><td className="px-4 py-3">{s.laps_count}</td><td className="px-4 py-3 font-mono">{fmtLap(s.best_lap_seconds)}</td><td className="px-4 py-3">{s.max_speed?`${Number(s.max_speed).toFixed(1)} km/h`:"—"}</td><td className="px-4 py-3"><div className="min-w-[180px]">{canEdit&&s.reconciliation_status==='reconciled'&&s.event_car_turn_id?<select value={s.driver_id||""} onChange={(e)=>void setSessionDriver(s,e.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"><option value="">Nessun pilota</option>{bundle.drivers.map((d)=><option key={d.id} value={d.id}>{d.first_name} {d.last_name}{d.racing_number?` #${d.racing_number}`:""}</option>)}</select>:<span className="text-sm">{s.driver_name||"—"}</span>}</div></td><td className="px-4 py-3"><div className="flex min-w-[190px] flex-col gap-1"><span className={`w-fit rounded-full px-2 py-1 text-xs font-bold ${s.reconciliation_status==='reconciled'?'bg-emerald-100 text-emerald-700':s.reconciliation_status==='failed'?'bg-red-100 text-red-700':s.reconciliation_status==='needs_review'?'bg-amber-100 text-amber-800':s.reconciliation_status==='not_applicable'?'bg-sky-100 text-sky-700':'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'}`}>{s.reconciliation_status==='reconciled'?'Riconciliata':s.reconciliation_status==='failed'?'Errore':s.reconciliation_status==='needs_review'?'Da verificare':s.reconciliation_status==='not_applicable'?'Nessun turno pista':'In attesa'}</span>{s.event_name&&<span className="text-xs font-semibold">{s.event_name}</span>}{s.reconciliation_message&&<span className="text-xs text-neutral-500">{s.reconciliation_message}</span>}{canEdit&&s.reconciliation_status&&['needs_review','failed','pending'].includes(s.reconciliation_status)&&<button onClick={()=>void reconcileSession(s)} className="mt-1 w-fit rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs font-bold text-neutral-800 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">Riconcilia</button>}</div></td></tr>)}</tbody></table></div>}</section>
 
