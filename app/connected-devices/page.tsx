@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/providers/LanguageProvider";
 
 type CarOption = { id: string; name: string; chassis_number?: string | null };
 type DriverOption = { id: string; first_name: string; last_name: string; nickname?: string | null; racing_number?: string | null; is_active?: boolean };
-type CircuitOption = { id: string; name: string; city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null; detection_radius_m?: number | null };
+type CircuitOption = { id: string; name: string; city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null; detection_radius_m?: number | null; lap_gate_latitude?: number | null; lap_gate_longitude?: number | null; lap_gate_radius_m?: number | null; min_lap_seconds?: number | null };
 type DeviceRow = {
   id: string; car_id: string; car_name: string; name: string; provider: string; model?: string | null;
   serial_number?: string | null; external_device_id?: string | null; source_type: string; status: string;
@@ -66,7 +66,9 @@ export default function ConnectedDevicesPage() {
   const [showCreate, setShowCreate] = useState(false); const [saving, setSaving] = useState(false); const [secret, setSecret] = useState<SecretState>(null);
   const [form, setForm] = useState({ carId: "", name: "", provider: "generic", model: "", serial: "", externalId: "", sourceType: "logger", defaultDriverId: "" });
   const [geofenceDrafts, setGeofenceDrafts] = useState<Record<string, { latitude: string; longitude: string; radius: string }>>({});
+  const [lapGateDrafts, setLapGateDrafts] = useState<Record<string, { latitude: string; longitude: string; radius: string; minLap: string }>>({});
   const [savingCircuitId, setSavingCircuitId] = useState<string | null>(null);
+  const [savingLapGateId, setSavingLapGateId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!access.ctx?.teamId || !canView) { setLoading(false); return; }
@@ -93,6 +95,15 @@ export default function ConnectedDevicesPage() {
     }])));
   }, [bundle.circuits]);
 
+  useEffect(() => {
+    setLapGateDrafts(Object.fromEntries((bundle.circuits || []).map((c) => [c.id, {
+      latitude: c.lap_gate_latitude == null ? "" : String(c.lap_gate_latitude),
+      longitude: c.lap_gate_longitude == null ? "" : String(c.lap_gate_longitude),
+      radius: c.lap_gate_radius_m == null ? "35" : String(c.lap_gate_radius_m),
+      minLap: c.min_lap_seconds == null ? "20" : String(c.min_lap_seconds),
+    }])));
+  }, [bundle.circuits]);
+
   async function saveCircuitGeofence(circuit: CircuitOption) {
     if (!access.ctx?.teamId || !canEditCircuits) return;
     const draft = geofenceDrafts[circuit.id] || { latitude: "", longitude: "", radius: "" };
@@ -108,6 +119,26 @@ export default function ConnectedDevicesPage() {
       p_team_id: access.ctx.teamId, p_circuit_id: circuit.id, p_latitude: latitude, p_longitude: longitude, p_detection_radius_m: radius,
     });
     setSavingCircuitId(null);
+    if (error) setError(error.message); else await load();
+  }
+
+  async function saveCircuitLapGate(circuit: CircuitOption) {
+    if (!access.ctx?.teamId || !canEditCircuits) return;
+    const draft = lapGateDrafts[circuit.id] || { latitude: "", longitude: "", radius: "35", minLap: "20" };
+    const empty = !draft.latitude.trim() && !draft.longitude.trim();
+    const latitude = empty ? null : Number(draft.latitude.replace(",", "."));
+    const longitude = empty ? null : Number(draft.longitude.replace(",", "."));
+    const radius = empty ? null : Number(draft.radius || "35");
+    const minLap = Number(draft.minLap || "20");
+    if (!empty && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isInteger(radius) || radius < 5 || radius > 250)) {
+      setError("Coordinate o raggio Lap Gate non validi."); return;
+    }
+    if (!Number.isInteger(minLap) || minLap < 5 || minLap > 1800) { setError("Tempo minimo giro non valido."); return; }
+    setSavingLapGateId(circuit.id); setError(null);
+    const { error } = await supabase.rpc("set_circuit_lap_gate", {
+      p_team_id: access.ctx.teamId, p_circuit_id: circuit.id, p_latitude: latitude, p_longitude: longitude, p_radius_m: radius, p_min_lap_seconds: minLap,
+    });
+    setSavingLapGateId(null);
     if (error) setError(error.message); else await load();
   }
 
@@ -215,6 +246,15 @@ export default function ConnectedDevicesPage() {
         </table>
       </div>}
       {canEditCircuits&&<div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800">Per rimuovere una geofence, svuota tutti e tre i campi e salva. Il raggio consentito è 50–10.000 m.</div>}
+    </section>
+
+    <section className="rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <div className="font-black">Lap Gate GPS</div>
+        <div className="mt-1 text-xs text-neutral-500">P2.5 usa un piccolo gate virtuale sulla linea di partenza/arrivo. Il primo passaggio arma il cronometro; i successivi generano automaticamente i tempi giro.</div>
+      </div>
+      {bundle.circuits.length===0?<div className="p-6 text-sm text-neutral-500">Nessun circuito disponibile.</div>:<div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500 dark:bg-neutral-900"><tr><th className="px-4 py-3">Circuito</th><th className="px-4 py-3">Latitudine gate</th><th className="px-4 py-3">Longitudine gate</th><th className="px-4 py-3">Raggio</th><th className="px-4 py-3">Giro minimo</th><th className="px-4 py-3">Stato</th>{canEditCircuits&&<th className="px-4 py-3"/>}</tr></thead><tbody>{bundle.circuits.map((c)=>{const d=lapGateDrafts[c.id]||{latitude:"",longitude:"",radius:"35",minLap:"20"};const configured=c.lap_gate_latitude!=null&&c.lap_gate_longitude!=null&&c.lap_gate_radius_m!=null;return <tr key={c.id} className="border-t border-neutral-200 dark:border-neutral-800"><td className="px-4 py-3 font-semibold">{c.name}</td><td className="px-4 py-3">{canEditCircuits?<input inputMode="decimal" value={d.latitude} onChange={(e)=>setLapGateDrafts((x)=>({...x,[c.id]:{...d,latitude:e.target.value}}))} placeholder="es. 42.1608" className="w-36 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/>:<span>{c.lap_gate_latitude??"—"}</span>}</td><td className="px-4 py-3">{canEditCircuits?<input inputMode="decimal" value={d.longitude} onChange={(e)=>setLapGateDrafts((x)=>({...x,[c.id]:{...d,longitude:e.target.value}}))} placeholder="es. 12.3692" className="w-36 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/>:<span>{c.lap_gate_longitude??"—"}</span>}</td><td className="px-4 py-3">{canEditCircuits?<div className="flex items-center gap-1"><input inputMode="numeric" value={d.radius} onChange={(e)=>setLapGateDrafts((x)=>({...x,[c.id]:{...d,radius:e.target.value}}))} className="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/><span className="text-xs text-neutral-500">m</span></div>:<span>{c.lap_gate_radius_m?`${c.lap_gate_radius_m} m`:"—"}</span>}</td><td className="px-4 py-3">{canEditCircuits?<div className="flex items-center gap-1"><input inputMode="numeric" value={d.minLap} onChange={(e)=>setLapGateDrafts((x)=>({...x,[c.id]:{...d,minLap:e.target.value}}))} className="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"/><span className="text-xs text-neutral-500">s</span></div>:<span>{c.min_lap_seconds?`${c.min_lap_seconds} s`:"—"}</span>}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${configured?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'}`}>{configured?'Configurato':'Da configurare'}</span></td>{canEditCircuits&&<td className="px-4 py-3"><button disabled={savingLapGateId===c.id} onClick={()=>void saveCircuitLapGate(c)} className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-bold text-neutral-900 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">{savingLapGateId===c.id?'Salvataggio...':'Salva'}</button></td>}</tr>})}</tbody></table></div>}
+      {canEditCircuits&&<div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800">Raggio consigliato iniziale: 25–40 m con GPS 1–10 Hz. Il tempo minimo evita doppi passaggi dovuti al jitter. Per disattivare il Lap Gate, svuota latitudine e longitudine e salva.</div>}
     </section>
 
     <section className="rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100">
