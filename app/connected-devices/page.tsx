@@ -130,7 +130,7 @@ export default function ConnectedDevicesPage() {
     const longitude = empty ? null : Number(draft.longitude.replace(",", "."));
     const radius = empty ? null : Number(draft.radius || "35");
     const minLap = Number(draft.minLap || "20");
-    if (!empty && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isInteger(radius) || radius < 5 || radius > 250)) {
+    if (!empty && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || radius === null || !Number.isInteger(radius) || radius < 5 || radius > 250)) {
       setError("Coordinate o raggio Lap Gate non validi."); return;
     }
     if (!Number.isInteger(minLap) || minLap < 5 || minLap > 1800) { setError("Tempo minimo giro non valido."); return; }
