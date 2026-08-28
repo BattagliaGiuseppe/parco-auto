@@ -12,8 +12,8 @@ import {
   setPendingInviteToken,
 } from "@/lib/teamContext";
 
-const publicRoutes = new Set(["/login", "/onboarding", "/accept-invite"]);
-const standaloneRoutes = new Set(["/attendance/quick", "/attendance/kiosk"]);
+const publicRoutes = new Set(["/login", "/onboarding", "/accept-invite", "/driver-display"]);
+const standaloneRoutes = new Set(["/attendance/quick", "/attendance/kiosk", "/driver-display"]);
 
 type AccessStatus =
   | "loading"
