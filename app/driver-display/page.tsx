@@ -55,6 +55,24 @@ type GpsState = {
   ts: number;
 };
 
+type ExternalLiveState = {
+  found: boolean;
+  fresh?: boolean;
+  activity_state?: "idle" | "armed" | "track" | "pit" | "offline";
+  circuit_id?: string | null;
+  circuit_name?: string | null;
+  speed_kph?: number | null;
+  rpm?: number | null;
+  gear?: string | null;
+  lap_number?: number | null;
+  current_lap_seconds?: number | null;
+  last_lap_seconds?: number | null;
+  best_lap_seconds?: number | null;
+  delta_seconds?: number | null;
+  gps_accuracy_m?: number | null;
+  age_ms?: number | null;
+};
+
 const CONFIG_KEY = "motorsport-driver-display-v1";
 const LOGGER_STATE_KEY = "motorsport-smartphone-logger-v1";
 const EARTH_RADIUS_M = 6371000;
@@ -124,6 +142,8 @@ export default function DriverDisplayPage() {
   const [loggerSnapshot, setLoggerSnapshot] = useState<SmartphoneLoggerSnapshot>(EMPTY_LOGGER_SNAPSHOT);
   const [pendingCount, setPendingCount] = useState(0);
   const [loggerSyncStatus, setLoggerSyncStatus] = useState("Nessun dato in attesa");
+  const [externalLive, setExternalLive] = useState<ExternalLiveState | null>(null);
+  const [externalLiveError, setExternalLiveError] = useState<string | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -140,6 +160,8 @@ export default function DriverDisplayPage() {
   const loggerSequenceRef = useRef(0);
   const pendingWindowsRef = useRef<SmartphoneLoggerWindow[]>([]);
   const syncingRef = useRef(false);
+  const livePollRef = useRef<number | null>(null);
+  const externalDisplayMode = runtimeConfig?.acquisition_mode === "external_logger" || runtimeConfig?.acquisition_mode === "hybrid";
 
   useEffect(() => {
     try {
@@ -445,9 +467,7 @@ export default function DriverDisplayPage() {
     );
   }, [config.gateRadiusM, persistLoggerState, queueWindow, requestWakeLock]);
 
-  const startDisplay = useCallback(() => {
-    ensureGpsWatch();
-  }, [ensureGpsWatch]);
+
 
   const armSmartphoneLogger = useCallback((resume = false) => {
     if (runtimeConfig?.acquisition_mode !== "smartphone") {
@@ -505,6 +525,50 @@ export default function DriverDisplayPage() {
 
   useEffect(() => () => stopGpsWatch(), [stopGpsWatch]);
 
+  const fetchExternalLiveState = useCallback(async () => {
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey) return;
+    try {
+      const response = await fetch("/api/connected/live-state", { headers: { "x-device-key": deviceKey }, cache: "no-store" });
+      const body = (await response.json()) as ExternalLiveState & { error?: string };
+      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+      setExternalLive(body);
+      setExternalLiveError(null);
+    } catch (error) {
+      setExternalLiveError(error instanceof Error ? error.message : "Stato logger non disponibile");
+    }
+  }, [config.deviceKey]);
+
+  const stopExternalDisplay = useCallback(() => {
+    if (livePollRef.current != null) window.clearInterval(livePollRef.current);
+    livePollRef.current = null;
+    setRunning(false);
+    setExternalLive(null);
+    setExternalLiveError(null);
+    void wakeLockRef.current?.release().catch(() => undefined);
+    wakeLockRef.current = null;
+  }, []);
+
+  const startExternalDisplay = useCallback(() => {
+    if (!externalDisplayMode) return;
+    if (!config.deviceKey.trim()) { setGpsError("Inserisci prima la device key."); return; }
+    setGpsError(null);
+    setRunning(true);
+    void requestWakeLock();
+    void fetchExternalLiveState();
+    if (livePollRef.current != null) window.clearInterval(livePollRef.current);
+    livePollRef.current = window.setInterval(() => void fetchExternalLiveState(), 2000);
+  }, [config.deviceKey, externalDisplayMode, fetchExternalLiveState, requestWakeLock]);
+
+  const startDisplay = useCallback(() => {
+    if (externalDisplayMode) { startExternalDisplay(); return; }
+    ensureGpsWatch();
+  }, [ensureGpsWatch, externalDisplayMode, startExternalDisplay]);
+
+  useEffect(() => () => {
+    if (livePollRef.current != null) window.clearInterval(livePollRef.current);
+  }, []);
+
   const toggleFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
@@ -527,6 +591,12 @@ export default function DriverDisplayPage() {
   const guidanceCompact = running && focusMode;
   const acquisitionLabel = runtimeConfig?.acquisition_mode === "smartphone" ? "SMARTPHONE LOGGER" : runtimeConfig?.acquisition_mode === "hybrid" ? "IBRIDO" : runtimeConfig?.acquisition_mode === "external_logger" ? "LOGGER ESTERNO" : "MODALITÀ —";
   const smartphoneMode = runtimeConfig?.acquisition_mode === "smartphone";
+  const liveFresh = Boolean(externalLive?.found && externalLive?.fresh && externalLive.activity_state !== "offline");
+  const displaySpeedKph = externalDisplayMode ? (liveFresh ? Number(externalLive?.speed_kph || 0) : null) : (gps ? gps.speedKph : null);
+  const displayLapNumber = externalDisplayMode ? (liveFresh ? Number(externalLive?.lap_number || 0) : 0) : lapNumber;
+  const displayLapElapsed = externalDisplayMode ? (liveFresh ? Number(externalLive?.current_lap_seconds || 0) : 0) : lapElapsed;
+  const displayLastLap = externalDisplayMode ? (liveFresh && externalLive?.last_lap_seconds != null ? Number(externalLive.last_lap_seconds) : null) : lastLap;
+  const displayDelta = externalDisplayMode ? (liveFresh && externalLive?.delta_seconds != null ? Number(externalLive.delta_seconds) : null) : delta;
 
   return (
     <main className="min-h-[100dvh] bg-black text-white selection:bg-white/20">
@@ -582,6 +652,13 @@ export default function DriverDisplayPage() {
 
         {gpsError && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{gpsError}</div>}
 
+        {externalDisplayMode && running && (
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${liveFresh ? "border-sky-400/30 bg-sky-400/10 text-sky-100" : "border-amber-400/25 bg-amber-400/10 text-amber-100"}`}>
+            <span>{liveFresh ? `LOGGER LIVE · ${String(externalLive?.activity_state || "idle").toUpperCase()}${externalLive?.circuit_name ? ` · ${externalLive.circuit_name}` : ""}` : "LOGGER OFFLINE · IN ATTESA DATI LIVE"}</span>
+            <span className="text-white/55">{externalLiveError || (externalLive?.age_ms != null ? `${Math.round(Number(externalLive.age_ms) / 1000)} s fa` : "nessun pacchetto live")}</span>
+          </div>
+        )}
+
         {smartphoneMode && (loggerArmed || loggerResumeAvailable || pendingCount > 0) && (
           <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${loggerArmed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-amber-400/25 bg-amber-400/10 text-amber-200"}`}>
             <span>{loggerArmed ? loggerSnapshot.state === "capturing" ? `TURNO IN ACQUISIZIONE${loggerSnapshot.matchedCircuitName ? ` · ${loggerSnapshot.matchedCircuitName}` : ""} · ${loggerSnapshot.samplesBuffered} campioni` : "GIORNATA ARMATA · IN ATTESA PISTA" : loggerResumeAvailable ? "GIORNATA PRECEDENTEMENTE ARMATA · RIPRENDI LOGGER" : "LOGGER NON ARMATO"}</span>
@@ -591,14 +668,14 @@ export default function DriverDisplayPage() {
 
         <section className={`grid flex-1 gap-3 py-3 md:grid-cols-[1fr_1.55fr_1fr] ${guidanceCompact ? "landscape:grid-cols-[0.72fr_2.28fr] landscape:gap-2 landscape:py-2" : "landscape:grid-cols-[1fr_1.55fr_1fr]"}`}>
           <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:gap-2" : ""}`}>
-            <Metric label="LAP" value={lapNumber ? String(lapNumber) : "--"} sub={insideGate ? "START / FINISH" : "GIRO CORRENTE"} />
-            <Metric label="SPEED" value={gps ? String(Math.round(gps.speedKph)) : "--"} unit="km/h" sub={gps ? `${gpsQuality.label} · ±${Math.round(gps.accuracyM)} m` : "ATTESA GPS"} />
+            <Metric label="LAP" value={displayLapNumber ? String(displayLapNumber) : "--"} sub={externalDisplayMode ? (liveFresh ? (externalLive?.activity_state === "track" ? "TURNO LIVE" : String(externalLive?.activity_state || "LOGGER" ).toUpperCase()) : "LOGGER OFFLINE") : insideGate ? "START / FINISH" : "GIRO CORRENTE"} />
+            <Metric label="SPEED" value={displaySpeedKph == null ? "--" : String(Math.round(displaySpeedKph))} unit="km/h" sub={externalDisplayMode ? (liveFresh ? `LOGGER LIVE${externalLive?.gps_accuracy_m != null ? ` · GPS ±${Math.round(Number(externalLive.gps_accuracy_m))} m` : ""}` : "ATTESA LOGGER") : gps ? `${gpsQuality.label} · ±${Math.round(gps.accuracyM)} m` : "ATTESA GPS"} />
           </div>
 
           <div className={`flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.035] px-4 py-6 text-center ${guidanceCompact ? "landscape:min-h-0 landscape:py-2" : ""}`}>
             <div className="text-xs font-black uppercase tracking-[0.35em] text-white/45">Delta</div>
-            <div className={`mt-2 font-mono text-[clamp(4.8rem,15vw,11rem)] font-black leading-none tracking-[-0.07em] ${deltaTone}`}>{formatDelta(delta)}</div>
-            <div className="mt-5 font-mono text-[clamp(2rem,5vw,4rem)] font-bold tabular-nums">{formatLap(lapElapsed)}</div>
+            <div className={`mt-2 font-mono text-[clamp(4.8rem,15vw,11rem)] font-black leading-none tracking-[-0.07em] ${deltaTone}`}>{formatDelta(displayDelta)}</div>
+            <div className="mt-5 font-mono text-[clamp(2rem,5vw,4rem)] font-bold tabular-nums">{formatLap(displayLapElapsed)}</div>
             <div className="mt-2 h-1.5 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
               <div className="h-full bg-white transition-[width] duration-150" style={{ width: `${Math.max(0, Math.min(100, (progress || 0) * 100))}%` }} />
             </div>
@@ -607,7 +684,7 @@ export default function DriverDisplayPage() {
 
           <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:hidden" : ""}`}>
             <Metric label="REFERENCE" value={formatLap(reference?.lap_time_seconds == null ? null : Number(reference.lap_time_seconds))} compact sub={reference?.driver_id ? "PILOTA" : reference?.car_id ? "AUTO" : "NON CARICATO"} />
-            <Metric label="LAST LAP" value={formatLap(lastLap)} compact sub={lastLap == null ? "NESSUN GIRO COMPLETO" : lastLap <= Number(reference?.lap_time_seconds || Infinity) ? "NUOVO BEST POTENZIALE" : "GIRO COMPLETATO"} />
+            <Metric label="LAST LAP" value={formatLap(displayLastLap)} compact sub={displayLastLap == null ? "NESSUN GIRO COMPLETO" : displayLastLap <= Number(reference?.lap_time_seconds || Infinity) ? "NUOVO BEST POTENZIALE" : "GIRO COMPLETATO"} />
           </div>
         </section>
 
@@ -625,7 +702,7 @@ export default function DriverDisplayPage() {
           ) : !running ? (
             <button onClick={startDisplay} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black"><Play className="h-4 w-4 fill-current" /> AVVIA DISPLAY</button>
           ) : (
-            <button onClick={stopGpsWatch} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> STOP DISPLAY</button>
+            <button onClick={externalDisplayMode ? stopExternalDisplay : stopGpsWatch} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> STOP DISPLAY</button>
           )}
         </footer>
       </div>
