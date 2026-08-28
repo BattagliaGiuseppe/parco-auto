@@ -30,6 +30,9 @@ type DeviceCircuit = {
   has_reference?: boolean;
 };
 
+type AcquisitionMode = "smartphone" | "external_logger" | "hybrid";
+type RuntimeConfig = { device_id: string; car_id: string; name: string; source_type: string; acquisition_mode: AcquisitionMode; default_driver_id?: string | null };
+
 type CircuitsResponse = {
   device_id?: string;
   car_id?: string;
@@ -74,6 +77,7 @@ export default function DriverDisplayPage() {
   const [config, setConfig] = useState<DisplayConfig>({ deviceKey: "", circuitId: "", gateRadiusM: 35 });
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [reference, setReference] = useState<ReferenceResponse | null>(null);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
   const [engine, setEngine] = useState<LiveDeltaEngine | null>(null);
   const [gps, setGps] = useState<GpsState | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -121,6 +125,19 @@ export default function DriverDisplayPage() {
     setConfig(next);
     localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
   }, []);
+
+  const loadRuntimeConfig = useCallback(async () => {
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey) { setRuntimeConfig(null); return; }
+    try {
+      const res = await fetch("/api/connected/runtime-config", { headers: { "x-device-key": deviceKey }, cache: "no-store" });
+      const body = (await res.json()) as RuntimeConfig & { error?: string };
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      setRuntimeConfig(body);
+    } catch {
+      setRuntimeConfig(null);
+    }
+  }, [config.deviceKey]);
 
   const loadCircuits = useCallback(async () => {
     const deviceKey = config.deviceKey.trim();
@@ -186,10 +203,13 @@ export default function DriverDisplayPage() {
   }, [config.circuitId, config.deviceKey]);
 
   useEffect(() => {
-    if (config.deviceKey.trim().length >= 20 && circuits.length === 0 && !loadingCircuits) {
-      void loadCircuits();
+    if (config.deviceKey.trim().length >= 20) {
+      void loadRuntimeConfig();
+      if (circuits.length === 0 && !loadingCircuits) void loadCircuits();
+    } else {
+      setRuntimeConfig(null);
     }
-  }, [config.deviceKey, circuits.length, loadCircuits, loadingCircuits]);
+  }, [config.deviceKey, circuits.length, loadCircuits, loadRuntimeConfig, loadingCircuits]);
 
   const requestWakeLock = useCallback(async () => {
     try {
@@ -323,6 +343,8 @@ export default function DriverDisplayPage() {
           ? { label: "GPS DEBOLE", tone: "border-amber-400/40 text-amber-300" }
           : { label: "GPS SCARSO", tone: "border-red-500/40 text-red-300" };
   const guidanceCompact = running && focusMode;
+  const acquisitionLabel = runtimeConfig?.acquisition_mode === "smartphone" ? "SMARTPHONE LOGGER" : runtimeConfig?.acquisition_mode === "hybrid" ? "IBRIDO" : runtimeConfig?.acquisition_mode === "external_logger" ? "LOGGER ESTERNO" : "MODALITÀ —";
+  const startLabel = runtimeConfig?.acquisition_mode === "external_logger" || runtimeConfig?.acquisition_mode === "hybrid" ? "AVVIA DISPLAY" : "AVVIA GPS";
 
   return (
     <main className="min-h-[100dvh] bg-black text-white selection:bg-white/20">
@@ -335,6 +357,7 @@ export default function DriverDisplayPage() {
             <div className={`mt-1 truncate text-sm font-semibold text-white/80 ${guidanceCompact ? "landscape:hidden" : ""}`}>{referenceStatus}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden rounded-full border border-white/15 px-3 py-1.5 text-xs font-black tracking-wide text-white/65 md:block">{acquisitionLabel}</div>
             <div className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold sm:flex ${gpsQuality.tone}`}>
               {gps ? <Radio className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
               {gps ? `${gpsQuality.label} · ±${Math.round(gps.accuracyM)} m` : gpsQuality.label}
@@ -371,6 +394,7 @@ export default function DriverDisplayPage() {
             <button disabled={loadingReference} onClick={() => void loadReference()} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-black text-black disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loadingReference ? "animate-spin" : ""}`} /> Carica reference
             </button>
+            {runtimeConfig && <div className="md:col-span-4 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/55"><span className="font-black text-white/80">{acquisitionLabel}</span> · {runtimeConfig.acquisition_mode === "smartphone" ? "Questo telefono sarà la sorgente di acquisizione nella modalità Logger Smartphone." : runtimeConfig.acquisition_mode === "hybrid" ? "Il logger esterno registra i dati; lo smartphone sarà display/video e potrà usare sensori locali come supporto." : "Il logger esterno è responsabile della registrazione. Il telefono è solo display e non deve essere avviato per salvare turni e ore."}</div>}
           </section>
         )}
 
@@ -401,10 +425,10 @@ export default function DriverDisplayPage() {
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-4 text-xs font-semibold text-white/45">
             <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {lapStartedAt ? `GIRO ATTIVO · ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : reference ? "PRONTO · PASSA SUL GATE START/FINISH" : "In attesa del reference"}</span>
-            <span className="hidden sm:inline">Delta calcolato localmente · nessuna latenza cloud</span>
+            <span className="hidden sm:inline">{runtimeConfig?.acquisition_mode === "external_logger" ? "Registrazione affidata al logger esterno · display indipendente" : runtimeConfig?.acquisition_mode === "hybrid" ? "Dati logger + display locale" : "Delta calcolato localmente · modalità smartphone"}</span>
           </div>
           {!running ? (
-            <button onClick={start} disabled={!engine} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4 fill-current" /> AVVIA GPS</button>
+            <button onClick={start} disabled={!engine} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4 fill-current" /> {startLabel}</button>
           ) : (
             <button onClick={stop} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> STOP</button>
           )}
