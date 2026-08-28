@@ -21,6 +21,21 @@ type DisplayConfig = {
   gateRadiusM: number;
 };
 
+type DeviceCircuit = {
+  id: string;
+  name: string;
+  city?: string | null;
+  country?: string | null;
+  lap_gate_configured?: boolean;
+  has_reference?: boolean;
+};
+
+type CircuitsResponse = {
+  device_id?: string;
+  car_id?: string;
+  circuits?: DeviceCircuit[];
+};
+
 type GpsState = {
   lat: number;
   lon: number;
@@ -63,6 +78,8 @@ export default function DriverDisplayPage() {
   const [gps, setGps] = useState<GpsState | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [loadingReference, setLoadingReference] = useState(false);
+  const [circuits, setCircuits] = useState<DeviceCircuit[]>([]);
+  const [loadingCircuits, setLoadingCircuits] = useState(false);
   const [running, setRunning] = useState(false);
   const [lapStartedAt, setLapStartedAt] = useState<number | null>(null);
   const [lapElapsed, setLapElapsed] = useState(0);
@@ -104,6 +121,40 @@ export default function DriverDisplayPage() {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
   }, []);
 
+  const loadCircuits = useCallback(async () => {
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey) {
+      setReferenceStatus("Inserisci prima la device key");
+      return;
+    }
+    setLoadingCircuits(true);
+    try {
+      const res = await fetch("/api/connected/circuits", {
+        headers: { "x-device-key": deviceKey },
+        cache: "no-store",
+      });
+      const body = (await res.json()) as CircuitsResponse & { error?: string };
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      const list = Array.isArray(body.circuits) ? body.circuits : [];
+      setCircuits(list);
+      if (!list.length) {
+        setReferenceStatus("Nessun circuito configurato per questo team");
+        return;
+      }
+      const currentIsValid = list.some((c) => c.id === config.circuitId);
+      if (!currentIsValid) {
+        const preferred = list.find((c) => c.has_reference) || list[0];
+        saveConfig({ ...config, circuitId: preferred.id });
+      }
+      setReferenceStatus("Circuiti caricati");
+    } catch (error) {
+      setCircuits([]);
+      setReferenceStatus(error instanceof Error ? error.message : "Errore caricamento circuiti");
+    } finally {
+      setLoadingCircuits(false);
+    }
+  }, [config, saveConfig]);
+
   const loadReference = useCallback(async () => {
     if (!config.deviceKey.trim() || !config.circuitId.trim()) {
       setReferenceStatus("Inserisci device key e circuito");
@@ -132,6 +183,12 @@ export default function DriverDisplayPage() {
       setLoadingReference(false);
     }
   }, [config.circuitId, config.deviceKey]);
+
+  useEffect(() => {
+    if (config.deviceKey.trim().length >= 20 && circuits.length === 0 && !loadingCircuits) {
+      void loadCircuits();
+    }
+  }, [config.deviceKey, circuits.length, loadCircuits, loadingCircuits]);
 
   const requestWakeLock = useCallback(async () => {
     try {
@@ -282,8 +339,18 @@ export default function DriverDisplayPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-white/55">Device key
               <input type="password" value={config.deviceKey} onChange={(e) => saveConfig({ ...config, deviceKey: e.target.value })} placeholder="Chiave dispositivo" className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
             </label>
-            <label className="text-xs font-bold uppercase tracking-wider text-white/55">Circuit ID
-              <input value={config.circuitId} onChange={(e) => saveConfig({ ...config, circuitId: e.target.value })} placeholder="UUID circuito" className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
+            <label className="text-xs font-bold uppercase tracking-wider text-white/55">Circuito
+              <div className="mt-1.5 flex gap-2">
+                <select value={config.circuitId} onChange={(e) => saveConfig({ ...config, circuitId: e.target.value })} className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40">
+                  <option value="">Seleziona circuito</option>
+                  {circuits.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.has_reference ? " · reference" : ""}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => void loadCircuits()} disabled={loadingCircuits || !config.deviceKey.trim()} className="rounded-xl border border-white/15 px-3 text-white/70 disabled:opacity-35" aria-label="Aggiorna circuiti">
+                  <RefreshCw className={`h-4 w-4 ${loadingCircuits ? "animate-spin" : ""}`} />
+                </button>
+              </div>
             </label>
             <label className="text-xs font-bold uppercase tracking-wider text-white/55">Gate (m)
               <input type="number" min={5} max={250} value={config.gateRadiusM} onChange={(e) => saveConfig({ ...config, gateRadiusM: Math.max(5, Math.min(250, Number(e.target.value) || 35)) })} className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
