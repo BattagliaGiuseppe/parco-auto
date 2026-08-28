@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gauge, Maximize2, Play, Radio, RefreshCw, Settings2, Square, TimerReset, WifiOff } from "lucide-react";
+import { Eye, EyeOff, Gauge, Maximize2, Play, Radio, RefreshCw, Settings2, Square, TimerReset, WifiOff } from "lucide-react";
 import { LiveDeltaEngine, type ReferencePoint } from "@/lib/connected/live-delta";
 
 type ReferenceResponse = {
@@ -90,6 +90,7 @@ export default function DriverDisplayPage() {
   const [lastLap, setLastLap] = useState<number | null>(null);
   const [insideGate, setInsideGate] = useState(false);
   const [referenceStatus, setReferenceStatus] = useState("Reference non caricato");
+  const [focusMode, setFocusMode] = useState(true);
 
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -312,23 +313,35 @@ export default function DriverDisplayPage() {
   }, []);
 
   const deltaTone = delta == null ? "text-white" : delta <= -0.01 ? "text-emerald-400" : delta >= 0.01 ? "text-red-400" : "text-white";
-  const gpsOk = gps != null && gps.accuracyM <= 25;
+  const gpsQuality = gps == null
+    ? { label: "GPS OFF", tone: "border-white/15 text-white/55" }
+    : gps.accuracyM <= 10
+      ? { label: "GPS OTTIMO", tone: "border-emerald-500/40 text-emerald-300" }
+      : gps.accuracyM <= 20
+        ? { label: "GPS BUONO", tone: "border-sky-400/40 text-sky-300" }
+        : gps.accuracyM <= 35
+          ? { label: "GPS DEBOLE", tone: "border-amber-400/40 text-amber-300" }
+          : { label: "GPS SCARSO", tone: "border-red-500/40 text-red-300" };
+  const guidanceCompact = running && focusMode;
 
   return (
     <main className="min-h-[100dvh] bg-black text-white selection:bg-white/20">
       <div className="mx-auto flex min-h-[100dvh] max-w-[1600px] flex-col p-3 sm:p-4">
-        <header className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <header className={`flex items-center justify-between gap-3 border-b border-white/10 pb-3 ${guidanceCompact ? "landscape:py-1" : ""}`}>
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-white/50">
               <Gauge className="h-4 w-4" /> Driver Display
             </div>
-            <div className="mt-1 truncate text-sm font-semibold text-white/80">{referenceStatus}</div>
+            <div className={`mt-1 truncate text-sm font-semibold text-white/80 ${guidanceCompact ? "landscape:hidden" : ""}`}>{referenceStatus}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <div className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold sm:flex ${gpsOk ? "border-emerald-500/40 text-emerald-300" : "border-white/15 text-white/55"}`}>
+            <div className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold sm:flex ${gpsQuality.tone}`}>
               {gps ? <Radio className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-              {gps ? `GPS ±${Math.round(gps.accuracyM)} m` : "GPS OFF"}
+              {gps ? `${gpsQuality.label} · ±${Math.round(gps.accuracyM)} m` : gpsQuality.label}
             </div>
+            <button onClick={() => setFocusMode((v) => !v)} className={`rounded-xl border p-2.5 ${focusMode ? "border-white/30 bg-white/10 text-white" : "border-white/15 text-white/60"}`} aria-label="Modalità guida compatta">
+              {focusMode ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+            </button>
             <button onClick={() => void toggleFullscreen()} className="rounded-xl border border-white/15 p-2.5 text-white/80 hover:bg-white/10" aria-label="Schermo intero"><Maximize2 className="h-5 w-5" /></button>
             <button onClick={() => setSettingsOpen((v) => !v)} className="rounded-xl border border-white/15 p-2.5 text-white/80 hover:bg-white/10" aria-label="Impostazioni"><Settings2 className="h-5 w-5" /></button>
           </div>
@@ -363,15 +376,15 @@ export default function DriverDisplayPage() {
 
         {gpsError && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{gpsError}</div>}
 
-        <section className="grid flex-1 gap-3 py-3 landscape:grid-cols-[1fr_1.55fr_1fr] md:grid-cols-[1fr_1.55fr_1fr]">
-          <div className="grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1">
+        <section className={`grid flex-1 gap-3 py-3 md:grid-cols-[1fr_1.55fr_1fr] ${guidanceCompact ? "landscape:grid-cols-[0.72fr_2.28fr] landscape:gap-2 landscape:py-2" : "landscape:grid-cols-[1fr_1.55fr_1fr]"}`}>
+          <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:gap-2" : ""}`}>
             <Metric label="LAP" value={lapNumber ? String(lapNumber) : "--"} sub={insideGate ? "START / FINISH" : "GIRO CORRENTE"} />
-            <Metric label="SPEED" value={gps ? String(Math.round(gps.speedKph)) : "--"} unit="km/h" sub={gps ? `GPS ±${Math.round(gps.accuracyM)} m` : "ATTESA GPS"} />
+            <Metric label="SPEED" value={gps ? String(Math.round(gps.speedKph)) : "--"} unit="km/h" sub={gps ? `${gpsQuality.label} · ±${Math.round(gps.accuracyM)} m` : "ATTESA GPS"} />
           </div>
 
-          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.035] px-4 py-6 text-center">
+          <div className={`flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.035] px-4 py-6 text-center ${guidanceCompact ? "landscape:min-h-0 landscape:py-2" : ""}`}>
             <div className="text-xs font-black uppercase tracking-[0.35em] text-white/45">Delta</div>
-            <div className={`mt-2 font-mono text-[clamp(4.4rem,14vw,10rem)] font-black leading-none tracking-[-0.07em] ${deltaTone}`}>{formatDelta(delta)}</div>
+            <div className={`mt-2 font-mono text-[clamp(4.8rem,15vw,11rem)] font-black leading-none tracking-[-0.07em] ${deltaTone}`}>{formatDelta(delta)}</div>
             <div className="mt-5 font-mono text-[clamp(2rem,5vw,4rem)] font-bold tabular-nums">{formatLap(lapElapsed)}</div>
             <div className="mt-2 h-1.5 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
               <div className="h-full bg-white transition-[width] duration-150" style={{ width: `${Math.max(0, Math.min(100, (progress || 0) * 100))}%` }} />
@@ -379,7 +392,7 @@ export default function DriverDisplayPage() {
             <div className="mt-2 text-xs font-semibold text-white/40">{progress == null ? "REFERENCE NON AGGANCIATO" : `${Math.round(progress * 100)}% · ${distanceToReference == null ? "—" : `${distanceToReference.toFixed(1)} m dal reference`}`}</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1">
+          <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:hidden" : ""}`}>
             <Metric label="REFERENCE" value={formatLap(reference?.lap_time_seconds == null ? null : Number(reference.lap_time_seconds))} compact sub={reference?.driver_id ? "PILOTA" : reference?.car_id ? "AUTO" : "NON CARICATO"} />
             <Metric label="LAST LAP" value={formatLap(lastLap)} compact sub={lastLap == null ? "NESSUN GIRO COMPLETO" : lastLap <= Number(reference?.lap_time_seconds || Infinity) ? "NUOVO BEST POTENZIALE" : "GIRO COMPLETATO"} />
           </div>
@@ -387,7 +400,7 @@ export default function DriverDisplayPage() {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-4 text-xs font-semibold text-white/45">
-            <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {lapStartedAt ? `Start ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : "In attesa del gate"}</span>
+            <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {lapStartedAt ? `GIRO ATTIVO · ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : reference ? "PRONTO · PASSA SUL GATE START/FINISH" : "In attesa del reference"}</span>
             <span className="hidden sm:inline">Delta calcolato localmente · nessuna latenza cloud</span>
           </div>
           {!running ? (
