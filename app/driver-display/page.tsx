@@ -578,7 +578,6 @@ export default function DriverDisplayPage() {
     }
   }, []);
 
-  const deltaTone = delta == null ? "text-white" : delta <= -0.01 ? "text-emerald-400" : delta >= 0.01 ? "text-red-400" : "text-white";
   const gpsQuality = gps == null
     ? { label: "GPS OFF", tone: "border-white/15 text-white/55" }
     : gps.accuracyM <= 10
@@ -596,7 +595,11 @@ export default function DriverDisplayPage() {
   const displayLapNumber = externalDisplayMode ? (liveFresh ? Number(externalLive?.lap_number || 0) : 0) : lapNumber;
   const displayLapElapsed = externalDisplayMode ? (liveFresh ? Number(externalLive?.current_lap_seconds || 0) : 0) : lapElapsed;
   const displayLastLap = externalDisplayMode ? (liveFresh && externalLive?.last_lap_seconds != null ? Number(externalLive.last_lap_seconds) : null) : lastLap;
+  const displayBestLap = externalDisplayMode ? (liveFresh && externalLive?.best_lap_seconds != null ? Number(externalLive.best_lap_seconds) : null) : null;
+  const displayRpm = externalDisplayMode ? (liveFresh && externalLive?.rpm != null ? Number(externalLive.rpm) : null) : null;
+  const displayGear = externalDisplayMode ? (liveFresh && externalLive?.gear != null ? String(externalLive.gear) : null) : null;
   const displayDelta = externalDisplayMode ? (liveFresh && externalLive?.delta_seconds != null ? Number(externalLive.delta_seconds) : null) : delta;
+  const deltaTone = displayDelta == null ? "text-white" : displayDelta <= -0.01 ? "text-emerald-400" : displayDelta >= 0.01 ? "text-red-400" : "text-white";
 
   return (
     <main className="min-h-[100dvh] bg-black text-white selection:bg-white/20">
@@ -666,6 +669,14 @@ export default function DriverDisplayPage() {
           </div>
         )}
 
+        {externalDisplayMode && running && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <LiveMetric label="RPM" value={displayRpm == null ? "—" : Math.round(displayRpm).toLocaleString("it-IT")} />
+            <LiveMetric label="GEAR" value={displayGear || "—"} />
+            <LiveMetric label="BEST LAP" value={formatLap(displayBestLap)} />
+          </div>
+        )}
+
         <section className={`grid flex-1 gap-3 py-3 md:grid-cols-[1fr_1.55fr_1fr] ${guidanceCompact ? "landscape:grid-cols-[0.72fr_2.28fr] landscape:gap-2 landscape:py-2" : "landscape:grid-cols-[1fr_1.55fr_1fr]"}`}>
           <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:gap-2" : ""}`}>
             <Metric label="LAP" value={displayLapNumber ? String(displayLapNumber) : "--"} sub={externalDisplayMode ? (liveFresh ? (externalLive?.activity_state === "track" ? "TURNO LIVE" : String(externalLive?.activity_state || "LOGGER" ).toUpperCase()) : "LOGGER OFFLINE") : insideGate ? "START / FINISH" : "GIRO CORRENTE"} />
@@ -707,6 +718,15 @@ export default function DriverDisplayPage() {
         </footer>
       </div>
     </main>
+  );
+}
+
+function LiveMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-center">
+      <div className="truncate text-[9px] font-black uppercase tracking-[0.2em] text-white/40 sm:text-[10px]">{label}</div>
+      <div className="mt-1 truncate font-mono text-[clamp(1.15rem,4.5vw,2rem)] font-black leading-none tabular-nums">{value}</div>
+    </div>
   );
 }
 
