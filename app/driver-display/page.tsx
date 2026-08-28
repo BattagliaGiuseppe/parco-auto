@@ -156,10 +156,13 @@ export default function DriverDisplayPage() {
   }, []);
 
   const start = useCallback(() => {
-    if (!engine || !referenceStart) {
+    if (!engine || !reference || !referenceStart) {
       setReferenceStatus("Carica prima un reference lap valido");
       return;
     }
+    const activeEngine = engine;
+    const activeReference = reference;
+    const activeReferenceStart = referenceStart;
     if (!navigator.geolocation) {
       setGpsError("GPS/geolocalizzazione non disponibile su questo dispositivo.");
       return;
@@ -193,7 +196,7 @@ export default function DriverDisplayPage() {
         previousGpsRef.current = nextGps;
         setGps(nextGps);
 
-        const gateDistance = distanceM(nextGps, referenceStart);
+        const gateDistance = distanceM(nextGps, activeReferenceStart);
         const nowInsideGate = gateDistance <= config.gateRadiusM;
         const wasInsideGate = insideGateRef.current;
         insideGateRef.current = nowInsideGate;
@@ -205,23 +208,23 @@ export default function DriverDisplayPage() {
             setLapStartedAt(now);
             lapNumberRef.current = Math.max(1, lapNumberRef.current || 1);
             setLapNumber(lapNumberRef.current);
-            engine.startLap(now);
+            activeEngine.startLap(now);
           } else {
             const completed = (now - lapStartedAtRef.current) / 1000;
-            const minCompleted = Math.max(5, Number(reference.lap_time_seconds || 20) * 0.35);
+            const minCompleted = Math.max(5, Number(activeReference.lap_time_seconds || 20) * 0.35);
             if (completed >= minCompleted) {
               setLastLap(completed);
               lapNumberRef.current += 1;
               setLapNumber(lapNumberRef.current);
               lapStartedAtRef.current = now;
               setLapStartedAt(now);
-              engine.startLap(now);
+              activeEngine.startLap(now);
             }
           }
         }
 
         if (lapStartedAtRef.current != null) {
-          const result = engine.update({ ts: now, lat: nextGps.lat, lon: nextGps.lon, speedKph });
+          const result = activeEngine.update({ ts: now, lat: nextGps.lat, lon: nextGps.lon, speedKph });
           setLapElapsed(result.lapElapsedSeconds);
           setDelta(result.deltaSeconds);
           setProgress(result.progress);
@@ -238,7 +241,7 @@ export default function DriverDisplayPage() {
       },
       { enableHighAccuracy: true, maximumAge: 250, timeout: 10000 },
     );
-  }, [config.gateRadiusM, engine, reference?.lap_time_seconds, referenceStart, requestWakeLock]);
+  }, [config.gateRadiusM, engine, reference, referenceStart, requestWakeLock]);
 
   useEffect(() => () => stop(), [stop]);
 
