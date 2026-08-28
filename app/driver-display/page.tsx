@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Eye, EyeOff, Gauge, Maximize2, Play, Radio, RefreshCw, Settings2, Square, TimerReset, WifiOff } from "lucide-react";
 import { LiveDeltaEngine, type ReferencePoint } from "@/lib/connected/live-delta";
+import { SmartphoneLoggerEngine, type SmartphoneLoggerSnapshot, type SmartphoneLoggerWindow } from "@/lib/connected/smartphone-logger";
 
 type ReferenceResponse = {
   found: boolean;
@@ -26,6 +27,13 @@ type DeviceCircuit = {
   name: string;
   city?: string | null;
   country?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  detection_radius_m?: number | null;
+  lap_gate_latitude?: number | null;
+  lap_gate_longitude?: number | null;
+  lap_gate_radius_m?: number | null;
+  min_lap_seconds?: number | null;
   lap_gate_configured?: boolean;
   has_reference?: boolean;
 };
@@ -48,7 +56,23 @@ type GpsState = {
 };
 
 const CONFIG_KEY = "motorsport-driver-display-v1";
+const LOGGER_STATE_KEY = "motorsport-smartphone-logger-v1";
 const EARTH_RADIUS_M = 6371000;
+
+type PersistedLoggerState = {
+  armed: boolean;
+  armId: string;
+  sequence: number;
+  pending: SmartphoneLoggerWindow[];
+};
+
+const EMPTY_LOGGER_SNAPSHOT: SmartphoneLoggerSnapshot = {
+  state: "idle",
+  matchedCircuitId: null,
+  matchedCircuitName: null,
+  samplesBuffered: 0,
+  trackSeen: false,
+};
 
 function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const lat1 = (a.lat * Math.PI) / 180;
@@ -95,6 +119,11 @@ export default function DriverDisplayPage() {
   const [insideGate, setInsideGate] = useState(false);
   const [referenceStatus, setReferenceStatus] = useState("Reference non caricato");
   const [focusMode, setFocusMode] = useState(true);
+  const [loggerArmed, setLoggerArmed] = useState(false);
+  const [loggerResumeAvailable, setLoggerResumeAvailable] = useState(false);
+  const [loggerSnapshot, setLoggerSnapshot] = useState<SmartphoneLoggerSnapshot>(EMPTY_LOGGER_SNAPSHOT);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loggerSyncStatus, setLoggerSyncStatus] = useState("Nessun dato in attesa");
 
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -102,6 +131,15 @@ export default function DriverDisplayPage() {
   const lapStartedAtRef = useRef<number | null>(null);
   const insideGateRef = useRef(false);
   const lapNumberRef = useRef(0);
+  const engineRef = useRef<LiveDeltaEngine | null>(null);
+  const referenceRef = useRef<ReferenceResponse | null>(null);
+  const referenceStartRef = useRef<ReferencePoint | null>(null);
+  const smartphoneLoggerRef = useRef<SmartphoneLoggerEngine | null>(null);
+  const loggerArmedRef = useRef(false);
+  const loggerArmIdRef = useRef("");
+  const loggerSequenceRef = useRef(0);
+  const pendingWindowsRef = useRef<SmartphoneLoggerWindow[]>([]);
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -114,12 +152,27 @@ export default function DriverDisplayPage() {
           gateRadiusM: Number(saved.gateRadiusM) || 35,
         });
       }
+      const loggerRaw = localStorage.getItem(LOGGER_STATE_KEY);
+      if (loggerRaw) {
+        const savedLogger = JSON.parse(loggerRaw) as Partial<PersistedLoggerState>;
+        const pending = Array.isArray(savedLogger.pending) ? savedLogger.pending : [];
+        pendingWindowsRef.current = pending;
+        setPendingCount(pending.length);
+        loggerArmIdRef.current = typeof savedLogger.armId === "string" ? savedLogger.armId : "";
+        loggerSequenceRef.current = Number.isFinite(Number(savedLogger.sequence)) ? Math.max(0, Number(savedLogger.sequence)) : 0;
+        setLoggerResumeAvailable(Boolean(savedLogger.armed && loggerArmIdRef.current));
+        if (pending.length) setLoggerSyncStatus(`${pending.length} finestra/e in attesa sync`);
+      }
     } catch {
       // configurazione locale non valida: uso i default
     }
   }, []);
 
   const referenceStart = useMemo(() => reference?.points?.[0] || null, [reference]);
+
+  useEffect(() => { engineRef.current = engine; }, [engine]);
+  useEffect(() => { referenceRef.current = reference; }, [reference]);
+  useEffect(() => { referenceStartRef.current = referenceStart; }, [referenceStart]);
 
   const saveConfig = useCallback((next: DisplayConfig) => {
     setConfig(next);
@@ -211,6 +264,20 @@ export default function DriverDisplayPage() {
     }
   }, [config.deviceKey, circuits.length, loadCircuits, loadRuntimeConfig, loadingCircuits]);
 
+  const persistLoggerState = useCallback((armed = loggerArmedRef.current) => {
+    try {
+      const state: PersistedLoggerState = {
+        armed,
+        armId: loggerArmIdRef.current,
+        sequence: loggerSequenceRef.current,
+        pending: pendingWindowsRef.current,
+      };
+      localStorage.setItem(LOGGER_STATE_KEY, JSON.stringify(state));
+    } catch {
+      setLoggerSyncStatus("Memoria locale non disponibile");
+    }
+  }, []);
+
   const requestWakeLock = useCallback(async () => {
     try {
       const nav = navigator as Navigator & { wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> } };
@@ -220,7 +287,54 @@ export default function DriverDisplayPage() {
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const syncPending = useCallback(async () => {
+    if (syncingRef.current || !pendingWindowsRef.current.length || !navigator.onLine) return;
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey) return;
+    syncingRef.current = true;
+    try {
+      while (pendingWindowsRef.current.length && navigator.onLine) {
+        const windowPayload = pendingWindowsRef.current[0];
+        setLoggerSyncStatus(`Sync ${windowPayload.external_window_id}...`);
+        const response = await fetch("/api/connected/stream", {
+          method: "POST",
+          headers: { "x-device-key": deviceKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ external_window_id: windowPayload.external_window_id, payload: windowPayload.payload }),
+        });
+        const body = (await response.json().catch(() => ({}))) as { error?: string; segments_count?: number; duplicate?: boolean };
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+        pendingWindowsRef.current = pendingWindowsRef.current.slice(1);
+        setPendingCount(pendingWindowsRef.current.length);
+        loggerSequenceRef.current = Math.max(loggerSequenceRef.current, Number(windowPayload.external_window_id.split(":").pop()) || 0);
+        persistLoggerState();
+        setLoggerSyncStatus(body.duplicate ? "Finestra già sincronizzata" : `Sync OK · ${body.segments_count ?? "—"} segmenti`);
+      }
+      if (!pendingWindowsRef.current.length) setLoggerSyncStatus("Sincronizzato");
+    } catch (error) {
+      setLoggerSyncStatus(error instanceof Error ? `Sync in attesa · ${error.message}` : "Sync in attesa");
+    } finally {
+      syncingRef.current = false;
+    }
+  }, [config.deviceKey, persistLoggerState]);
+
+  const queueWindow = useCallback((windowPayload: SmartphoneLoggerWindow) => {
+    if (!pendingWindowsRef.current.some((item) => item.external_window_id === windowPayload.external_window_id)) {
+      pendingWindowsRef.current = [...pendingWindowsRef.current, windowPayload];
+      setPendingCount(pendingWindowsRef.current.length);
+      setLoggerSyncStatus(`Turno acquisito · ${windowPayload.samplesCount} campioni`);
+      persistLoggerState();
+    }
+    void syncPending();
+  }, [persistLoggerState, syncPending]);
+
+  useEffect(() => {
+    const handleOnline = () => void syncPending();
+    window.addEventListener("online", handleOnline);
+    if (pendingWindowsRef.current.length) void syncPending();
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncPending]);
+
+  const stopGpsWatch = useCallback(() => {
     if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
     watchIdRef.current = null;
     setRunning(false);
@@ -233,20 +347,12 @@ export default function DriverDisplayPage() {
     wakeLockRef.current = null;
   }, []);
 
-  const start = useCallback(() => {
-    if (!engine || !reference || !referenceStart) {
-      setReferenceStatus("Carica prima un reference lap valido");
-      return;
-    }
-    const activeEngine = engine;
-    const activeReference = reference;
-    const activeReferenceStart = referenceStart;
+  const ensureGpsWatch = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsError("GPS/geolocalizzazione non disponibile su questo dispositivo.");
       return;
     }
     if (watchIdRef.current != null) return;
-
     setGpsError(null);
     setRunning(true);
     void requestWakeLock();
@@ -258,7 +364,6 @@ export default function DriverDisplayPage() {
         let speedKph = position.coords.speed != null && Number.isFinite(position.coords.speed)
           ? Math.max(0, position.coords.speed * 3.6)
           : 0;
-
         if ((!speedKph || speedKph < 0.5) && previous && now > previous.ts) {
           const fallback = distanceM(previous, { lat: position.coords.latitude, lon: position.coords.longitude }) / ((now - previous.ts) / 1000) * 3.6;
           if (Number.isFinite(fallback)) speedKph = Math.max(0, fallback);
@@ -273,6 +378,25 @@ export default function DriverDisplayPage() {
         };
         previousGpsRef.current = nextGps;
         setGps(nextGps);
+
+        if (loggerArmedRef.current && smartphoneLoggerRef.current) {
+          const loggerUpdate = smartphoneLoggerRef.current.update({
+            tsMs: now,
+            lat: nextGps.lat,
+            lon: nextGps.lon,
+            speedKph: nextGps.speedKph,
+            accuracyM: nextGps.accuracyM,
+          });
+          loggerSequenceRef.current = smartphoneLoggerRef.current.getSequence();
+          setLoggerSnapshot(loggerUpdate);
+          if (loggerUpdate.finalizedWindow) queueWindow(loggerUpdate.finalizedWindow);
+          persistLoggerState(true);
+        }
+
+        const activeEngine = engineRef.current;
+        const activeReference = referenceRef.current;
+        const activeReferenceStart = referenceStartRef.current;
+        if (!activeEngine || !activeReference || !activeReferenceStart) return;
 
         const gateDistance = distanceM(nextGps, activeReferenceStart);
         const nowInsideGate = gateDistance <= config.gateRadiusM;
@@ -319,9 +443,67 @@ export default function DriverDisplayPage() {
       },
       { enableHighAccuracy: true, maximumAge: 250, timeout: 10000 },
     );
-  }, [config.gateRadiusM, engine, reference, referenceStart, requestWakeLock]);
+  }, [config.gateRadiusM, persistLoggerState, queueWindow, requestWakeLock]);
 
-  useEffect(() => () => stop(), [stop]);
+  const startDisplay = useCallback(() => {
+    ensureGpsWatch();
+  }, [ensureGpsWatch]);
+
+  const armSmartphoneLogger = useCallback((resume = false) => {
+    if (runtimeConfig?.acquisition_mode !== "smartphone") {
+      setGpsError("Il device non è configurato in modalità Smartphone Logger.");
+      return;
+    }
+    const loggerCircuits = circuits
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        latitude: c.latitude == null ? null : Number(c.latitude),
+        longitude: c.longitude == null ? null : Number(c.longitude),
+        detectionRadiusM: c.detection_radius_m == null ? null : Number(c.detection_radius_m),
+      }))
+      .filter((c) => c.latitude != null && c.longitude != null && c.detectionRadiusM != null);
+    if (!loggerCircuits.length) {
+      setGpsError("Nessun circuito ha una geofence configurata: impossibile armare il logger smartphone.");
+      return;
+    }
+
+    const armId = resume && loggerArmIdRef.current
+      ? loggerArmIdRef.current
+      : `day-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    if (!resume) loggerSequenceRef.current = 0;
+    loggerArmIdRef.current = armId;
+    const logger = new SmartphoneLoggerEngine(loggerCircuits);
+    const snapshot = logger.arm(armId, loggerSequenceRef.current);
+    smartphoneLoggerRef.current = logger;
+    loggerArmedRef.current = true;
+    setLoggerArmed(true);
+    setLoggerResumeAvailable(false);
+    setLoggerSnapshot(snapshot);
+    setLoggerSyncStatus(pendingWindowsRef.current.length ? `${pendingWindowsRef.current.length} finestra/e in attesa sync` : "Giornata armata · in attesa pista");
+    persistLoggerState(true);
+    setSettingsOpen(false);
+    ensureGpsWatch();
+  }, [circuits, ensureGpsWatch, persistLoggerState, runtimeConfig?.acquisition_mode]);
+
+  const disarmSmartphoneLogger = useCallback(() => {
+    const logger = smartphoneLoggerRef.current;
+    if (logger) {
+      const result = logger.disarm();
+      loggerSequenceRef.current = logger.getSequence();
+      if (result.finalizedWindow) queueWindow(result.finalizedWindow);
+    }
+    loggerArmedRef.current = false;
+    smartphoneLoggerRef.current = null;
+    setLoggerArmed(false);
+    setLoggerResumeAvailable(false);
+    setLoggerSnapshot(EMPTY_LOGGER_SNAPSHOT);
+    persistLoggerState(false);
+    stopGpsWatch();
+    setLoggerSyncStatus(pendingWindowsRef.current.length ? "Giornata chiusa · sync in attesa" : "Giornata chiusa · sincronizzato");
+  }, [persistLoggerState, queueWindow, stopGpsWatch]);
+
+  useEffect(() => () => stopGpsWatch(), [stopGpsWatch]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -344,7 +526,7 @@ export default function DriverDisplayPage() {
           : { label: "GPS SCARSO", tone: "border-red-500/40 text-red-300" };
   const guidanceCompact = running && focusMode;
   const acquisitionLabel = runtimeConfig?.acquisition_mode === "smartphone" ? "SMARTPHONE LOGGER" : runtimeConfig?.acquisition_mode === "hybrid" ? "IBRIDO" : runtimeConfig?.acquisition_mode === "external_logger" ? "LOGGER ESTERNO" : "MODALITÀ —";
-  const startLabel = runtimeConfig?.acquisition_mode === "external_logger" || runtimeConfig?.acquisition_mode === "hybrid" ? "AVVIA DISPLAY" : "AVVIA GPS";
+  const smartphoneMode = runtimeConfig?.acquisition_mode === "smartphone";
 
   return (
     <main className="min-h-[100dvh] bg-black text-white selection:bg-white/20">
@@ -373,11 +555,11 @@ export default function DriverDisplayPage() {
         {settingsOpen && (
           <section className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:grid-cols-[1.3fr_1fr_160px_auto] md:items-end">
             <label className="text-xs font-bold uppercase tracking-wider text-white/55">Device key
-              <input type="password" value={config.deviceKey} onChange={(e) => saveConfig({ ...config, deviceKey: e.target.value })} placeholder="Chiave dispositivo" className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
+              <input type="password" value={config.deviceKey} onChange={(e: ChangeEvent<HTMLInputElement>) => saveConfig({ ...config, deviceKey: e.target.value })} placeholder="Chiave dispositivo" className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
             </label>
             <label className="text-xs font-bold uppercase tracking-wider text-white/55">Circuito
               <div className="mt-1.5 flex gap-2">
-                <select value={config.circuitId} onChange={(e) => saveConfig({ ...config, circuitId: e.target.value })} className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40">
+                <select value={config.circuitId} onChange={(e: ChangeEvent<HTMLSelectElement>) => saveConfig({ ...config, circuitId: e.target.value })} className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40">
                   <option value="">Seleziona circuito</option>
                   {circuits.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}{c.has_reference ? " · reference" : ""}</option>
@@ -389,16 +571,23 @@ export default function DriverDisplayPage() {
               </div>
             </label>
             <label className="text-xs font-bold uppercase tracking-wider text-white/55">Gate (m)
-              <input type="number" min={5} max={250} value={config.gateRadiusM} onChange={(e) => saveConfig({ ...config, gateRadiusM: Math.max(5, Math.min(250, Number(e.target.value) || 35)) })} className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
+              <input type="number" min={5} max={250} value={config.gateRadiusM} onChange={(e: ChangeEvent<HTMLInputElement>) => saveConfig({ ...config, gateRadiusM: Math.max(5, Math.min(250, Number(e.target.value) || 35)) })} className="mt-1.5 w-full rounded-xl border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white/40" />
             </label>
             <button disabled={loadingReference} onClick={() => void loadReference()} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-black text-black disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loadingReference ? "animate-spin" : ""}`} /> Carica reference
             </button>
-            {runtimeConfig && <div className="md:col-span-4 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/55"><span className="font-black text-white/80">{acquisitionLabel}</span> · {runtimeConfig.acquisition_mode === "smartphone" ? "Questo telefono sarà la sorgente di acquisizione nella modalità Logger Smartphone." : runtimeConfig.acquisition_mode === "hybrid" ? "Il logger esterno registra i dati; lo smartphone sarà display/video e potrà usare sensori locali come supporto." : "Il logger esterno è responsabile della registrazione. Il telefono è solo display e non deve essere avviato per salvare turni e ore."}</div>}
+            {runtimeConfig && <div className="md:col-span-4 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/55"><span className="font-black text-white/80">{acquisitionLabel}</span> · {runtimeConfig.acquisition_mode === "smartphone" ? "ARMA GIORNATA una sola volta: il telefono resta in attesa, rileva automaticamente la pista e sincronizza i turni. Le ore sono stimate da attività GPS finché non è disponibile un segnale RPM/ignition." : runtimeConfig.acquisition_mode === "hybrid" ? "Il logger esterno registra i dati; lo smartphone è display/video e non genera ore duplicate." : "Il logger esterno è responsabile della registrazione. Il telefono è solo display e non deve essere avviato per salvare turni e ore."}</div>}
           </section>
         )}
 
         {gpsError && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{gpsError}</div>}
+
+        {smartphoneMode && (loggerArmed || loggerResumeAvailable || pendingCount > 0) && (
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${loggerArmed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-amber-400/25 bg-amber-400/10 text-amber-200"}`}>
+            <span>{loggerArmed ? loggerSnapshot.state === "capturing" ? `TURNO IN ACQUISIZIONE${loggerSnapshot.matchedCircuitName ? ` · ${loggerSnapshot.matchedCircuitName}` : ""} · ${loggerSnapshot.samplesBuffered} campioni` : "GIORNATA ARMATA · IN ATTESA PISTA" : loggerResumeAvailable ? "GIORNATA PRECEDENTEMENTE ARMATA · RIPRENDI LOGGER" : "LOGGER NON ARMATO"}</span>
+            <span className="text-white/60">{loggerSyncStatus}{pendingCount ? ` · ${pendingCount} pending` : ""}</span>
+          </div>
+        )}
 
         <section className={`grid flex-1 gap-3 py-3 md:grid-cols-[1fr_1.55fr_1fr] ${guidanceCompact ? "landscape:grid-cols-[0.72fr_2.28fr] landscape:gap-2 landscape:py-2" : "landscape:grid-cols-[1fr_1.55fr_1fr]"}`}>
           <div className={`grid grid-cols-2 gap-3 landscape:grid-cols-1 md:grid-cols-1 ${guidanceCompact ? "landscape:gap-2" : ""}`}>
@@ -424,13 +613,19 @@ export default function DriverDisplayPage() {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-4 text-xs font-semibold text-white/45">
-            <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {lapStartedAt ? `GIRO ATTIVO · ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : reference ? "PRONTO · PASSA SUL GATE START/FINISH" : "In attesa del reference"}</span>
-            <span className="hidden sm:inline">{runtimeConfig?.acquisition_mode === "external_logger" ? "Registrazione affidata al logger esterno · display indipendente" : runtimeConfig?.acquisition_mode === "hybrid" ? "Dati logger + display locale" : "Delta calcolato localmente · modalità smartphone"}</span>
+            <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {smartphoneMode && loggerArmed ? loggerSnapshot.state === "capturing" ? "LOGGER ATTIVO · TURNO IN ACQUISIZIONE" : "GIORNATA ARMATA · RILEVAMENTO AUTOMATICO" : lapStartedAt ? `GIRO ATTIVO · ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : reference ? "PRONTO · PASSA SUL GATE START/FINISH" : "In attesa del reference"}</span>
+            <span className="hidden sm:inline">{runtimeConfig?.acquisition_mode === "external_logger" ? "Registrazione affidata al logger esterno · display indipendente" : runtimeConfig?.acquisition_mode === "hybrid" ? "Dati logger + display locale · nessun doppio conteggio" : loggerArmed ? `Ore GPS stimate · ${loggerSyncStatus}` : "Arma la giornata una sola volta · i turni partiranno automaticamente"}</span>
           </div>
-          {!running ? (
-            <button onClick={start} disabled={!engine} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4 fill-current" /> {startLabel}</button>
+          {smartphoneMode ? (
+            loggerArmed ? (
+              <button onClick={disarmSmartphoneLogger} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> DISARMA GIORNATA</button>
+            ) : (
+              <button onClick={() => armSmartphoneLogger(loggerResumeAvailable)} disabled={!runtimeConfig || circuits.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4 fill-current" /> {loggerResumeAvailable ? "RIPRENDI GIORNATA" : "ARMA GIORNATA"}</button>
+            )
+          ) : !running ? (
+            <button onClick={startDisplay} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black"><Play className="h-4 w-4 fill-current" /> AVVIA DISPLAY</button>
           ) : (
-            <button onClick={stop} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> STOP</button>
+            <button onClick={stopGpsWatch} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-black text-white"><Square className="h-4 w-4 fill-current" /> STOP DISPLAY</button>
           )}
         </footer>
       </div>
