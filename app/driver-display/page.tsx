@@ -626,6 +626,27 @@ export default function DriverDisplayPage() {
   const guidanceCompact = running && focusMode;
   const acquisitionLabel = runtimeConfig?.acquisition_mode === "smartphone" ? "SMARTPHONE LOGGER" : runtimeConfig?.acquisition_mode === "hybrid" ? "IBRIDO" : runtimeConfig?.acquisition_mode === "external_logger" ? "LOGGER ESTERNO" : "MODALITÀ —";
   const smartphoneMode = runtimeConfig?.acquisition_mode === "smartphone" || (runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority === "smartphone");
+  const authorityLabel = !runtimeConfig
+    ? "SORGENTE UFFICIALE: —"
+    : runtimeConfig.acquisition_mode === "hybrid" && runtimeConfig.session_authority === "smartphone"
+      ? "SORGENTE UFFICIALE: SMARTPHONE FALLBACK"
+      : runtimeConfig.session_authority === "smartphone" || runtimeConfig.acquisition_mode === "smartphone"
+        ? "SORGENTE UFFICIALE: SMARTPHONE"
+        : "SORGENTE UFFICIALE: LOGGER";
+  const authorityDescription = !runtimeConfig
+    ? "Configurazione dispositivo non caricata"
+    : runtimeConfig.acquisition_mode === "hybrid" && runtimeConfig.session_authority === "smartphone"
+      ? "Il telefono registra temporaneamente turni e ore. Il ritorno del logger ripristina automaticamente l'autorità esterna."
+      : runtimeConfig.session_authority === "smartphone" || runtimeConfig.acquisition_mode === "smartphone"
+        ? "Il telefono è autorizzato a creare i turni ufficiali e ad aggiornare le ore."
+        : runtimeConfig.acquisition_mode === "hybrid"
+          ? `Il logger registra turni e ore. Fallback smartphone ${runtimeConfig.hybrid_fallback_enabled ? `disponibile dopo ${runtimeConfig.hybrid_fallback_after_seconds || 30}s offline` : "disabilitato"}.`
+          : "Il logger esterno registra turni e ore; lo smartphone resta solo display.";
+  const authorityTone = runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority === "smartphone"
+    ? "border-amber-300/40 bg-amber-300/10 text-amber-100"
+    : runtimeConfig?.session_authority === "smartphone" || runtimeConfig?.acquisition_mode === "smartphone"
+      ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-100"
+      : "border-sky-400/35 bg-sky-400/10 text-sky-100";
   const liveFresh = Boolean(externalLive?.found && externalLive?.fresh && externalLive.activity_state !== "offline");
   const displaySpeedKph = externalDisplayMode ? (liveFresh ? Number(externalLive?.speed_kph || 0) : null) : (gps ? gps.speedKph : null);
   const displayLapNumber = externalDisplayMode ? (liveFresh ? Number(externalLive?.lap_number || 0) : 0) : lapNumber;
@@ -690,6 +711,16 @@ export default function DriverDisplayPage() {
         )}
 
         {gpsError && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{gpsError}</div>}
+
+        {runtimeConfig && (
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 ${authorityTone}`}>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
+              <span className="text-xs font-black tracking-wide sm:text-sm">{authorityLabel}</span>
+            </div>
+            <span className="text-[11px] font-semibold text-white/65 sm:text-xs">{authorityDescription}</span>
+          </div>
+        )}
 
         {externalDisplayMode && running && (
           <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${liveFresh ? "border-sky-400/30 bg-sky-400/10 text-sky-100" : "border-amber-400/25 bg-amber-400/10 text-amber-100"}`}>
