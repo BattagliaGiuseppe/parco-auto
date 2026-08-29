@@ -1,7 +1,11 @@
 import { canonicalV1Adapter } from "./canonical-v1";
+import { aimRaceStudioV1Adapter } from "./aim-race-studio-v1";
 import type { JsonObject, LoggerAdapter, LoggerAdapterChannel, LoggerAdapterResult } from "./types";
 
-const adapters = new Map<string, LoggerAdapter>([[canonicalV1Adapter.id, canonicalV1Adapter]]);
+const adapters = new Map<string, LoggerAdapter>([
+  [canonicalV1Adapter.id, canonicalV1Adapter],
+  [aimRaceStudioV1Adapter.id, aimRaceStudioV1Adapter],
+]);
 
 export const DEFAULT_LOGGER_ADAPTER_ID = canonicalV1Adapter.id;
 
