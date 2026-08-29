@@ -1,0 +1,12 @@
+{
+  "apiBaseUrl": "https://motorsportmanagement.vercel.app",
+  "watchFolders": [
+    "C:\\AIM_DATA"
+  ],
+  "recursive": true,
+  "stableSeconds": 15,
+  "scanIntervalSeconds": 5,
+  "stateFile": ".mm-aim-bridge-state.json",
+  "deviceKey": "",
+  "deviceKeyEnv": "MM_DEVICE_KEY"
+}
