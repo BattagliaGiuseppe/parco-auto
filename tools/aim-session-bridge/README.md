@@ -140,3 +140,50 @@ ricavarli dal connected device / evento. La decisione completa viene salvata in
 La DLL AiM viene installata conservando il pacchetto ufficiale e creando uno staging
 x64 con le dipendenze native. Il percorso runtime viene salvato in
 `native/vendor/dll-path.txt`.
+
+## P2.9.5.1 — Windows Production UX Foundation
+
+Questa versione trasforma il watcher validato in un processo Windows installabile per utente, senza richiedere che la Device Key venga reinserita a ogni sessione.
+
+### Installazione
+
+Da un pacchetto del bridge estratto su Windows avvia:
+
+```text
+INSTALL_WINDOWS.bat
+```
+
+Il setup:
+
+- installa il bridge in `%LOCALAPPDATA%\MotorsportManagement\AiMBridge`;
+- installa un runtime Node.js x64 portabile locale se non è già incluso nel pacchetto;
+- installa le dipendenze npm del bridge;
+- scarica il provider DLL direttamente dal pacchetto ufficiale AiM;
+- chiede di selezionare la cartella Race Studio contenente XRK/XRZ;
+- acquisisce la Device Key in modalità nascosta e la salva cifrata con Windows DPAPI;
+- registra l'avvio automatico nel profilo dell'utente Windows;
+- crea collegamenti Start per stato, avvio, arresto e disinstallazione.
+
+La Device Key non viene scritta in chiaro nel `config.json`, nei log o nella riga di comando del processo Node.
+
+### Baseline di sicurezza
+
+Al primo avvio in modalità WATCH, `ignoreExistingOnFirstRun=true` registra tutti gli XRK/XRZ già presenti come `baseline_ignored` e **non li importa**. Da quel momento vengono elaborate solo nuove sessioni o file realmente modificati.
+
+Questo evita che l'installazione del bridge su un PC Race Studio già in uso importi automaticamente lo storico precedente.
+
+### Stato e log
+
+Il bridge scrive uno status machine-readable in `data\status.json` e un log locale in `data\bridge.log`.
+Lo status include PID, versione, ultima scansione, ultimo import riuscito, ultimo errore e conteggi di file baseline/importati/in attesa/errore.
+
+Dal menu Start usa **AiM Bridge - Stato** per visualizzare lo stato e le ultime righe di log.
+
+### Retry controllato
+
+Gli errori non vengono ritentati ogni 5 secondi. Il watcher applica backoff esponenziale configurabile tramite:
+
+- `retryBaseSeconds` (default 60 s)
+- `retryMaxSeconds` (default 3600 s)
+
+L'idempotenza server-side SHA-256 resta l'ultima protezione contro import duplicati.

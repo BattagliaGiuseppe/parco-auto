@@ -1,6 +1,6 @@
 {
   "name": "motorsport-management-aim-session-bridge",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Local AiM XRK/XRZ session watcher and importer for Motorsport Management Platform.",
@@ -8,7 +8,7 @@
     "start": "node src.mjs",
     "once": "node src.mjs --once",
     "dry-run": "node src.mjs --once --dry-run",
-    "test:lap-normalization": "node test/lap-normalization.test.mjs"
+    "test:production-policy": "node tests/production-import-policy.test.mjs"
   },
   "dependencies": {
     "aim-xrk": "0.1.1"
