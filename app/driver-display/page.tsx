@@ -39,7 +39,7 @@ type DeviceCircuit = {
 };
 
 type AcquisitionMode = "smartphone" | "external_logger" | "hybrid";
-type RuntimeConfig = { device_id: string; car_id: string; name: string; source_type: string; acquisition_mode: AcquisitionMode; default_driver_id?: string | null };
+type RuntimeConfig = { device_id: string; car_id: string; name: string; source_type: string; acquisition_mode: AcquisitionMode; session_authority?: "smartphone" | "external_logger"; hybrid_fallback_enabled?: boolean; hybrid_fallback_after_seconds?: number; hybrid_fallback_activated_at?: string | null; default_driver_id?: string | null };
 
 type CircuitsResponse = {
   device_id?: string;
@@ -144,6 +144,7 @@ export default function DriverDisplayPage() {
   const [loggerSyncStatus, setLoggerSyncStatus] = useState("Nessun dato in attesa");
   const [externalLive, setExternalLive] = useState<ExternalLiveState | null>(null);
   const [externalLiveError, setExternalLiveError] = useState<string | null>(null);
+  const [fallbackBusy, setFallbackBusy] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -161,7 +162,7 @@ export default function DriverDisplayPage() {
   const pendingWindowsRef = useRef<SmartphoneLoggerWindow[]>([]);
   const syncingRef = useRef(false);
   const livePollRef = useRef<number | null>(null);
-  const externalDisplayMode = runtimeConfig?.acquisition_mode === "external_logger" || runtimeConfig?.acquisition_mode === "hybrid";
+  const externalDisplayMode = runtimeConfig?.acquisition_mode === "external_logger" || (runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority !== "smartphone");
 
   useEffect(() => {
     try {
@@ -470,8 +471,9 @@ export default function DriverDisplayPage() {
 
 
   const armSmartphoneLogger = useCallback((resume = false) => {
-    if (runtimeConfig?.acquisition_mode !== "smartphone") {
-      setGpsError("Il device non è configurato in modalità Smartphone Logger.");
+    const smartphoneAuthority = runtimeConfig?.acquisition_mode === "smartphone" || (runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority === "smartphone");
+    if (!smartphoneAuthority) {
+      setGpsError("Lo smartphone non ha autorità sulla sessione.");
       return;
     }
     const loggerCircuits = circuits
@@ -504,7 +506,7 @@ export default function DriverDisplayPage() {
     persistLoggerState(true);
     setSettingsOpen(false);
     ensureGpsWatch();
-  }, [circuits, ensureGpsWatch, persistLoggerState, runtimeConfig?.acquisition_mode]);
+  }, [circuits, ensureGpsWatch, persistLoggerState, runtimeConfig?.acquisition_mode, runtimeConfig?.session_authority]);
 
   const disarmSmartphoneLogger = useCallback(() => {
     const logger = smartphoneLoggerRef.current;
@@ -539,6 +541,27 @@ export default function DriverDisplayPage() {
     }
   }, [config.deviceKey]);
 
+  const activateHybridFallback = useCallback(async () => {
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey || runtimeConfig?.acquisition_mode !== "hybrid") return;
+    setFallbackBusy(true);
+    setGpsError(null);
+    try {
+      const response = await fetch("/api/connected/hybrid-fallback", { method: "POST", headers: { "x-device-key": deviceKey }, cache: "no-store" });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+      if (livePollRef.current != null) window.clearInterval(livePollRef.current);
+      livePollRef.current = null;
+      setRunning(false);
+      await loadRuntimeConfig();
+      setGpsError("Fallback smartphone attivato. Ora puoi armare la giornata.");
+    } catch (error) {
+      setGpsError(error instanceof Error ? error.message : "Fallback non disponibile");
+    } finally {
+      setFallbackBusy(false);
+    }
+  }, [config.deviceKey, loadRuntimeConfig, runtimeConfig?.acquisition_mode]);
+
   const stopExternalDisplay = useCallback(() => {
     if (livePollRef.current != null) window.clearInterval(livePollRef.current);
     livePollRef.current = null;
@@ -569,6 +592,19 @@ export default function DriverDisplayPage() {
     if (livePollRef.current != null) window.clearInterval(livePollRef.current);
   }, []);
 
+  useEffect(() => {
+    if (runtimeConfig?.acquisition_mode !== "hybrid" || runtimeConfig?.session_authority !== "smartphone") return;
+    const id = window.setInterval(() => void loadRuntimeConfig(), 2000);
+    return () => window.clearInterval(id);
+  }, [loadRuntimeConfig, runtimeConfig?.acquisition_mode, runtimeConfig?.session_authority]);
+
+  useEffect(() => {
+    if (runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority === "external_logger" && loggerArmedRef.current) {
+      disarmSmartphoneLogger();
+      setGpsError("Logger esterno tornato online: fallback smartphone disattivato automaticamente.");
+    }
+  }, [disarmSmartphoneLogger, runtimeConfig?.acquisition_mode, runtimeConfig?.session_authority]);
+
   const toggleFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
@@ -589,7 +625,7 @@ export default function DriverDisplayPage() {
           : { label: "GPS SCARSO", tone: "border-red-500/40 text-red-300" };
   const guidanceCompact = running && focusMode;
   const acquisitionLabel = runtimeConfig?.acquisition_mode === "smartphone" ? "SMARTPHONE LOGGER" : runtimeConfig?.acquisition_mode === "hybrid" ? "IBRIDO" : runtimeConfig?.acquisition_mode === "external_logger" ? "LOGGER ESTERNO" : "MODALITÀ —";
-  const smartphoneMode = runtimeConfig?.acquisition_mode === "smartphone";
+  const smartphoneMode = runtimeConfig?.acquisition_mode === "smartphone" || (runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig?.session_authority === "smartphone");
   const liveFresh = Boolean(externalLive?.found && externalLive?.fresh && externalLive.activity_state !== "offline");
   const displaySpeedKph = externalDisplayMode ? (liveFresh ? Number(externalLive?.speed_kph || 0) : null) : (gps ? gps.speedKph : null);
   const displayLapNumber = externalDisplayMode ? (liveFresh ? Number(externalLive?.lap_number || 0) : 0) : lapNumber;
@@ -649,7 +685,7 @@ export default function DriverDisplayPage() {
             <button disabled={loadingReference} onClick={() => void loadReference()} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-black text-black disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loadingReference ? "animate-spin" : ""}`} /> Carica reference
             </button>
-            {runtimeConfig && <div className="md:col-span-4 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/55"><span className="font-black text-white/80">{acquisitionLabel}</span> · {runtimeConfig.acquisition_mode === "smartphone" ? "ARMA GIORNATA una sola volta: il telefono resta in attesa, rileva automaticamente la pista e sincronizza i turni. Le ore sono stimate da attività GPS finché non è disponibile un segnale RPM/ignition." : runtimeConfig.acquisition_mode === "hybrid" ? "Il logger esterno registra i dati; lo smartphone è display/video e non genera ore duplicate." : "Il logger esterno è responsabile della registrazione. Il telefono è solo display e non deve essere avviato per salvare turni e ore."}</div>}
+            {runtimeConfig && <div className="md:col-span-4 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white/55"><span className="font-black text-white/80">{acquisitionLabel}</span> · {runtimeConfig.acquisition_mode === "smartphone" ? "ARMA GIORNATA una sola volta: il telefono resta in attesa, rileva automaticamente la pista e sincronizza i turni. Le ore sono stimate da attività GPS finché non è disponibile un segnale RPM/ignition." : runtimeConfig.acquisition_mode === "hybrid" ? (runtimeConfig.session_authority === "smartphone" ? "Fallback smartphone ATTIVO: il telefono ha temporaneamente autorità sui turni. Il ritorno del logger ripristina automaticamente l’autorità esterna." : `Logger primario. Fallback smartphone ${runtimeConfig.hybrid_fallback_enabled ? `disponibile dopo ${runtimeConfig.hybrid_fallback_after_seconds || 30}s offline` : "disabilitato"}.`) : "Il logger esterno è responsabile della registrazione. Il telefono è solo display e non deve essere avviato per salvare turni e ore."}</div>}
           </section>
         )}
 
@@ -658,7 +694,12 @@ export default function DriverDisplayPage() {
         {externalDisplayMode && running && (
           <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${liveFresh ? "border-sky-400/30 bg-sky-400/10 text-sky-100" : "border-amber-400/25 bg-amber-400/10 text-amber-100"}`}>
             <span>{liveFresh ? `LOGGER LIVE · ${String(externalLive?.activity_state || "idle").toUpperCase()}${externalLive?.circuit_name ? ` · ${externalLive.circuit_name}` : ""}` : "LOGGER OFFLINE · IN ATTESA DATI LIVE"}</span>
-            <span className="text-white/55">{externalLiveError || (externalLive?.age_ms != null ? `${Math.round(Number(externalLive.age_ms) / 1000)} s fa` : "nessun pacchetto live")}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white/55">{externalLiveError || (externalLive?.age_ms != null ? `${Math.round(Number(externalLive.age_ms) / 1000)} s fa` : "nessun pacchetto live")}</span>
+              {runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig.hybrid_fallback_enabled && !liveFresh && externalLive?.age_ms != null && Number(externalLive.age_ms) >= Number(runtimeConfig.hybrid_fallback_after_seconds || 30) * 1000 && (
+                <button onClick={() => void activateHybridFallback()} disabled={fallbackBusy} className="rounded-lg bg-amber-300 px-3 py-1.5 text-[11px] font-black text-black disabled:opacity-50">{fallbackBusy ? "ATTIVO..." : "ATTIVA FALLBACK"}</button>
+              )}
+            </div>
           </div>
         )}
 
@@ -702,7 +743,7 @@ export default function DriverDisplayPage() {
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-4 text-xs font-semibold text-white/45">
             <span className="inline-flex items-center gap-1.5"><TimerReset className="h-3.5 w-3.5" /> {smartphoneMode && loggerArmed ? loggerSnapshot.state === "capturing" ? "LOGGER ATTIVO · TURNO IN ACQUISIZIONE" : "GIORNATA ARMATA · RILEVAMENTO AUTOMATICO" : lapStartedAt ? `GIRO ATTIVO · ${new Date(lapStartedAt).toLocaleTimeString("it-IT")}` : reference ? "PRONTO · PASSA SUL GATE START/FINISH" : "In attesa del reference"}</span>
-            <span className="hidden sm:inline">{runtimeConfig?.acquisition_mode === "external_logger" ? "Registrazione affidata al logger esterno · display indipendente" : runtimeConfig?.acquisition_mode === "hybrid" ? "Dati logger + display locale · nessun doppio conteggio" : loggerArmed ? `Ore GPS stimate · ${loggerSyncStatus}` : "Arma la giornata una sola volta · i turni partiranno automaticamente"}</span>
+            <span className="hidden sm:inline">{runtimeConfig?.acquisition_mode === "external_logger" ? "Registrazione affidata al logger esterno · display indipendente" : runtimeConfig?.acquisition_mode === "hybrid" ? (runtimeConfig.session_authority === "smartphone" ? "Fallback smartphone attivo · logger esterno resta prioritario al ritorno" : "Logger primario · fallback protetto da soglia e anti-duplicazione") : loggerArmed ? `Ore GPS stimate · ${loggerSyncStatus}` : "Arma la giornata una sola volta · i turni partiranno automaticamente"}</span>
           </div>
           {smartphoneMode ? (
             loggerArmed ? (
