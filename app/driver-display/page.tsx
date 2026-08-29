@@ -774,9 +774,13 @@ export default function DriverDisplayPage() {
 
         {externalDisplayMode && running && (
           <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${liveFresh ? "border-sky-400/30 bg-sky-400/10 text-sky-100" : "border-amber-400/25 bg-amber-400/10 text-amber-100"}`}>
-            <span>{liveFresh ? `LOGGER LIVE · ${String(externalLive?.activity_state || "idle").toUpperCase()}${externalLive?.circuit_name ? ` · ${externalLive.circuit_name}` : ""}` : "LOGGER OFFLINE · IN ATTESA DATI LIVE"}</span>
+            <span>{liveFresh
+              ? `LOGGER LIVE · ${String(externalLive?.activity_state || "idle").toUpperCase()}${externalLive?.circuit_name ? ` · ${externalLive.circuit_name}` : ""}`
+              : runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig.hybrid_fallback_enabled && externalLive?.age_ms != null && Number(externalLive.age_ms) >= Number(runtimeConfig.hybrid_fallback_after_seconds || 30) * 1000
+                ? "FALLBACK SMARTPHONE DISPONIBILE"
+                : "LOGGER OFFLINE"}</span>
             <div className="flex items-center gap-2">
-              <span className="text-white/55">{externalLiveError || (externalLive?.age_ms != null ? `${Math.round(Number(externalLive.age_ms) / 1000)} s fa` : "nessun pacchetto live")}</span>
+              <span className="text-white/55">{externalLiveError || (externalLive?.age_ms != null ? (liveFresh ? `${Math.round(Number(externalLive.age_ms) / 1000)} s fa` : `Logger offline da ${Math.round(Number(externalLive.age_ms) / 1000)} s`) : "nessun pacchetto live")}</span>
               {runtimeConfig?.acquisition_mode === "hybrid" && runtimeConfig.hybrid_fallback_enabled && !liveFresh && externalLive?.age_ms != null && Number(externalLive.age_ms) >= Number(runtimeConfig.hybrid_fallback_after_seconds || 30) * 1000 && (
                 <button onClick={() => void activateHybridFallback()} disabled={fallbackBusy} className="rounded-lg bg-amber-300 px-3 py-1.5 text-[11px] font-black text-black disabled:opacity-50">{fallbackBusy ? "ATTIVO..." : "ATTIVA FALLBACK"}</button>
               )}
