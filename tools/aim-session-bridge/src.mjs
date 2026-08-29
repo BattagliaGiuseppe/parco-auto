@@ -4,7 +4,7 @@ import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAimSession } from "./lib/aim-parser.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.1";
+const BRIDGE_VERSION = "p2.9.4.2";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function argValue(name) {
@@ -33,6 +33,7 @@ if (!deviceKey || String(deviceKey).length < 20) {
 const stableMs = Math.max(5000, Number(config.stableSeconds || 15) * 1000);
 const scanIntervalMs = Math.max(2000, Number(config.scanIntervalSeconds || 5) * 1000);
 const recursive = config.recursive !== false;
+const allowUnvalidatedTimingProvider = config.allowUnvalidatedTimingProvider === true;
 const statePath = resolve(isAbsolute(config.stateFile || "") ? config.stateFile : join(__dirname, config.stateFile || ".mm-aim-bridge-state.json"));
 
 function loadState() {
@@ -99,6 +100,19 @@ async function upload(filePath, state) {
   // per la diagnosi e il file resta fuori dal database ufficiale.
   if (lapNormalization && lapNormalization.confidence !== "high") {
     throw new Error(`Lap normalization non sicura (${lapNormalization.confidence}). Official Ingest bloccato.`);
+  }
+
+  // P2.9.4.2: il parser aim-xrk resta disponibile per dry-run e diagnostica,
+  // ma non e' considerato provider timing certificato per l'Official Ingest.
+  // Il confronto sul file reale Vallelunga ha mostrato 0/+-1 ms sui giri
+  // stabilizzati, ma scarti maggiori su OUT/primi giri/IN rispetto a Race Studio.
+  // Per default attendiamo quindi il provider basato sulla DLL ufficiale AiM.
+  const timingValidation = parsed.payload?.metadata?.timing_validation || null;
+  if (timingValidation && timingValidation.official_ingest_ready !== true && !allowUnvalidatedTimingProvider) {
+    throw new Error(
+      `Timing provider non ancora validato per Official Ingest (${timingValidation.provider || "unknown"}). ` +
+      `Usa --dry-run oppure il futuro provider AiM DLL.`
+    );
   }
 
   const response = await fetch(`${apiBaseUrl}/api/connected/ingest`, {

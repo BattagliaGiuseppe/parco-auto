@@ -92,3 +92,12 @@ Test della regola di normalizzazione:
 ```powershell
 npm run test:lap-normalization
 ```
+
+
+## P2.9.4.2 — Timing provider safety
+
+Il parser `aim-xrk` resta il provider portabile per analisi e `--dry-run`, ma l'Official Ingest e' bloccato per default finche' il timing non viene validato tramite la DLL ufficiale AiM.
+
+Sul file reale Vallelunga usato per la validazione, i messaggi LAP XRK e Race Studio coincidono entro 0/±1 ms sui giri stabilizzati, mentre OUT, i primi giri e IN possono mostrare differenze maggiori. Il bridge non applica correzioni artificiali ai tempi.
+
+`allowUnvalidatedTimingProvider: true` esiste solo come override tecnico esplicito e non e' consigliato in produzione.

@@ -1,7 +1,7 @@
 import { parseXrk } from "aim-xrk";
 import { normalizeAimLaps, normalizedTimedLapPayload } from "./lap-normalization.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.1";
+const BRIDGE_VERSION = "p2.9.4.2";
 const PARSER_ID = "aim-xrk";
 
 function key(value) {
@@ -213,6 +213,14 @@ export function parseAimSession(buffer, { fileName, fileStat }) {
       parser_mode: "isolated_replaceable",
       source_file_name: fileName,
       timing_basis: times.basis,
+      timing_validation: {
+        provider: "aim-xrk",
+        lap_table_source: "parsed_xrk_lap_table",
+        nominal_precision_ms: 1,
+        official_dll_validated: false,
+        official_ingest_ready: false,
+        policy: "dry_run_until_official_aim_dll_provider",
+      },
       logger_model: getMetadata(log, ["Logger Model", "Logger", "Device Model"]),
       logger_serial: getMetadata(log, ["Logger Serial", "Serial", "Serial Number"]),
       driver: getMetadata(log, ["Driver", "Racer"]),

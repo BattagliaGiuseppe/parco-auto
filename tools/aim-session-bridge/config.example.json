@@ -8,5 +8,6 @@
   "scanIntervalSeconds": 5,
   "stateFile": ".mm-aim-bridge-state.json",
   "deviceKey": "",
-  "deviceKeyEnv": "MM_DEVICE_KEY"
+  "deviceKeyEnv": "MM_DEVICE_KEY",
+  "allowUnvalidatedTimingProvider": false
 }
