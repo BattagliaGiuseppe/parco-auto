@@ -4,7 +4,7 @@ import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAimSession } from "./lib/aim-parser.mjs";
 
-const BRIDGE_VERSION = "p2.9.4";
+const BRIDGE_VERSION = "p2.9.4.1";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function argValue(name) {
@@ -80,12 +80,25 @@ async function upload(filePath, state) {
 
   console.log(`\n[${new Date().toISOString()}] AiM session: ${filePath}`);
   const parsed = parseAimSession(buffer, { fileName: filePath.split(/[\\/]/).pop(), fileStat });
-  console.log(`  giri=${parsed.payload.laps_count} track=${parsed.payload.track_seconds}s engine=${parsed.payload.engine_seconds ?? "n/d"}s`);
+  const lapNormalization = parsed.payload?.metadata?.lap_normalization || null;
+  console.log(`  giri cronometrati=${parsed.payload.laps_count} track=${parsed.payload.track_seconds}s engine=${parsed.payload.engine_seconds ?? "n/d"}s`);
+  if (lapNormalization) {
+    console.log(`  lap normalization=${lapNormalization.method} confidence=${lapNormalization.confidence} raw=${lapNormalization.raw_segments} timed=${lapNormalization.timed_laps}`);
+    if (lapNormalization.out_lap) console.log(`  OUT=${lapNormalization.out_lap.duration_seconds}s`);
+    if (lapNormalization.in_lap) console.log(`  IN=${lapNormalization.in_lap.duration_seconds}s`);
+  }
   console.log(`  maxSpeed=${parsed.payload.max_speed ?? "n/d"} km/h maxRPM=${parsed.payload.max_rpm ?? "n/d"}`);
 
   if (dryRun) {
     console.log(JSON.stringify({ external_batch_id: externalBatchId, payload: parsed.payload }, null, 2));
     return { status: "dry_run" };
+  }
+
+  // P2.9.4.1: nessun Official Ingest automatico se la lap table non può
+  // essere normalizzata con alta confidenza. In quel caso si usa --dry-run
+  // per la diagnosi e il file resta fuori dal database ufficiale.
+  if (lapNormalization && lapNormalization.confidence !== "high") {
+    throw new Error(`Lap normalization non sicura (${lapNormalization.confidence}). Official Ingest bloccato.`);
   }
 
   const response = await fetch(`${apiBaseUrl}/api/connected/ingest`, {

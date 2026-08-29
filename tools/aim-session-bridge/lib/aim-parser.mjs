@@ -1,6 +1,7 @@
 import { parseXrk } from "aim-xrk";
+import { normalizeAimLaps, normalizedTimedLapPayload } from "./lap-normalization.mjs";
 
-const BRIDGE_VERSION = "p2.9.4";
+const BRIDGE_VERSION = "p2.9.4.1";
 const PARSER_ID = "aim-xrk";
 
 function key(value) {
@@ -121,33 +122,6 @@ function lapDistanceMeters(speedCandidate, lap) {
   return distance > 0 ? distance : null;
 }
 
-function completeLaps(log, speedCandidate) {
-  const raw = Array.isArray(log.laps) ? log.laps : [];
-  const laps = raw
-    .map((lap, index) => ({
-      raw: lap,
-      index,
-      durationSeconds: (Number(lap.endTime) - Number(lap.startTime)) / 1000,
-      distanceMeters: lapDistanceMeters(speedCandidate, lap),
-    }))
-    .filter((item) => Number.isFinite(item.durationSeconds) && item.durationSeconds > 5 && item.durationSeconds <= 3600);
-
-  if (laps.length <= 2) return laps;
-
-  const distances = laps.map((lap) => lap.distanceMeters).filter((v) => Number.isFinite(v) && v > 50);
-  if (distances.length >= 3) {
-    const sorted = [...distances].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-    const filtered = laps.filter((lap) => lap.distanceMeters && lap.distanceMeters >= median * 0.85);
-    if (filtered.length) return filtered;
-  }
-
-  const durations = laps.map((lap) => lap.durationSeconds).sort((a, b) => a - b);
-  const median = durations[Math.floor(durations.length / 2)];
-  const filtered = laps.filter((lap) => lap.durationSeconds >= median * 0.65 && lap.durationSeconds <= median * 1.8);
-  return filtered.length ? filtered : laps;
-}
-
 function getMetadata(log, aliases) {
   const wanted = new Set(aliases.map(key));
   for (const [name, value] of Object.entries(log.metadata || {})) {
@@ -211,25 +185,24 @@ export function parseAimSession(buffer, { fileName, fileStat }) {
   const log = parseXrk(buffer);
   const speed = findChannel(log, ["GPS Speed", "GPS_Speed", "Speed", "Vehicle Speed", "RSV4 BkSpeed"], { kind: "speed" });
   const rpm = findChannel(log, ["RSV4 RPM", "RPM", "Engine RPM", "OBDII_RPM", "OBD RPM"], { kind: "rpm" });
-  const laps = completeLaps(log, speed);
+  const normalizedLaps = normalizeAimLaps(log.laps, {
+    distanceResolver: (lap) => lapDistanceMeters(speed, lap),
+  });
+  const laps = normalizedTimedLapPayload(normalizedLaps);
   const times = resolveSessionTimes(log, fileStat);
 
   const speedToKph = speed ? speedFactorToKph(speed.channel.units) : null;
   const maxSpeedKph = speedToKph === null ? null : maxChannelValue(speed, speedToKph);
   const maxRpm = maxChannelValue(rpm, 1);
   const engineSeconds = integrateEngineSeconds(rpm);
-  const trackSeconds = laps.reduce((sum, lap) => sum + lap.durationSeconds, 0);
+  const trackSeconds = normalizedLaps.trackSeconds;
 
   const payload = {
     started_at: times.startedAt.toISOString(),
     ended_at: times.endedAt.toISOString(),
     track_seconds: Number(trackSeconds.toFixed(3)),
     laps_count: laps.length,
-    laps: laps.map((lap) => ({
-      lap_number: Number(lap.raw.num) >= 0 ? Number(lap.raw.num) + 1 : lap.index + 1,
-      lap_time_seconds: Number(lap.durationSeconds.toFixed(3)),
-      ...(lap.distanceMeters ? { metadata: { distance_m: Number(lap.distanceMeters.toFixed(1)) } } : {}),
-    })),
+    laps,
     ...(engineSeconds !== null && engineSeconds > 0 ? { engine_seconds: Number(engineSeconds.toFixed(3)) } : {}),
     ...(maxSpeedKph !== null ? { max_speed: Number(maxSpeedKph.toFixed(3)) } : {}),
     ...(maxRpm !== null ? { max_rpm: Number(maxRpm.toFixed(0)) } : {}),
@@ -250,9 +223,23 @@ export function parseAimSession(buffer, { fileName, fileStat }) {
         speed_unit: speed?.channel?.units || null,
         rpm: rpm?.name || null,
       },
+      lap_normalization: {
+        method: normalizedLaps.method,
+        confidence: normalizedLaps.confidence,
+        raw_segments: normalizedLaps.rawCount,
+        usable_segments: normalizedLaps.usableCount,
+        timed_laps: laps.length,
+        track_seconds_basis: normalizedLaps.method === "race_studio_boundary_semantics_v1"
+          ? "out_plus_timed_plus_in"
+          : "accepted_segments",
+        ...normalizedLaps.diagnostics,
+      },
       quality: {
         raw_laps: Array.isArray(log.laps) ? log.laps.length : 0,
         accepted_laps: laps.length,
+        timed_laps: laps.length,
+        lap_normalization_method: normalizedLaps.method,
+        lap_normalization_confidence: normalizedLaps.confidence,
         engine_seconds_from_rpm: engineSeconds !== null,
         max_speed_unit_known: speedToKph !== null,
       },

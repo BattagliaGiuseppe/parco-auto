@@ -76,3 +76,19 @@ npm start
 ## Limiti P2.9.4
 
 Questa è la prima versione del **session bridge**, non il bridge Live Measures. Prima di renderla installabile come servizio Windows dobbiamo validarla con almeno un file XRK reale del team e confrontare: numero giri, best lap, durata, RPM, velocità e ore motore con Race Studio.
+
+## P2.9.4.1 – Normalizzazione giri Race Studio
+
+Dopo la validazione su un file XRK reale, il bridge tratta la lap table AiM come Race Studio:
+
+`OUT + giri cronometrati + IN`
+
+Con una sequenza LAP consecutiva il primo e l'ultimo segmento non vengono più inviati come giri ufficiali. `laps_count` contiene solo i giri cronometrati, mentre `track_seconds` include l'intera finestra OUT + timed + IN.
+
+Il payload contiene in `metadata.lap_normalization` metodo, confidence, conteggi raw/timed e riepilogo OUT/IN. Se la confidence non è `high`, l'Official Ingest automatico viene bloccato; usa `--dry-run` per diagnosticare il file.
+
+Test della regola di normalizzazione:
+
+```powershell
+npm run test:lap-normalization
+```
