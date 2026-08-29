@@ -562,6 +562,24 @@ export default function DriverDisplayPage() {
     }
   }, [config.deviceKey, loadRuntimeConfig, runtimeConfig?.acquisition_mode]);
 
+  const releaseHybridFallback = useCallback(async () => {
+    const deviceKey = config.deviceKey.trim();
+    if (!deviceKey || runtimeConfig?.acquisition_mode !== "hybrid" || runtimeConfig?.session_authority !== "smartphone") return;
+    setFallbackBusy(true);
+    setGpsError(null);
+    try {
+      const response = await fetch("/api/connected/hybrid-fallback", { method: "DELETE", headers: { "x-device-key": deviceKey }, cache: "no-store" });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+      await loadRuntimeConfig();
+      setGpsError("Fallback smartphone disattivato. Autorità restituita al logger esterno.");
+    } catch (error) {
+      setGpsError(error instanceof Error ? error.message : "Impossibile disattivare il fallback");
+    } finally {
+      setFallbackBusy(false);
+    }
+  }, [config.deviceKey, loadRuntimeConfig, runtimeConfig?.acquisition_mode, runtimeConfig?.session_authority]);
+
   const stopExternalDisplay = useCallback(() => {
     if (livePollRef.current != null) window.clearInterval(livePollRef.current);
     livePollRef.current = null;
@@ -739,6 +757,18 @@ export default function DriverDisplayPage() {
               <span className="rounded-md border border-current/20 bg-black/20 px-2 py-1 text-[10px] font-black tracking-wide sm:text-[11px]">{authorityOperationalLabel}</span>
             </div>
             <div className="mt-2 text-[11px] font-semibold leading-relaxed text-white/70 sm:text-xs">{authorityDescription}</div>
+            {runtimeConfig.acquisition_mode === "hybrid" && runtimeConfig.session_authority === "smartphone" && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void releaseHybridFallback()}
+                  disabled={fallbackBusy}
+                  className="rounded-lg border border-amber-200/30 bg-black/30 px-3 py-2 text-[11px] font-black text-amber-100 hover:bg-black/45 disabled:opacity-50"
+                >
+                  {fallbackBusy ? "DISATTIVAZIONE..." : "DISATTIVA FALLBACK"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
