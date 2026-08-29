@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DEFAULT_LOGGER_ADAPTER_ID, listLoggerAdapters, normalizeLoggerPayload } from "@/lib/connected/logger-adapters";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export async function GET() {
       contract_version: CONTRACT_VERSION,
       description: "Canale ufficiale per sessioni concluse provenienti da logger esterno.",
       authentication: { header: "x-device-key" },
+      adapter: { header: "x-logger-adapter", default: DEFAULT_LOGGER_ADAPTER_ID, supported: listLoggerAdapters() },
       idempotency: { field: "external_batch_id", max_length: 200 },
       required_payload_fields: ["started_at", "ended_at"],
       optional_payload_fields: [
@@ -80,7 +82,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "payload obbligatorio." }, { status: 400 });
   }
 
-  const payload = body.payload as Record<string, unknown>;
+  const rawPayload = body.payload as Record<string, unknown>;
+  let payload: Record<string, unknown>;
+  try {
+    const adapterId = request.headers.get("x-logger-adapter")?.trim() || DEFAULT_LOGGER_ADAPTER_ID;
+    payload = normalizeLoggerPayload(adapterId, "official_session", rawPayload).payload;
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Logger adapter non valido." }, { status: 400 });
+  }
   if (typeof payload.started_at !== "string" || !payload.started_at.trim()) {
     return NextResponse.json({ error: "payload.started_at obbligatorio." }, { status: 400 });
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DEFAULT_LOGGER_ADAPTER_ID, normalizeLoggerPayload } from "@/lib/connected/logger-adapters";
 
 export const runtime = "nodejs";
 const MAX_BODY_BYTES = 64 * 1024;
@@ -59,7 +60,9 @@ export async function POST(request: NextRequest) {
   try { payload = await request.json(); }
   catch { return NextResponse.json({ error: "JSON non valido." }, { status: 400 }); }
   try {
-    const { response, data } = await callRpc("publish_connected_live_state", { p_device_key: deviceKey, p_payload: payload });
+    const adapterId = request.headers.get("x-logger-adapter")?.trim() || DEFAULT_LOGGER_ADAPTER_ID;
+    const normalized = normalizeLoggerPayload(adapterId, "live_state", payload);
+    const { response, data } = await callRpc("publish_connected_live_state", { p_device_key: deviceKey, p_payload: normalized.payload });
     if (!response.ok) {
       const message = errorMessage(data, "Stato live rifiutato");
       return NextResponse.json({ error: message }, { status: /chiave|credenziale|dispositivo non attivo/i.test(message) ? 401 : 400 });
