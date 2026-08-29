@@ -11,5 +11,6 @@
   "deviceKeyEnv": "MM_DEVICE_KEY",
   "timingProvider": "auto",
   "aimDllPath": "",
-  "allowUnvalidatedTimingProvider": false
+  "allowUnvalidatedTimingProvider": false,
+  "productionImportPolicy": "aim_track_session_strict_v1"
 }

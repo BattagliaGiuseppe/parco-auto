@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -6,7 +6,9 @@ import { spawnSync } from "node:child_process";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const bridgeRoot = resolve(__dirname, "..");
 const helperPath = join(bridgeRoot, "native", "read-aim-official.ps1");
-const defaultDllPath = join(bridgeRoot, "native", "vendor", "MatLabXRK.dll");
+const vendorRoot = join(bridgeRoot, "native", "vendor");
+const dllPathFile = join(vendorRoot, "dll-path.txt");
+const defaultDllPath = join(bridgeRoot, "native", "staging-x64", "MatLabXRK.dll");
 
 function parseJsonOutput(stdout, stderr) {
   const text = String(stdout || "").trim();
@@ -19,7 +21,11 @@ function parseJsonOutput(stdout, stderr) {
 
 export function resolveAimDllPath(configuredPath = "") {
   const envPath = process.env.MM_AIM_DLL_PATH || "";
-  const candidate = configuredPath || envPath || defaultDllPath;
+  let installedPath = "";
+  if (!configuredPath && !envPath && existsSync(dllPathFile)) {
+    try { installedPath = String(readFileSync(dllPathFile, "utf8") || "").trim(); } catch {}
+  }
+  const candidate = configuredPath || envPath || installedPath || defaultDllPath;
   return resolve(candidate);
 }
 

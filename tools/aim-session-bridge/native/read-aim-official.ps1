@@ -56,10 +56,33 @@ try {
   $fixedDll = Join-Path $dllDir "MatLabXRK.dll"
   if ($resolvedDll -ne $fixedDll) { Copy-Item -LiteralPath $resolvedDll -Destination $fixedDll -Force }
 
+  # Rende visibili anche eventuali dipendenze native distribuite nel pacchetto AiM.
+  $officialRoot = Join-Path (Split-Path -Parent $dllDir) "official"
+  $searchDirs = @($dllDir)
+  if (Test-Path -LiteralPath $officialRoot) {
+    $searchDirs += @(Get-ChildItem -LiteralPath $officialRoot -Directory -Recurse | Select-Object -ExpandProperty FullName)
+  }
+  $searchDirs = @($searchDirs | Select-Object -Unique)
+  $env:PATH = (($searchDirs -join ';') + ';' + $env:PATH)
+
+  # Diagnostica runtime VC++: errore Win32 126 spesso significa dipendenza nativa mancante.
+  $vcNames = @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll')
+  $vcMissing = @()
+  foreach ($n in $vcNames) { if (-not (Test-Path -LiteralPath (Join-Path $env:WINDIR "System32\$n"))) { $vcMissing += $n } }
+
   Add-Type -TypeDefinition $source -Language CSharp
   [void][AimNative]::SetDllDirectory($dllDir)
 
-  $idx = [AimNative]::open_file($resolvedFile)
+  try {
+    $idx = [AimNative]::open_file($resolvedFile)
+  } catch {
+    $msg = $_.Exception.Message
+    if ($msg -match '0x8007007E|modulo specificato|module could not be found') {
+      $extra = if ($vcMissing.Count -gt 0) { " Runtime VC++ mancanti rilevati: " + ($vcMissing -join ', ') + "." } else { " I runtime VC++ principali risultano presenti; probabile altra dipendenza nativa mancante." }
+      throw ("Caricamento DLL AiM fallito (Win32 126)." + $extra + " DLL: " + $fixedDll)
+    }
+    throw
+  }
   if ($idx -le 0) { throw "AiM DLL open_file ha restituito $idx" }
   try {
     $laps = @()

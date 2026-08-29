@@ -119,3 +119,24 @@ Lo script scarica l'example package direttamente dal dominio ufficiale AiM e cop
 In `auto`, su Windows con DLL presente viene usato `get_lap_info` della DLL AiM per i tempi ufficiali e i campioni DLL per RPM/velocità/engine time. Senza DLL il bridge ricade su `aim-xrk`, ma P2.9.4.2 continua a bloccare l'Official Ingest non validato.
 
 È possibile usare una DLL già presente impostando `MM_AIM_DLL_PATH` oppure `aimDllPath` in `config.json`.
+
+## P2.9.4.4 — Production Import Policy
+
+L'import automatico usa la policy fail-closed `aim_track_session_strict_v1`.
+Una sessione AiM entra nell'Official Ingest solo se:
+
+- il timing provider e' `aim_official_dll` ed e' marcato ready;
+- la lap table e' normalizzata con `race_studio_boundary_semantics_v1` e confidenza `high`;
+- OUT e IN sono presenti e separati dai giri cronometrati;
+- i giri ufficiali sono numerati 1..N, univoci e con tempi validi;
+- `track_seconds` e' coerente con OUT + timed laps + IN;
+- track/engine time restano dentro la finestra temporale della sessione;
+- max speed e max RPM, se presenti, restano nei limiti plausibili.
+
+Driver e vehicle mancanti nell'XRK sono warning e non bloccano: la piattaforma puo'
+ricavarli dal connected device / evento. La decisione completa viene salvata in
+`metadata.production_import_policy` insieme a SHA-256 e dimensione del file sorgente.
+
+La DLL AiM viene installata conservando il pacchetto ufficiale e creando uno staging
+x64 con le dipendenze native. Il percorso runtime viene salvato in
+`native/vendor/dll-path.txt`.

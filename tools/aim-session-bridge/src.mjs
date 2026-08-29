@@ -3,8 +3,9 @@ import { existsSync, readFileSync, writeFileSync, statSync, readdirSync } from "
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAimSession } from "./lib/aim-parser.mjs";
+import { AIM_PRODUCTION_POLICY_ID, attachAimProductionImportPolicy } from "./lib/production-import-policy.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.3";
+const BRIDGE_VERSION = "p2.9.4.4";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function argValue(name) {
@@ -35,6 +36,11 @@ const scanIntervalMs = Math.max(2000, Number(config.scanIntervalSeconds || 5) * 
 const recursive = config.recursive !== false;
 const allowUnvalidatedTimingProvider = config.allowUnvalidatedTimingProvider === true;
 const timingProvider = String(config.timingProvider || "auto");
+const productionImportPolicy = String(config.productionImportPolicy || AIM_PRODUCTION_POLICY_ID);
+if (productionImportPolicy !== AIM_PRODUCTION_POLICY_ID) {
+  console.error(`Production Import Policy non supportata: ${productionImportPolicy}. Attesa: ${AIM_PRODUCTION_POLICY_ID}`);
+  process.exit(2);
+}
 const aimDllPath = String(config.aimDllPath || process.env.MM_AIM_DLL_PATH || "");
 const statePath = resolve(isAbsolute(config.stateFile || "") ? config.stateFile : join(__dirname, config.stateFile || ".mm-aim-bridge-state.json"));
 
@@ -83,6 +89,16 @@ async function upload(filePath, state) {
 
   console.log(`\n[${new Date().toISOString()}] AiM session: ${filePath}`);
   const parsed = parseAimSession(buffer, { fileName: filePath.split(/[\\/]/).pop(), fileStat, filePath, timingProvider, aimDllPath });
+  const audited = attachAimProductionImportPolicy({
+    ...parsed.payload,
+    metadata: {
+      ...(parsed.payload?.metadata || {}),
+      source_file_sha256: hash,
+      source_file_size_bytes: fileStat.size,
+    },
+  });
+  parsed.payload = audited.payload;
+  const productionPolicy = audited.decision;
   const lapNormalization = parsed.payload?.metadata?.lap_normalization || null;
   console.log(`  giri cronometrati=${parsed.payload.laps_count} track=${parsed.payload.track_seconds}s engine=${parsed.payload.engine_seconds ?? "n/d"}s`);
   if (lapNormalization) {
@@ -91,10 +107,23 @@ async function upload(filePath, state) {
     if (lapNormalization.in_lap) console.log(`  IN=${lapNormalization.in_lap.duration_seconds}s`);
   }
   console.log(`  maxSpeed=${parsed.payload.max_speed ?? "n/d"} km/h maxRPM=${parsed.payload.max_rpm ?? "n/d"}`);
+  console.log(`  production policy=${productionPolicy.id} status=${productionPolicy.status}`);
+  if (productionPolicy.warnings.length) console.log(`  warnings=${productionPolicy.warnings.join(",")}`);
+  if (productionPolicy.blocking_reasons.length) console.log(`  BLOCK=${productionPolicy.blocking_reasons.join(",")}`);
 
   if (dryRun) {
-    console.log(JSON.stringify({ external_batch_id: externalBatchId, payload: parsed.payload }, null, 2));
-    return { status: "dry_run" };
+    console.log(JSON.stringify({ external_batch_id: externalBatchId, production_import_policy: productionPolicy, payload: parsed.payload }, null, 2));
+    return { status: "dry_run", productionPolicy };
+  }
+
+  // P2.9.4.4: production import policy is the final fail-closed gate.
+  // Warnings are auditable but do not block (e.g. missing driver/vehicle in XRK);
+  // any failed structural/timing check keeps the file out of Official Ingest.
+  if (productionPolicy.automatic_official_ingest !== true) {
+    throw new Error(
+      `Production Import Policy bloccata (${productionPolicy.id}): ` +
+      `${productionPolicy.blocking_reasons.join(", ") || "unknown_reason"}. Usa --dry-run per la diagnosi.`
+    );
   }
 
   // P2.9.4.1: nessun Official Ingest automatico se la lap table non può
@@ -168,6 +197,7 @@ console.log(`Motorsport Management AiM Session Bridge ${BRIDGE_VERSION}`);
 console.log(`API: ${apiBaseUrl}`);
 console.log(`Modalità: ${dryRun ? "DRY RUN" : once || explicitFile ? "ONE SHOT" : "WATCH"}`);
 console.log(`Timing provider: ${timingProvider}`);
+console.log(`Production Import Policy: ${productionImportPolicy}`);
 
 await scan();
 if (!once && !explicitFile) {

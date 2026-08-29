@@ -2,7 +2,7 @@ import { parseXrk } from "aim-xrk";
 import { normalizeAimLaps, normalizedTimedLapPayload } from "./lap-normalization.mjs";
 import { officialAimDllAvailable, readAimOfficialDllSession } from "./aim-official-dll-provider.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.3";
+const BRIDGE_VERSION = "p2.9.4.4";
 const PARSER_ID = "aim-xrk";
 
 function key(value) {
