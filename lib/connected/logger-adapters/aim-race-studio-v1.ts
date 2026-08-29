@@ -77,6 +77,7 @@ function aimMetadata(input: JsonObject): JsonObject {
 
 function normalizeSpeedKph(input: JsonObject): number | null {
   const raw = lookup(input, [
+    "max_speed", "max speed", "maximum speed", "vmax", "v max",
     "speed_kph", "gps_speed_kph", "gps speed kph", "gps speed", "gpsspeed", "vehicle speed", "vehiclespeed",
     "rsrv4 bkspeed", "rsrv4bkspeed", "speed",
   ]);
@@ -159,7 +160,7 @@ function normalizeOfficialSession(input: JsonObject): JsonObject {
 
 export const aimRaceStudioV1Adapter: LoggerAdapter = {
   id: "aim_race_studio_v1",
-  version: "1.0.0",
+  version: "1.0.1",
   label: "AiM / Race Studio v1",
   description: "Traduce payload JSON con nomenclatura AiM/Race Studio nel formato canonico della piattaforma.",
   channels: ["live_state", "official_session"],
