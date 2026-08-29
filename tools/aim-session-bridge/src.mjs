@@ -4,7 +4,7 @@ import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAimSession } from "./lib/aim-parser.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.2";
+const BRIDGE_VERSION = "p2.9.4.3";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function argValue(name) {
@@ -34,6 +34,8 @@ const stableMs = Math.max(5000, Number(config.stableSeconds || 15) * 1000);
 const scanIntervalMs = Math.max(2000, Number(config.scanIntervalSeconds || 5) * 1000);
 const recursive = config.recursive !== false;
 const allowUnvalidatedTimingProvider = config.allowUnvalidatedTimingProvider === true;
+const timingProvider = String(config.timingProvider || "auto");
+const aimDllPath = String(config.aimDllPath || process.env.MM_AIM_DLL_PATH || "");
 const statePath = resolve(isAbsolute(config.stateFile || "") ? config.stateFile : join(__dirname, config.stateFile || ".mm-aim-bridge-state.json"));
 
 function loadState() {
@@ -80,7 +82,7 @@ async function upload(filePath, state) {
   if (previous.hash === hash && previous.status === "uploaded") return { status: "skip", reason: "same_hash" };
 
   console.log(`\n[${new Date().toISOString()}] AiM session: ${filePath}`);
-  const parsed = parseAimSession(buffer, { fileName: filePath.split(/[\\/]/).pop(), fileStat });
+  const parsed = parseAimSession(buffer, { fileName: filePath.split(/[\\/]/).pop(), fileStat, filePath, timingProvider, aimDllPath });
   const lapNormalization = parsed.payload?.metadata?.lap_normalization || null;
   console.log(`  giri cronometrati=${parsed.payload.laps_count} track=${parsed.payload.track_seconds}s engine=${parsed.payload.engine_seconds ?? "n/d"}s`);
   if (lapNormalization) {
@@ -165,6 +167,7 @@ async function scan() {
 console.log(`Motorsport Management AiM Session Bridge ${BRIDGE_VERSION}`);
 console.log(`API: ${apiBaseUrl}`);
 console.log(`Modalità: ${dryRun ? "DRY RUN" : once || explicitFile ? "ONE SHOT" : "WATCH"}`);
+console.log(`Timing provider: ${timingProvider}`);
 
 await scan();
 if (!once && !explicitFile) {

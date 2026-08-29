@@ -9,5 +9,7 @@
   "stateFile": ".mm-aim-bridge-state.json",
   "deviceKey": "",
   "deviceKeyEnv": "MM_DEVICE_KEY",
+  "timingProvider": "auto",
+  "aimDllPath": "",
   "allowUnvalidatedTimingProvider": false
 }

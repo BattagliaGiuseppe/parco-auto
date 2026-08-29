@@ -101,3 +101,21 @@ Il parser `aim-xrk` resta il provider portabile per analisi e `--dry-run`, ma l'
 Sul file reale Vallelunga usato per la validazione, i messaggi LAP XRK e Race Studio coincidono entro 0/±1 ms sui giri stabilizzati, mentre OUT, i primi giri e IN possono mostrare differenze maggiori. Il bridge non applica correzioni artificiali ai tempi.
 
 `allowUnvalidatedTimingProvider: true` esiste solo come override tecnico esplicito e non e' consigliato in produzione.
+
+## P2.9.4.3 — Provider DLL ufficiale AiM
+
+Su Windows il bridge può usare la DLL ufficiale AiM come sorgente autoritativa di timing.
+
+1. Esegui una volta:
+
+```powershell
+.\\native\\install-aim-official-dll.ps1
+```
+
+Lo script scarica l'example package direttamente dal dominio ufficiale AiM e copia la DLL x64 in `native/vendor/MatLabXRK.dll`. La DLL non viene inclusa nel repository.
+
+2. Lascia `"timingProvider": "auto"` (consigliato) oppure imposta `"aim_official_dll"`.
+
+In `auto`, su Windows con DLL presente viene usato `get_lap_info` della DLL AiM per i tempi ufficiali e i campioni DLL per RPM/velocità/engine time. Senza DLL il bridge ricade su `aim-xrk`, ma P2.9.4.2 continua a bloccare l'Official Ingest non validato.
+
+È possibile usare una DLL già presente impostando `MM_AIM_DLL_PATH` oppure `aimDllPath` in `config.json`.

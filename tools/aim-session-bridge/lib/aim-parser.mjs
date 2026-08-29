@@ -1,7 +1,8 @@
 import { parseXrk } from "aim-xrk";
 import { normalizeAimLaps, normalizedTimedLapPayload } from "./lap-normalization.mjs";
+import { officialAimDllAvailable, readAimOfficialDllSession } from "./aim-official-dll-provider.mjs";
 
-const BRIDGE_VERSION = "p2.9.4.2";
+const BRIDGE_VERSION = "p2.9.4.3";
 const PARSER_ID = "aim-xrk";
 
 function key(value) {
@@ -181,20 +182,34 @@ function resolveSessionTimes(log, fileStat) {
   };
 }
 
-export function parseAimSession(buffer, { fileName, fileStat }) {
+export function parseAimSession(buffer, { fileName, fileStat, filePath, timingProvider = "auto", aimDllPath = "" }) {
   const log = parseXrk(buffer);
   const speed = findChannel(log, ["GPS Speed", "GPS_Speed", "Speed", "Vehicle Speed", "RSV4 BkSpeed"], { kind: "speed" });
   const rpm = findChannel(log, ["RSV4 RPM", "RPM", "Engine RPM", "OBDII_RPM", "OBD RPM"], { kind: "rpm" });
-  const normalizedLaps = normalizeAimLaps(log.laps, {
+
+  const wantOfficial = timingProvider === "aim_official_dll" ||
+    (timingProvider === "auto" && filePath && officialAimDllAvailable(aimDllPath));
+  const official = wantOfficial
+    ? readAimOfficialDllSession(filePath, { dllPath: aimDllPath })
+    : null;
+  if (timingProvider === "aim_official_dll" && !official) {
+    throw new Error("Provider timing AiM DLL richiesto ma non disponibile.");
+  }
+
+  const lapSource = official?.laps || log.laps;
+  const normalizedLaps = normalizeAimLaps(lapSource, {
     distanceResolver: (lap) => lapDistanceMeters(speed, lap),
   });
   const laps = normalizedTimedLapPayload(normalizedLaps);
   const times = resolveSessionTimes(log, fileStat);
 
   const speedToKph = speed ? speedFactorToKph(speed.channel.units) : null;
-  const maxSpeedKph = speedToKph === null ? null : maxChannelValue(speed, speedToKph);
-  const maxRpm = maxChannelValue(rpm, 1);
-  const engineSeconds = integrateEngineSeconds(rpm);
+  const parsedMaxSpeedKph = speedToKph === null ? null : maxChannelValue(speed, speedToKph);
+  const parsedMaxRpm = maxChannelValue(rpm, 1);
+  const parsedEngineSeconds = integrateEngineSeconds(rpm);
+  const maxSpeedKph = finite(official?.max_speed_kph) ?? parsedMaxSpeedKph;
+  const maxRpm = finite(official?.max_rpm) ?? parsedMaxRpm;
+  const engineSeconds = finite(official?.engine_seconds) ?? parsedEngineSeconds;
   const trackSeconds = normalizedLaps.trackSeconds;
 
   const payload = {
@@ -206,7 +221,9 @@ export function parseAimSession(buffer, { fileName, fileStat }) {
     ...(engineSeconds !== null && engineSeconds > 0 ? { engine_seconds: Number(engineSeconds.toFixed(3)) } : {}),
     ...(maxSpeedKph !== null ? { max_speed: Number(maxSpeedKph.toFixed(3)) } : {}),
     ...(maxRpm !== null ? { max_rpm: Number(maxRpm.toFixed(0)) } : {}),
-    ...(getMetadata(log, ["Track", "Venue", "Circuit"]) ? { track_name: getMetadata(log, ["Track", "Venue", "Circuit"]) } : {}),
+    ...((official?.metadata?.track || getMetadata(log, ["Track", "Venue", "Circuit"])) ? {
+      track_name: official?.metadata?.track || getMetadata(log, ["Track", "Venue", "Circuit"]),
+    } : {}),
     metadata: {
       bridge_version: BRIDGE_VERSION,
       parser: PARSER_ID,
@@ -214,22 +231,23 @@ export function parseAimSession(buffer, { fileName, fileStat }) {
       source_file_name: fileName,
       timing_basis: times.basis,
       timing_validation: {
-        provider: "aim-xrk",
-        lap_table_source: "parsed_xrk_lap_table",
+        provider: official ? "aim_official_dll" : "aim-xrk",
+        lap_table_source: official ? "aim_official_dll_get_lap_info" : "parsed_xrk_lap_table",
         nominal_precision_ms: 1,
-        official_dll_validated: false,
-        official_ingest_ready: false,
-        policy: "dry_run_until_official_aim_dll_provider",
+        official_dll_validated: Boolean(official),
+        official_ingest_ready: Boolean(official),
+        policy: official ? "official_aim_dll_authoritative" : "dry_run_until_official_aim_dll_provider",
+        ...(official?.dll ? { dll: official.dll } : {}),
       },
       logger_model: getMetadata(log, ["Logger Model", "Logger", "Device Model"]),
       logger_serial: getMetadata(log, ["Logger Serial", "Serial", "Serial Number"]),
-      driver: getMetadata(log, ["Driver", "Racer"]),
-      vehicle: getMetadata(log, ["Vehicle"]),
-      venue: getMetadata(log, ["Venue", "Track"]),
+      driver: official?.metadata?.racer || getMetadata(log, ["Driver", "Racer"]),
+      vehicle: official?.metadata?.vehicle || getMetadata(log, ["Vehicle"]),
+      venue: official?.metadata?.track || getMetadata(log, ["Venue", "Track"]),
       selected_channels: {
-        speed: speed?.name || null,
-        speed_unit: speed?.channel?.units || null,
-        rpm: rpm?.name || null,
+        speed: official?.selected_channels?.speed || speed?.name || null,
+        speed_unit: official?.selected_channels?.speed_unit || speed?.channel?.units || null,
+        rpm: official?.selected_channels?.rpm || rpm?.name || null,
       },
       lap_normalization: {
         method: normalizedLaps.method,
