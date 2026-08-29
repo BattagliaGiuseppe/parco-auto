@@ -41,6 +41,7 @@ type EventRecord = {
   id: string;
   name: string | null;
   date: string | null;
+  end_date: string | null;
   notes: string | null;
   circuit_id: Circuit | null;
 };
@@ -112,6 +113,13 @@ function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
 function formatDate(value: string | null | undefined) {
   if (!value) return "Data non impostata";
   return new Date(value).toLocaleDateString("it-IT");
+}
+
+function formatEventDateRange(start: string | null | undefined, end: string | null | undefined) {
+  if (!start) return "Data non impostata";
+  const startLabel = formatDate(start);
+  if (!end || end === start) return startLabel;
+  return `${startLabel} → ${formatDate(end)}`;
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -271,7 +279,7 @@ export default function EventDetailPage() {
         await Promise.all([
           supabase
             .from("events")
-            .select("id,name,date,notes,circuit_id(id,name)")
+            .select("id,name,date,end_date,notes,circuit_id(id,name)")
             .eq("team_id", ctx.teamId)
             .eq("id", eventId)
             .single(),
@@ -691,7 +699,7 @@ export default function EventDetailPage() {
     [
       ["Evento", event.name || ""],
       ["Circuito", event.circuit_id?.name || ""],
-      ["Data", formatDate(event.date)],
+      ["Periodo", formatEventDateRange(event.date, event.end_date)],
       ["Mezzi collegati", eventCars.length],
       ["Sessioni", sessions.length],
       ["Turni registrati", report.totalTurns],
@@ -874,7 +882,7 @@ export default function EventDetailPage() {
         </head>
         <body>
           <h1>${escapeHtml(event?.name || "Report evento")}</h1>
-          <div class="muted">${escapeHtml(event?.circuit_id?.name || "Autodromo non definito")} • ${escapeHtml(formatDate(event?.date))}</div>
+          <div class="muted">${escapeHtml(event?.circuit_id?.name || "Autodromo non definito")} • ${escapeHtml(formatEventDateRange(event?.date, event?.end_date))}</div>
           <div class="grid">
             <div class="card"><div class="label">Mezzi</div><div class="value">${eventCars.length}</div></div>
             <div class="card"><div class="label">Turni</div><div class="value">${report.totalTurns}</div></div>
@@ -988,7 +996,7 @@ export default function EventDetailPage() {
     <div className={`flex flex-col gap-6 p-6`}>
       <PageHeader
         title={event.name || tr("Dettaglio evento")}
-        subtitle={`${event.circuit_id?.name || tr("Autodromo non definito")} • ${event.date ? new Date(event.date).toLocaleDateString("it-IT") : tr("Data non impostata")}`}
+        subtitle={`${event.circuit_id?.name || tr("Autodromo non definito")} • ${event.date ? formatEventDateRange(event.date, event.end_date) : tr("Data non impostata")}`}
         icon={<CalendarDays className="h-6 w-6" />}
         actions={
           <div className="flex flex-wrap gap-3">

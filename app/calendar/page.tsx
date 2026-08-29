@@ -79,6 +79,7 @@ export default function CalendarPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [form, setForm] = useState({
     date: "",
+    end_date: "",
     name: "",
     notes: "",
     circuit_id: "",
@@ -147,6 +148,11 @@ export default function CalendarPage() {
       date: normalizedEvent?.date
         ? String(normalizedEvent.date).slice(0, 10)
         : "",
+      end_date: normalizedEvent?.end_date
+        ? String(normalizedEvent.end_date).slice(0, 10)
+        : normalizedEvent?.date
+          ? String(normalizedEvent.date).slice(0, 10)
+          : "",
       name: normalizedEvent?.name || "",
       notes: normalizedEvent?.notes || "",
       circuit_id: normalizedEvent?.circuit_id?.id || "",
@@ -162,12 +168,18 @@ export default function CalendarPage() {
       return;
     }
 
+    if (form.date && form.end_date && form.end_date < form.date) {
+      setFeedback({ type: "error", message: "La data fine non può precedere la data inizio." });
+      return;
+    }
+
     setSaving(true);
 
     try {
       const ctx = await getCurrentTeamContext();
       const payload = {
         date: form.date || null,
+        end_date: form.date ? (form.end_date || form.date) : null,
         name: form.name.trim(),
         notes: form.notes.trim() || null,
         circuit_id: form.circuit_id || null,
@@ -402,7 +414,9 @@ export default function CalendarPage() {
                     </div>
                     <div className="mt-1 text-sm text-[var(--text-secondary)]">
                       {event.date
-                        ? new Date(event.date).toLocaleDateString("it-IT")
+                        ? event.end_date && event.end_date !== event.date
+                          ? `${new Date(event.date).toLocaleDateString("it-IT")} → ${new Date(event.end_date).toLocaleDateString("it-IT")}`
+                          : new Date(event.date).toLocaleDateString("it-IT")
                         : tr("Data non impostata")}{" "}
                       · {event.circuit_id?.name || tr("Autodromo non impostato")}
                     </div>
@@ -487,12 +501,29 @@ export default function CalendarPage() {
           }
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <UiField label="Data">
+            <UiField label="Data inizio">
               <input
                 type="date"
                 className={uiInputClassName}
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(e) => {
+                  const nextDate = e.target.value;
+                  setForm((current) => ({
+                    ...current,
+                    date: nextDate,
+                    end_date: !current.end_date || current.end_date === current.date ? nextDate : current.end_date,
+                  }));
+                }}
+              />
+            </UiField>
+
+            <UiField label="Data fine" hint={tr("Per un evento di un solo giorno lascia la stessa data di inizio.")}>
+              <input
+                type="date"
+                className={uiInputClassName}
+                value={form.end_date}
+                min={form.date || undefined}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
               />
             </UiField>
 
